@@ -38,7 +38,7 @@
     "test:contracts": "yarn test",
     "test:transition-baseline": "vitest run --config vitest.transition.config.ts",
     "build": "yarn db:generate && yarn workspace @tb/contracts run build && yarn workspace @tb/api run build && yarn workspace @tb/web run build",
-    "typecheck": "yarn db:generate && yarn workspace @tb/contracts run build && yarn workspace @tb/contracts run typecheck && yarn workspace @tb/api run typecheck && yarn workspace @tb/web run typecheck && tsc -p tests/tsconfig.json --noEmit && tsc -p scripts/tsconfig.json --noEmit",
+    "typecheck": "yarn db:generate && yarn workspace @tb/contracts run build && yarn workspace @tb/contracts run typecheck && yarn workspace @tb/api run typecheck && yarn workspace @tb/web run typecheck && tsc -p tests/tsconfig.json --noEmit && tsc -p scripts/tsconfig.json --noEmit && tsc -p tests/web/tsconfig.json --noEmit",
     "format:check": "prettier --check .",
     "lint": "oxlint",
     "dev": "node scripts/local/dev.ts",

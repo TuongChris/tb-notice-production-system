@@ -1,6 +1,9 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { BrowserRouter } from 'react-router';
+import { createApiClient } from './app/api/client.js';
 import { App } from './app/App.js';
+import './app/app.css';
 
 const container = document.getElementById('root');
 if (!container) {
@@ -9,6 +12,8 @@ if (!container) {
 
 createRoot(container).render(
   <StrictMode>
-    <App />
+    <BrowserRouter>
+      <App api={createApiClient()} />
+    </BrowserRouter>
   </StrictMode>,
 );
