@@ -19,6 +19,7 @@ import {
   isCharacterColumnType,
   parseSchema,
   summarize,
+  unescapeMysqlCheckClause,
 } from './lib/ddl.mjs';
 import { driverConfig, loadRootEnv, repoRoot, resolveTarget } from './lib/targets.mjs';
 
@@ -354,7 +355,7 @@ async function main() {
           continue;
         }
         const expectedCanonical = canonicalCheck(check.expression);
-        const actualCanonical = canonicalCheck(actual.clause);
+        const actualCanonical = canonicalCheck(unescapeMysqlCheckClause(actual.clause));
         const record = {
           table: tableName,
           name: check.name,

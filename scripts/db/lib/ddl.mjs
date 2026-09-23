@@ -464,3 +464,15 @@ export function expectedMysqlColumnDefault(parsedDefault) {
 export function isCharacterColumnType(columnType) {
   return /^(char|varchar|tinytext|text|mediumtext|longtext|enum|set)\b/.test(columnType);
 }
+
+/**
+ * information_schema.CHECK_CONSTRAINTS.CHECK_CLAUSE stores string literals with backslash-escaped
+ * quotes (for example `_utf8mb4\'HUMAN_PENDING\'`). Undo exactly that escaping (\' → ', \\ → \)
+ * before canonicalCheck(); any other backslash sequence fails closed.
+ */
+export function unescapeMysqlCheckClause(clause) {
+  return clause.replace(/\\(.)/g, (match, ch) => {
+    if (ch === "'" || ch === '\\') return ch;
+    throw new Error(`Unsupported escape ${match} in stored CHECK clause: ${clause}`);
+  });
+}
