@@ -4,8 +4,8 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import type { PrismaClient } from '../../apps/api/generated/prisma/client.js';
+import { AdminRefusal } from '../../apps/api/src/cli/admin-common.js';
 import {
-  AdminCreateRefusal,
   createLocalAdmin,
   DUPLICATE_EMAIL_MESSAGE,
 } from '../../apps/api/src/cli/admin-create-core.js';
@@ -190,7 +190,7 @@ describe('createLocalAdmin', () => {
     ];
     for (const [label, input, message] of invalid) {
       const attempt = createLocalAdmin(prisma, input, deps(hasher));
-      await expect(attempt, label).rejects.toBeInstanceOf(AdminCreateRefusal);
+      await expect(attempt, label).rejects.toBeInstanceOf(AdminRefusal);
       await expect(createLocalAdmin(prisma, input, deps(hasher)), label).rejects.toThrow(message);
     }
     expect(hasher.hashCalls).toBe(0);

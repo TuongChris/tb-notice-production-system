@@ -2,15 +2,11 @@
 // there is no public signup or user-creation API). Separated from terminal handling so tests can
 // run it against the disposable tb_notice_test schema.
 import { randomUUID } from 'node:crypto';
-import type { PrismaClient } from '../../generated/prisma/client.js';
 import { appendAuditEvent } from '../infrastructure/audit/audit-log.js';
 import type { Clock } from '../infrastructure/time/clock.js';
-import {
-  newPasswordProblems,
-  validateAccountEmail,
-  validateDisplayName,
-} from '../modules/auth/credentials.js';
+import { newPasswordProblems, validateDisplayName } from '../modules/auth/credentials.js';
 import type { PasswordHasher } from '../modules/auth/password-hasher.js';
+import { acceptEmail, AdminRefusal, type AdminStore } from './admin-common.js';
 
 export interface AdminCreateInput {
   readonly email: string;
@@ -31,35 +27,20 @@ export interface AdminCreateDeps {
   readonly requestId: string;
 }
 
-/** A refusal whose message is safe to print (never contains the password or its hash). */
-export class AdminCreateRefusal extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'AdminCreateRefusal';
-  }
-}
-
-type UserStore = Pick<PrismaClient, 'user' | '$transaction'>;
+type UserStore = Pick<AdminStore, 'user' | '$transaction'>;
 
 export const DUPLICATE_EMAIL_MESSAGE =
   'a user with this email already exists; admin:create never modifies, re-enables or overwrites an existing user';
 
-/** Validates and normalizes the email, refusing early (before any password prompt). */
-export function acceptEmail(input: string): string {
-  const result = validateAccountEmail(input);
-  if ('problem' in result) throw new AdminCreateRefusal(result.problem);
-  return result.email;
-}
-
 export function acceptDisplayName(input: string): string {
   const result = validateDisplayName(input);
-  if ('problem' in result) throw new AdminCreateRefusal(result.problem);
+  if ('problem' in result) throw new AdminRefusal(result.problem);
   return result.displayName;
 }
 
 export async function assertEmailAvailable(store: UserStore, email: string): Promise<void> {
   const existing = await store.user.findUnique({ where: { email }, select: { id: true } });
-  if (existing) throw new AdminCreateRefusal(DUPLICATE_EMAIL_MESSAGE);
+  if (existing) throw new AdminRefusal(DUPLICATE_EMAIL_MESSAGE);
 }
 
 /**
@@ -76,7 +57,7 @@ export async function createLocalAdmin(
   const email = acceptEmail(input.email);
   const displayName = acceptDisplayName(input.displayName);
   const problems = newPasswordProblems(input.password, email);
-  if (problems.length > 0) throw new AdminCreateRefusal(problems.join('; '));
+  if (problems.length > 0) throw new AdminRefusal(problems.join('; '));
   await assertEmailAvailable(store, email);
 
   const passwordHash = await deps.hasher.hash(input.password);
@@ -111,7 +92,7 @@ export async function createLocalAdmin(
     });
   } catch (error) {
     if ((error as { code?: unknown }).code === 'P2002') {
-      throw new AdminCreateRefusal(DUPLICATE_EMAIL_MESSAGE);
+      throw new AdminRefusal(DUPLICATE_EMAIL_MESSAGE);
     }
     throw error;
   }

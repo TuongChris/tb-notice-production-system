@@ -1,9 +1,15 @@
-// admin:create CLI pieces that need no database: argument parsing, hidden TTY input and
-// --password-stdin reading. (Database behaviour: tests/db/admin-create.test.ts.)
+// Admin CLI pieces that need no database: argument parsing for every command, hidden TTY input and
+// --password-stdin reading. (Runner: admin-cli-runner.test.ts; database behaviour:
+// tests/db/admin-create.test.ts and tests/db/admin-recovery.test.ts.)
 import { EventEmitter } from 'node:events';
 import { Readable } from 'node:stream';
 import { describe, expect, it } from 'vitest';
-import { parseAdminCreateArgs } from '../../apps/api/src/cli/admin-create-args.js';
+import {
+  ADMIN_COMMANDS,
+  adminUsage,
+  isAdminCommand,
+  parseAdminArgs,
+} from '../../apps/api/src/cli/admin-args.js';
 import {
   PromptCancelled,
   readHiddenLine,
@@ -39,41 +45,100 @@ class Capture {
   }
 }
 
-describe('parseAdminCreateArgs', () => {
-  it('parses flags in both forms', () => {
-    expect(parseAdminCreateArgs([])).toEqual({ passwordStdin: false, help: false });
+describe('parseAdminArgs', () => {
+  it('parses each command with its own flags, in both forms', () => {
+    expect(parseAdminArgs(['create'])).toEqual({
+      command: 'create',
+      passwordStdin: false,
+      help: false,
+    });
     expect(
-      parseAdminCreateArgs([
+      parseAdminArgs([
+        'create',
         '--email',
         'a@b.co',
         '--display-name=Synthetic Operator',
         '--password-stdin',
       ]),
     ).toEqual({
+      command: 'create',
       email: 'a@b.co',
       displayName: 'Synthetic Operator',
       passwordStdin: true,
       help: false,
     });
-    expect(parseAdminCreateArgs(['--help']).help).toBe(true);
+    expect(
+      parseAdminArgs(['password', '--email=a@b.co', '--password-stdin', '--reason', 'lost']),
+    ).toEqual({
+      command: 'password',
+      email: 'a@b.co',
+      reason: 'lost',
+      passwordStdin: true,
+      help: false,
+    });
+    for (const command of ['disable', 'enable', 'revoke-sessions'] as const) {
+      expect(parseAdminArgs([command, '--email', 'a@b.co'])).toEqual({
+        command,
+        email: 'a@b.co',
+        passwordStdin: false,
+        help: false,
+      });
+    }
+    expect(parseAdminArgs(['disable', '--help']).help).toBe(true);
+  });
+
+  it('rejects flags that do not belong to the command', () => {
+    expect(() => parseAdminArgs(['disable', '--password-stdin'])).toThrow(/unknown option/);
+    expect(() => parseAdminArgs(['revoke-sessions', '--display-name', 'x'])).toThrow(
+      /unknown option/,
+    );
+    expect(() => parseAdminArgs(['create', '--reason', 'x'])).toThrow(/unknown option/);
+  });
+
+  it('requires a known command without echoing unknown input', () => {
+    for (const argv of [[], ['delete'], ['synthetic-secret-value']]) {
+      let message = '';
+      try {
+        parseAdminArgs(argv);
+      } catch (error) {
+        message = (error as Error).message;
+      }
+      expect(message).toMatch(/missing or unknown admin command/);
+      expect(message).not.toContain('synthetic-secret-value');
+      expect(message).not.toContain('delete');
+    }
+    expect(ADMIN_COMMANDS).toEqual(['create', 'password', 'disable', 'enable', 'revoke-sessions']);
+    expect(isAdminCommand('revoke-sessions')).toBe(true);
+    expect(isAdminCommand('signup')).toBe(false);
   });
 
   it('never accepts a password argument and never echoes unexpected values', () => {
-    expect(() => parseAdminCreateArgs(['--password', 'synthetic-secret-value'])).toThrow(
-      /never accepted on the command line/,
-    );
-    expect(() => parseAdminCreateArgs(['--password=synthetic-secret-value'])).toThrow(
-      /never accepted on the command line/,
-    );
+    for (const command of ['create', 'password'] as const) {
+      expect(() => parseAdminArgs([command, '--password', 'synthetic-secret-value'])).toThrow(
+        /never accepted on the command line/,
+      );
+      expect(() => parseAdminArgs([command, '--password=synthetic-secret-value'])).toThrow(
+        /never accepted on the command line/,
+      );
+    }
     let message = '';
     try {
-      parseAdminCreateArgs(['synthetic-secret-value']);
+      parseAdminArgs(['password', '--email', 'a@b.co', 'synthetic-secret-value']);
     } catch (error) {
       message = (error as Error).message;
     }
     expect(message).toBe('unexpected positional argument (not echoed)');
-    expect(() => parseAdminCreateArgs(['--email'])).toThrow(/requires a value/);
-    expect(() => parseAdminCreateArgs(['--unknown'])).toThrow(/unknown option/);
+    expect(() => parseAdminArgs(['disable', '--email'])).toThrow(/requires a value/);
+    expect(() => parseAdminArgs(['create', '--password-stdin=yes'])).toThrow(/takes no value/);
+  });
+
+  it('documents every command and states the application-login boundary', () => {
+    for (const command of ADMIN_COMMANDS) {
+      const usage = adminUsage(command);
+      expect(usage).toContain(`yarn admin:${command}`);
+      expect(usage).toMatch(/not a\s+Signer/);
+      expect(usage).toMatch(/never accepted as an argument or environment variable/);
+    }
   });
 });
 

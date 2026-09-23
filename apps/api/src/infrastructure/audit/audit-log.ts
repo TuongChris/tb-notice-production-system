@@ -7,6 +7,8 @@ export interface AuditEntry {
   readonly action: string;
   readonly entityType: string;
   readonly entityId: string | null;
+  /** Minimal redacted before-state; never credentials, tokens or their digests. */
+  readonly before?: Prisma.InputJsonObject;
   /** Minimal redacted after-state; never credentials, tokens or their digests. */
   readonly after?: Prisma.InputJsonObject;
   readonly reason?: string;
@@ -24,7 +26,7 @@ export async function appendAuditEvent(
   tx: Prisma.TransactionClient,
   entry: AuditEntry,
 ): Promise<void> {
-  for (const key of Object.keys(entry.after ?? {})) {
+  for (const key of [...Object.keys(entry.before ?? {}), ...Object.keys(entry.after ?? {})]) {
     if (FORBIDDEN_KEY.test(key)) throw new Error(`audit payload key "${key}" is not permitted`);
   }
   await tx.auditEvent.create({
@@ -34,6 +36,7 @@ export async function appendAuditEvent(
       action: entry.action,
       entityType: entry.entityType,
       entityId: entry.entityId,
+      ...(entry.before === undefined ? {} : { beforeRedacted: entry.before }),
       ...(entry.after === undefined ? {} : { afterRedacted: entry.after }),
       ...(entry.reason === undefined ? {} : { reason: entry.reason }),
     },
