@@ -1,0 +1,76 @@
+# CLAUDE.md — TB Notice Production System
+
+Read this first in every session. It summarizes binding decisions; the documents it points to are authoritative.
+
+## Product boundary
+
+- Internal, local-first tool that prepares a case-specific **unsigned** YouTube copyright notice or NMI reply from structured facts and attributable sources.
+- Terminal output is an unsigned `NoticeCandidate` with the single pending slot `[PENDING AUTHORIZED SIGNER — FULL LEGAL NAME REQUIRED]`. `READY_FOR_SIGNER` is **derived**, never a column, never a PATCH/UI action.
+- A human signer reviews, adopts, signs and sends **outside** the app. There is no G7, signing, sending, email/SMTP, Drive writing, uploader contact or AI-provider API — do not add them.
+- Technical validation (`ValidationRun`) is not substantive review; G1–G6 are separate sourced `CandidateAssessment`s.
+- Google Drive holds canonical evidence; the app DB holds working data, references and snapshots. Git is not an evidence archive: never commit real case/owner/authority data, LOAs, raw mail, tokens or secrets. Fixtures are synthetic only.
+
+## Read order and sources of truth
+
+1. `docs/architecture/ARCHITECTURE_RESOLUTIONS_v1.md` (precedence rules), then `docs/product/PRODUCT_DEFINITION_v1.md`, `docs/domain/DOMAIN_MODEL_v1.md`, `docs/contracts/PRODUCTION_FORM_CONTRACT_v1.md`, `docs/architecture/TECHNOLOGY_ARCHITECTURE_v1.md`, `REPOSITORY_BLUEPRINT_v1.md`, `P0_BOOTSTRAP_CONTRACT_v1.md`.
+2. Decisions: `docs/decisions/ADR-0001-mysql-manual-migration-semantics.md`, `ADR-0002-zod-first-contract-authoring.md` (both ACCEPTED).
+3. Frozen DB/API baseline `TB-SCHEMA-API-v1.0.0`: `docs/reference/database-api-v1/…/docs/INVARIANTS.md`, `API_CONTRACT_v1.md`.
+4. State: `docs/CURRENT_STATE.md`; evidence: `docs/verification/p0/`.
+
+**Frozen trees — never edit, move, format, lint-fix or generate into:** `docs/reference/**`. Verify with `yarn reference:check`. Never run `docs/reference/…/tests/verify_contracts.py` (it writes files).
+
+## Architecture (modular monolith)
+
+- `apps/web` (`@tb/web`): React 19 + Vite 8, `127.0.0.1:5173`, proxies `/api`.
+- `apps/api` (`@tb/api`): NestJS 12 + Express, REST `/api/v1`, `127.0.0.1:3000`. P0 exposes only `GET /api/v1/health`.
+- `packages/contracts` (`@tb/contracts`): Zod wire schemas + operation metadata; depends on no app, Nest, React or Prisma.
+- One MySQL 8.4 container. Yarn Workspaces only. No Nx/Turborepo/Lerna, queues, Redis, GraphQL/tRPC, microservices, generic BaseCrud layers.
+
+## Toolchain (exact; change only by explicit decision)
+
+Node **24.21.0** (`.nvmrc` = 24) · Yarn **4.18.0** via Corepack, `nodeLinker: node-modules`, default 24 h npm age gate (never weaken) · TypeScript 7.0.2 · NestJS 12.0.4 · React 19.3.0 · Vite 8.3.0 · Prisma 7.10.0 + `@prisma/adapter-mariadb` 7.10.0 (driver only; the server is MySQL) · Zod 4.6.5 · ajv 8.20.0 · ajv-formats 3.0.1 (**runtime dependency of @tb/contracts; any version change is contract-sensitive and needs the full parity suite**) · yaml 2.9.1 · Vitest 5.0.1 · Prettier 3.9.8 · oxlint 1.85.0 · MySQL image `mysql:8.4.11@sha256:0744ee5ef89ce6ccfa13de3e579fe6b9e27f93dd70da9c06d2c908b1b193fb8d`.
+npm `prisma@latest` currently points at an 8.x release candidate — always pin explicitly. Scripts `*.ts` run with Node's type stripping: erasable TypeScript only (no `enum`, namespaces, parameter properties).
+
+## Database safety
+
+- MySQL publishes on **127.0.0.1:3307 only**. Schemas: `tb_notice_dev` (app + seed), `tb_notice_shadow` (Prisma shadow), `tb_notice_test` (structural tests), `tb_notice_replay` (migration replay). Accounts: `tb_dev` (runtime DML on dev only), `tb_migrate` (tooling, those four schemas only). `root` is init-only; the app never uses it.
+- Every DB helper goes through `scripts/db/allowlist.mjs` / `scripts/db/lib/targets.mjs`; they fail closed on any other host, port, schema or account. Secrets live only in the git-ignored root `.env` (`yarn env:init`).
+- Applied history: one migration `20260923103912_initial_schema` (sha256 `b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515`). CHECK constraints and `utf8mb4_0900_bin` live in migration SQL (ADR-0001). Prisma drift output cannot see them; `yarn db:verify <test|replay|dev>` (information_schema) is authoritative.
+- **Never**: `prisma db push`, `prisma migrate reset`, `FOREIGN_KEY_CHECKS=0`, editing an applied migration, dropping CHECK/FK/collation, applying `initial-schema.preview.sql`.
+- Only the active feature writer creates migrations: `yarn db:migrate:create <name>` (create-only, reviewed and augmented before first apply). Every other PC runs `yarn db:migrate:deploy <target>` on the committed migration.
+
+## Contract rules (ADR-0002)
+
+- Editable source: `packages/contracts/src/**`. Build wire schemas with `tb.*` builders only; HTTP metadata lives in `src/api/operations.ts` and `src/api/openapi-document.ts`. The lowering rejects anything else.
+- Generated, never hand-edited: `packages/contracts/schemas/api-schemas.json`, `packages/contracts/openapi/openapi.{json,yaml}` → `yarn contracts:generate`; drift → `yarn contracts:check` fails.
+- Wire behaviour is pinned to `TB-SCHEMA-API-v1.0.0` by the parity tests in `yarn test`. An intentional wire change needs an approved new baseline/ADR, not a test tweak. PFC wire id stays **`PFC-YT-EMAIL-v1.1`**.
+- `scripts/migrations/port-frozen-contract-v1.ts` is provenance only — do not re-run it over the source.
+
+## Commands
+
+| Command                                                                                    | Purpose                                                            |
+| ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------ |
+| `yarn install --immutable`                                                                 | Install from the committed lockfile                                |
+| `yarn env:init` / `yarn db:up`                                                             | Create local `.env` (random secrets) / start MySQL                 |
+| `yarn db:migrate:deploy <test\|replay\|dev>` · `yarn db:status <t>` · `yarn db:verify <t>` | Apply committed migrations · status · metadata verification        |
+| `yarn db:seed`                                                                             | Idempotent synthetic seed (dev only; disabled synthetic actor)     |
+| `yarn reference:check` · `yarn reference:helper-tests`                                     | Frozen reference integrity · original 27 frozen Node helper tests  |
+| `yarn contracts:generate` · `yarn contracts:check`                                         | Regenerate / verify generated contract artifacts                   |
+| `yarn typecheck` · `yarn lint` · `yarn format:check`                                       | Static checks (format:check never rewrites)                        |
+| `yarn test`                                                                                | All non-database tests (contract parity, tooling)                  |
+| `yarn test:db`                                                                             | Database structural tests on `tb_notice_test`                      |
+| `yarn build` · `yarn smoke:local`                                                          | Build everything · build + run API/web and verify health and shell |
+| `yarn dev` · `yarn dev:verify-shutdown`                                                    | Dev servers (Ctrl+C stops both) · verify clean shutdown            |
+
+Before any commit: `yarn reference:check && yarn contracts:check && yarn typecheck && yarn lint && yarn format:check && yarn test` (plus `yarn test:db` when DB code changes). Report actual results; a skipped command is never PASS.
+
+## Git workflow
+
+- P0 branch: `bootstrap/p0-local`. One active writer per branch; small, scoped commits; review `git diff --cached` before committing; never `git add .` blindly.
+- No merge to `main`, force-push, history rewrite, tags or releases without explicit operator approval.
+
+## Phase boundaries and stop conditions
+
+- P0-A…P0-D done; P0-E (CI + handoff) awaiting review at gate R3; second-PC reproduction pending. P1 (local admin, sessions, CSRF) and all later features are **not started** and need explicit approval.
+- Stop and ask on: missing credentials/permissions, a package incompatibility needing an architecture change, any domain-semantic conflict, an unsafe or unrecognized database target, or any destructive plan.
+- Forbidden substitutions: MariaDB/SQLite/Postgres servers; `db push`; Zod built-in format validators or `z.toJSONSchema` for wire contracts; hand-edited generated contracts; Python in app/CI; Yarn Classic/PnP, npm or pnpm installs; binding services to `0.0.0.0`; writable readiness/signature fields.

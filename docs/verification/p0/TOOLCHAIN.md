@@ -97,4 +97,4 @@ Conclusion: Node 24 + TypeScript 7.0.2 + NestJS 12 ESM/NodeNext does not require
 
 - MySQL image tag/digest/architecture: `DOCKER_MYSQL.md` (`mysql:8.4.11@sha256:0744ee5e…fb8d`).
 - Prisma CLI/engine evidence: `PRISMA.md`.
-- CI Node patch pin: `24.21.0` (the tested patch) when CI is configured in P0-E — not configured yet.
+- CI Node patch pin: `24.21.0` (the tested patch) — configured in P0-E (`.github/workflows/ci.yml`, run 35863416044 success).

@@ -1,0 +1,161 @@
+GitHub Actions run 35863416044 — https://github.com/TuongChris/tb-notice-production-system/actions/runs/35863416044
+event push, branch bootstrap/p0-local, head 0dfc7a5497fff67df936d3309fe618831e745c61, 2026-09-23T12:53:50Z → 12:56:11Z, conclusion SUCCESS (first attempt)
+
+=== job 107188923142 — Non-DB checks (cold install) — success
+  step 1 success Set up job (12:53:55-12:53:56)
+  step 2 success Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 (12:53:56-12:53:57)
+  step 3 success Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 (12:53:57-12:53:57)
+  step 4 success Toolchain (12:53:57-12:53:58)
+  step 5 success Cold-install evidence (Yarn cache before install) (12:53:58-12:53:58)
+  step 6 success yarn install --immutable (12:53:58-12:54:13)
+  step 7 success Run yarn reference:check (12:54:13-12:54:13)
+  step 8 success Run yarn reference:helper-tests (12:54:13-12:54:14)
+  step 9 success Run yarn contracts:check (12:54:14-12:54:17)
+  step 10 success Run yarn typecheck (12:54:17-12:54:28)
+  step 11 success Run yarn lint (12:54:28-12:54:28)
+  step 12 success Run yarn format:check (12:54:28-12:54:30)
+  step 13 success Run yarn test (12:54:30-12:55:16)
+  step 14 success Run yarn build (12:55:16-12:55:22)
+  step 15 success Frozen references and working tree unchanged by the run (12:55:22-12:55:22)
+  step 29 success Post Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 (12:55:22-12:55:22)
+  step 30 success Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 (12:55:22-12:55:22)
+  step 31 success Complete job (12:55:22-12:55:22)
+=== job 107188923525 — Database, seed and smoke (MySQL 8.4.11) — success
+  step 1 success Set up job (12:53:55-12:53:56)
+  step 2 success Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 (12:53:56-12:53:57)
+  step 3 success Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 (12:53:57-12:54:04)
+  step 4 success Toolchain (12:54:04-12:54:08)
+  step 5 success yarn install --immutable (12:54:08-12:54:21)
+  step 6 success Synthetic CI secrets (generated at runtime, masked, never printed) (12:54:21-12:54:22)
+  step 7 success Local MySQL 8.4.11 (committed compose.yaml, pinned digest, loopback 3307) (12:54:22-12:54:52)
+  step 8 success Migrate tb_notice_test (committed migration) and verify metadata (12:54:52-12:55:02)
+  step 9 success Database structural tests (tb_notice_test) (12:55:02-12:55:03)
+  step 10 success Replay into tb_notice_replay; second deploy must be a no-op (12:55:03-12:55:12)
+  step 11 success Migrate tb_notice_dev and verify metadata (12:55:12-12:55:20)
+  step 12 success Synthetic seed twice (idempotent, canonical digest equals first PC) (12:55:20-12:55:21)
+  step 13 success Prisma drift compatibility (read-only diffs) (12:55:21-12:55:29)
+  step 14 success yarn smoke:local (12:55:29-12:55:42)
+  step 15 success yarn dev clean shutdown (terminal Ctrl+C, top-only SIGINT/SIGTERM) (12:55:42-12:56:07)
+  step 16 success Frozen references and working tree unchanged by the run (12:56:07-12:56:08)
+  step 17 skipped MySQL container log (diagnostics) (12:56:08-12:56:08)
+  step 33 success Post Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 (12:56:08-12:56:08)
+  step 34 success Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 (12:56:08-12:56:08)
+  step 35 success Complete job (12:56:08-12:56:08)
+
+=== selected log lines (ANSI and timestamps stripped; GitHub token lines excluded)
+--- ci1-checks.log
+Version: 20260828.587
+Image: ubuntu-24.04
+Version: 20260920.314.1
+node v24.21.0, yarn 4.18.0, git version 2.55.0
+if [ -d "$CACHE" ]; then echo "cache folder $CACHE: $(find "$CACHE" -type f | wc -l) files"; else echo "cache folder $CACHE: absent (cold)"; fi
+cache folder /home/runner/.yarn/berry/cache: absent (cold)
+➤ YN0013: │ 308 packages were added to the project (+ 391.4 MiB).
+➤ YN0000: · Done with warnings in 13s 982ms
+[reference:check] database-api-v1: 31 manifest entries, MANIFEST.sha256 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c
+[reference:check] architecture-v1: 18 manifest entries, MANIFEST.sha256 62b4d1136db81d31cf91dbd38a59c4ba57af265b228b479c909e0dbce693c3de
+[reference:check] pinned identity (REFERENCE_BASELINE.json): 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c matches
+[reference:check] OK — frozen references intact.
+[reference:helper-tests] frozen helper tests: pass 27, fail 0; exit 0
+[reference:helper-tests] references after run: intact
+[contracts:check] OK — 3 generated outputs match the active source.
+ Test Files  7 passed (7)
+      Tests  858 passed (858)
+✓ built in 84ms
+[reference:check] database-api-v1: 31 manifest entries, MANIFEST.sha256 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c
+[reference:check] architecture-v1: 18 manifest entries, MANIFEST.sha256 62b4d1136db81d31cf91dbd38a59c4ba57af265b228b479c909e0dbce693c3de
+[reference:check] pinned identity (REFERENCE_BASELINE.json): 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c matches
+[reference:check] OK — frozen references intact.
+--- ci1-database.log
+Version: 20260828.587
+Image: ubuntu-24.04
+Version: 20260907.300.1
+node v24.21.0, yarn 4.18.0, Docker version 28.0.4, build b8034c0, Docker Compose version v2.38.2
+➤ YN0013: │ 308 packages were added to the project (+ 391.4 MiB).
+➤ YN0000: · Done with warnings in 12s 602ms
+Created /home/runner/work/tb-notice-production-system/tb-notice-production-system/.env (mode 600). Secret values were not printed.
+tb-notice-mysql-1   mysql:8.4.11@sha256:0744ee5ef89ce6ccfa13de3e579fe6b9e27f93dd70da9c06d2c908b1b193fb8d   "docker-entrypoint.s…"   mysql     11 seconds ago   Up 11 seconds (healthy)   33060/tcp, 127.0.0.1:3307->3306/tcp
+[guard] deploy target: tb_migrate@127.0.0.1:3307/tb_notice_test
+Applying migration `20260923103912_initial_schema`
+All migrations have been successfully applied.
+[guard] status target: tb_migrate@127.0.0.1:3307/tb_notice_test
+Database schema is up to date!
+[verify] target tb_migrate@127.0.0.1:3307/tb_notice_test — MySQL 8.4.11 (MySQL Community Server - GPL)
+[verify] reviewed migration sha256 b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+[verify] tables 33/33 (InnoDB 33, utf8mb4_0900_bin 33); columns 541/541 (character columns with binary collation 391)
+[verify] primary keys 33/33; unique keys 50/50; indexes 34/34; implicit FK indexes 97
+[verify] foreign keys 125/125 RESTRICT/RESTRICT (composite 27); CHECK constraints 30/30 semantically matching and ENFORCED=YES
+[verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+[verify] domain rows total: 0
+[verify] PASS: metadata matches the reviewed inventory.
+[guard] test:db target: tb_migrate@127.0.0.1:3307/tb_notice_test
+ Test Files  1 passed (1)
+      Tests  22 passed (22)
+grep -q "No pending migrations to apply" replay-second-deploy.log
+[guard] deploy target: tb_migrate@127.0.0.1:3307/tb_notice_replay
+Applying migration `20260923103912_initial_schema`
+All migrations have been successfully applied.
+[guard] deploy target: tb_migrate@127.0.0.1:3307/tb_notice_replay
+No pending migrations to apply.
+[verify] target tb_migrate@127.0.0.1:3307/tb_notice_replay — MySQL 8.4.11 (MySQL Community Server - GPL)
+[verify] reviewed migration sha256 b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+[verify] tables 33/33 (InnoDB 33, utf8mb4_0900_bin 33); columns 541/541 (character columns with binary collation 391)
+[verify] primary keys 33/33; unique keys 50/50; indexes 34/34; implicit FK indexes 97
+[verify] foreign keys 125/125 RESTRICT/RESTRICT (composite 27); CHECK constraints 30/30 semantically matching and ENFORCED=YES
+[verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+[verify] domain rows total: 0
+[verify] PASS: metadata matches the reviewed inventory.
+[guard] deploy target: tb_migrate@127.0.0.1:3307/tb_notice_dev
+Applying migration `20260923103912_initial_schema`
+All migrations have been successfully applied.
+[verify] target tb_migrate@127.0.0.1:3307/tb_notice_dev — MySQL 8.4.11 (MySQL Community Server - GPL)
+[verify] reviewed migration sha256 b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+[verify] tables 33/33 (InnoDB 33, utf8mb4_0900_bin 33); columns 541/541 (character columns with binary collation 391)
+[verify] primary keys 33/33; unique keys 50/50; indexes 34/34; implicit FK indexes 97
+[verify] foreign keys 125/125 RESTRICT/RESTRICT (composite 27); CHECK constraints 30/30 semantically matching and ENFORCED=YES
+[verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+[verify] domain rows total: 0
+[verify] PASS: metadata matches the reviewed inventory.
+[db:seed] target tb_migrate@127.0.0.1:3307/tb_notice_dev
+[db:seed] synthetic actor 00000000-0000-4000-8000-00000000a0c7: inserted
+[db:seed] rows=1 enabled=0 password_hash=!P0-SYNTHETIC-DISABLED-ACTOR-NO-CREDENTIAL
+[db:seed] canonical digest 0ee26dc3ee5f3a1030fb78a6cadaf4dabef1f5a296b58163248584e1e0bfb775 (identical on every PC)
+[db:seed] created_at 2026-09-23 12:55:20.634 (local insert time; unchanged by re-runs)
+[db:seed] target tb_migrate@127.0.0.1:3307/tb_notice_dev
+[db:seed] synthetic actor 00000000-0000-4000-8000-00000000a0c7: unchanged (already canonical)
+[db:seed] rows=1 enabled=0 password_hash=!P0-SYNTHETIC-DISABLED-ACTOR-NO-CREDENTIAL
+[db:seed] canonical digest 0ee26dc3ee5f3a1030fb78a6cadaf4dabef1f5a296b58163248584e1e0bfb775 (identical on every PC)
+[db:seed] created_at 2026-09-23 12:55:20.634 (local insert time; unchanged by re-runs)
+[verify] target tb_migrate@127.0.0.1:3307/tb_notice_dev — MySQL 8.4.11 (MySQL Community Server - GPL)
+[verify] reviewed migration sha256 b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+[verify] tables 33/33 (InnoDB 33, utf8mb4_0900_bin 33); columns 541/541 (character columns with binary collation 391)
+[verify] primary keys 33/33; unique keys 50/50; indexes 34/34; implicit FK indexes 97
+[verify] foreign keys 125/125 RESTRICT/RESTRICT (composite 27); CHECK constraints 30/30 semantically matching and ENFORCED=YES
+[verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+[verify] domain rows total: 1
+[verify] PASS: metadata matches the reviewed inventory.
+[guard] migration target: tb_migrate@127.0.0.1:3307/tb_notice_dev
+[guard] shadow target:    tb_migrate@127.0.0.1:3307/tb_notice_shadow
+-- This is an empty migration.
+[guard] diff-datasource-to-schema target: tb_migrate@127.0.0.1:3307/tb_notice_dev
+-- This is an empty migration.
+[smoke] PASS MySQL compose service is healthy
+[smoke] PASS database reachable as tb_dev@% on tb_notice_dev (MySQL 8.4.11)
+✓ built in 154ms
+[smoke] PASS Prisma client, contracts, API and web built (yarn build)
+[smoke] PASS api listening on 127.0.0.1:3000
+[smoke] PASS web listening on 127.0.0.1:5173
+[smoke] PASS API /api/v1/health: 200, no-store, valid GetHealthResponse, status ok
+[smoke] PASS web proxy /api/v1/health: 200, no-store, valid GetHealthResponse, status ok
+[smoke] PASS web shell served on http://localhost:5173/ with bundle /assets/index-BcGHGpDq.js
+[smoke] PASS processes stopped; ports 3000 and 5173 released
+[smoke] PASS (9 checks)
+[verify-dev] /opt/hostedtoolcache/node/24.21.0/x64/bin/node /home/runner/work/tb-notice-production-system/tb-notice-production-system/scripts/local/dev.ts [terminal-ctrl-c]: started=true exit=0 in 624ms portsReleased=true leftovers=0 → PASS
+[verify-dev] /opt/hostedtoolcache/node/24.21.0/x64/bin/node /home/runner/work/tb-notice-production-system/tb-notice-production-system/scripts/local/dev.ts [top-sigint]: started=true exit=0 in 612ms portsReleased=true leftovers=0 → PASS
+[verify-dev] /opt/hostedtoolcache/node/24.21.0/x64/bin/node /home/runner/work/tb-notice-production-system/tb-notice-production-system/scripts/local/dev.ts [top-sigterm]: started=true exit=0 in 613ms portsReleased=true leftovers=0 → PASS
+[verify-dev] yarn dev [terminal-ctrl-c]: started=true exit=0 in 613ms portsReleased=true leftovers=0 → PASS
+[verify-dev] PASS (4/4 scenarios)
+[reference:check] database-api-v1: 31 manifest entries, MANIFEST.sha256 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c
+[reference:check] architecture-v1: 18 manifest entries, MANIFEST.sha256 62b4d1136db81d31cf91dbd38a59c4ba57af265b228b479c909e0dbce693c3de
+[reference:check] pinned identity (REFERENCE_BASELINE.json): 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c matches
+[reference:check] OK — frozen references intact.
