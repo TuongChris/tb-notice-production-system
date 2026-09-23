@@ -14,8 +14,9 @@ export const ER_NO_REFERENCED_ROW_2 = 1452;
 export const ER_WARN_DATA_OUT_OF_RANGE = 1264;
 export const ER_CHECK_CONSTRAINT_VIOLATED = 3819;
 
-/** Marker stored in the synthetic actor's password_hash: not a hash, cannot authenticate. */
-export const DISABLED_ACTOR_MARKER = '!P0-SYNTHETIC-DISABLED-ACTOR-NO-CREDENTIAL';
+/** Marker stored in the synthetic actor's password_hash (single source: the P0 seed data). */
+export { DISABLED_ACTOR_MARKER } from '../../scripts/db/seed-data.mjs';
+import { DISABLED_ACTOR_MARKER } from '../../scripts/db/seed-data.mjs';
 
 export async function openTestConnection(): Promise<{ conn: Connection; label: string }> {
   loadRootEnv();
