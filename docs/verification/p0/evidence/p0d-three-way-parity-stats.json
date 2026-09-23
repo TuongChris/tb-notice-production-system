@@ -1,0 +1,8 @@
+{
+  "payloads": 27379,
+  "accepted": 10730,
+  "rejected": 16649,
+  "divergences": 0,
+  "schemas": 284,
+  "fixtures": 31
+}

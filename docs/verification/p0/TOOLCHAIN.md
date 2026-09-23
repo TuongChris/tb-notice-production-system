@@ -40,15 +40,20 @@ Source: `npm view <pkg> dist-tags / version / engines / peerDependencies` agains
 | Format | prettier | 3.9.8 | node `>=14` (see age-gate note) | root |
 | Lint | oxlint | 1.85.0 | node `^20.19.0 \|\| >=22.12.0` | root |
 
-Selected but **not installed in this mission** (not needed before P0-D/P0-E; recorded so later phases do not re-select silently):
+Installed in later phases (same selection, no re-selection):
 
-| Package | Exact version | Evidence | Planned phase |
+| Package | Exact version | Evidence | Installed in / phase |
 |---|---|---|---|
-| zod | 4.6.5 | `type: module`, no peers | P0-D |
-| ajv | 8.20.0 | latest 8.x | P0-D |
-| ajv-formats | 3.0.1 | peer `ajv ^8.0.0` | P0-D |
-| vitest | 5.0.1 | node `^22.12.0 \|\| ^24.0.0 \|\| >=26.0.0`; peer vite `^6.4.0 \|\| ^7.0.0 \|\| ^8.0.0` | P0-C7/P0-E |
-| react-router | 8.4.0 | node `>=22.22.0`; peers react/react-dom `>=19.2.7` | when routing is needed (not in P0 shell) |
+| vitest | 5.0.1 | node `^22.12.0 \|\| ^24.0.0 \|\| >=26.0.0`; peer vite `^6.4.0 \|\| ^7.0.0 \|\| ^8.0.0` | root dev (P0-C7); `vite` 8.3.0 added at root as its peer |
+| mariadb | 3.4.5 | already locked via `@prisma/adapter-mariadb` | root dev (P0-C5 tooling) |
+| zod | 4.6.5 | `type: module`, no peers | `@tb/contracts` (P0-D) |
+| ajv | 8.20.0 | latest 8.x | root dev (P0-D oracle) |
+| ajv-formats | 3.0.1 | peer/dep `ajv ^8.0.0` | `@tb/contracts` + root dev (P0-D) |
+| yaml | 2.9.1 | node `>= 14.6`, no deps; latest stable (published 2026-09-11) | root dev (P0-D) |
+
+Selected, not installed: react-router 8.4.0 (node `>=22.22.0`; peers react/react-dom `>=19.2.7`) — when routing is needed (not in the P0 shell).
+
+Finding (P0-D): Zod 4.6.5's built-in string `.min()`/`.max()` measure Unicode code points; see `P0_D_CONTRACTS.md`.
 
 Not selected: `dotenv` (the root `.env` is loaded with Node 24's built-in `process.loadEnvFile` from a path resolved relative to the module, per TECHNOLOGY_ARCHITECTURE §7), `@nestjs/cli` (the API builds with `tsc`), `tsx`.
 

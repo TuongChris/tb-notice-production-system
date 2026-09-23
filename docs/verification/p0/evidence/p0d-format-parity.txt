@@ -1,0 +1,37 @@
+Zod 4.6.5 built-in format validators vs frozen oracle (Ajv 8.20.0 + ajv-formats 3.0.1 full) on tests/contracts/edge-cases.ts
+(TB helpers agree with the oracle on every case; these rows show why Zod built-ins are not used)
+uuid	"12345678-1234-0234-c234-123456789012"	oracle=ACCEPT	zodBuiltin=REJECT
+uuid	"12345678-1234-9234-7234-123456789012"	oracle=ACCEPT	zodBuiltin=REJECT
+uuid	"urn:uuid:11111111-1111-4111-8111-111111111111"	oracle=ACCEPT	zodBuiltin=REJECT
+uuid: 16 cases
+uri	"https://exämple.invalid/"	oracle=REJECT	zodBuiltin=ACCEPT
+uri	"https://example.invalid/a b"	oracle=REJECT	zodBuiltin=ACCEPT
+uri	"https://example.invalid/%zz"	oracle=REJECT	zodBuiltin=ACCEPT
+uri	"https://"	oracle=ACCEPT	zodBuiltin=REJECT
+uri	"https://[v1.x]/"	oracle=ACCEPT	zodBuiltin=REJECT
+uri	"https://example.invalid:99999/"	oracle=ACCEPT	zodBuiltin=REJECT
+uri	"http://example.invalid/😀"	oracle=REJECT	zodBuiltin=ACCEPT
+uri	"https://example.invalid/<tag>"	oracle=REJECT	zodBuiltin=ACCEPT
+uri	"https://example.invalid/back\\slash"	oracle=REJECT	zodBuiltin=ACCEPT
+uri: 24 cases
+email	"a@example-.invalid"	oracle=REJECT	zodBuiltin=ACCEPT
+email: 21 cases
+date: 16 cases
+date-time	"2026-09-23t10:00:00z"	oracle=ACCEPT	zodBuiltin=REJECT
+date-time	"2026-09-23 10:00:00Z"	oracle=ACCEPT	zodBuiltin=REJECT
+date-time	"2026-09-23T10:00:00+0700"	oracle=ACCEPT	zodBuiltin=REJECT
+date-time	"2026-09-23T10:00:00+07"	oracle=ACCEPT	zodBuiltin=REJECT
+date-time	"2026-09-23T23:59:60Z"	oracle=ACCEPT	zodBuiltin=REJECT
+date-time	"2026-09-23T22:59:60-01:00"	oracle=ACCEPT	zodBuiltin=REJECT
+date-time: 23 cases
+
+Oracle accept/reject per format and TB-helper agreement:
+uuid	cases=16	oracle-accept=8	oracle-reject=8	TB-helper-agrees=16
+uri	cases=24	oracle-accept=13	oracle-reject=11	TB-helper-agrees=24
+email	cases=21	oracle-accept=6	oracle-reject=15	TB-helper-agrees=21
+date	cases=16	oracle-accept=6	oracle-reject=10	TB-helper-agrees=16
+date-time	cases=23	oracle-accept=13	oracle-reject=10	TB-helper-agrees=23
+pattern ^[0-9a-f]{64}$	cases=6
+pattern ^(0|[1-9][0-9]{0,15})$	cases=13
+pattern ^[A-Z]{2}$	cases=7
+pattern ^https?://	cases=5

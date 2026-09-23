@@ -1,0 +1,822 @@
+ RUN  v5.0.1 /home/dmin/projects/tb-notice-production-system
+ ✓ tests/contracts/formats-unicode.test.ts > Unicode code-point length > matches Ajv ucs2length for ""
+ ✓ tests/contracts/formats-unicode.test.ts > Unicode code-point length > matches Ajv ucs2length for "a"
+ ✓ tests/contracts/formats-unicode.test.ts > Unicode code-point length > matches Ajv ucs2length for "😀"
+ ✓ tests/contracts/formats-unicode.test.ts > Unicode code-point length > matches Ajv ucs2length for "😀😀"
+ ✓ tests/contracts/formats-unicode.test.ts > Unicode code-point length > matches Ajv ucs2length for "é"
+ ✓ tests/contracts/formats-unicode.test.ts > Unicode code-point length > matches Ajv ucs2length for "👩‍💻"
+ ✓ tests/contracts/formats-unicode.test.ts > Unicode code-point length > matches Ajv ucs2length for "\ud800"
+ ✓ tests/contracts/formats-unicode.test.ts > Unicode code-point length > matches Ajv ucs2length for "\udc00"
+ ✓ tests/contracts/formats-unicode.test.ts > Unicode code-point length > matches Ajv ucs2length for "a\ud800"
+ ✓ tests/contracts/formats-unicode.test.ts > Unicode code-point length > matches Ajv ucs2length for "\udc00\ud800"
+ ✓ tests/contracts/formats-unicode.test.ts > Unicode code-point length > matches Ajv ucs2length for "\ud800😀\udfff"
+ ✓ tests/contracts/formats-unicode.test.ts > Unicode code-point length > matches Ajv ucs2length for "著作権 עברית"
+ ✓ tests/contracts/formats-unicode.test.ts > Unicode code-point length > matches Ajv ucs2length on 5000 deterministic pseudo-random UTF-16 strings (incl. lone surrogates)
+ ✓ tests/contracts/formats-unicode.test.ts > Unicode code-point length > tb.string length bounds count Unicode code points exactly as the oracle
+ ✓ tests/contracts/formats-unicode.test.ts > wire format helpers equal the ajv-formats full oracle > uuid: 16 edge cases
+ ✓ tests/contracts/formats-unicode.test.ts > wire format helpers equal the ajv-formats full oracle > uri: 24 edge cases
+ ✓ tests/contracts/formats-unicode.test.ts > wire format helpers equal the ajv-formats full oracle > email: 21 edge cases
+ ✓ tests/contracts/formats-unicode.test.ts > wire format helpers equal the ajv-formats full oracle > date: 16 edge cases
+ ✓ tests/contracts/formats-unicode.test.ts > wire format helpers equal the ajv-formats full oracle > date-time: 23 edge cases
+ ✓ tests/contracts/formats-unicode.test.ts > wire format helpers equal the ajv-formats full oracle > each case list exercises both accepted and rejected values
+ ✓ tests/contracts/formats-unicode.test.ts > negative control: Zod 4 built-in format validators diverge from the oracle > measured divergences on the edge-case lists (Zod 4.6.5; date has none on these cases)
+ ✓ tests/contracts/lowering-health.test.ts > lowering fails closed on constructs outside the TB wire subset > raw z.string() → throws
+ ✓ tests/contracts/lowering-health.test.ts > lowering fails closed on constructs outside the TB wire subset > raw z.string() inside tb.object → throws
+ ✓ tests/contracts/lowering-health.test.ts > lowering fails closed on constructs outside the TB wire subset > tb.string with an extra .max() check → throws
+ ✓ tests/contracts/lowering-health.test.ts > lowering fails closed on constructs outside the TB wire subset > tb.string with an added .refine() → throws
+ ✓ tests/contracts/lowering-health.test.ts > lowering fails closed on constructs outside the TB wire subset > tb.string re-described outside the builder → throws
+ ✓ tests/contracts/lowering-health.test.ts > lowering fails closed on constructs outside the TB wire subset > Zod built-in z.uuid() → throws
+ ✓ tests/contracts/lowering-health.test.ts > lowering fails closed on constructs outside the TB wire subset > Zod built-in z.email() → throws
+ ✓ tests/contracts/lowering-health.test.ts > lowering fails closed on constructs outside the TB wire subset > z.int() → throws
+ ✓ tests/contracts/lowering-health.test.ts > lowering fails closed on constructs outside the TB wire subset > plain z.union → throws
+ ✓ tests/contracts/lowering-health.test.ts > lowering fails closed on constructs outside the TB wire subset > z.looseObject → throws
+ ✓ tests/contracts/lowering-health.test.ts > lowering fails closed on constructs outside the TB wire subset > z.object (strip mode) → throws
+ ✓ tests/contracts/lowering-health.test.ts > lowering fails closed on constructs outside the TB wire subset > transform → throws
+ ✓ tests/contracts/lowering-health.test.ts > lowering fails closed on constructs outside the TB wire subset > default → throws
+ ✓ tests/contracts/lowering-health.test.ts > lowering fails closed on constructs outside the TB wire subset > lazy → throws
+ ✓ tests/contracts/lowering-health.test.ts > lowering fails closed on constructs outside the TB wire subset > top-level optional → throws
+ ✓ tests/contracts/lowering-health.test.ts > lowering fails closed on constructs outside the TB wire subset > nullable wrapping an unregistered schema → throws
+ ✓ tests/contracts/lowering-health.test.ts > lowering fails closed on constructs outside the TB wire subset > z.bigint() → throws
+ ✓ tests/contracts/lowering-health.test.ts > lowering fails closed on constructs outside the TB wire subset > z.date() → throws
+ ✓ tests/contracts/lowering-health.test.ts > lowering fails closed on constructs outside the TB wire subset > z.tuple → throws
+ ✓ tests/contracts/lowering-health.test.ts > lowering fails closed on constructs outside the TB wire subset > accepts the TB subset and lowers it exactly
+ ✓ tests/contracts/lowering-health.test.ts > health contract compatibility (GET /api/v1/health) > ok (API shape)
+ ✓ tests/contracts/lowering-health.test.ts > health contract compatibility (GET /api/v1/health) > unavailable (API shape)
+ ✓ tests/contracts/lowering-health.test.ts > health contract compatibility (GET /api/v1/health) > meta without affectedResources
+ ✓ tests/contracts/lowering-health.test.ts > health contract compatibility (GET /api/v1/health) > unknown status
+ ✓ tests/contracts/lowering-health.test.ts > health contract compatibility (GET /api/v1/health) > undocumented data field
+ ✓ tests/contracts/lowering-health.test.ts > health contract compatibility (GET /api/v1/health) > missing meta
+ ✓ tests/contracts/lowering-health.test.ts > health contract compatibility (GET /api/v1/health) > empty requestId
+ ✓ tests/contracts/lowering-health.test.ts > health contract compatibility (GET /api/v1/health) > exported types keep the API/web compile-time contract
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > serializes byte-identically to the frozen api-schemas.json
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > is deep-equal to the frozen bundle
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > retains all 284 schema identities in the frozen order
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > LooseObject: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > PostalAddress: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > FieldAttribution: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > SourceChannel: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > SourceLink: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > DocumentPlan: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > Envelope: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > AttachmentObservation: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > Dependency: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > AskDisposition: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > SourceManifestEntry: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > MissingItem: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > RawTimecodes: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CoverageManifest: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > SelectedCoverage: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > FactValue_RIGHTS_BASIS: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > FactValue_RIGHTS_SCOPE: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > FactValue_PERMISSION: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > FactValue_AV_COMPARISON: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > FactValue_EXCEPTION_REVIEW: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > FactValue_WORK_IDENTIFICATION: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > FactValue_REPORTED_IDENTIFICATION: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > FactValue_DUPLICATE_REVIEW: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > FactValue_AUTHORITY_CURRENTNESS: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > FactValue: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > User: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > AuthSession: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > Agency: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > Owner: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > LegalSubject: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > OwnerSubject: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > Signer: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > Route: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > Mandate: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > MandateVersion: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > MandateCoverage: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CoverageSigner: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > AuthorityEvent: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CaseRecord: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CaseAuthoritySelection: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CaseAuthorityCoverage: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ReportedItem: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CaseWork: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > UseMapping: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > SourceReference: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CaseSource: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CaseFact: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > FactSource: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > Correspondence: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CorrespondenceBinding: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > PromptSnapshot: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > NoticeCandidate: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ValidationRun: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ValidationIssue: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CandidateAssessment: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > AssessmentSource: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > AuditEvent: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > IdempotencyRecord: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ProductionContext: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CreateAgency: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > PatchAgency: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CreateOwner: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > PatchOwner: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CreateLegalSubject: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > PatchLegalSubject: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CreateSigner: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > PatchSigner: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CreateMandate: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > PatchMandate: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CreateRoute: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > PatchRoute: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > LinkOwnerSubject: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ArchiveRequest: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > LinkStateRequest: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > RecordStateRequest: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > SignerStateRequest: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CanonicalBindingRequest: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CreateMandateVersion: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > PatchMandateVersion: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CreateCoverage: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > PatchCoverage: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CreateCoverageSigner: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CreateAuthorityEvent: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CreateCase: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > PatchCase: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > BindCaseRoute: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CaseWorkflowRequest: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > SelectAuthority: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CreateReportedItem: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > PatchReportedItem: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CreateCaseWork: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > PatchCaseWork: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CreateUseMapping: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > PatchUseMapping: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CreateSource: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ReviseSource: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > LinkCaseSource: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > FactSupport: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CreateFact: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ReviseFact: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CreateCorrespondence: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > BindCorrespondence: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > GeneratePrompt: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CreateCandidate: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ReviseCandidate: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ValidateCandidate: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > AssessmentSupport: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CaptureAssessment: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ExportUnsigned: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > GateSummary: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > Readiness: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > UnsignedExport: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ContextView: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > OperationError: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ResponseMeta: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > LoginRequest: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > SessionView: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > AppMeta: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > Health: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > GetHealthResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > GetMetaResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > LoginResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > GetSessionResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > AgencyPage: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ListAgenciesResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CreateAgencyResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > GetAgencyResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > PatchAgencyResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ArchiveAgencyResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > RestoreAgencyResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > BindCanonicalAgencyResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > SetAgencyStateResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > OwnerPage: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ListOwnersResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CreateOwnerResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > GetOwnerResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > PatchOwnerResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ArchiveOwnerResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > RestoreOwnerResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > BindCanonicalOwnerResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > SetOwnerStateResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > LegalSubjectPage: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ListLegalSubjectsResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CreateLegalSubjectResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > GetLegalSubjectResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > PatchLegalSubjectResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ArchiveLegalSubjectResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > RestoreLegalSubjectResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > BindCanonicalLegalSubjectResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > SetLegalSubjectStateResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > SignerPage: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ListSignersResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CreateSignerResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > GetSignerResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > PatchSignerResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ArchiveSignerResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > RestoreSignerResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > BindCanonicalSignerResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > SetSignerStateResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > RoutePage: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ListRoutesResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CreateRouteResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > GetRouteResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > PatchRouteResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ArchiveRouteResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > RestoreRouteResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > BindCanonicalRouteResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > SetRouteLinkStateResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > MandatePage: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ListMandatesResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CreateMandateResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > GetMandateResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > PatchMandateResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ArchiveMandateResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > RestoreMandateResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > BindCanonicalMandateResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > OwnerSubjectPage: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ListOwnerSubjectsResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > LinkOwnerSubjectResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > GetOwnerSubjectResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > SetOwnerSubjectLinkStateResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > MandateVersionPage: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ListMandateVersionsResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CreateMandateVersionResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > GetMandateVersionResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > PatchDraftMandateVersionResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > FreezeMandateVersionResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > MandateCoveragePage: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ListVersionCoveragesResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CreateCoverageResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > GetCoverageResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > PatchDraftCoverageResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CoverageSignerPage: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ListCoverageSignersResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CreateCoverageSignerResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > GetCoverageSignerResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > RecordAuthorityEventResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > AuthorityEventPage: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ListAuthorityEventsResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CaseRecordPage: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ListCasesResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CreateCaseResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > GetCaseResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > PatchCaseResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ArchiveCaseResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > RestoreCaseResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > WorkflowCaseResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > RouteBindingCaseResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CanonicalBindingCaseResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > SelectCaseAuthorityResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CaseAuthoritySelectionPage: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ListCaseAuthoritySelectionsResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ReportedItemPage: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ListCaseReportedItemsResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CreateReportedItemResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > GetReportedItemResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > PatchReportedItemResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ArchiveReportedItemResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > RestoreReportedItemResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CaseWorkPage: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ListCaseCaseWorksResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CreateCaseWorkResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > GetCaseWorkResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > PatchCaseWorkResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ArchiveCaseWorkResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > RestoreCaseWorkResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > UseMappingPage: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ListCaseUseMappingsResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CreateUseMappingResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > GetUseMappingResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > PatchUseMappingResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ArchiveUseMappingResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > RestoreUseMappingResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > SourceReferenceSummary: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > SourceReferencePage: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ListSourcesResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CreateSourceResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > GetSourceResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ReviseSourceResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CaseSourcePage: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ListCaseSourcesResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > LinkCaseSourceResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > GetCaseSourceResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > SetCaseSourceLinkStateResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CaseFactSummary: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CaseFactPage: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ListCaseFactsResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CreateCaseFactResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > GetCaseFactResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ReviseCaseFactResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CorrespondenceSummary: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CorrespondencePage: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ListCorrespondenceResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CaptureCorrespondenceResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > GetCorrespondenceResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > BindCaseCorrespondenceResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CorrespondenceBindingPage: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ListCaseCorrespondenceBindingsResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > GetProductionContextResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > GeneratePromptResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > PromptSnapshotSummary: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > PromptSnapshotPage: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ListCasePromptsResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > GetPromptResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ImportCandidateResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > NoticeCandidateSummary: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > NoticeCandidatePage: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ListCaseCandidatesResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > GetCandidateResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ReviseCandidateResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > SupersedeCandidateResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ValidateCandidateResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ValidationRunSummary: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ValidationRunPage: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ListValidationRunsResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ValidationIssuePage: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ListValidationIssuesResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CaptureCandidateAssessmentResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > CandidateAssessmentPage: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ListCandidateAssessmentsResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > GetCandidateReadinessResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ExportUnsignedCandidateResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > AuditEventPage: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > ListAuditEventsResponse: itemized inventory equal
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > itemized totals (strict objects, oneOf, minProperties, nullable unions, formats, …)
+ ✓ tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (284 schemas) > keeps the four oneOf unions and twelve non-empty PATCH bodies
+ ✓ tests/contracts/inventory-openapi.test.ts > PFC-YT-EMAIL-v1.1 preservation > the active constant, the Zod schema and the generated schemas carry exactly PFC-YT-EMAIL-v1.1
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > serializes byte-identically to the frozen openapi.json and is deep-equal
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > keeps OpenAPI 3.1.1, the loopback server URL, info, tags, security and components
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > has the same 141 method/path pairs and 141 unique operationIds
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /health
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /meta
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /auth/login
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /auth/session
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /auth/logout
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /agencies
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /agencies
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /agencies/{id}
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > PATCH /agencies/{id}
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > DELETE /agencies/{id}
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /agencies/{id}/archive
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /agencies/{id}/restore
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /agencies/{id}/canonical-bindings
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /agencies/{id}/state
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /owners
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /owners
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /owners/{id}
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > PATCH /owners/{id}
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > DELETE /owners/{id}
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /owners/{id}/archive
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /owners/{id}/restore
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /owners/{id}/canonical-bindings
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /owners/{id}/state
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /legal-subjects
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /legal-subjects
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /legal-subjects/{id}
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > PATCH /legal-subjects/{id}
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > DELETE /legal-subjects/{id}
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /legal-subjects/{id}/archive
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /legal-subjects/{id}/restore
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /legal-subjects/{id}/canonical-bindings
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /legal-subjects/{id}/state
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /signers
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /signers
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /signers/{id}
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > PATCH /signers/{id}
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > DELETE /signers/{id}
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /signers/{id}/archive
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /signers/{id}/restore
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /signers/{id}/canonical-bindings
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /signers/{id}/state
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /routes
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /routes
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /routes/{id}
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > PATCH /routes/{id}
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > DELETE /routes/{id}
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /routes/{id}/archive
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /routes/{id}/restore
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /routes/{id}/canonical-bindings
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /routes/{id}/link-state
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /mandates
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /mandates
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /mandates/{id}
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > PATCH /mandates/{id}
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > DELETE /mandates/{id}
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /mandates/{id}/archive
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /mandates/{id}/restore
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /mandates/{id}/canonical-bindings
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /owners/{ownerId}/subjects
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /owners/{ownerId}/subjects
+ ✓ tests/contracts/runtime-parity.test.ts > frozen request-validation fixtures (31) > contains the 31 frozen fixtures
+ ✓ tests/contracts/runtime-parity.test.ts > frozen request-validation fixtures (31) > Agency can begin with displayName
+ ✓ tests/contracts/runtime-parity.test.ts > frozen request-validation fixtures (31) > Agency does not require fabricated legalName
+ ✓ tests/contracts/runtime-parity.test.ts > frozen request-validation fixtures (31) > Agency rejects unknown ownership flag
+ ✓ tests/contracts/runtime-parity.test.ts > frozen request-validation fixtures (31) > Agency empty name rejected
+ ✓ tests/contracts/runtime-parity.test.ts > frozen request-validation fixtures (31) > Empty PATCH rejected
+ ✓ tests/contracts/runtime-parity.test.ts > frozen request-validation fixtures (31) > Explicit null clears nullable field
+ ✓ tests/contracts/runtime-parity.test.ts > frozen request-validation fixtures (31) > Route needs legal subject association
+ ✓ tests/contracts/runtime-parity.test.ts > frozen request-validation fixtures (31) > Route create is not qualification
+ ✓ tests/contracts/runtime-parity.test.ts > frozen request-validation fixtures (31) > Unknown platform rejected
+ ✓ tests/contracts/runtime-parity.test.ts > frozen request-validation fixtures (31) > Signer agency cannot be PATCHed
+ ✓ tests/contracts/runtime-parity.test.ts > frozen request-validation fixtures (31) > Case intake can omit route
+ ✓ tests/contracts/runtime-parity.test.ts > frozen request-validation fixtures (31) > Case cannot set readiness by PATCH
+ ✓ tests/contracts/runtime-parity.test.ts > frozen request-validation fixtures (31) > Mapping duration string accepted
+ ✓ tests/contracts/runtime-parity.test.ts > frozen request-validation fixtures (31) > Mapping numeric milliseconds rejected
+ ✓ tests/contracts/runtime-parity.test.ts > frozen request-validation fixtures (31) > Mapping negative milliseconds rejected
+ ✓ tests/contracts/runtime-parity.test.ts > frozen request-validation fixtures (31) > Mapping missing duration preserved
+ ✓ tests/contracts/runtime-parity.test.ts > frozen request-validation fixtures (31) > Source without URL can be operator input
+ ✓ tests/contracts/runtime-parity.test.ts > frozen request-validation fixtures (31) > Source URL is not mandatory proof
+ ✓ tests/contracts/runtime-parity.test.ts > frozen request-validation fixtures (31) > Missing permission can be stored honestly
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /owner-subjects/{id}
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /owner-subjects/{id}/link-state
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /mandates/{mandateId}/versions
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /mandates/{mandateId}/versions
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /mandate-versions/{id}
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > PATCH /mandate-versions/{id}
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /mandate-versions/{id}/freeze
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /mandate-versions/{versionId}/coverages
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /mandate-versions/{versionId}/coverages
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /coverages/{id}
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > PATCH /coverages/{id}
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /coverages/{coverageId}/signers
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /coverages/{coverageId}/signers
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /coverage-signers/{id}
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > DELETE /coverage-signers/{id}
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /mandates/{mandateId}/events
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /mandates/{mandateId}/events
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /cases
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /cases
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /cases/{caseId}
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > PATCH /cases/{caseId}
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > DELETE /cases/{caseId}
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /cases/{caseId}/archive
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /cases/{caseId}/restore
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /cases/{caseId}/workflow
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /cases/{caseId}/route-binding
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /cases/{caseId}/canonical-binding
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /cases/{caseId}/authority-selections
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /cases/{caseId}/authority-selections
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /cases/{caseId}/reported-items
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /cases/{caseId}/reported-items
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /cases/{caseId}/reported-items/{id}
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > PATCH /cases/{caseId}/reported-items/{id}
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /cases/{caseId}/reported-items/{id}/archive
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /cases/{caseId}/reported-items/{id}/restore
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /cases/{caseId}/works
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /cases/{caseId}/works
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /cases/{caseId}/works/{id}
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > PATCH /cases/{caseId}/works/{id}
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /cases/{caseId}/works/{id}/archive
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /cases/{caseId}/works/{id}/restore
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /cases/{caseId}/mappings
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /cases/{caseId}/mappings
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /cases/{caseId}/mappings/{id}
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > PATCH /cases/{caseId}/mappings/{id}
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /cases/{caseId}/mappings/{id}/archive
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /cases/{caseId}/mappings/{id}/restore
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /sources
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /sources
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /sources/{id}
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /sources/{id}/revisions
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /cases/{caseId}/sources
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /cases/{caseId}/sources
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /case-sources/{id}
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /case-sources/{id}/link-state
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /cases/{caseId}/facts
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /cases/{caseId}/facts
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /cases/{caseId}/facts/{id}
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /cases/{caseId}/facts/{id}/revisions
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /correspondence
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /correspondence
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /correspondence/{id}
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /cases/{caseId}/correspondence-bindings
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /cases/{caseId}/correspondence-bindings
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /cases/{caseId}/production-context
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /cases/{caseId}/prompts
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /cases/{caseId}/prompts
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /prompts/{id}
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /cases/{caseId}/candidates
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /cases/{caseId}/candidates
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /candidates/{id}
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /candidates/{id}/revisions
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /candidates/{id}/supersede
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /candidates/{candidateId}/validation-runs
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /candidates/{candidateId}/validation-runs
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /validation-runs/{id}/issues
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /candidates/{candidateId}/assessments
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /candidates/{candidateId}/assessments
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /candidates/{candidateId}/readiness
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > POST /candidates/{candidateId}/unsigned-exports
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > GET /audit-events
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI parity (141 operations) > every $ref in the generated OpenAPI resolves
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI YAML > parses with default YAML settings to exactly the generated JSON document
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI YAML > contains no anchors or aliases
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI YAML > is semantically equal to the frozen openapi.yaml (which uses 45 anchors / 351 aliases)
+ ✓ tests/contracts/inventory-openapi.test.ts > OpenAPI YAML > committed JSON artifacts equal the in-memory build
+ ✓ tests/contracts/tooling.test.ts > one-time port > is deterministic: two runs into empty directories are byte-identical
+ ✓ tests/contracts/runtime-parity.test.ts > frozen request-validation fixtures (31) > Unsupported fact type rejected
+ ✓ tests/contracts/runtime-parity.test.ts > frozen request-validation fixtures (31) > Wrong typed fact payload rejected
+ ✓ tests/contracts/runtime-parity.test.ts > frozen request-validation fixtures (31) > Preparation prompt structurally valid
+ ✓ tests/contracts/runtime-parity.test.ts > frozen request-validation fixtures (31) > Client cannot auto-approve prompt
+ ✓ tests/contracts/runtime-parity.test.ts > frozen request-validation fixtures (31) > Draft import is not legal readiness
+ ✓ tests/contracts/runtime-parity.test.ts > frozen request-validation fixtures (31) > Client-supplied candidate hash rejected
+ ✓ tests/contracts/runtime-parity.test.ts > frozen request-validation fixtures (31) > Client-supplied signedAt rejected
+ ✓ tests/contracts/runtime-parity.test.ts > frozen request-validation fixtures (31) > Client-supplied validation result rejected
+ ✓ tests/contracts/runtime-parity.test.ts > frozen request-validation fixtures (31) > G7 assessment cannot be submitted
+ ✓ tests/contracts/runtime-parity.test.ts > frozen request-validation fixtures (31) > Recorded G1 input is only a report
+ ✓ tests/contracts/runtime-parity.test.ts > frozen request-validation fixtures (31) > Assessment needs a source reference
+ ✓ tests/contracts/runtime-parity.test.ts > frozen request-validation fixtures (31) > Export does not accept send option
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > synthetic base instances are valid under the frozen oracle (generator self-check)
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > LooseObject — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > PostalAddress — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > FieldAttribution — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > SourceChannel — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > SourceLink — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > DocumentPlan — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > Envelope — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > AttachmentObservation — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > Dependency — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > AskDisposition — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > SourceManifestEntry — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > MissingItem — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > RawTimecodes — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CoverageManifest — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > SelectedCoverage — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > FactValue_RIGHTS_BASIS — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > FactValue_RIGHTS_SCOPE — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > FactValue_PERMISSION — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > FactValue_AV_COMPARISON — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > FactValue_EXCEPTION_REVIEW — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > FactValue_WORK_IDENTIFICATION — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > FactValue_REPORTED_IDENTIFICATION — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > FactValue_DUPLICATE_REVIEW — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > FactValue_AUTHORITY_CURRENTNESS — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > FactValue — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/tooling.test.ts > one-time port > transition baseline: output equals the committed initial active source (retire on first intentional edit)
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > User — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > AuthSession — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > Agency — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > Owner — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > LegalSubject — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > OwnerSubject — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > Signer — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > Route — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > Mandate — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > MandateVersion — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/tooling.test.ts > one-time port > refuses to write under docs/reference
+ ✓ tests/contracts/tooling.test.ts > one-time port > refuses to overwrite differing active source without --overwrite
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > MandateCoverage — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CoverageSigner — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > AuthorityEvent — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CaseRecord — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CaseAuthoritySelection — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CaseAuthorityCoverage — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/tooling.test.ts > contracts:generate > is deterministic and reproduces the committed generated outputs
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ReportedItem — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CaseWork — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > UseMapping — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/tooling.test.ts > contracts:generate > writes only the designated outputs
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > SourceReference — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/tooling.test.ts > contracts:check (drift detection, never repairs) > passes on the committed outputs
+ ✓ tests/contracts/tooling.test.ts > contracts:check (drift detection, never repairs) > fails on a tampered JSON Schema artifact and leaves the tampered file untouched
+ ✓ tests/contracts/tooling.test.ts > contracts:check (drift detection, never repairs) > fails on a whitespace-only YAML change, a missing output and an unexpected file
+ ✓ tests/contracts/tooling.test.ts > reference:check > passes on the real repository and on an exact copy
+ ✓ tests/contracts/tooling.test.ts > reference:check > detects a changed byte, an unlisted file, a missing file and a re-signed manifest
+ ✓ tests/contracts/tooling.test.ts > working tree safety > no test modified docs/reference
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CaseSource — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CaseFact — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > FactSource — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > Correspondence — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CorrespondenceBinding — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > PromptSnapshot — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > NoticeCandidate — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ValidationRun — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ValidationIssue — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CandidateAssessment — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > AssessmentSource — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > AuditEvent — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > IdempotencyRecord — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ProductionContext — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CreateAgency — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > PatchAgency — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CreateOwner — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > PatchOwner — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CreateLegalSubject — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > PatchLegalSubject — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CreateSigner — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > PatchSigner — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CreateMandate — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > PatchMandate — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CreateRoute — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > PatchRoute — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > LinkOwnerSubject — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ArchiveRequest — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > LinkStateRequest — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > RecordStateRequest — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > SignerStateRequest — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CanonicalBindingRequest — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CreateMandateVersion — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > PatchMandateVersion — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CreateCoverage — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > PatchCoverage — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CreateCoverageSigner — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CreateAuthorityEvent — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CreateCase — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > PatchCase — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > BindCaseRoute — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CaseWorkflowRequest — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > SelectAuthority — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CreateReportedItem — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > PatchReportedItem — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CreateCaseWork — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > PatchCaseWork — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CreateUseMapping — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > PatchUseMapping — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CreateSource — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ReviseSource — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > LinkCaseSource — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > FactSupport — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CreateFact — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ReviseFact — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CreateCorrespondence — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > BindCorrespondence — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > GeneratePrompt — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CreateCandidate — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ReviseCandidate — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ValidateCandidate — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > AssessmentSupport — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CaptureAssessment — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ExportUnsigned — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > GateSummary — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > Readiness — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > UnsignedExport — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ContextView — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > OperationError — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ResponseMeta — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > LoginRequest — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > SessionView — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > AppMeta — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > Health — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > GetHealthResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > GetMetaResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > LoginResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > GetSessionResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > AgencyPage — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ListAgenciesResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CreateAgencyResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > GetAgencyResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > PatchAgencyResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ArchiveAgencyResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > RestoreAgencyResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > BindCanonicalAgencyResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > SetAgencyStateResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > OwnerPage — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ListOwnersResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CreateOwnerResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > GetOwnerResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > PatchOwnerResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ArchiveOwnerResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > RestoreOwnerResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > BindCanonicalOwnerResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > SetOwnerStateResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > LegalSubjectPage — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ListLegalSubjectsResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CreateLegalSubjectResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > GetLegalSubjectResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > PatchLegalSubjectResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ArchiveLegalSubjectResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > RestoreLegalSubjectResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > BindCanonicalLegalSubjectResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > SetLegalSubjectStateResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > SignerPage — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ListSignersResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CreateSignerResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > GetSignerResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > PatchSignerResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ArchiveSignerResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > RestoreSignerResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > BindCanonicalSignerResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > SetSignerStateResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > RoutePage — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ListRoutesResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CreateRouteResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > GetRouteResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > PatchRouteResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ArchiveRouteResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > RestoreRouteResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > BindCanonicalRouteResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > SetRouteLinkStateResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > MandatePage — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ListMandatesResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CreateMandateResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > GetMandateResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > PatchMandateResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ArchiveMandateResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > RestoreMandateResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > BindCanonicalMandateResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > OwnerSubjectPage — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ListOwnerSubjectsResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > LinkOwnerSubjectResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > GetOwnerSubjectResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > SetOwnerSubjectLinkStateResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > MandateVersionPage — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ListMandateVersionsResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CreateMandateVersionResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > GetMandateVersionResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > PatchDraftMandateVersionResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > FreezeMandateVersionResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > MandateCoveragePage — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ListVersionCoveragesResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CreateCoverageResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > GetCoverageResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > PatchDraftCoverageResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CoverageSignerPage — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ListCoverageSignersResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CreateCoverageSignerResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > GetCoverageSignerResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > RecordAuthorityEventResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > AuthorityEventPage — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ListAuthorityEventsResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CaseRecordPage — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ListCasesResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CreateCaseResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > GetCaseResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > PatchCaseResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ArchiveCaseResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > RestoreCaseResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > WorkflowCaseResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > RouteBindingCaseResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CanonicalBindingCaseResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > SelectCaseAuthorityResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CaseAuthoritySelectionPage — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ListCaseAuthoritySelectionsResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ReportedItemPage — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ListCaseReportedItemsResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CreateReportedItemResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > GetReportedItemResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > PatchReportedItemResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ArchiveReportedItemResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > RestoreReportedItemResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CaseWorkPage — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ListCaseCaseWorksResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CreateCaseWorkResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > GetCaseWorkResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > PatchCaseWorkResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ArchiveCaseWorkResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > RestoreCaseWorkResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > UseMappingPage — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ListCaseUseMappingsResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CreateUseMappingResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > GetUseMappingResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > PatchUseMappingResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ArchiveUseMappingResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > RestoreUseMappingResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > SourceReferenceSummary — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > SourceReferencePage — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ListSourcesResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CreateSourceResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > GetSourceResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ReviseSourceResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CaseSourcePage — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ListCaseSourcesResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > LinkCaseSourceResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > GetCaseSourceResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > SetCaseSourceLinkStateResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CaseFactSummary — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CaseFactPage — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ListCaseFactsResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CreateCaseFactResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > GetCaseFactResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ReviseCaseFactResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CorrespondenceSummary — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CorrespondencePage — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ListCorrespondenceResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CaptureCorrespondenceResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > GetCorrespondenceResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > BindCaseCorrespondenceResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CorrespondenceBindingPage — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ListCaseCorrespondenceBindingsResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > GetProductionContextResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > GeneratePromptResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > PromptSnapshotSummary — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > PromptSnapshotPage — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ListCasePromptsResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > GetPromptResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ImportCandidateResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > NoticeCandidateSummary — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > NoticeCandidatePage — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ListCaseCandidatesResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > GetCandidateResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ReviseCandidateResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > SupersedeCandidateResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ValidateCandidateResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ValidationRunSummary — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ValidationRunPage — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ListValidationRunsResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ValidationIssuePage — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ListValidationIssuesResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CaptureCandidateAssessmentResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > CandidateAssessmentPage — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ListCandidateAssessmentsResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > GetCandidateReadinessResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ExportUnsignedCandidateResponse — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > AuditEventPage — frozen Ajv, generated Ajv and Zod agree
+ ✓ tests/contracts/runtime-parity.test.ts > schema-driven synthetic payloads for all 284 schemas > ListAuditEventsResponse — frozen Ajv, generated Ajv and Zod agree
+ Test Files  5 passed (5)
+      Tests  817 passed (817)
+   Start at  19:27:35
+   Duration  40.44s (tests 96%, import 2%, transform 2%)
