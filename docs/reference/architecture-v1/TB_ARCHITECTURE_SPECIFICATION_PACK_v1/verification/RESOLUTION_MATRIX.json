@@ -1,0 +1,150 @@
+{
+  "release": "TB-ARCH-v1.0.0",
+  "purpose": "Design-resolution matrix; statuses do not claim P0 execution",
+  "items": [
+    {
+      "original_issue": 1,
+      "title": "Missing high-level specifications",
+      "resolution_id": "AR-001",
+      "document": "docs/architecture/ARCHITECTURE_RESOLUTIONS_v1.md",
+      "resolution": "Seven active specs + source register, docs import then reinspection",
+      "status": "RESOLVED_BY_SPEC",
+      "remaining_verification": "Verify files are present in the actual repository"
+    },
+    {
+      "original_issue": 2,
+      "title": "Conflicting contract ownership and absent generators",
+      "resolution_id": "AR-002",
+      "document": "docs/architecture/ARCHITECTURE_RESOLUTIONS_v1.md",
+      "resolution": "Explicit Zod-first transition, operation metadata, code-point lowering and frozen behavioral parity",
+      "status": "RUNTIME_CHECK_PENDING",
+      "remaining_verification": "Implement/verify actual generators, actual Zod/Ajv parity"
+    },
+    {
+      "original_issue": 3,
+      "title": "Windows versus WSL and line endings",
+      "resolution_id": "AR-003",
+      "document": "docs/architecture/ARCHITECTURE_RESOLUTIONS_v1.md",
+      "resolution": "Two physical PCs using WSL; LF active text, frozen reference -text, application-byte hashes",
+      "status": "RESOLVED_BY_SPEC",
+      "remaining_verification": "Prove fresh clone on second physical PC"
+    },
+    {
+      "original_issue": 4,
+      "title": "MySQL provisioning",
+      "resolution_id": "AR-004",
+      "document": "docs/architecture/ARCHITECTURE_RESOLUTIONS_v1.md",
+      "resolution": "One MySQL8.4 Docker service, fixed loopback3307, scoped schemas/accounts",
+      "status": "RUNTIME_CHECK_PENDING",
+      "remaining_verification": "Select real image digest and prove local server/config"
+    },
+    {
+      "original_issue": 5,
+      "title": "Node target vs old Node22 verification",
+      "resolution_id": "AR-005",
+      "document": "docs/architecture/ARCHITECTURE_RESOLUTIONS_v1.md",
+      "resolution": "Node24 target; old test environment is provenance only",
+      "status": "RUNTIME_CHECK_PENDING",
+      "remaining_verification": "Official package metadata and actual compatibility tests"
+    },
+    {
+      "original_issue": 6,
+      "title": "Yarn version and linker",
+      "resolution_id": "AR-006",
+      "document": "docs/architecture/ARCHITECTURE_RESOLUTIONS_v1.md",
+      "resolution": "Exact Yarn4 selected during P0, node-modules linker",
+      "status": "RUNTIME_CHECK_PENDING",
+      "remaining_verification": "Lock packageManager and test immutable install"
+    },
+    {
+      "original_issue": 7,
+      "title": "Incomplete monorepo layout",
+      "resolution_id": "AR-007",
+      "document": "docs/architecture/ARCHITECTURE_RESOLUTIONS_v1.md",
+      "resolution": "Yarn Workspaces apps/web apps/api packages/contracts and explicit private names",
+      "status": "RESOLVED_BY_SPEC",
+      "remaining_verification": "Build proof in P0"
+    },
+    {
+      "original_issue": 8,
+      "title": "Whether to move/edit references",
+      "resolution_id": "AR-008",
+      "document": "docs/architecture/ARCHITECTURE_RESOLUTIONS_v1.md",
+      "resolution": "Freeze original paths and manifests; active working copies elsewhere",
+      "status": "RESOLVED_BY_SPEC",
+      "remaining_verification": "Manifest checks before/after P0"
+    },
+    {
+      "original_issue": 9,
+      "title": "Prisma7 adapter/config/ESM behavior",
+      "resolution_id": "AR-009",
+      "document": "docs/architecture/ARCHITECTURE_RESOLUTIONS_v1.md",
+      "resolution": "Official MySQL-capable adapter and ESM/NodeNext, actual generation/compiled boot",
+      "status": "RUNTIME_CHECK_PENDING",
+      "remaining_verification": "Prisma format/validate/generate + compiled Nest smoke"
+    },
+    {
+      "original_issue": 10,
+      "title": "Manual checks/collation and shadow drift",
+      "resolution_id": "AR-010",
+      "document": "docs/architecture/ARCHITECTURE_RESOLUTIONS_v1.md",
+      "resolution": "Draft migration, all CHECKs/collation, separate shadow, custom SQL inventory",
+      "status": "RUNTIME_CHECK_PENDING",
+      "remaining_verification": "Real MySQL enforcement and migration replay"
+    },
+    {
+      "original_issue": 11,
+      "title": "Preview SQL textual mismatch",
+      "resolution_id": "AR-011",
+      "document": "docs/architecture/ARCHITECTURE_RESOLUTIONS_v1.md",
+      "resolution": "Semantic comparison, not byte/name equality",
+      "status": "RESOLVED_BY_SPEC",
+      "remaining_verification": "Actual schema introspection/negative behavior tests"
+    },
+    {
+      "original_issue": 12,
+      "title": "Writing Python verifier",
+      "resolution_id": "AR-012",
+      "document": "docs/architecture/ARCHITECTURE_RESOLUTIONS_v1.md",
+      "resolution": "Never run in place; active Node/TS generate/check are separate",
+      "status": "RESOLVED_BY_SPEC",
+      "remaining_verification": "Check must fail without repairing a deliberately changed active output"
+    },
+    {
+      "original_issue": 13,
+      "title": "Admin bootstrap unspecified",
+      "resolution_id": "AR-013",
+      "document": "docs/architecture/ARCHITECTURE_RESOLUTIONS_v1.md",
+      "resolution": "P1 admin/auth; P0 disabled synthetic actor for FKs only",
+      "status": "RESOLVED_BY_SPEC",
+      "remaining_verification": "Prove fixture actor cannot authenticate; no P0 login service"
+    },
+    {
+      "original_issue": 14,
+      "title": "Hosts, ports, timezones, privileges",
+      "resolution_id": "AR-014",
+      "document": "docs/architecture/ARCHITECTURE_RESOLUTIONS_v1.md",
+      "resolution": "Loopback5173/3000/3307; root env; runtime DML vs migration/shadow URLs; UTC",
+      "status": "RUNTIME_CHECK_PENDING",
+      "remaining_verification": "Verify actual grants/URL guards/connection timezone/ports"
+    },
+    {
+      "original_issue": 15,
+      "title": "P0 exit overlaps service features",
+      "resolution_id": "AR-015",
+      "document": "docs/architecture/ARCHITECTURE_RESOLUTIONS_v1.md",
+      "resolution": "P0 infrastructure/contract/DB checks; later service tests explicitly deferred",
+      "status": "RESOLVED_BY_SPEC",
+      "remaining_verification": "Report first-PC, CI, second-PC separately"
+    },
+    {
+      "original_issue": 16,
+      "title": "Root ignore missing",
+      "resolution_id": "AR-016",
+      "document": "docs/architecture/ARCHITECTURE_RESOLUTIONS_v1.md",
+      "resolution": "Create root ignore before installs, preserve tracked migrations/contracts",
+      "status": "RESOLVED_BY_SPEC",
+      "remaining_verification": "Inspect staged diff and test ignore behavior"
+    }
+  ]
+}

@@ -1,0 +1,120 @@
+{
+  "release": "TB-ARCH-v1.0.0",
+  "recorded_at_utc": "2026-09-23T09:45:59.032427+00:00",
+  "scope": "Documentation/pack/importer checks in authoring container only",
+  "environment": {
+    "os": "Linux",
+    "python": "3.13.5",
+    "bash": "GNU bash, version 5.2.37(1)-release (x86_64-pc-linux-gnu)",
+    "git": "git version 2.47.3"
+  },
+  "passed": 19,
+  "failed": 0,
+  "tests": [
+    {
+      "test": "Importer Bash syntax",
+      "status": "PASS",
+      "detail": "bash -n exit 0"
+    },
+    {
+      "test": "Full checksum coverage including importer",
+      "status": "PASS",
+      "detail": "18 checksummed files; complete coverage except checksum list itself"
+    },
+    {
+      "test": "Documentation completeness, encoding and local links",
+      "status": "PASS",
+      "detail": "7 primary docs + source register exist; UTF-8/LF and relative links checked"
+    },
+    {
+      "test": "Resolution/acceptance and wire-compatibility markers",
+      "status": "PASS",
+      "detail": "16 resolutions; 28 NOT_RUN P0 items; 6 deferred groups; key baseline corrections present"
+    },
+    {
+      "test": "Dry-run makes no repository file changes",
+      "status": "PASS",
+      "detail": "exit 0, no worktree file changed"
+    },
+    {
+      "test": "Apply imports expected docs and preserves originals",
+      "status": "PASS",
+      "detail": "8 active docs + complete frozen pack copied; existing README/.nvmrc/DB reference preserved"
+    },
+    {
+      "test": "Repeated import is idempotent",
+      "status": "PASS",
+      "detail": "idempotent identical reimport, no new/changed bytes"
+    },
+    {
+      "test": "Active-doc conflict aborts before all writes",
+      "status": "PASS",
+      "detail": "refused differing active file before any copy"
+    },
+    {
+      "test": "Archived-pack conflict aborts before all writes",
+      "status": "PASS",
+      "detail": "refused conflicting frozen architecture archive"
+    },
+    {
+      "test": "Symlink destination escape refused",
+      "status": "PASS",
+      "detail": "refused symlink ancestor; outside directory untouched"
+    },
+    {
+      "test": "Missing prior baseline refused",
+      "status": "PASS",
+      "detail": "missing Database/API reference rejected"
+    },
+    {
+      "test": "Tampered prior baseline refused",
+      "status": "PASS",
+      "detail": "old reference payload mismatch rejected"
+    },
+    {
+      "test": "Different prior manifest identity refused",
+      "status": "PASS",
+      "detail": "reviewed manifest identity mismatch rejected"
+    },
+    {
+      "test": "Tampered incoming pack refused",
+      "status": "PASS",
+      "detail": "pack payload checksum mismatch rejected"
+    },
+    {
+      "test": "Unlisted incoming pack file refused",
+      "status": "PASS",
+      "detail": "extra unlisted file rejected"
+    },
+    {
+      "test": "Wrong branch refused without switching",
+      "status": "PASS",
+      "detail": "main branch refused, no automatic switch"
+    },
+    {
+      "test": "Non-repository destination refused",
+      "status": "PASS",
+      "detail": "non-Git destination refused"
+    },
+    {
+      "test": "Repository subdirectory refused",
+      "status": "PASS",
+      "detail": "repo subdirectory refused; root required"
+    },
+    {
+      "test": "Unknown/force option refused",
+      "status": "PASS",
+      "detail": "no force/overwrite option exists"
+    }
+  ],
+  "not_executed": [
+    "Prisma CLI validate/generate",
+    "Actual MySQL migrations or constraints",
+    "Zod/Ajv application contract migration",
+    "React/Nest application boot",
+    "GitHub CI",
+    "Windows/WSL user-machine reproduction",
+    "Any legal/authority/case review"
+  ],
+  "mutations": "Only generated documentation and temporary synthetic test repositories in the authoring container. No user GitHub, canonical Drive, real case, production DB, G7 or external send was changed."
+}

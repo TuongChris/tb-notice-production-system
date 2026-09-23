@@ -1,0 +1,98 @@
+{
+  "release": "TB-ARCH-v1.0.0",
+  "pack": "TB_ARCHITECTURE_SPECIFICATION_PACK_v1",
+  "specification_date": "2026-09-23",
+  "status": "PROPOSED_BASELINE_FOR_READ_ONLY_REINSPECTION",
+  "application_implementation_authorized": false,
+  "primary_specification_count": 7,
+  "source_register_count": 1,
+  "payload_files": [
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "150f9818b40edf934f4e7271d1a332523dcd89f21c8421c4e788368e46e71a65",
+      "bytes": 1057
+    },
+    {
+      "path": "README.md",
+      "sha256": "8979923e5ca11fefd5ad6ca6e9b01d45a91d426de00691fdf4dba617702468cc",
+      "bytes": 1417
+    },
+    {
+      "path": "README_VI.md",
+      "sha256": "960f08777e8c6b2151d328508255236a0c7256fb84c408d60f315f2ffb35ab28",
+      "bytes": 8436
+    },
+    {
+      "path": "docs/architecture/ARCHITECTURE_RESOLUTIONS_v1.md",
+      "sha256": "01d0f0eb8e420b5404bd23e5b785afceeae5257da6ac59d464b5a0adbe9e0d76",
+      "bytes": 11623
+    },
+    {
+      "path": "docs/architecture/P0_BOOTSTRAP_CONTRACT_v1.md",
+      "sha256": "98f1ee5d848abbac38032923a1e26e6fb856151719f70d0c000a3c89c4bcb316",
+      "bytes": 13395
+    },
+    {
+      "path": "docs/architecture/REPOSITORY_BLUEPRINT_v1.md",
+      "sha256": "74c475ecdbc4459b0f5e4dfaf308adf503daf509d6b731630f230abcda0914e8",
+      "bytes": 9205
+    },
+    {
+      "path": "docs/architecture/SOURCE_REGISTER_v1.md",
+      "sha256": "6e19717f5f5b3624978bd455f3431b7a92061decdd336797c13f387ff942bd59",
+      "bytes": 6321
+    },
+    {
+      "path": "docs/architecture/TECHNOLOGY_ARCHITECTURE_v1.md",
+      "sha256": "b95e9d68c096c7ecf8b6555257d206b067ce54bd880cf4cbf2db75ace1558a57",
+      "bytes": 14234
+    },
+    {
+      "path": "docs/contracts/PRODUCTION_FORM_CONTRACT_v1.md",
+      "sha256": "df73bfefcfa1f398e5f02d29cc71c855ffc230340eef1b11aa67e2e05cdd191d",
+      "bytes": 12680
+    },
+    {
+      "path": "docs/domain/DOMAIN_MODEL_v1.md",
+      "sha256": "f207f6e2c957f70753764d8196935395e0af1d141e841e4810f6607526508197",
+      "bytes": 16559
+    },
+    {
+      "path": "docs/product/PRODUCT_DEFINITION_v1.md",
+      "sha256": "2e93f84828a4c716f0f059bbde9038b232e90d814fa70b3f06bf1d955d39f6f5",
+      "bytes": 7574
+    },
+    {
+      "path": "import-into-repo.sh",
+      "sha256": "5ef4c6b6ee9a5e493d9cd672e8c4c8078f6c3d463906a245d16c9621af2f7c26",
+      "bytes": 7530
+    },
+    {
+      "path": "prompts/CLAUDE_REINSPECTION_PROMPT.txt",
+      "sha256": "926314c431b1c8c35a03e9dbfab304ada13f95eaee62d6efc5657047d130275c",
+      "bytes": 2707
+    },
+    {
+      "path": "verification/P0_ACCEPTANCE_MATRIX.json",
+      "sha256": "11a0e2bd14962afd303d10fea8fecd979d4bce6795be1d2d567ead66af50d32a",
+      "bytes": 6899
+    },
+    {
+      "path": "verification/PACK_VERIFICATION.json",
+      "sha256": "a67bc07277cc40cf08a5b84204f343c5e21b8523255b2ec232c5a57f1771789b",
+      "bytes": 3889
+    },
+    {
+      "path": "verification/REFERENCE_BASELINE.json",
+      "sha256": "fd7dc183d86753e890f9a303c2a10f3e7b893347a0a55c7c3790c4c6050528ff",
+      "bytes": 2052
+    },
+    {
+      "path": "verification/RESOLUTION_MATRIX.json",
+      "sha256": "a5abafe0de9b730f7239c7637a1f012ca33baf3c3eefdc267eee95028b0bd4be",
+      "bytes": 6668
+    }
+  ],
+  "checksum_scope": "MANIFEST.sha256 covers every file except itself, including manifest.json. Hash integrity is not a digital signature or legal authentication.",
+  "reference_release": "TB-SCHEMA-API-v1.0.0"
+}
