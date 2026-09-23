@@ -1,0 +1,11 @@
+# Active source: UTF-8 text with LF line endings (AR-003, Repository Blueprint §3).
+* text=auto eol=lf
+
+# Frozen reference trees: never normalized, byte-identical to their checksum manifests.
+docs/reference/** -text
+
+# Binary material
+*.zip -text
+*.png -text
+*.jpg -text
+*.pdf -text
