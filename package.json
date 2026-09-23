@@ -24,6 +24,7 @@
     "db:migrate:deploy": "node scripts/db/prisma-guarded.mjs deploy",
     "db:verify": "node scripts/db/verify-metadata.mjs",
     "db:seed": "node scripts/db/seed.mjs",
+    "admin:create": "node scripts/admin/create-admin.ts",
     "db:drift:diff-migrations": "node scripts/db/prisma-guarded.mjs diff-migrations-to-schema",
     "db:drift:diff-datasource": "node scripts/db/prisma-guarded.mjs diff-datasource-to-schema",
     "db:drift:probe": "node scripts/db/prisma-guarded.mjs drift-probe",
