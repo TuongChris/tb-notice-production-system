@@ -1,6 +1,7 @@
 # TB Notice Production System — Technology Architecture v1
 
 Release: **TB-ARCH-v1.0.0** · Local-first modular monolith.
+Active-copy amendment: 2026-09-23 P0-D verification correction in §9 (Zod 4.6.5 string length counting; code-point helper and ajv-formats runtime decision retained). The frozen pack copy under `docs/reference/architecture-v1/` is unchanged.
 This selects an architecture, not a claim that dependencies, Docker, Prisma or application runtime have already been tested. Exact installable patch versions are P0 outputs verified from official metadata and actual local execution.
 
 ## 1. Deployment and development boundary
@@ -121,6 +122,8 @@ During migration, the frozen 284-schema/141-operation public behavior remains th
 Use only representable wire constructs, with `unrepresentable: throw` where supported. No arbitrary coercion/transform/custom predicate is treated as lossless JSON Schema. Do not use fallback `{}`, `z.any`, or dropped checks to get a green generator. Do not infer completeness from successful serialization. [TECH-01.]
 
 **Unicode detail found in the frozen adapters:** they use code-point length refinements (`Array.from(value).length`), not simply JS UTF-16 `.length`. A naive substitution with `.min/.max` can change behavior for supplementary characters. Introduce one explicit, reviewed Unicode-string primitive with runtime behavior and JSON Schema minLength/maxLength lowering tested together. If a custom refinement is retained, its exact schema lowering must be known and tested; no promise that arbitrary refine functions convert automatically.
+
+> **P0-D verification correction (2026-09-23; recorded at P0-E, not a rewrite of the statement above).** The preceding paragraph implied that Zod's built-in string `.min/.max` necessarily count JavaScript UTF-16 code units. P0-D verified empirically that the pinned **Zod 4.6.5** built-in string length limits count **Unicode code points** (its `$ZodCheckMaxLength`/`$ZodCheckMinLength` fall back to a code-point count). TB nevertheless **retains its own reviewed code-point helper** (`packages/contracts/src/primitives/unicode.ts`, equal to Ajv's `ucs2length` rule including unpaired surrogates) inside the `tb.string` builder, so wire behaviour stays pinned to the frozen compatibility oracle (JSON Schema 2020-12 + Ajv 8 + ajv-formats full) and does not depend on current or future Zod internals. The parity tests (`yarn test`: Unicode, format and three-way runtime parity) remain authoritative. Wire formats likewise delegate to the exact-pinned `ajv-formats` 3.0.1 runtime dependency (ADR-0002); any `ajv-formats`/`ajv` version change is contract-sensitive and requires the full parity suite before acceptance. Evidence: `docs/verification/p0/P0_D_CONTRACTS.md`.
 
 Ajv draft-2020-12 plus the selected formats configuration is used as a parity checker. Test JSON Schema and Zod acceptance on the same synthetic fixtures, including Unicode boundaries, nullable/optional fields, formats, unknown keys and code-point limits. Schema/catalog coverage counts alone do not establish semantic equivalence. [TECH-04.]
 

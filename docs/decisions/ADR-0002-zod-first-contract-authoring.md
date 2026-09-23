@@ -1,6 +1,7 @@
 # ADR-0002 — Zod-first active contract authoring with frozen-behaviour parity
 
-Status: **Proposed — pending operator review at gate R2** (P0-D, 2026-09-23).
+Status: **ACCEPTED** — 2026-09-23, by the operator at review gate R2 (result PASS_WITH_NOTES). Proposed at P0-D on 2026-09-23.
+Acceptance boundary: this approves an engineering contract-authoring strategy only. It creates no legal or factual authority, no case finding and no readiness implication.
 Scope: `packages/contracts/**`, `scripts/contracts/**`, `scripts/migrations/port-frozen-contract-v1.ts`.
 Related: AR-002, TECHNOLOGY_ARCHITECTURE §9–10, decisions D1 (format oracle) and D2 (one-time port).
 This is an engineering decision about the authoring representation only. It creates no legal or factual authority and changes no wire behaviour.
@@ -23,12 +24,14 @@ The frozen TB-SCHEMA-API-v1.0.0 release is JSON-Schema-first; the architecture s
 3. **Explicit, fail-closed lowering** (`generation/json-schema.ts`) replaces `z.toJSONSchema`. It accepts only TB builder schemas with exactly their registered checks, `nullable` wrappers, `optional` on object properties and named catalog references; any other construct or check throws.
 4. **Derived artifacts** (`yarn contracts:generate`): `packages/contracts/schemas/api-schemas.json`, `packages/contracts/openapi/openapi.json` and `openapi.yaml` — JSON and YAML serialized from one in-memory OpenAPI object; YAML without anchors/aliases. They are never edited by hand; `yarn contracts:check` regenerates into a temporary directory and fails on drift without repairing anything.
 5. **One-time port** (D2). `scripts/migrations/port-frozen-contract-v1.ts` produced the initial source from the frozen inputs deterministically and stays committed as provenance. It is not an authoring workflow: it refuses to overwrite differing files and must not be re-run over edited source.
-6. **Compatibility gate.** Until a new contract release is approved, the active source must reproduce TB-SCHEMA-API-v1.0.0 exactly: byte-identical JSON Schema and OpenAPI JSON, itemized inventory parity and three-way runtime parity (frozen Ajv, generated Ajv, Zod) — `yarn test:contracts`. An intentional wire change therefore requires a new approved baseline (release + ADR), not an edit that makes tests pass. The test `transition baseline: output equals the committed initial active source` is retired with the first intentional source edit.
+6. **Compatibility gate.** Until a new contract release is approved, the active source must reproduce TB-SCHEMA-API-v1.0.0 exactly: byte-identical JSON Schema and OpenAPI JSON, itemized inventory parity and three-way runtime parity (frozen Ajv, generated Ajv, Zod) — `yarn test:contracts`. An intentional wire change therefore requires a new approved baseline (release + ADR), not an edit that makes tests pass. The transition-only assertion "one-time port output equals the active source" was isolated from `yarn test`/CI at P0-E (acceptance of this ADR): it is kept only as the opt-in historical check `yarn test:transition-baseline`, which is expected to fail after the first approved contract edit. Port determinism, its refusal to write `docs/reference` and its fail-closed translation remain in `yarn test`.
 7. **Semantic rules stay separate.** Cross-field, relational, source-scope, readiness and G1–G6 rules (INVARIANTS.md) are service-layer checks, not schema refinements. Adding them to wire schemas requires a reviewed lowering or remains outside the JSON Schema contract.
 
 ## Consequences
 
 - Runtime validation depends on `ajv-formats` (formats only, no Ajv core) in `@tb/contracts`.
+- **Runtime dependency decision (R2, 2026-09-23): keep `ajv-formats` 3.0.1 exact-pinned as a runtime dependency of `@tb/contracts`.** Frozen wire format behaviour must stay exact; P0-D measured real divergences between Zod built-ins and the Ajv/full oracle; reusing the pinned oracle implementation is simpler and less error-prone than re-implementing URI/email/date-time logic. **Any change of the `ajv-formats` version (or of `ajv`, the oracle) is CONTRACT-SENSITIVE**: it requires the full parity suite (`yarn test`, including three-way runtime parity and format parity) and review before acceptance. Format behaviour must not be relaxed.
+- Zod 4.6.5's built-in string `.min()`/`.max()` were verified to count Unicode code points (P0-D); TB still uses its own reviewed `codePointLength` helper so wire behaviour stays pinned to the oracle rather than to future Zod internals (see TECHNOLOGY_ARCHITECTURE §9, P0-D verification correction).
 - `tb.*` builders are the only supported vocabulary; new constructs need a builder, a lowering and parity tests together.
 - The frozen `openapi.yaml` (45 anchors, 351 aliases) cannot be parsed by the `yaml` library with default alias limits; the generated YAML has no aliases and is semantically equal to it.
 
