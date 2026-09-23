@@ -28,7 +28,7 @@
     "db:drift:diff-datasource": "node scripts/db/prisma-guarded.mjs diff-datasource-to-schema",
     "db:drift:probe": "node scripts/db/prisma-guarded.mjs drift-probe",
     "db:introspect": "node scripts/db/prisma-guarded.mjs introspect-print",
-    "test:db": "node scripts/db/run-db-tests.mjs",
+    "test:db": "yarn db:generate && yarn workspace @tb/contracts run build && node scripts/db/run-db-tests.mjs",
     "contracts:generate": "yarn workspace @tb/contracts run build && node scripts/contracts/generate.ts",
     "contracts:check": "yarn workspace @tb/contracts run build && node scripts/contracts/check.ts",
     "reference:check": "node scripts/reference/check.ts",

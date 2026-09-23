@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import { Controller, Get, Header } from '@nestjs/common';
+import { Controller, Get, Header, Req } from '@nestjs/common';
 import type { GetHealthResponse } from '@tb/contracts';
+import type { HttpRequest } from '../../infrastructure/http/http-types.js';
+import { PublicRoute } from '../auth/public-route.decorator.js';
 import { HealthService } from './health.service.js';
 
 /**
@@ -13,9 +15,13 @@ export class HealthController {
   constructor(private readonly health: HealthService) {}
 
   @Get()
+  @PublicRoute()
   @Header('Cache-Control', 'no-store')
-  async getHealth(): Promise<GetHealthResponse> {
+  async getHealth(@Req() request: HttpRequest): Promise<GetHealthResponse> {
     const status = await this.health.check();
-    return { data: { status }, meta: { requestId: randomUUID(), affectedResources: [] } };
+    return {
+      data: { status },
+      meta: { requestId: request.requestId ?? randomUUID(), affectedResources: [] },
+    };
   }
 }
