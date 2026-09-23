@@ -1,0 +1,18 @@
+P1.1 negative controls — 2026-09-23T17:15:22Z — feature/p1-auth-shell @ 5507726 + uncommitted P1.1 changes (first PC)
+Method: back up the file, apply one mutation that disables a recovery protection, run the responsible suite
+(tests/db/admin-recovery.test.ts on tb_notice_test unless noted), restore the file and compare SHA-256.
+DETECTED = the suite failed. Mutations were never committed.
+
+NCR1-reset-without-epoch-increment: suite exit=1 → DETECTED (Tests  1 failed | 13 passed (14)); restored=yes
+NCR2-reset-without-revocation: suite exit=1 → DETECTED (Tests  1 failed | 13 passed (14)); restored=yes
+NCR3-enable-without-epoch-increment: suite exit=1 → DETECTED (Tests  1 failed | 13 passed (14)); restored=yes
+NCR4-fixture-marker-not-protected: suite exit=1 → DETECTED (Tests  1 failed | 13 passed (14)); restored=yes
+NCR5-revocation-not-scoped-to-user: suite exit=1 → DETECTED (Tests  1 failed | 13 passed (14)); restored=yes
+NCR6-disable-audit-missing: suite exit=1 → DETECTED (Tests  2 failed | 12 passed (14)); restored=yes
+NCR7-disable-keeps-sessions: suite exit=1 → DETECTED (Tests  1 failed | 13 passed (14)); restored=yes
+NCR8-password-stdin-allowed-at-terminal: suite exit=1 → DETECTED (Tests  1 failed | 13 passed (14)); restored=yes
+NCR9-guard-skipped: suite exit=1 → DETECTED (Tests  11 failed | 3 passed (14)); restored=yes
+
+NCR8 and NCR9 ran tests/api/admin-cli-runner.test.ts (unit). After the runs: no *.nc-bak files, db:verify test --expect-empty → domain rows total: 0.
+
+Source tree under test: identical to commit ff5032f (the last P1.1 code commit); only documentation changed afterwards.

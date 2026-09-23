@@ -1,18 +1,18 @@
 # P1 — Authentication + application shell (first PC)
 
-Mission TB_P1_AUTHENTICATION_AND_APP_SHELL_TO_R4 on `feature/p1-auth-shell` (branched from the P0 reproduction baseline `b9eea3755a87490636cbb0f2e7aec1a59e15d64c`). Recorded 2026-09-23 on the first PC. This report covers automated first-PC evidence; the branch CI run of the implementation is reported with review gate R4 (a commit cannot record its own run). No P2 work was started.
+Mission TB_P1_AUTHENTICATION_AND_APP_SHELL_TO_R4 on `feature/p1-auth-shell` (branched from the P0 reproduction baseline `b9eea3755a87490636cbb0f2e7aec1a59e15d64c`). Recorded 2026-09-23 on the first PC. **Review gate R4: PASS_WITH_NOTES** (operator, 2026-09-23); the §4 interpretations, the 12 h / 30 min session lifetimes and the password policy were accepted as they are. The follow-up recovery commands (P1.1) are documented in `P1_1_AUTH_RECOVERY.md`. No P2 work was started.
 
 ## Status by scope (not collapsed)
 
 | Scope | Status | Basis |
 |---|---|---|
 | **P1_FIRST_PC** | **PASS** | All automated checks below executed on the first PC and passed |
-| **P1_CI** | reported at R4 | Branch CI of the pushed P1 commits (both jobs, including the compiled login round trip) |
-| **P1 manual browser check** | **NOT_RUN** | No person has signed in through a Windows browser yet; no real administrator account exists (the operator creates it with `yarn admin:create`) |
+| **P1_CI** | **PASS** | GitHub Actions run `35885393358` on commit `5507726` — both jobs success, including `yarn admin:create` with a synthetic account and the compiled `yarn smoke:auth` round trip (reported at R4) |
+| **P1_WINDOWS_BROWSER** | **NOT_RUN** (not reported) | Recorded only when the operator reports it (`PASS — OPERATOR_REPORTED`); never inferred from tests or database traces |
 | **P0_SECOND_PC** | **NOT_RUN** (unchanged) | The second PC reproduces the P0 baseline, not P1 |
 | **P0_OVERALL** | **NOT_COMPLETE** (unchanged) | — |
 
-`EXTERNAL_LEGAL_ACTIONS=0` · `REAL_CASE_MUTATIONS=0` · `G7_CREATED=0` · `DEPLOYMENTS=0` · `REAL_TB_DATA_IN_GIT=0` · `REAL_ACCOUNTS_CREATED=0` · `SCHEMA_CHANGES=0`.
+`EXTERNAL_LEGAL_ACTIONS=0` · `REAL_CASE_MUTATIONS=0` · `G7_CREATED=0` · `DEPLOYMENTS=0` · `REAL_TB_DATA_IN_GIT=0` · `REAL_ACCOUNTS_CREATED_BY_ENGINEER=0` · `SCHEMA_CHANGES=0`.
 
 ## 1. Scope
 
@@ -83,7 +83,9 @@ React Router 8 declarative routes: `/login`, a protected `/` layout (`RequireSes
 ### 3.10 Local environment
 `yarn env:init` now creates **or completes** the root `.env`: with no file it writes all keys; with an existing file it appends missing P1 keys (`TB_SESSION_SECRET` = 32 random bytes base64url, `TB_ALLOWED_WEB_ORIGINS`) and replaces an empty or placeholder P1 value on its effective (last) line — no database depends on these keys. No other line is ever rewritten, so database passwords of an initialized MySQL volume stay valid. The file is left at mode 600. Secrets are never printed. First PC: the two keys were appended on 2026-09-23; the 9 existing lines were verified byte-identical (SHA-256). `.env.example` documents the keys with a placeholder the API rejects (and `env:init` replaces).
 
-## 4. Contract interpretation notes
+## 4. Contract interpretation notes (accepted at R4, 2026-09-23)
+
+The operator accepted every row below without a contract amendment. Canonical Windows-browser origin: `http://localhost:5173`; `http://127.0.0.1:5173` stays allowed for WSL tools. The host-only cookie is per hostname: a session created on one hostname is not sent to, and not valid on, the other. Session-row retention cleanup is DEFERRED (not blocking P2).
 
 | Topic | Decision | Why |
 |---|---|---|

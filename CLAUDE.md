@@ -34,10 +34,10 @@ npm `prisma@latest` currently points at an 8.x release candidate — always pin 
 ## Authentication (P1; details `docs/verification/p1/P1_AUTH_SHELL.md`)
 
 - An application User is **not** a Signer: login confers no legal authority, satisfies no G1–G7 gate and signs/adopts/sends nothing. No signup or user-management endpoint.
-- Accounts only through `yarn admin:create` (local; allowlist-guarded to `tb_notice_dev` with the `tb_dev` account; password via hidden prompt or `--password-stdin`, never argv/env; never modifies an existing user). Never create a real account or choose a password on the operator's behalf; tests use synthetic users in `tb_notice_test`.
+- Accounts only through the local admin CLI (`yarn admin:create | admin:password | admin:disable | admin:enable | admin:revoke-sessions`): allowlist-guarded to `tb_notice_dev` with the `tb_dev` account in the wrapper and again in the compiled entry; passwords via hidden prompt or `--password-stdin` (pipe/file only), never argv/env; `create` never modifies an existing user and recovery commands never create one; every change plus its audit event is one transaction and state changes increment `session_epoch`. The P0 synthetic actor and non-credential (`!`) fixtures are never modified (disable only reports). Never create, recover or change a real account on the operator's behalf; tests use synthetic users in `tb_notice_test`.
 - Sessions: 256-bit opaque token only in cookie `tb_session_dev` (HttpOnly, SameSite=Strict, Path=/, no Domain; Secure=false is the loopback-HTTP dev exception only). DB stores SHA-256 digests. 12 h absolute + 30 min idle; login rotates; logout revokes.
-- CSRF token = HMAC-SHA256(`TB_SESSION_SECRET`, session id ‖ `users.session_epoch` ‖ token); incrementing the epoch (or rotating the secret) invalidates sessions. Unsafe methods need an exact allowlisted Origin (`TB_ALLOWED_WEB_ORIGINS`), JSON bodies and `X-CSRF-Token`; login needs the Origin plus `X-Requested-With: TB-APP`. CORS is never enabled.
-- Credential failures are one identical `403 INVALID_CREDENTIALS`; in-memory throttle (5/account, 100 overall per 15 min). Never log or store passwords, tokens, CSRF tokens or their hashes; every API response is `Cache-Control: no-store`.
+- CSRF token = HMAC-SHA256(`TB_SESSION_SECRET`, session id ‖ `users.session_epoch` ‖ token); incrementing the epoch (or rotating the secret) invalidates sessions. Unsafe methods need an exact allowlisted Origin (`TB_ALLOWED_WEB_ORIGINS`: canonical Windows browser `http://localhost:5173`, plus `http://127.0.0.1:5173` for WSL tools; cookies are per hostname, never shared), JSON bodies and `X-CSRF-Token`; login needs the Origin plus `X-Requested-With: TB-APP`. CORS is never enabled.
+- Credential failures are one identical `403 INVALID_CREDENTIALS`; in-memory throttle (5/account, 100 overall per 15 min). Never log or store passwords, tokens, CSRF tokens or their hashes; every API response is `Cache-Control: no-store`. These P1 decisions were accepted at R4 (PASS_WITH_NOTES); session-row retention is DEFERRED.
 - The production cookie (`__Host-tb_session`, Secure, HTTPS) is not implemented; a non-loopback or HTTPS origin makes the API refuse to start. Do not reuse the dev exception.
 
 ## Database safety
@@ -64,13 +64,14 @@ npm `prisma@latest` currently points at an 8.x release candidate — always pin 
 | `yarn db:migrate:deploy <test\|replay\|dev>` · `yarn db:status <t>` · `yarn db:verify <t>` | Apply committed migrations · status · metadata verification        |
 | `yarn db:seed`                                                                             | Idempotent synthetic seed (dev only; disabled synthetic actor)     |
 | `yarn admin:create`                                                                        | Create one local application user (operator only; see above)       |
+| `yarn admin:password\|disable\|enable\|revoke-sessions --email <e>`                        | Local recovery of one application user (operator only; see above)  |
 | `yarn reference:check` · `yarn reference:helper-tests`                                     | Frozen reference integrity · original 27 frozen Node helper tests  |
 | `yarn contracts:generate` · `yarn contracts:check`                                         | Regenerate / verify generated contract artifacts                   |
 | `yarn typecheck` · `yarn lint` · `yarn format:check`                                       | Static checks (format:check never rewrites)                        |
 | `yarn test`                                                                                | All non-database tests (contract parity, tooling, API units, UI)   |
 | `yarn test:db`                                                                             | DB structural + P1 HTTP/CLI integration tests on `tb_notice_test`  |
 | `yarn build` · `yarn smoke:local`                                                          | Build everything · build + run API/web, health, shell, auth bounds |
-| `yarn smoke:auth --email <e> < pw`                                                         | Compiled login round trip for an existing account (CI synthetic)   |
+| `yarn smoke:auth --email <e> [--expect-rejected] < pw`                                     | Compiled login round trip (or expected rejection), CI synthetic    |
 | `yarn dev` · `yarn dev:verify-shutdown`                                                    | Dev servers (Ctrl+C stops both) · verify clean shutdown            |
 
 Before any commit: `yarn reference:check && yarn contracts:check && yarn typecheck && yarn lint && yarn format:check && yarn test` (plus `yarn test:db` when DB code changes). Report actual results; a skipped command is never PASS.
@@ -82,6 +83,6 @@ Before any commit: `yarn reference:check && yarn contracts:check && yarn typeche
 
 ## Phase boundaries and stop conditions
 
-- P0-A…P0-E delivered on the first PC and in CI; Windows-browser check PASS (operator-reported); second-PC reproduction pending — P0 overall **NOT_COMPLETE**. P1 (authentication + app shell) is implemented on `feature/p1-auth-shell` and stopped at review gate R4. P2 (business-directory CRUD) and all later features are **not started** and need explicit approval.
+- P0-A…P0-E delivered on the first PC and in CI; Windows-browser check PASS (operator-reported); second-PC reproduction pending — P0 overall **NOT_COMPLETE**. P1 (authentication + app shell) passed review gate R4 with notes; P1.1 (local recovery commands) is implemented on `feature/p1-auth-shell` and stopped at review gate R4.1. P2 (business-directory CRUD) and all later features are **not started** and need explicit approval.
 - Stop and ask on: missing credentials/permissions, a package incompatibility needing an architecture change, any domain-semantic conflict, an unsafe or unrecognized database target, or any destructive plan.
 - Forbidden substitutions: MariaDB/SQLite/Postgres servers; `db push`; Zod built-in format validators or `z.toJSONSchema` for wire contracts; hand-edited generated contracts; Python in app/CI; Yarn Classic/PnP, npm or pnpm installs; binding services to `0.0.0.0`; writable readiness/signature fields.
