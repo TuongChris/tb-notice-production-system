@@ -20,16 +20,27 @@
     "db:generate": "node scripts/db/prisma-guarded.mjs generate",
     "db:migrate:create": "node scripts/db/prisma-guarded.mjs migrate-create",
     "db:compare:preview": "node scripts/db/sql-semantic-compare.mjs docs/reference/database-api-v1/TB_DATABASE_SCHEMA_API_CONTRACT_v1/prisma/initial-schema.preview.sql apps/api/prisma/migrations/20260923103912_initial_schema/migration.sql",
+    "db:status": "node scripts/db/prisma-guarded.mjs status",
+    "db:migrate:deploy": "node scripts/db/prisma-guarded.mjs deploy",
+    "db:verify": "node scripts/db/verify-metadata.mjs",
+    "db:drift:diff-migrations": "node scripts/db/prisma-guarded.mjs diff-migrations-to-schema",
+    "db:drift:diff-datasource": "node scripts/db/prisma-guarded.mjs diff-datasource-to-schema",
+    "db:drift:probe": "node scripts/db/prisma-guarded.mjs drift-probe",
+    "db:introspect": "node scripts/db/prisma-guarded.mjs introspect-print",
+    "test:db": "node scripts/db/run-db-tests.mjs",
     "build": "yarn workspace @tb/contracts run build && yarn workspace @tb/api run build && yarn workspace @tb/web run build",
-    "typecheck": "yarn workspace @tb/contracts run build && yarn workspace @tb/contracts run typecheck && yarn workspace @tb/api run typecheck && yarn workspace @tb/web run typecheck",
+    "typecheck": "yarn workspace @tb/contracts run build && yarn workspace @tb/contracts run typecheck && yarn workspace @tb/api run typecheck && yarn workspace @tb/web run typecheck && tsc -p tests/tsconfig.json --noEmit",
     "format:check": "prettier --check .",
     "lint": "oxlint",
     "dev": "yarn workspace @tb/contracts run build && yarn workspaces foreach --all --parallel --interlaced --include @tb/api --include @tb/web run dev"
   },
   "devDependencies": {
     "@types/node": "24.13.6",
+    "mariadb": "3.4.5",
     "oxlint": "1.85.0",
     "prettier": "3.9.8",
-    "typescript": "7.0.2"
+    "typescript": "7.0.2",
+    "vite": "8.3.0",
+    "vitest": "5.0.1"
   }
 }

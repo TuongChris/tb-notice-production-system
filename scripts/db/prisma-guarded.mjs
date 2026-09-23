@@ -3,54 +3,65 @@
 //
 //   node scripts/db/prisma-guarded.mjs format|validate|generate
 //   node scripts/db/prisma-guarded.mjs migrate-create <migration_name>
+//   node scripts/db/prisma-guarded.mjs status <test|replay|dev>
+//   node scripts/db/prisma-guarded.mjs deploy <test|replay|dev>
+//   node scripts/db/prisma-guarded.mjs diff-migrations-to-schema
+//   node scripts/db/prisma-guarded.mjs diff-datasource-to-schema <test|replay|dev>
+//   node scripts/db/prisma-guarded.mjs drift-probe
+//   node scripts/db/prisma-guarded.mjs introspect-print <test|replay|dev>
 //
-// migrate-create runs `prisma migrate dev --create-only`: it drafts a migration file using the
-// separate shadow schema and does NOT apply the migration to tb_notice_dev.
+// migrate-create / drift-probe run `prisma migrate dev --create-only`: they draft a migration file
+// using the separate shadow schema and do NOT apply anything to tb_notice_dev. `deploy` applies
+// only already-committed migrations (`prisma migrate deploy`). The diff commands are read-only on
+// the target (the migrations diff replays history into the disposable shadow schema).
+// `introspect-print` is `prisma db pull --print` (stdout only; the schema file is not written).
+// There is intentionally no reset, db push or db execute command.
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { assertLocalTarget, describeTarget } from './allowlist.mjs';
+import { loadRootEnv, repoRoot, resolveTarget } from './lib/targets.mjs';
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const apiDir = path.join(repoRoot, 'apps/api');
 const prismaBin = path.join(repoRoot, 'node_modules/.bin/prisma');
-const envFile = path.join(repoRoot, '.env');
-if (existsSync(envFile)) {
-  process.loadEnvFile(envFile);
-}
+const APPLY_TARGETS = ['test', 'replay', 'dev'];
+
+loadRootEnv();
 
 const [command, ...rest] = process.argv.slice(2);
 
-function runPrisma(args) {
+function runPrisma(args, migrationUrl) {
+  const env = { ...process.env, CHECKPOINT_DISABLE: '1', PRISMA_HIDE_UPDATE_MESSAGE: '1' };
+  // CHECKPOINT_DISABLE: no Prisma usage telemetry; update notices are not version guidance here.
+  if (migrationUrl) {
+    // prisma.config.ts reads MIGRATION_DATABASE_URL; process.loadEnvFile does not override it.
+    env.MIGRATION_DATABASE_URL = migrationUrl;
+  }
   const result = spawnSync(prismaBin, [...args, '--config', 'prisma.config.ts'], {
     cwd: apiDir,
     stdio: 'inherit',
-    // CHECKPOINT_DISABLE: no Prisma usage telemetry; update notices are not version guidance here.
-    env: { ...process.env, CHECKPOINT_DISABLE: '1', PRISMA_HIDE_UPDATE_MESSAGE: '1' },
+    env,
   });
   if (result.error) throw result.error;
   process.exit(result.status ?? 1);
 }
 
-function requireMigrationTargets() {
-  const migration = assertLocalTarget(
-    'MIGRATION_DATABASE_URL',
-    process.env.MIGRATION_DATABASE_URL,
-    {
-      expectedSchema: 'tb_notice_dev',
-      forbidUser: 'tb_dev',
-    },
-  );
-  const shadow = assertLocalTarget('SHADOW_DATABASE_URL', process.env.SHADOW_DATABASE_URL, {
-    expectedSchema: 'tb_notice_shadow',
-    forbidUser: 'tb_dev',
-  });
-  if (process.env.MIGRATION_DATABASE_URL === process.env.SHADOW_DATABASE_URL) {
+function requireDevAndShadow() {
+  const dev = resolveTarget('dev', ['dev']);
+  const shadow = resolveTarget('shadow', ['shadow']);
+  if (dev.rawUrl === shadow.rawUrl) {
     throw new Error('SHADOW_DATABASE_URL must differ from MIGRATION_DATABASE_URL.');
   }
-  console.log(`[guard] migration target: ${describeTarget(migration)}`);
-  console.log(`[guard] shadow target:    ${describeTarget(shadow)}`);
+  console.log(`[guard] migration target: ${dev.label}`);
+  console.log(`[guard] shadow target:    ${shadow.label}`);
+  return dev;
+}
+
+function requireApplyTarget(name) {
+  const resolved = resolveTarget(name, APPLY_TARGETS);
+  // The shadow URL stays configured but must never equal the target.
+  const shadow = resolveTarget('shadow', ['shadow']);
+  if (resolved.rawUrl === shadow.rawUrl) throw new Error('target must differ from the shadow URL.');
+  console.log(`[guard] ${command} target: ${resolved.label}`);
+  return resolved;
 }
 
 try {
@@ -69,10 +80,51 @@ try {
       if (!name || !/^[a-z0-9_]{1,60}$/.test(name)) {
         throw new Error('migrate-create requires a lowercase snake_case migration name.');
       }
-      requireMigrationTargets();
+      requireDevAndShadow();
       runPrisma(['migrate', 'dev', '--create-only', '--name', name]);
       break;
     }
+    case 'status':
+      runPrisma(['migrate', 'status'], requireApplyTarget(rest[0]).rawUrl);
+      break;
+    case 'deploy':
+      runPrisma(['migrate', 'deploy'], requireApplyTarget(rest[0]).rawUrl);
+      break;
+    case 'diff-migrations-to-schema': {
+      requireDevAndShadow();
+      runPrisma([
+        'migrate',
+        'diff',
+        '--from-migrations',
+        'prisma/migrations',
+        '--to-schema',
+        'prisma/schema.prisma',
+        '--script',
+        '--exit-code',
+      ]);
+      break;
+    }
+    case 'diff-datasource-to-schema':
+      runPrisma(
+        [
+          'migrate',
+          'diff',
+          '--from-config-datasource',
+          '--to-schema',
+          'prisma/schema.prisma',
+          '--script',
+          '--exit-code',
+        ],
+        requireApplyTarget(rest[0]).rawUrl,
+      );
+      break;
+    case 'drift-probe':
+      requireDevAndShadow();
+      runPrisma(['migrate', 'dev', '--create-only', '--name', 'drift_probe']);
+      break;
+    case 'introspect-print':
+      runPrisma(['db', 'pull', '--print'], requireApplyTarget(rest[0]).rawUrl);
+      break;
     default:
       throw new Error(`Unknown or unsupported command: ${command ?? '(none)'}`);
   }

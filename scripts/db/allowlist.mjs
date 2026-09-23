@@ -15,7 +15,11 @@ const ALLOWED_PORT = '3307';
  * Parses a mysql:// URL and asserts it targets the local development MySQL, an allowlisted
  * schema and (optionally) one exact expected schema. Never returns or prints the password.
  */
-export function assertLocalTarget(variableName, rawUrl, { expectedSchema, forbidUser } = {}) {
+export function assertLocalTarget(
+  variableName,
+  rawUrl,
+  { expectedSchema, forbidUser, requireUser } = {},
+) {
   if (!rawUrl) {
     throw new Error(`${variableName} is not set. Create the local .env with \`yarn env:init\`.`);
   }
@@ -38,6 +42,7 @@ export function assertLocalTarget(variableName, rawUrl, { expectedSchema, forbid
   }
   if (user === 'root') problems.push('root credentials are never permitted');
   if (forbidUser && user === forbidUser) problems.push(`user ${user} is not permitted here`);
+  if (requireUser && user !== requireUser) problems.push(`user must be ${requireUser}`);
   if (problems.length > 0) {
     throw new Error(`${variableName} rejected: ${problems.join('; ')}.`);
   }
