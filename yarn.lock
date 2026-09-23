@@ -728,7 +728,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@tb/contracts@workspace:packages/contracts"
   dependencies:
+    ajv-formats: "npm:3.0.1"
     typescript: "npm:7.0.2"
+    zod: "npm:4.6.5"
   languageName: unknown
   linkType: soft
 
@@ -1259,7 +1261,21 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ajv@npm:^8.12.0":
+"ajv-formats@npm:3.0.1":
+  version: 3.0.1
+  resolution: "ajv-formats@npm:3.0.1"
+  dependencies:
+    ajv: "npm:^8.0.0"
+  peerDependencies:
+    ajv: ^8.0.0
+  peerDependenciesMeta:
+    ajv:
+      optional: true
+  checksum: 10c0/168d6bca1ea9f163b41c8147bae537e67bd963357a5488a1eaf3abe8baa8eec806d4e45f15b10767e6020679315c7e1e5e6803088dfb84efa2b4e9353b83dd0a
+  languageName: node
+  linkType: hard
+
+"ajv@npm:8.20.0, ajv@npm:^8.0.0, ajv@npm:^8.12.0":
   version: 8.20.0
   resolution: "ajv@npm:8.20.0"
   dependencies:
@@ -3256,12 +3272,15 @@ __metadata:
   resolution: "tb-notice-production-system@workspace:."
   dependencies:
     "@types/node": "npm:24.13.6"
+    ajv: "npm:8.20.0"
+    ajv-formats: "npm:3.0.1"
     mariadb: "npm:3.4.5"
     oxlint: "npm:1.85.0"
     prettier: "npm:3.9.8"
     typescript: "npm:7.0.2"
     vite: "npm:8.3.0"
     vitest: "npm:5.0.1"
+    yaml: "npm:2.9.1"
   languageName: unknown
   linkType: soft
 
@@ -3699,6 +3718,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"yaml@npm:2.9.1":
+  version: 2.9.1
+  resolution: "yaml@npm:2.9.1"
+  bin:
+    yaml: bin.mjs
+  checksum: 10c0/9d06676ef02b89559a8b10a71882bd2cdae81e8393dc8dbc871615c3259475d9609ad973d19cb3c9e71e72d6206e3d1e7aa241c7e55f3d16fd2e77db305827d6
+  languageName: node
+  linkType: hard
+
 "zeptomatch@npm:2.1.0":
   version: 2.1.0
   resolution: "zeptomatch@npm:2.1.0"
@@ -3706,5 +3734,12 @@ __metadata:
     grammex: "npm:^3.1.11"
     graphmatch: "npm:^1.1.0"
   checksum: 10c0/6baa15863f1bbf0131a50f80df82bdc1d174f45e81587ff6a2ac2ad13a0c4a1f80e883794d5711ad31acdd85195ebe052375e43db5c4bcbaff98f040c082234e
+  languageName: node
+  linkType: hard
+
+"zod@npm:4.6.5":
+  version: 4.6.5
+  resolution: "zod@npm:4.6.5"
+  checksum: 10c0/32eb6c5e98becbe045675b2141c3611451c16ba567f9779231d79af41c4d651ca1c22f154aef7e6c6e77b929f23e43f1154ca05b82e119e922353725d6776af5
   languageName: node
   linkType: hard

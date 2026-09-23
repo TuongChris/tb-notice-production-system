@@ -15,5 +15,9 @@
   },
   "devDependencies": {
     "typescript": "7.0.2"
+  },
+  "dependencies": {
+    "ajv-formats": "3.0.1",
+    "zod": "4.6.5"
   }
 }

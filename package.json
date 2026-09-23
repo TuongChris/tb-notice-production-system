@@ -28,19 +28,27 @@
     "db:drift:probe": "node scripts/db/prisma-guarded.mjs drift-probe",
     "db:introspect": "node scripts/db/prisma-guarded.mjs introspect-print",
     "test:db": "node scripts/db/run-db-tests.mjs",
+    "contracts:generate": "yarn workspace @tb/contracts run build && node scripts/contracts/generate.ts",
+    "contracts:check": "yarn workspace @tb/contracts run build && node scripts/contracts/check.ts",
+    "reference:check": "node scripts/reference/check.ts",
+    "reference:helper-tests": "node scripts/reference/run-helper-tests.ts",
+    "test:contracts": "yarn workspace @tb/contracts run build && vitest run --config vitest.contracts.config.ts",
     "build": "yarn workspace @tb/contracts run build && yarn workspace @tb/api run build && yarn workspace @tb/web run build",
-    "typecheck": "yarn workspace @tb/contracts run build && yarn workspace @tb/contracts run typecheck && yarn workspace @tb/api run typecheck && yarn workspace @tb/web run typecheck && tsc -p tests/tsconfig.json --noEmit",
+    "typecheck": "yarn workspace @tb/contracts run build && yarn workspace @tb/contracts run typecheck && yarn workspace @tb/api run typecheck && yarn workspace @tb/web run typecheck && tsc -p tests/tsconfig.json --noEmit && tsc -p scripts/tsconfig.json --noEmit",
     "format:check": "prettier --check .",
     "lint": "oxlint",
     "dev": "yarn workspace @tb/contracts run build && yarn workspaces foreach --all --parallel --interlaced --include @tb/api --include @tb/web run dev"
   },
   "devDependencies": {
     "@types/node": "24.13.6",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
     "mariadb": "3.4.5",
     "oxlint": "1.85.0",
     "prettier": "3.9.8",
     "typescript": "7.0.2",
     "vite": "8.3.0",
-    "vitest": "5.0.1"
+    "vitest": "5.0.1",
+    "yaml": "2.9.1"
   }
 }
