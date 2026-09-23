@@ -1,7 +1,8 @@
 # ADR-0001 — Manual MySQL semantics in Prisma migrations
 
-Status: **Proposed — pending operator review at gate R1** (P0-C4, 2026-09-23).
+Status: **ACCEPTED** — 2026-09-23, by the operator at review gate R1 (result PASS_WITH_NOTES). Proposed at P0-C4 on 2026-09-23.
 Scope: `apps/api/prisma/migrations/**` for MySQL 8.4 with Prisma 7.10.0.
+Acceptance boundary: this approves an engineering migration strategy only. It creates no legal or factual authority, no case finding and no readiness state.
 
 ## Context
 
