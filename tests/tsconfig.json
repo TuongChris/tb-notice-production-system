@@ -4,7 +4,14 @@
     "allowJs": true,
     "checkJs": false,
     "noEmit": true,
-    "types": ["node"]
+    "types": ["node"],
+    "allowImportingTsExtensions": true
   },
-  "include": ["**/*.ts", "../scripts/db/**/*.mjs", "../vitest.db.config.ts"]
+  "include": [
+    "**/*.ts",
+    "../scripts/db/**/*.mjs",
+    "../vitest.db.config.ts",
+    "../vitest.config.ts",
+    "../vitest.transition.config.ts"
+  ]
 }

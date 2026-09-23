@@ -76,16 +76,6 @@ describe('one-time port', () => {
     expect(tree(a)).toEqual(tree(b));
   });
 
-  it('transition baseline: output equals the committed initial active source (retire on first intentional edit)', () => {
-    const out = tempDir('port-baseline');
-    expect(run(PORT, ['--out-root', out]).status).toBe(0);
-    for (const file of PORTED_FILES) {
-      expect(sha(path.join(out, file)), file).toBe(
-        sha(path.join(repoRoot, 'packages/contracts/src', file)),
-      );
-    }
-  });
-
   it('refuses to write under docs/reference', () => {
     const target = path.join(repoRoot, 'docs/reference/p0d-port-probe');
     const result = run(PORT, ['--out-root', target]);

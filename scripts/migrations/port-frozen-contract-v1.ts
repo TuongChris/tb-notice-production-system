@@ -33,7 +33,7 @@ const FROZEN_INPUTS = [
 const PFC_SCHEMA_VERSION = 'PFC-YT-EMAIL-v1.1';
 const PRODUCTION_CONTEXT = 'ProductionContext';
 
-type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
+export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 type JsonObject = { [key: string]: Json };
 
 function fail(message: string): never {
@@ -89,7 +89,7 @@ const lit = (value: Json): string => JSON.stringify(value);
 const propertyKey = (key: string): string => (IDENTIFIER.test(key) ? key : lit(key));
 const schemaConst = (name: string): string => `${name}Schema`;
 
-interface TranslateContext {
+export interface TranslateContext {
   readonly names: ReadonlySet<string>;
   readonly referenced: Set<string>;
   usesPfc: boolean;
@@ -128,7 +128,11 @@ function translateString(node: JsonObject, where: string): string {
   ])})`;
 }
 
-function translate(node: Json | undefined, context: TranslateContext, where: string): string {
+export function translate(
+  node: Json | undefined,
+  context: TranslateContext,
+  where: string,
+): string {
   if (!isObject(node)) fail(`${where}: expected a schema object`);
   if ('$ref' in node) {
     expectKeys(node, ['$ref'], where);
@@ -238,7 +242,7 @@ function translate(node: Json | undefined, context: TranslateContext, where: str
   }
 }
 
-function translateTopLevel(
+export function translateTopLevel(
   name: string,
   node: Json | undefined,
   context: TranslateContext,
@@ -941,7 +945,10 @@ ${documentCode}
   for (const line of written) console.log(`[port] wrote ${line}`);
 }
 
-main().catch((error: unknown) => {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exit(1);
-});
+// Run only when executed directly; tests import the translation functions without porting.
+if (import.meta.main) {
+  main().catch((error: unknown) => {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  });
+}
