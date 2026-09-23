@@ -1,0 +1,141 @@
+# TB Notice Production System — branch/PR CI (P0-E).
+# Scope: build and verification only. No deployment, no cloud or production credentials, no real
+# TB data, no Drive/mail access. Database work uses the committed compose.yaml (pinned MySQL
+# 8.4.11 image digest, loopback 127.0.0.1:3307, same init script) with synthetic secrets generated
+# at runtime by `yarn env:init` (never in this file). Never runs db push, migrate reset or
+# FOREIGN_KEY_CHECKS=0. No dependency cache: every run is a cold install.
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Explicit bash => `bash --noprofile --norc -eo pipefail {0}` (the implicit default lacks pipefail).
+defaults:
+  run:
+    shell: bash
+
+env:
+  COREPACK_ENABLE_DOWNLOAD_PROMPT: '0'
+  CHECKPOINT_DISABLE: '1'
+  PRISMA_HIDE_UPDATE_MESSAGE: '1'
+  # First-PC canonical digest of the synthetic seed (docs/verification/p0/P0_FINAL_REPORT.md).
+  EXPECTED_SEED_DIGEST: 0ee26dc3ee5f3a1030fb78a6cadaf4dabef1f5a296b58163248584e1e0bfb775
+
+jobs:
+  checks:
+    name: Non-DB checks (cold install)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.21.0
+          package-manager-cache: false
+      - name: Toolchain
+        run: |
+          corepack enable
+          echo "node $(node --version), yarn $(yarn --version), $(git --version)"
+      - name: Cold-install evidence (Yarn cache before install)
+        run: |
+          CACHE="$(yarn config get cacheFolder)"
+          if [ -d "$CACHE" ]; then echo "cache folder $CACHE: $(find "$CACHE" -type f | wc -l) files"; else echo "cache folder $CACHE: absent (cold)"; fi
+      - name: yarn install --immutable
+        run: yarn install --immutable
+      - run: yarn reference:check
+      - run: yarn reference:helper-tests
+      - run: yarn contracts:check
+      - run: yarn typecheck
+      - run: yarn lint
+      - run: yarn format:check
+      - run: yarn test
+      - run: yarn build
+      - name: Frozen references and working tree unchanged by the run
+        run: |
+          yarn reference:check
+          git diff --exit-code
+          test -z "$(git status --porcelain)" || { git status --porcelain; exit 1; }
+
+  database:
+    name: Database, seed and smoke (MySQL 8.4.11)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.21.0
+          package-manager-cache: false
+      - name: Toolchain
+        run: |
+          corepack enable
+          echo "node $(node --version), yarn $(yarn --version), $(docker --version), $(docker compose version)"
+      - name: yarn install --immutable
+        run: yarn install --immutable
+      - name: Synthetic CI secrets (generated at runtime, masked, never printed)
+        run: |
+          yarn env:init
+          for key in MYSQL_ROOT_PASSWORD TB_DB_APP_PASSWORD TB_DB_MIGRATE_PASSWORD; do
+            echo "::add-mask::$(grep "^${key}=" .env | cut -d= -f2-)"
+          done
+      - name: Local MySQL 8.4.11 (committed compose.yaml, pinned digest, loopback 3307)
+        run: |
+          yarn db:up
+          docker compose ps
+      - name: Migrate tb_notice_test (committed migration) and verify metadata
+        run: |
+          yarn db:migrate:deploy test
+          yarn db:status test
+          yarn db:verify test --expect-empty
+      - name: Database structural tests (tb_notice_test)
+        run: yarn test:db
+      - name: Replay into tb_notice_replay; second deploy must be a no-op
+        run: |
+          yarn db:migrate:deploy replay
+          yarn db:migrate:deploy replay | tee replay-second-deploy.log
+          grep -q "No pending migrations to apply" replay-second-deploy.log
+          rm replay-second-deploy.log
+          yarn db:verify replay --expect-empty
+      - name: Migrate tb_notice_dev and verify metadata
+        run: |
+          yarn db:migrate:deploy dev
+          yarn db:verify dev --expect-empty
+      - name: Synthetic seed twice (idempotent, canonical digest equals first PC)
+        run: |
+          yarn db:seed | tee seed-1.log
+          yarn db:seed | tee seed-2.log
+          D1="$(grep -o 'canonical digest [0-9a-f]*' seed-1.log | cut -d' ' -f3)"
+          D2="$(grep -o 'canonical digest [0-9a-f]*' seed-2.log | cut -d' ' -f3)"
+          grep -q 'unchanged (already canonical)' seed-2.log
+          test "$D1" = "$D2" && test "$D1" = "$EXPECTED_SEED_DIGEST"
+          rm seed-1.log seed-2.log
+          yarn db:verify dev
+      - name: Prisma drift compatibility (read-only diffs)
+        run: |
+          yarn db:drift:diff-migrations
+          yarn db:drift:diff-datasource dev
+      - name: yarn smoke:local
+        run: yarn smoke:local
+      - name: yarn dev clean shutdown (terminal Ctrl+C, top-only SIGINT/SIGTERM)
+        run: yarn dev:verify-shutdown
+      - name: Frozen references and working tree unchanged by the run
+        run: |
+          yarn reference:check
+          git diff --exit-code
+          test -z "$(git status --porcelain)" || { git status --porcelain; exit 1; }
+      - name: MySQL container log (diagnostics)
+        if: failure()
+        run: docker compose logs mysql --tail 200
