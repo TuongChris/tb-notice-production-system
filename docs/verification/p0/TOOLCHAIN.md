@@ -27,7 +27,7 @@ Source: `npm view <pkg> dist-tags / version / engines / peerDependencies` agains
 | Package manager | Yarn (`@yarnpkg/cli-dist`) | 4.18.0 | node `>=18.12.0` | root `packageManager` |
 | Language | typescript | 7.0.2 | node `>=16.20.0`; Prisma client peer `typescript >=5.4.0` | root |
 | Node types | @types/node | 24.13.6 | matches Node 24 major | root |
-| API | @nestjs/common, @nestjs/core, @nestjs/platform-express | 12.1.0 | core node `>=20`; peers rxjs `^7.1.0`, reflect-metadata `^0.1.12 \|\| ^0.2.0`; packages are `type: module` | apps/api |
+| API | @nestjs/common, @nestjs/core, @nestjs/platform-express | 12.0.4 | core node `>= 20`; peers rxjs `^7.1.0`, reflect-metadata `^0.1.12 \|\| ^0.2.0`; packages are `type: module` (see age-gate note) | apps/api |
 | API | reflect-metadata | 0.2.2 | Nest peer range | apps/api |
 | API | rxjs | 7.8.2 | Nest peer `^7.1.0` | apps/api |
 | ORM CLI | prisma | 7.10.0 | node `^20.19 \|\| ^22.12 \|\| >=24.0`; peer typescript `>=5.4.0` | apps/api (dev) |
@@ -37,7 +37,7 @@ Source: `npm view <pkg> dist-tags / version / engines / peerDependencies` agains
 | Web types | @types/react, @types/react-dom | 19.3.0 | @types/react-dom peer `@types/react ^19.2.0` | apps/web |
 | Web build | vite | 8.3.0 | node `^20.19.0 \|\| >=22.12.0` | apps/web |
 | Web build | @vitejs/plugin-react | 6.1.1 | peer vite `^8.0.0` | apps/web |
-| Format | prettier | 3.9.9 | node `>=14` | root |
+| Format | prettier | 3.9.8 | node `>=14` (see age-gate note) | root |
 | Lint | oxlint | 1.85.0 | node `^20.19.0 \|\| >=22.12.0` | root |
 
 Selected but **not installed in this mission** (not needed before P0-D/P0-E; recorded so later phases do not re-select silently):
@@ -60,6 +60,23 @@ On 2026-09-23 the npm `latest` dist-tag of `prisma` points to **`8.0.0-rc.15`** 
 
 `@prisma/adapter-mariadb` is the Prisma 7 driver adapter used for MySQL connections (it uses the `mariadb` Node driver). The server remains the official MySQL 8.4 image; the actual engine is confirmed by `SELECT VERSION()` (see DOCKER_MYSQL.md). No MariaDB server is used.
 
+### Yarn npm age gate (supply-chain quarantine)
+
+Yarn 4.18.0's default `npmMinimalAgeGate` is 1440 minutes. The first resolve failed with `YN0016 prettier@npm:3.9.9: All versions satisfying "3.9.9" are quarantined`. Publish times checked with `npm view <pkg> time`:
+
+| Package | Initially selected | Published (UTC) | Age at resolve | Selected instead |
+|---|---|---|---|---|
+| prettier | 3.9.9 | 2026-09-23T06:31 | ~0.2 d | **3.9.8** (2026-09-17) |
+| @nestjs/common, core, platform-express | 12.1.0 | 2026-09-23T08:00 | ~0.1 d | **12.0.4** (2026-09-21) |
+
+The gate was kept at its default (not weakened). Every other selected version was older than the gate (minimum ~1.8 days: oxlint 1.85.0). 12.0.4 has the same engines/peer ranges as 12.1.0.
+
+### Install evidence
+
+- First resolve created `yarn.lock` (lockfile `__metadata.version: 10`, cacheKey `10c0`; 349 entries). `corepack use yarn@4.18.0` recorded `packageManager: yarn@4.18.0+sha512.fcb8716f…7e` (full hash in root `package.json`).
+- Immutable proof: all `node_modules` deleted, `yarn install --immutable` exit 0, `yarn.lock` SHA-256 `8d3a0f9622b8db3bce98c097f0ee25e4500bebbce1dd8c290d42d992b61ca050` before and after. (The Yarn global cache was warm; a cold-cache fresh clone is a second-PC/CI item.)
+- Warnings: `YN0086` peer requirements unmet only for Prisma Studio's optional `react`/`react-dom`/`@types/react` peers (Studio is not used); `YN0004` build scripts disabled for `prisma` and `@prisma/engines` (Yarn 4 default `enableScripts: false`; kept). Prisma downloads its schema engine lazily on first CLI use (see PRISMA.md).
+
 ## 3. Compatibility probe: TypeScript 7 + NestJS 12 decorator metadata
 
 TypeScript 7 is a new compiler implementation, so decorator-metadata emission required for Nest dependency injection was tested before selection, in a throwaway directory outside the repository (scratchpad, `npm install` of the exact versions above):
@@ -69,10 +86,10 @@ TypeScript 7 is a new compiler implementation, so decorator-metadata emission re
 - Emitted JS contains `__metadata("design:paramtypes", …)` (2 occurrences).
 - Compiled Nest 12 app with a constructor-injected provider started, served `GET /h` → `200 {"status":"injected-ok"}`, closed cleanly; exit 0.
 
-Conclusion: Node 24 + TypeScript 7.0.2 + NestJS 12.1.0 ESM/NodeNext does not require an architecture change. The real repository build is proven separately in P0-B.
+Conclusion: Node 24 + TypeScript 7.0.2 + NestJS 12 ESM/NodeNext does not require an architecture change. The probe used 12.1.0; after the age-gate re-selection the repository uses 12.0.4, and the real repository build and compiled launch with 12.0.4 are recorded in PRISMA.md (constructor injection of `HealthService`/`PrismaService` works).
 
-## 4. Pending records
+## 4. Related records
 
-- MySQL image tag, digest and architecture: recorded in `DOCKER_MYSQL.md` after the actual pull.
-- `packageManager` hash and lockfile: produced by the first resolve in P0-B.
-- CI Node patch pin: `24.21.0` (the tested patch) when CI is configured in P0-E.
+- MySQL image tag/digest/architecture: `DOCKER_MYSQL.md` (`mysql:8.4.11@sha256:0744ee5e…fb8d`).
+- Prisma CLI/engine evidence: `PRISMA.md`.
+- CI Node patch pin: `24.21.0` (the tested patch) when CI is configured in P0-E — not configured yet.
