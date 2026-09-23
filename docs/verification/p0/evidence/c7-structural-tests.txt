@@ -1,0 +1,29 @@
+[guard] test:db target: tb_migrate@127.0.0.1:3307/tb_notice_test
+ RUN  v5.0.1 /home/dmin/projects/tb-notice-production-system
+ ✓ tests/db/structural.test.ts > S01 simple foreign keys > rejects a child row whose parent does not exist (fk_auth_sessions_user, fk_agencies_created_by) 20ms
+ ✓ tests/db/structural.test.ts > S02 composite same-agency foreign keys > rejects a route default signer from another agency (fk_routes_default_signer) 15ms
+ ✓ tests/db/structural.test.ts > S02 composite same-agency foreign keys > rejects coverage signers and coverages that mix agencies (fk_coverage_signers_*, fk_mandate_coverages_route) 16ms
+ ✓ tests/db/structural.test.ts > S03 composite same-case foreign keys > rejects a use mapping whose work or reported item belongs to another case 15ms
+ ✓ tests/db/structural.test.ts > S03 composite same-case foreign keys > rejects a candidate or validation run bound to another case (fk_notice_candidates_prompt, fk_validation_runs_candidate) 14ms
+ ✓ tests/db/structural.test.ts > S04 unique constraints > rejects duplicate association, route, per-case item, mandate version and mapping occurrence 17ms
+ ✓ tests/db/structural.test.ts > S05 RESTRICT on referenced parents > rejects deleting referenced parents and updating referenced keys; allows unreferenced delete 14ms
+ ✓ tests/db/structural.test.ts > S06 binary collation for external identifiers > treats video IDs case-sensitively and without trailing-space padding (utf8mb4_0900_bin) 15ms
+ ✓ tests/db/structural.test.ts > S07 Unicode storage > round-trips exact UTF-8 text without normalization, trimming or newline changes 13ms
+ ✓ tests/db/structural.test.ts > S07 Unicode storage > counts VARCHAR length in code points: 200 supplementary characters fit VARCHAR(200), 201 do not 14ms
+ ✓ tests/db/structural.test.ts > S08 transactions > rolls back a whole transaction, and a failing statement does not leave partial rows 16ms
+ ✓ tests/db/structural.test.ts > S09–S13 domain and time CHECK constraints > S09 rejects known intervals whose end is not after start (ck_use_mappings_*_interval) 16ms
+ ✓ tests/db/structural.test.ts > S09–S13 domain and time CHECK constraints > S10 enforces the JS safe-integer millisecond bound (ck_use_mappings_millisecond_bounds) 14ms
+ ✓ tests/db/structural.test.ts > S09–S13 domain and time CHECK constraints > S11 restricts boundary_convention to the exact vocabulary (ck_use_mappings_boundary_convention) 13ms
+ ✓ tests/db/structural.test.ts > S09–S13 domain and time CHECK constraints > S12 keeps every stored candidate unsigned (ck_notice_candidates_unsigned_only) 14ms
+ ✓ tests/db/structural.test.ts > S09–S13 domain and time CHECK constraints > S13 requires validation completed_at >= started_at (ck_validation_runs_completion_time) 23ms
+ ✓ tests/db/structural.test.ts > S09–S13 domain and time CHECK constraints > S13b requires auth session expiry after creation (ck_auth_sessions_session_time) 12ms
+ ✓ tests/db/structural.test.ts > S14 lower-bound CHECK families (representative members) > rejects 0 for row_version, version, revision, context_revision and occurrence 13ms
+ ✓ tests/db/structural.test.ts > SYNTHETIC ACTOR (AR-013) > the fixture actor is stored disabled with a non-credential marker 11ms
+ ✓ tests/db/structural.test.ts > SERVICE-LAYER RULES are NOT database-enforced (documentation: MySQL accepts these rows) > D01 composite FKs are not checked when a referencing column is NULL (MATCH SIMPLE) 13ms
+ ✓ tests/db/structural.test.ts > SERVICE-LAYER RULES are NOT database-enforced (documentation: MySQL accepts these rows) > D02 routes.preferred_coverage_id may point at a coverage of another route (simple FK only) 11ms
+ ✓ tests/db/structural.test.ts > SERVICE-LAYER RULES are NOT database-enforced (documentation: MySQL accepts these rows) > D03 cases.current_authority_selection_id may point at another case’s selection (simple FK only) 11ms
+ Test Files  1 passed (1)
+      Tests  22 passed (22)
+   Start at  18:23:32
+   Duration  552ms (tests 76%, import 12%, transform 11%, worker 1%)
+JSON report written to /tmp/claude-1000/-home-dmin-projects-tb-notice-production-system/ee1d460d-7c96-4054-9f28-da8c155163ee/scratchpad/c5/structural-results.json

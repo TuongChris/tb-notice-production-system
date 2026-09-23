@@ -1,0 +1,173 @@
+===== test-status-before.log
+[guard] status target: tb_migrate@127.0.0.1:3307/tb_notice_test
+Loaded Prisma config from prisma.config.ts.
+Prisma schema loaded from prisma/schema.prisma.
+Datasource "db": MySQL database "tb_notice_test" at "127.0.0.1:3307"
+1 migration found in prisma/migrations
+Following migration have not yet been applied:
+20260923103912_initial_schema
+To apply migrations in development run prisma migrate dev.
+To apply migrations in production run prisma migrate deploy.
+
+===== test-deploy.log
+[guard] deploy target: tb_migrate@127.0.0.1:3307/tb_notice_test
+Loaded Prisma config from prisma.config.ts.
+Prisma schema loaded from prisma/schema.prisma.
+Datasource "db": MySQL database "tb_notice_test" at "127.0.0.1:3307"
+1 migration found in prisma/migrations
+Applying migration `20260923103912_initial_schema`
+The following migration(s) have been applied:
+migrations/
+  └─ 20260923103912_initial_schema/
+    └─ migration.sql
+All migrations have been successfully applied.
+
+===== test-status-after.log
+[guard] status target: tb_migrate@127.0.0.1:3307/tb_notice_test
+Loaded Prisma config from prisma.config.ts.
+Prisma schema loaded from prisma/schema.prisma.
+Datasource "db": MySQL database "tb_notice_test" at "127.0.0.1:3307"
+1 migration found in prisma/migrations
+Database schema is up to date!
+
+===== replay-status-before.log
+[guard] status target: tb_migrate@127.0.0.1:3307/tb_notice_replay
+Loaded Prisma config from prisma.config.ts.
+Prisma schema loaded from prisma/schema.prisma.
+Datasource "db": MySQL database "tb_notice_replay" at "127.0.0.1:3307"
+1 migration found in prisma/migrations
+Following migration have not yet been applied:
+20260923103912_initial_schema
+To apply migrations in development run prisma migrate dev.
+To apply migrations in production run prisma migrate deploy.
+
+===== replay-deploy-1.log
+[guard] deploy target: tb_migrate@127.0.0.1:3307/tb_notice_replay
+Loaded Prisma config from prisma.config.ts.
+Prisma schema loaded from prisma/schema.prisma.
+Datasource "db": MySQL database "tb_notice_replay" at "127.0.0.1:3307"
+1 migration found in prisma/migrations
+Applying migration `20260923103912_initial_schema`
+The following migration(s) have been applied:
+migrations/
+  └─ 20260923103912_initial_schema/
+    └─ migration.sql
+All migrations have been successfully applied.
+
+===== replay-deploy-2.log
+[guard] deploy target: tb_migrate@127.0.0.1:3307/tb_notice_replay
+Loaded Prisma config from prisma.config.ts.
+Prisma schema loaded from prisma/schema.prisma.
+Datasource "db": MySQL database "tb_notice_replay" at "127.0.0.1:3307"
+1 migration found in prisma/migrations
+No pending migrations to apply.
+
+===== replay-status-after.log
+[guard] status target: tb_migrate@127.0.0.1:3307/tb_notice_replay
+Loaded Prisma config from prisma.config.ts.
+Prisma schema loaded from prisma/schema.prisma.
+Datasource "db": MySQL database "tb_notice_replay" at "127.0.0.1:3307"
+1 migration found in prisma/migrations
+Database schema is up to date!
+
+===== dev-status-before.log
+[guard] status target: tb_migrate@127.0.0.1:3307/tb_notice_dev
+Loaded Prisma config from prisma.config.ts.
+Prisma schema loaded from prisma/schema.prisma.
+Datasource "db": MySQL database "tb_notice_dev" at "127.0.0.1:3307"
+1 migration found in prisma/migrations
+Following migration have not yet been applied:
+20260923103912_initial_schema
+To apply migrations in development run prisma migrate dev.
+To apply migrations in production run prisma migrate deploy.
+
+===== dev-deploy.log
+[guard] deploy target: tb_migrate@127.0.0.1:3307/tb_notice_dev
+Loaded Prisma config from prisma.config.ts.
+Prisma schema loaded from prisma/schema.prisma.
+Datasource "db": MySQL database "tb_notice_dev" at "127.0.0.1:3307"
+1 migration found in prisma/migrations
+Applying migration `20260923103912_initial_schema`
+The following migration(s) have been applied:
+migrations/
+  └─ 20260923103912_initial_schema/
+    └─ migration.sql
+All migrations have been successfully applied.
+
+===== dev-status-after.log
+[guard] status target: tb_migrate@127.0.0.1:3307/tb_notice_dev
+Loaded Prisma config from prisma.config.ts.
+Prisma schema loaded from prisma/schema.prisma.
+Datasource "db": MySQL database "tb_notice_dev" at "127.0.0.1:3307"
+1 migration found in prisma/migrations
+Database schema is up to date!
+
+===== drift-diff-migrations.log
+[guard] migration target: tb_migrate@127.0.0.1:3307/tb_notice_dev
+[guard] shadow target:    tb_migrate@127.0.0.1:3307/tb_notice_shadow
+Loaded Prisma config from prisma.config.ts.
+-- This is an empty migration.
+
+===== drift-diff-datasource-test.log
+[guard] diff-datasource-to-schema target: tb_migrate@127.0.0.1:3307/tb_notice_test
+Loaded Prisma config from prisma.config.ts.
+-- This is an empty migration.
+
+===== drift-diff-datasource-replay.log
+[guard] diff-datasource-to-schema target: tb_migrate@127.0.0.1:3307/tb_notice_replay
+Loaded Prisma config from prisma.config.ts.
+-- This is an empty migration.
+
+===== drift-diff-datasource-dev.log
+[guard] diff-datasource-to-schema target: tb_migrate@127.0.0.1:3307/tb_notice_dev
+Loaded Prisma config from prisma.config.ts.
+-- This is an empty migration.
+
+===== drift-probe.log
+[guard] migration target: tb_migrate@127.0.0.1:3307/tb_notice_dev
+[guard] shadow target:    tb_migrate@127.0.0.1:3307/tb_notice_shadow
+Loaded Prisma config from prisma.config.ts.
+Prisma schema loaded from prisma/schema.prisma.
+Datasource "db": MySQL database "tb_notice_dev" at "127.0.0.1:3307"
+Prisma Migrate created the following migration without applying it 20260923112706_drift_probe
+You can now edit it and apply it by running prisma migrate dev.
+
+===== drift_probe artifact (removed after inspection): 20260923112706_drift_probe/migration.sql
+sha256 122d743a0403e77ad7e0ed9447f5b8826f2fbdbc55612d936eff004dd13c2eec, 30 bytes, content:
+-- This is an empty migration.
+
+===== introspect-test (prisma db pull --print) stderr: CHECK-constraint warning excerpt
+// These constraints are not supported by Prisma Client, because Prisma currently does not fully support check constraints. Read more: https://pris.ly/d/check-constraints
+//   - Model: "Agency", constraint: "ck_agencies_row_version"
+//   - Model: "Agency", constraint: "ck_agencies_row_version"
+... (120 listing lines; 30 distinct constraint names; each of the 30 CHECKs listed)
+constraint: "ck_agencies_row_version"
+constraint: "ck_auth_sessions_session_time"
+constraint: "ck_case_facts_revision"
+constraint: "ck_case_sources_row_version"
+constraint: "ck_case_works_row_version"
+constraint: "ck_cases_context_revision"
+constraint: "ck_cases_row_version"
+constraint: "ck_coverage_signers_row_version"
+constraint: "ck_legal_subjects_row_version"
+constraint: "ck_mandate_coverages_row_version"
+constraint: "ck_mandate_versions_row_version"
+constraint: "ck_mandate_versions_version"
+constraint: "ck_mandates_row_version"
+constraint: "ck_notice_candidates_unsigned_only"
+constraint: "ck_notice_candidates_version"
+constraint: "ck_owner_subjects_row_version"
+constraint: "ck_owners_row_version"
+constraint: "ck_prompt_snapshots_context_revision"
+constraint: "ck_prompt_snapshots_version"
+constraint: "ck_reported_items_row_version"
+constraint: "ck_routes_row_version"
+constraint: "ck_signers_row_version"
+constraint: "ck_source_references_revision"
+constraint: "ck_use_mappings_boundary_convention"
+constraint: "ck_use_mappings_millisecond_bounds"
+constraint: "ck_use_mappings_occurrence"
+constraint: "ck_use_mappings_reported_interval"
+constraint: "ck_use_mappings_row_version"
+constraint: "ck_use_mappings_source_interval"
+constraint: "ck_validation_runs_completion_time"

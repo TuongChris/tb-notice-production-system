@@ -2,6 +2,8 @@
 
 Recorded 2026-09-23 on the first PC. **The migration has not been applied to any database.** C5 (apply, replay, drift, structural tests) has not started.
 
+> Status update (2026-09-23, after review gate R1 PASS_WITH_NOTES): C5/C7 applied this exact file (SHA-256 unchanged) to test, replay and dev and verified it; see `C5_C7_DATABASE_RUNTIME.md`. The statement above describes the R1 state. The migration file's own header comment ("NOT YET APPLIED") is part of the applied, checksummed file and is intentionally left unchanged.
+
 ## Draft
 
 | Item | Value |

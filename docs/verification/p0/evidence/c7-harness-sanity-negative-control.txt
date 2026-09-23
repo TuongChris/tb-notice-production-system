@@ -1,0 +1,36 @@
+[guard] test:db target: tb_migrate@127.0.0.1:3307/tb_notice_test
+ RUN  v5.0.1 /home/dmin/projects/tb-notice-production-system
+ ❯ tests/db/zz-harness-sanity.test.ts (2 tests | 2 failed) 55ms
+   × MUST FAIL: a valid insert is not an error 19ms
+   × MUST FAIL: wrong constraint name is detected 18ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  tests/db/zz-harness-sanity.test.ts > MUST FAIL: a valid insert is not an error
+Error: Expected MySQL error 3819 (ck_agencies_row_version) but the statement succeeded.
+ ❯ expectSqlError tests/db/support.ts:65:11
+     63|   }
+     64|   if (error === undefined) {
+     65|     throw new Error(`Expected MySQL error ${errno} (${mention}) but th…
+       |           ^
+     66|   }
+     67|   const sqlError = error as SqlError;
+ ❯ tests/db/zz-harness-sanity.test.ts:10:3
+ ❯ inRolledBackTransaction tests/db/support.ts:46:5
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+ FAIL  tests/db/zz-harness-sanity.test.ts > MUST FAIL: wrong constraint name is detected
+AssertionError: expected 'Check constraint \'ck_agencies_row_ve…' to contain 'ck_owners_row_version'
+Expected: "ck_owners_row_version"
+Received: "Check constraint 'ck_agencies_row_version' is violated."
+ ❯ expectSqlError tests/db/support.ts:69:51
+     67|   const sqlError = error as SqlError;
+     68|   expect(sqlError.errno, sqlError.message).toBe(errno);
+     69|   expect(sqlError.sqlMessage ?? sqlError.message).toContain(mention);
+       |                                                   ^
+     70|   return sqlError;
+     71| }
+ ❯ tests/db/zz-harness-sanity.test.ts:14:3
+ ❯ inRolledBackTransaction tests/db/support.ts:46:5
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+ Test Files  1 failed (1)
+      Tests  2 failed (2)
+   Start at  18:23:49
+   Duration  205ms (tests 42%, import 29%, transform 27%, worker 2%)

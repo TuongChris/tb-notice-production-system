@@ -3,6 +3,8 @@
 Migration: `apps/api/prisma/migrations/20260923103912_initial_schema/migration.sql`
 Status: **REVIEWED DRAFT — NOT APPLIED to any database.** Enforcement is asserted only after the C5 apply and structural tests; this inventory records what the SQL declares.
 
+Status update (2026-09-23, P0-C5/C7): the reviewed migration (SHA-256 `b54c36fd…6515`) was applied with `prisma migrate deploy` to `tb_notice_test`, `tb_notice_replay` and `tb_notice_dev`. MySQL metadata confirms every rule in this inventory on all three schemas (30/30 CHECKs `ENFORCED = YES`, 33/33 tables `utf8mb4_0900_bin`, 125/125 FKs RESTRICT/RESTRICT) and the structural tests exercised them — see `C5_C7_DATABASE_RUNTIME.md`.
+
 Baseline: frozen `docs/reference/database-api-v1/TB_DATABASE_SCHEMA_API_CONTRACT_v1/prisma/initial-schema.preview.sql` (TB-SCHEMA-API-v1.0.0) and `docs/DATABASE_SCHEMA_v1.md` → "Additional CHECK constraints in SQL preview".
 
 ## 1. Manual augmentations (not expressible in `schema.prisma`)
