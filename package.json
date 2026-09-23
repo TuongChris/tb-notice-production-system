@@ -20,7 +20,7 @@
     "db:generate": "node scripts/db/prisma-guarded.mjs generate",
     "db:migrate:create": "node scripts/db/prisma-guarded.mjs migrate-create",
     "build": "yarn workspace @tb/contracts run build && yarn workspace @tb/api run build && yarn workspace @tb/web run build",
-    "typecheck": "yarn workspace @tb/contracts run build && yarn workspaces foreach --all --topological run typecheck",
+    "typecheck": "yarn workspace @tb/contracts run build && yarn workspace @tb/contracts run typecheck && yarn workspace @tb/api run typecheck && yarn workspace @tb/web run typecheck",
     "format:check": "prettier --check .",
     "lint": "oxlint",
     "dev": "yarn workspace @tb/contracts run build && yarn workspaces foreach --all --parallel --interlaced --include @tb/api --include @tb/web run dev"
