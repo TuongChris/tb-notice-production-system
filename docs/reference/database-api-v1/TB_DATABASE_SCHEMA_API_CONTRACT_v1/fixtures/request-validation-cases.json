@@ -1,0 +1,382 @@
+[
+  {
+    "name": "Agency can begin with displayName",
+    "schema": "CreateAgency",
+    "expectedValid": true,
+    "payload": {
+      "displayName": "TEST Agency A"
+    }
+  },
+  {
+    "name": "Agency does not require fabricated legalName",
+    "schema": "CreateAgency",
+    "expectedValid": true,
+    "payload": {
+      "displayName": "TEST A",
+      "legalName": null
+    }
+  },
+  {
+    "name": "Agency rejects unknown ownership flag",
+    "schema": "CreateAgency",
+    "expectedValid": false,
+    "payload": {
+      "displayName": "TEST A",
+      "ownsAllWorks": true
+    }
+  },
+  {
+    "name": "Agency empty name rejected",
+    "schema": "CreateAgency",
+    "expectedValid": false,
+    "payload": {
+      "displayName": ""
+    }
+  },
+  {
+    "name": "Empty PATCH rejected",
+    "schema": "PatchAgency",
+    "expectedValid": false,
+    "payload": {}
+  },
+  {
+    "name": "Explicit null clears nullable field",
+    "schema": "PatchAgency",
+    "expectedValid": true,
+    "payload": {
+      "legalName": null
+    }
+  },
+  {
+    "name": "Route needs legal subject association",
+    "schema": "CreateRoute",
+    "expectedValid": false,
+    "payload": {
+      "agencyId": "11111111-1111-4111-8111-111111111111",
+      "ownerId": "22222222-2222-4222-8222-222222222222"
+    }
+  },
+  {
+    "name": "Route create is not qualification",
+    "schema": "CreateRoute",
+    "expectedValid": true,
+    "payload": {
+      "agencyId": "11111111-1111-4111-8111-111111111111",
+      "ownerSubjectId": "22222222-2222-4222-8222-222222222222"
+    }
+  },
+  {
+    "name": "Unknown platform rejected",
+    "schema": "CreateRoute",
+    "expectedValid": false,
+    "payload": {
+      "agencyId": "11111111-1111-4111-8111-111111111111",
+      "ownerSubjectId": "22222222-2222-4222-8222-222222222222",
+      "platform": "TWITTER"
+    }
+  },
+  {
+    "name": "Signer agency cannot be PATCHed",
+    "schema": "PatchSigner",
+    "expectedValid": false,
+    "payload": {
+      "agencyId": "22222222-2222-4222-8222-222222222222"
+    }
+  },
+  {
+    "name": "Case intake can omit route",
+    "schema": "CreateCase",
+    "expectedValid": true,
+    "payload": {
+      "agencyId": "11111111-1111-4111-8111-111111111111",
+      "intakeLabel": "TEST intake"
+    }
+  },
+  {
+    "name": "Case cannot set readiness by PATCH",
+    "schema": "PatchCase",
+    "expectedValid": false,
+    "payload": {
+      "readinessStatus": "READY_FOR_SIGNER"
+    }
+  },
+  {
+    "name": "Mapping duration string accepted",
+    "schema": "CreateUseMapping",
+    "expectedValid": true,
+    "payload": {
+      "caseWorkId": "11111111-1111-4111-8111-111111111111",
+      "reportedItemId": "22222222-2222-4222-8222-222222222222",
+      "occurrence": 1,
+      "sourceStartMs": "0",
+      "sourceEndMs": "108000000"
+    }
+  },
+  {
+    "name": "Mapping numeric milliseconds rejected",
+    "schema": "CreateUseMapping",
+    "expectedValid": false,
+    "payload": {
+      "caseWorkId": "11111111-1111-4111-8111-111111111111",
+      "reportedItemId": "22222222-2222-4222-8222-222222222222",
+      "occurrence": 1,
+      "sourceStartMs": 0
+    }
+  },
+  {
+    "name": "Mapping negative milliseconds rejected",
+    "schema": "CreateUseMapping",
+    "expectedValid": false,
+    "payload": {
+      "caseWorkId": "11111111-1111-4111-8111-111111111111",
+      "reportedItemId": "22222222-2222-4222-8222-222222222222",
+      "occurrence": 1,
+      "sourceStartMs": "-1"
+    }
+  },
+  {
+    "name": "Mapping missing duration preserved",
+    "schema": "CreateUseMapping",
+    "expectedValid": true,
+    "payload": {
+      "caseWorkId": "11111111-1111-4111-8111-111111111111",
+      "reportedItemId": "22222222-2222-4222-8222-222222222222",
+      "occurrence": 1,
+      "sourceStartMs": null
+    }
+  },
+  {
+    "name": "Source without URL can be operator input",
+    "schema": "CreateSource",
+    "expectedValid": true,
+    "payload": {
+      "title": "TEST operator statement",
+      "sourceRole": "OPERATOR_INPUT",
+      "scopeText": "Synthetic scope only"
+    }
+  },
+  {
+    "name": "Source URL is not mandatory proof",
+    "schema": "CreateSource",
+    "expectedValid": false,
+    "payload": {
+      "title": "TEST navigation",
+      "sourceRole": "CANONICAL_RECORD",
+      "scopeText": "Synthetic",
+      "canonicalUrl": "javascript:alert(1)"
+    }
+  },
+  {
+    "name": "Missing permission can be stored honestly",
+    "schema": "CreateFact",
+    "expectedValid": true,
+    "payload": {
+      "scopeKind": "CASE",
+      "provenance": "MISSING",
+      "scopeText": "TEST case",
+      "changeReason": "Initial intake",
+      "factType": "PERMISSION",
+      "value": {
+        "finding": "UNKNOWN",
+        "assertion": "",
+        "reviewScope": "Not reviewed"
+      },
+      "sources": []
+    }
+  },
+  {
+    "name": "Unsupported fact type rejected",
+    "schema": "CreateFact",
+    "expectedValid": false,
+    "payload": {
+      "scopeKind": "CASE",
+      "provenance": "MISSING",
+      "scopeText": "TEST case",
+      "changeReason": "Initial intake",
+      "factType": "SCANNER_PROVED_INFRINGEMENT",
+      "value": {
+        "finding": "UNKNOWN",
+        "assertion": "",
+        "reviewScope": "Not reviewed"
+      },
+      "sources": []
+    }
+  },
+  {
+    "name": "Wrong typed fact payload rejected",
+    "schema": "CreateFact",
+    "expectedValid": false,
+    "payload": {
+      "scopeKind": "CASE",
+      "provenance": "MISSING",
+      "scopeText": "TEST case",
+      "changeReason": "Initial intake",
+      "factType": "PERMISSION",
+      "value": {
+        "verified": true
+      },
+      "sources": []
+    }
+  },
+  {
+    "name": "Preparation prompt structurally valid",
+    "schema": "GeneratePrompt",
+    "expectedValid": true,
+    "payload": {
+      "taskType": "INITIAL",
+      "generationMode": "PREPARATION",
+      "expectedContextRevision": 1,
+      "expectedDependencyDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "priorBindingIds": []
+    }
+  },
+  {
+    "name": "Client cannot auto-approve prompt",
+    "schema": "GeneratePrompt",
+    "expectedValid": false,
+    "payload": {
+      "taskType": "INITIAL",
+      "generationMode": "PREPARATION",
+      "expectedContextRevision": 1,
+      "expectedDependencyDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "priorBindingIds": [],
+      "readyForSigner": true
+    }
+  },
+  {
+    "name": "Draft import is not legal readiness",
+    "schema": "CreateCandidate",
+    "expectedValid": true,
+    "payload": {
+      "promptSnapshotId": "11111111-1111-4111-8111-111111111111",
+      "subject": "TEST draft",
+      "envelope": {
+        "from": "notice@example.test",
+        "to": "review@example.test"
+      },
+      "bodyText": "Synthetic unsigned candidate only",
+      "preparedDocuments": []
+    }
+  },
+  {
+    "name": "Client-supplied candidate hash rejected",
+    "schema": "CreateCandidate",
+    "expectedValid": false,
+    "payload": {
+      "promptSnapshotId": "11111111-1111-4111-8111-111111111111",
+      "subject": "TEST draft",
+      "envelope": {
+        "from": "notice@example.test",
+        "to": "review@example.test"
+      },
+      "bodyText": "Synthetic unsigned candidate only",
+      "preparedDocuments": [],
+      "artifactSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  },
+  {
+    "name": "Client-supplied signedAt rejected",
+    "schema": "CreateCandidate",
+    "expectedValid": false,
+    "payload": {
+      "promptSnapshotId": "11111111-1111-4111-8111-111111111111",
+      "subject": "TEST draft",
+      "envelope": {
+        "from": "notice@example.test",
+        "to": "review@example.test"
+      },
+      "bodyText": "Synthetic unsigned candidate only",
+      "preparedDocuments": [],
+      "signedAt": "2026-09-23T00:00:00Z"
+    }
+  },
+  {
+    "name": "Client-supplied validation result rejected",
+    "schema": "ValidateCandidate",
+    "expectedValid": false,
+    "payload": {
+      "expectedArtifactSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "expectedDependencyDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "result": "TECHNICAL_PASS"
+    }
+  },
+  {
+    "name": "G7 assessment cannot be submitted",
+    "schema": "CaptureAssessment",
+    "expectedValid": false,
+    "payload": {
+      "gate": "G7",
+      "result": "PASS",
+      "expectedArtifactSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "expectedDependencyDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "rulesetVersion": "TEST",
+      "scopeState": "RECORDED_NOT_ADOPTED",
+      "performerKind": "HUMAN",
+      "performerLabel": "TEST reviewer",
+      "provenance": "OPERATOR_REPORTED",
+      "rationale": "Synthetic",
+      "scopeText": "Synthetic",
+      "sources": [
+        {
+          "caseSourceId": "11111111-1111-4111-8111-111111111111",
+          "supportedConclusion": "Synthetic"
+        }
+      ]
+    }
+  },
+  {
+    "name": "Recorded G1 input is only a report",
+    "schema": "CaptureAssessment",
+    "expectedValid": true,
+    "payload": {
+      "gate": "G1",
+      "result": "PASS",
+      "expectedArtifactSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "expectedDependencyDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "rulesetVersion": "TEST",
+      "scopeState": "RECORDED_NOT_ADOPTED",
+      "performerKind": "HUMAN",
+      "performerLabel": "TEST reviewer",
+      "provenance": "OPERATOR_REPORTED",
+      "rationale": "Synthetic",
+      "scopeText": "Synthetic",
+      "sources": [
+        {
+          "caseSourceId": "11111111-1111-4111-8111-111111111111",
+          "supportedConclusion": "Synthetic"
+        }
+      ]
+    }
+  },
+  {
+    "name": "Assessment needs a source reference",
+    "schema": "CaptureAssessment",
+    "expectedValid": false,
+    "payload": {
+      "gate": "G1",
+      "result": "PASS",
+      "expectedArtifactSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "expectedDependencyDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "rulesetVersion": "TEST",
+      "scopeState": "RECORDED_NOT_ADOPTED",
+      "performerKind": "HUMAN",
+      "performerLabel": "TEST reviewer",
+      "provenance": "OPERATOR_REPORTED",
+      "rationale": "Synthetic",
+      "scopeText": "Synthetic",
+      "sources": []
+    }
+  },
+  {
+    "name": "Export does not accept send option",
+    "schema": "ExportUnsigned",
+    "expectedValid": false,
+    "payload": {
+      "expectedArtifactSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "expectedDependencyDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "validationRunId": "11111111-1111-4111-8111-111111111111",
+      "format": "PLAIN_TEXT",
+      "send": true
+    }
+  }
+]

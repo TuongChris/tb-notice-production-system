@@ -1,0 +1,163 @@
+{
+  "release": "TB-SCHEMA-API-v1.0.0",
+  "status": "DESIGN_PACKAGE_NOT_A_RUNNING_APPLICATION",
+  "createdAtUtc": "2026-09-23T07:02:54.534551+00:00",
+  "files": [
+    {
+      "path": ".env.example",
+      "bytes": 238,
+      "sha256": "69f32bf5c45f6f29865d28518e5979220a7b71d3cbfdb61266271b509e722bba"
+    },
+    {
+      "path": ".gitignore",
+      "bytes": 86,
+      "sha256": "3e1e22fd9c8122daa9ab378e8efe82c1a4fc8d9918a44eb8dfc4344c7e2c6a15"
+    },
+    {
+      "path": "README.md",
+      "bytes": 5071,
+      "sha256": "714fe429ff9cc417ce25f318d20121dc9c69da31a1e12385f957227fab79b3ff"
+    },
+    {
+      "path": "contracts/api-schemas.json",
+      "bytes": 442244,
+      "sha256": "bdb3213ba0070d13173fd5ba5f9177b769f54c90af6a46f5473667b0f1b4f7b4"
+    },
+    {
+      "path": "contracts/api.types.ts",
+      "bytes": 75636,
+      "sha256": "59a5a3f7b442f2ee1178ca07e690d810a2db37f7adeea37ffb499ba16ed7f2c2"
+    },
+    {
+      "path": "contracts/consistency-reference.mjs",
+      "bytes": 2859,
+      "sha256": "d4e60b76fed483d8c75887640450372f57f6c5d45f2fb0ab490a5ad8eba1b457"
+    },
+    {
+      "path": "contracts/endpoint-catalog.json",
+      "bytes": 31103,
+      "sha256": "3f6263e82252695bdc621cdb636fd2f75ffb00b8ff0ba2617b2998c1d2cf1e61"
+    },
+    {
+      "path": "contracts/model-catalog.json",
+      "bytes": 193711,
+      "sha256": "1e007608e9d226d5a109c31731f58a41c1166559429970a87a76db1fff4ab12e"
+    },
+    {
+      "path": "contracts/openapi.json",
+      "bytes": 862040,
+      "sha256": "c47e2ea160eaa747f64218746c2997a99dec4206fbec6294ebe1335f2a7a8ba2"
+    },
+    {
+      "path": "contracts/openapi.yaml",
+      "bytes": 529978,
+      "sha256": "145302fb1c3dc5212a77dd6f88dfa12b5f39241986283f4a6a3d3fe6a523c8bf"
+    },
+    {
+      "path": "contracts/zod.schemas.ts",
+      "bytes": 284599,
+      "sha256": "752667f71d9a70e2a20d1ef09bb764130d4e8cb79106729a5d1fe340c4f58877"
+    },
+    {
+      "path": "docs/ACCEPTANCE_TESTS.md",
+      "bytes": 6649,
+      "sha256": "5ec81e8449ceef633ffc319f4d8ef3047540bda15f2ae4d58a080d50c08e3658"
+    },
+    {
+      "path": "docs/API_CONTRACT_v1.md",
+      "bytes": 27498,
+      "sha256": "adacc6c0ada0a47e6449cca50db0373ad1a7c533c33b52f4e46827607bf5bdb8"
+    },
+    {
+      "path": "docs/DATABASE_SCHEMA_v1.md",
+      "bytes": 61106,
+      "sha256": "ec3ceb73c8c46e3f23377e4bf234cb7eb078f74b3220249e6ca8773e79eab8ff"
+    },
+    {
+      "path": "docs/INVARIANTS.md",
+      "bytes": 18362,
+      "sha256": "7b3e524d72764bf7fa34a6e847ef0307c168a2a42f931c4a768b5e0eb9da424e"
+    },
+    {
+      "path": "docs/LOCAL_FIRST_HANDOFF.md",
+      "bytes": 3405,
+      "sha256": "e4117046e1cb3c76e5915d58ed5d2f47e57f2168ab3c1ac86ec429cede1781da"
+    },
+    {
+      "path": "docs/OVERVIEW_VI.md",
+      "bytes": 10007,
+      "sha256": "c0cce8f6aefea59ecd0445b6a18748c710f57a95aea700bed125dc53a2f5c4da"
+    },
+    {
+      "path": "docs/SOURCES.md",
+      "bytes": 3030,
+      "sha256": "989c02a99d2e11125804b6fc599ffa7606098e2b1df0e198592f6f053dfa9207"
+    },
+    {
+      "path": "fixtures/request-validation-cases.json",
+      "bytes": 10867,
+      "sha256": "be4d8590cc60233e7408b7263a601329af3379a61d0e85aa959c669ae56053f7"
+    },
+    {
+      "path": "prisma/initial-schema.preview.sql",
+      "bytes": 60168,
+      "sha256": "782762a8ab43645fe72ebbe88daf684bf3cb1c69bf02f03940b2b3b9085e7851"
+    },
+    {
+      "path": "prisma/migrations/README.md",
+      "bytes": 891,
+      "sha256": "581e7ce2d4950ef60e877d8edeb5e782878b360246272a6317b799ec4658bee7"
+    },
+    {
+      "path": "prisma/schema.prisma",
+      "bytes": 79033,
+      "sha256": "fab4607a80f448ed5d42b94ad00b936b622d5ef2622031973b7851f9b40134dc"
+    },
+    {
+      "path": "prisma.config.ts",
+      "bytes": 233,
+      "sha256": "f9755f1a48a8ad0c17284ccc9e45199e9379789ba53d231e3d5619372d7c5ab3"
+    },
+    {
+      "path": "tests/application-acceptance-scenarios.json",
+      "bytes": 13089,
+      "sha256": "0defb92b1d8d7da31fe51e1401e5189983b917ba07a19086bb6c3d7104d9eff1"
+    },
+    {
+      "path": "tests/consistency-reference.test.mjs",
+      "bytes": 2861,
+      "sha256": "897e41320d7424b7f793e4c751e5408d632188b7585383fd97a5c1b6041d1393"
+    },
+    {
+      "path": "tests/verify_contracts.py",
+      "bytes": 8925,
+      "sha256": "c3daf9bf210be2d60f833853febeb4a8fd1ce08a7af3a187e9698e93a5c6d267"
+    },
+    {
+      "path": "verification/VERIFICATION.json",
+      "bytes": 2993,
+      "sha256": "daa1b3833f1c7a4bf2f4ad4c2d2e7e574c7d46edd82c35133de17631069735b0"
+    },
+    {
+      "path": "verification/environment.json",
+      "bytes": 291,
+      "sha256": "daa1185514c26b4116c14ec8e4e1c5a2cd3c794c738d925178b09f50dccc8610"
+    },
+    {
+      "path": "verification/node-reference-tests.tap",
+      "bytes": 3531,
+      "sha256": "fd26ee296af12e2f88e6dd890784114a7e54c609bb46fa4a2b75b93076fa3842"
+    },
+    {
+      "path": "verification/structural-checks.json",
+      "bytes": 5270,
+      "sha256": "a5b74b055ae4be47e5bcace0dfeeaea89e7f18afe29b6861c8caed54ed922824"
+    },
+    {
+      "path": "verification/typescript-checks.json",
+      "bytes": 268,
+      "sha256": "ca8902698f10f588c585f7bcd738306ea2d3202e1916a77ad69ef4c9213fa017"
+    }
+  ],
+  "excludes": "manifest.json and MANIFEST.sha256 are not self-hashed"
+}

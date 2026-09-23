@@ -1,0 +1,78 @@
+{
+  "release": "TB-SCHEMA-API-v1.0.0",
+  "specificationDate": "2026-09-23",
+  "reportRecordedAtUtc": "2026-09-23T07:02:53.867106+00:00",
+  "overallStatus": "LOCAL_STATIC_AND_REFERENCE_CHECKS_PASSED; IMPLEMENTATION_RUNTIME_NOT_VERIFIED",
+  "environment": {
+    "node": "v22.16.0",
+    "typescript": "Version 5.8.3",
+    "python": "3.13.5",
+    "os": "Linux",
+    "targetMySQL": "8.4",
+    "prismaCLIAvailable": false,
+    "dockerAvailable": false,
+    "mysqlAvailable": false,
+    "packageRegistryAttempt": "FAILED: registry.npmjs.org DNS resolution unavailable"
+  },
+  "artifactCounts": {
+    "prismaModels": 33,
+    "prismaEnums": 38,
+    "modeledForeignKeys": 125,
+    "openapiPaths": 96,
+    "openapiOperations": 141,
+    "openapiSchemas": 284,
+    "applicationAcceptanceScenarios": 60
+  },
+  "executed": [
+    {
+      "name": "Offline structural/schema contract checks",
+      "passed": 46,
+      "failed": 0,
+      "report": "structural-checks.json",
+      "scope": "JSONSchema structure, reference integrity, route declarations, modeled FK metadata and synthetic request fixtures; not Prisma CLI or SQL execution"
+    },
+    {
+      "name": "Node reference-helper unit tests",
+      "passed": 27,
+      "failed": 0,
+      "report": "node-reference-tests.tap",
+      "scope": "Pure hashing/encoding/timing/scope/signature-slot reference utilities; not HTTP/database integration"
+    },
+    {
+      "name": "Strict dependency-free API typecheck",
+      "result": "PASS",
+      "report": "typescript-checks.json"
+    },
+    {
+      "name": "Zod adapter syntax transpilation",
+      "result": "PASS",
+      "report": "typescript-checks.json",
+      "scope": "Syntax only, not real dependency typechecking/runtime"
+    },
+    {
+      "name": "Delivery cross-representation and relative-link check",
+      "result": "PASS",
+      "scope": "OpenAPI YAML equals JSON; all relative Markdown links resolve; 33 models counted in actual schema"
+    }
+  ],
+  "notExecuted": [
+    "Prisma CLI format/validate/generate against a installed pinned v7 toolchain",
+    "Actual Zod package typecheck and runtime tests",
+    "Full OpenAPI semantic validator/generator integration (internal structural checks are narrower)",
+    "MySQL 8.4 DDL/migration/FK/CHECK execution",
+    "NestJS controllers/services/auth implementation",
+    "HTTP integration, concurrency/idempotency and permission isolation tests",
+    "React UI, Playwright E2E and 60 application acceptance scenarios",
+    "Windows two-PC fresh clone/setup/build/run",
+    "Database backup/restore and staging/production deployment"
+  ],
+  "noActions": {
+    "canonicalDriveMutations": 0,
+    "realCaseMutations": 0,
+    "productionDatabaseMutations": 0,
+    "emailsSent": 0,
+    "signaturesCreated": 0,
+    "G7EventsCreated": 0
+  },
+  "limitations": "Prisma/Docker/MySQL unavailable in this authoring container; npm registry DNS resolution failed. Do not equate static/reference checks with a runnable application or a legally verified case."
+}

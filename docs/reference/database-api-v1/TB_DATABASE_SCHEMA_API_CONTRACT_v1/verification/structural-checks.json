@@ -1,0 +1,248 @@
+{
+  "scope": "OFFLINE_STRUCTURAL_SPEC_CHECKS_ONLY",
+  "checkCount": 46,
+  "passed": 46,
+  "failed": 0,
+  "results": [
+    {
+      "name": "JSON Schema 2020-12 bundle well-formed",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "All internal OpenAPI refs resolve",
+      "passed": true,
+      "detail": "282 unique references"
+    },
+    {
+      "name": "Operation IDs unique",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Path parameter definitions complete",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "No send/sign/G7 mutation route",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "No candidate body PATCH",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Private ops require session",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Every protected write has CSRF",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Every entity FK target exists and is unique",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "All modeled FK column type/native pairs align",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Prisma declares 33 models",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "All FK actions RESTRICT",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Gates omit G7",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Video unique is case-scoped",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "No writable candidate readiness field",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Agency can begin with displayName",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Agency does not require fabricated legalName",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Agency rejects unknown ownership flag",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Agency empty name rejected",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Empty PATCH rejected",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Explicit null clears nullable field",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Route needs legal subject association",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Route create is not qualification",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Unknown platform rejected",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Signer agency cannot be PATCHed",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Case intake can omit route",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Case cannot set readiness by PATCH",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Mapping duration string accepted",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Mapping numeric milliseconds rejected",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Mapping negative milliseconds rejected",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Mapping missing duration preserved",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Source without URL can be operator input",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Source URL is not mandatory proof",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Missing permission can be stored honestly",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Unsupported fact type rejected",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Wrong typed fact payload rejected",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Preparation prompt structurally valid",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Client cannot auto-approve prompt",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Draft import is not legal readiness",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Client-supplied candidate hash rejected",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Client-supplied signedAt rejected",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Client-supplied validation result rejected",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "G7 assessment cannot be submitted",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Recorded G1 input is only a report",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Assessment needs a source reference",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Export does not accept send option",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "notExecuted": [
+    "Prisma CLI format/validate",
+    "Prisma Client generation",
+    "MySQL migration/constraints/concurrency tests",
+    "Zod runtime validation/typecheck",
+    "HTTP/NestJS services",
+    "Browser E2E",
+    "Windows two-PC setup",
+    "Production/security/load/backup-restore testing"
+  ]
+}

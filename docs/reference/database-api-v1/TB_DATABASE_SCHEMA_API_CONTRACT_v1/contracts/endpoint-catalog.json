@@ -1,0 +1,1271 @@
+[
+  {
+    "method": "GET",
+    "path": "/health",
+    "operationId": "getHealth",
+    "request": null,
+    "response": "Health",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "GET",
+    "path": "/meta",
+    "operationId": "getMeta",
+    "request": null,
+    "response": "AppMeta",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "POST",
+    "path": "/auth/login",
+    "operationId": "login",
+    "request": "LoginRequest",
+    "response": "SessionView",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "GET",
+    "path": "/auth/session",
+    "operationId": "getSession",
+    "request": null,
+    "response": "SessionView",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "POST",
+    "path": "/auth/logout",
+    "operationId": "logout",
+    "request": null,
+    "response": null,
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "GET",
+    "path": "/agencies",
+    "operationId": "listAgencies",
+    "request": null,
+    "response": "AgencyPage",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "POST",
+    "path": "/agencies",
+    "operationId": "createAgency",
+    "request": "CreateAgency",
+    "response": "Agency",
+    "precondition": null,
+    "idempotency": true
+  },
+  {
+    "method": "GET",
+    "path": "/agencies/{id}",
+    "operationId": "getAgency",
+    "request": null,
+    "response": "Agency",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "PATCH",
+    "path": "/agencies/{id}",
+    "operationId": "patchAgency",
+    "request": "PatchAgency",
+    "response": "Agency",
+    "precondition": "Agency",
+    "idempotency": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/agencies/{id}",
+    "operationId": "deleteUnusedAgency",
+    "request": null,
+    "response": null,
+    "precondition": "Agency",
+    "idempotency": true
+  },
+  {
+    "method": "POST",
+    "path": "/agencies/{id}/archive",
+    "operationId": "archiveAgency",
+    "request": "ArchiveRequest",
+    "response": "Agency",
+    "precondition": "Agency",
+    "idempotency": true
+  },
+  {
+    "method": "POST",
+    "path": "/agencies/{id}/restore",
+    "operationId": "restoreAgency",
+    "request": "ArchiveRequest",
+    "response": "Agency",
+    "precondition": "Agency",
+    "idempotency": true
+  },
+  {
+    "method": "POST",
+    "path": "/agencies/{id}/canonical-bindings",
+    "operationId": "bindCanonicalAgency",
+    "request": "CanonicalBindingRequest",
+    "response": "Agency",
+    "precondition": "Agency",
+    "idempotency": true
+  },
+  {
+    "method": "POST",
+    "path": "/agencies/{id}/state",
+    "operationId": "setAgencyState",
+    "request": "RecordStateRequest",
+    "response": "Agency",
+    "precondition": "Agency",
+    "idempotency": true
+  },
+  {
+    "method": "GET",
+    "path": "/owners",
+    "operationId": "listOwners",
+    "request": null,
+    "response": "OwnerPage",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "POST",
+    "path": "/owners",
+    "operationId": "createOwner",
+    "request": "CreateOwner",
+    "response": "Owner",
+    "precondition": null,
+    "idempotency": true
+  },
+  {
+    "method": "GET",
+    "path": "/owners/{id}",
+    "operationId": "getOwner",
+    "request": null,
+    "response": "Owner",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "PATCH",
+    "path": "/owners/{id}",
+    "operationId": "patchOwner",
+    "request": "PatchOwner",
+    "response": "Owner",
+    "precondition": "Owner",
+    "idempotency": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/owners/{id}",
+    "operationId": "deleteUnusedOwner",
+    "request": null,
+    "response": null,
+    "precondition": "Owner",
+    "idempotency": true
+  },
+  {
+    "method": "POST",
+    "path": "/owners/{id}/archive",
+    "operationId": "archiveOwner",
+    "request": "ArchiveRequest",
+    "response": "Owner",
+    "precondition": "Owner",
+    "idempotency": true
+  },
+  {
+    "method": "POST",
+    "path": "/owners/{id}/restore",
+    "operationId": "restoreOwner",
+    "request": "ArchiveRequest",
+    "response": "Owner",
+    "precondition": "Owner",
+    "idempotency": true
+  },
+  {
+    "method": "POST",
+    "path": "/owners/{id}/canonical-bindings",
+    "operationId": "bindCanonicalOwner",
+    "request": "CanonicalBindingRequest",
+    "response": "Owner",
+    "precondition": "Owner",
+    "idempotency": true
+  },
+  {
+    "method": "POST",
+    "path": "/owners/{id}/state",
+    "operationId": "setOwnerState",
+    "request": "RecordStateRequest",
+    "response": "Owner",
+    "precondition": "Owner",
+    "idempotency": true
+  },
+  {
+    "method": "GET",
+    "path": "/legal-subjects",
+    "operationId": "listLegalSubjects",
+    "request": null,
+    "response": "LegalSubjectPage",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "POST",
+    "path": "/legal-subjects",
+    "operationId": "createLegalSubject",
+    "request": "CreateLegalSubject",
+    "response": "LegalSubject",
+    "precondition": null,
+    "idempotency": true
+  },
+  {
+    "method": "GET",
+    "path": "/legal-subjects/{id}",
+    "operationId": "getLegalSubject",
+    "request": null,
+    "response": "LegalSubject",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "PATCH",
+    "path": "/legal-subjects/{id}",
+    "operationId": "patchLegalSubject",
+    "request": "PatchLegalSubject",
+    "response": "LegalSubject",
+    "precondition": "LegalSubject",
+    "idempotency": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/legal-subjects/{id}",
+    "operationId": "deleteUnusedLegalSubject",
+    "request": null,
+    "response": null,
+    "precondition": "LegalSubject",
+    "idempotency": true
+  },
+  {
+    "method": "POST",
+    "path": "/legal-subjects/{id}/archive",
+    "operationId": "archiveLegalSubject",
+    "request": "ArchiveRequest",
+    "response": "LegalSubject",
+    "precondition": "LegalSubject",
+    "idempotency": true
+  },
+  {
+    "method": "POST",
+    "path": "/legal-subjects/{id}/restore",
+    "operationId": "restoreLegalSubject",
+    "request": "ArchiveRequest",
+    "response": "LegalSubject",
+    "precondition": "LegalSubject",
+    "idempotency": true
+  },
+  {
+    "method": "POST",
+    "path": "/legal-subjects/{id}/canonical-bindings",
+    "operationId": "bindCanonicalLegalSubject",
+    "request": "CanonicalBindingRequest",
+    "response": "LegalSubject",
+    "precondition": "LegalSubject",
+    "idempotency": true
+  },
+  {
+    "method": "POST",
+    "path": "/legal-subjects/{id}/state",
+    "operationId": "setLegalSubjectState",
+    "request": "RecordStateRequest",
+    "response": "LegalSubject",
+    "precondition": "LegalSubject",
+    "idempotency": true
+  },
+  {
+    "method": "GET",
+    "path": "/signers",
+    "operationId": "listSigners",
+    "request": null,
+    "response": "SignerPage",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "POST",
+    "path": "/signers",
+    "operationId": "createSigner",
+    "request": "CreateSigner",
+    "response": "Signer",
+    "precondition": null,
+    "idempotency": true
+  },
+  {
+    "method": "GET",
+    "path": "/signers/{id}",
+    "operationId": "getSigner",
+    "request": null,
+    "response": "Signer",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "PATCH",
+    "path": "/signers/{id}",
+    "operationId": "patchSigner",
+    "request": "PatchSigner",
+    "response": "Signer",
+    "precondition": "Signer",
+    "idempotency": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/signers/{id}",
+    "operationId": "deleteUnusedSigner",
+    "request": null,
+    "response": null,
+    "precondition": "Signer",
+    "idempotency": true
+  },
+  {
+    "method": "POST",
+    "path": "/signers/{id}/archive",
+    "operationId": "archiveSigner",
+    "request": "ArchiveRequest",
+    "response": "Signer",
+    "precondition": "Signer",
+    "idempotency": true
+  },
+  {
+    "method": "POST",
+    "path": "/signers/{id}/restore",
+    "operationId": "restoreSigner",
+    "request": "ArchiveRequest",
+    "response": "Signer",
+    "precondition": "Signer",
+    "idempotency": true
+  },
+  {
+    "method": "POST",
+    "path": "/signers/{id}/canonical-bindings",
+    "operationId": "bindCanonicalSigner",
+    "request": "CanonicalBindingRequest",
+    "response": "Signer",
+    "precondition": "Signer",
+    "idempotency": true
+  },
+  {
+    "method": "POST",
+    "path": "/signers/{id}/state",
+    "operationId": "setSignerState",
+    "request": "SignerStateRequest",
+    "response": "Signer",
+    "precondition": "Signer",
+    "idempotency": true
+  },
+  {
+    "method": "GET",
+    "path": "/routes",
+    "operationId": "listRoutes",
+    "request": null,
+    "response": "RoutePage",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "POST",
+    "path": "/routes",
+    "operationId": "createRoute",
+    "request": "CreateRoute",
+    "response": "Route",
+    "precondition": null,
+    "idempotency": true
+  },
+  {
+    "method": "GET",
+    "path": "/routes/{id}",
+    "operationId": "getRoute",
+    "request": null,
+    "response": "Route",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "PATCH",
+    "path": "/routes/{id}",
+    "operationId": "patchRoute",
+    "request": "PatchRoute",
+    "response": "Route",
+    "precondition": "Route",
+    "idempotency": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/routes/{id}",
+    "operationId": "deleteUnusedRoute",
+    "request": null,
+    "response": null,
+    "precondition": "Route",
+    "idempotency": true
+  },
+  {
+    "method": "POST",
+    "path": "/routes/{id}/archive",
+    "operationId": "archiveRoute",
+    "request": "ArchiveRequest",
+    "response": "Route",
+    "precondition": "Route",
+    "idempotency": true
+  },
+  {
+    "method": "POST",
+    "path": "/routes/{id}/restore",
+    "operationId": "restoreRoute",
+    "request": "ArchiveRequest",
+    "response": "Route",
+    "precondition": "Route",
+    "idempotency": true
+  },
+  {
+    "method": "POST",
+    "path": "/routes/{id}/canonical-bindings",
+    "operationId": "bindCanonicalRoute",
+    "request": "CanonicalBindingRequest",
+    "response": "Route",
+    "precondition": "Route",
+    "idempotency": true
+  },
+  {
+    "method": "POST",
+    "path": "/routes/{id}/link-state",
+    "operationId": "setRouteLinkState",
+    "request": "LinkStateRequest",
+    "response": "Route",
+    "precondition": "Route",
+    "idempotency": true
+  },
+  {
+    "method": "GET",
+    "path": "/mandates",
+    "operationId": "listMandates",
+    "request": null,
+    "response": "MandatePage",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "POST",
+    "path": "/mandates",
+    "operationId": "createMandate",
+    "request": "CreateMandate",
+    "response": "Mandate",
+    "precondition": null,
+    "idempotency": true
+  },
+  {
+    "method": "GET",
+    "path": "/mandates/{id}",
+    "operationId": "getMandate",
+    "request": null,
+    "response": "Mandate",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "PATCH",
+    "path": "/mandates/{id}",
+    "operationId": "patchMandate",
+    "request": "PatchMandate",
+    "response": "Mandate",
+    "precondition": "Mandate",
+    "idempotency": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/mandates/{id}",
+    "operationId": "deleteUnusedMandate",
+    "request": null,
+    "response": null,
+    "precondition": "Mandate",
+    "idempotency": true
+  },
+  {
+    "method": "POST",
+    "path": "/mandates/{id}/archive",
+    "operationId": "archiveMandate",
+    "request": "ArchiveRequest",
+    "response": "Mandate",
+    "precondition": "Mandate",
+    "idempotency": true
+  },
+  {
+    "method": "POST",
+    "path": "/mandates/{id}/restore",
+    "operationId": "restoreMandate",
+    "request": "ArchiveRequest",
+    "response": "Mandate",
+    "precondition": "Mandate",
+    "idempotency": true
+  },
+  {
+    "method": "POST",
+    "path": "/mandates/{id}/canonical-bindings",
+    "operationId": "bindCanonicalMandate",
+    "request": "CanonicalBindingRequest",
+    "response": "Mandate",
+    "precondition": "Mandate",
+    "idempotency": true
+  },
+  {
+    "method": "GET",
+    "path": "/owners/{ownerId}/subjects",
+    "operationId": "listOwnerSubjects",
+    "request": null,
+    "response": "OwnerSubjectPage",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "POST",
+    "path": "/owners/{ownerId}/subjects",
+    "operationId": "linkOwnerSubject",
+    "request": "LinkOwnerSubject",
+    "response": "OwnerSubject",
+    "precondition": "Owner",
+    "idempotency": true
+  },
+  {
+    "method": "GET",
+    "path": "/owner-subjects/{id}",
+    "operationId": "getOwnerSubject",
+    "request": null,
+    "response": "OwnerSubject",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "POST",
+    "path": "/owner-subjects/{id}/link-state",
+    "operationId": "setOwnerSubjectLinkState",
+    "request": "LinkStateRequest",
+    "response": "OwnerSubject",
+    "precondition": "OwnerSubject",
+    "idempotency": true
+  },
+  {
+    "method": "GET",
+    "path": "/mandates/{mandateId}/versions",
+    "operationId": "listMandateVersions",
+    "request": null,
+    "response": "MandateVersionPage",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "POST",
+    "path": "/mandates/{mandateId}/versions",
+    "operationId": "createMandateVersion",
+    "request": "CreateMandateVersion",
+    "response": "MandateVersion",
+    "precondition": "Mandate",
+    "idempotency": true
+  },
+  {
+    "method": "GET",
+    "path": "/mandate-versions/{id}",
+    "operationId": "getMandateVersion",
+    "request": null,
+    "response": "MandateVersion",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "PATCH",
+    "path": "/mandate-versions/{id}",
+    "operationId": "patchDraftMandateVersion",
+    "request": "PatchMandateVersion",
+    "response": "MandateVersion",
+    "precondition": "MandateVersion",
+    "idempotency": true
+  },
+  {
+    "method": "POST",
+    "path": "/mandate-versions/{id}/freeze",
+    "operationId": "freezeMandateVersion",
+    "request": "ArchiveRequest",
+    "response": "MandateVersion",
+    "precondition": "MandateVersion",
+    "idempotency": true
+  },
+  {
+    "method": "GET",
+    "path": "/mandate-versions/{versionId}/coverages",
+    "operationId": "listVersionCoverages",
+    "request": null,
+    "response": "MandateCoveragePage",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "POST",
+    "path": "/mandate-versions/{versionId}/coverages",
+    "operationId": "createCoverage",
+    "request": "CreateCoverage",
+    "response": "MandateCoverage",
+    "precondition": "MandateVersion",
+    "idempotency": true
+  },
+  {
+    "method": "GET",
+    "path": "/coverages/{id}",
+    "operationId": "getCoverage",
+    "request": null,
+    "response": "MandateCoverage",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "PATCH",
+    "path": "/coverages/{id}",
+    "operationId": "patchDraftCoverage",
+    "request": "PatchCoverage",
+    "response": "MandateCoverage",
+    "precondition": "MandateCoverage",
+    "idempotency": true
+  },
+  {
+    "method": "GET",
+    "path": "/coverages/{coverageId}/signers",
+    "operationId": "listCoverageSigners",
+    "request": null,
+    "response": "CoverageSignerPage",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "POST",
+    "path": "/coverages/{coverageId}/signers",
+    "operationId": "createCoverageSigner",
+    "request": "CreateCoverageSigner",
+    "response": "CoverageSigner",
+    "precondition": "MandateCoverage",
+    "idempotency": true
+  },
+  {
+    "method": "GET",
+    "path": "/coverage-signers/{id}",
+    "operationId": "getCoverageSigner",
+    "request": null,
+    "response": "CoverageSigner",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/coverage-signers/{id}",
+    "operationId": "deleteDraftCoverageSigner",
+    "request": null,
+    "response": null,
+    "precondition": "CoverageSigner",
+    "idempotency": true
+  },
+  {
+    "method": "POST",
+    "path": "/mandates/{mandateId}/events",
+    "operationId": "recordAuthorityEvent",
+    "request": "CreateAuthorityEvent",
+    "response": "AuthorityEvent",
+    "precondition": "Mandate",
+    "idempotency": true
+  },
+  {
+    "method": "GET",
+    "path": "/mandates/{mandateId}/events",
+    "operationId": "listAuthorityEvents",
+    "request": null,
+    "response": "AuthorityEventPage",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "GET",
+    "path": "/cases",
+    "operationId": "listCases",
+    "request": null,
+    "response": "CaseRecordPage",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "POST",
+    "path": "/cases",
+    "operationId": "createCase",
+    "request": "CreateCase",
+    "response": "CaseRecord",
+    "precondition": null,
+    "idempotency": true
+  },
+  {
+    "method": "GET",
+    "path": "/cases/{caseId}",
+    "operationId": "getCase",
+    "request": null,
+    "response": "CaseRecord",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "PATCH",
+    "path": "/cases/{caseId}",
+    "operationId": "patchCase",
+    "request": "PatchCase",
+    "response": "CaseRecord",
+    "precondition": "CaseRecord",
+    "idempotency": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/cases/{caseId}",
+    "operationId": "deleteUnusedCase",
+    "request": null,
+    "response": null,
+    "precondition": "CaseRecord",
+    "idempotency": true
+  },
+  {
+    "method": "POST",
+    "path": "/cases/{caseId}/archive",
+    "operationId": "ArchiveCase",
+    "request": "ArchiveRequest",
+    "response": "CaseRecord",
+    "precondition": "CaseRecord",
+    "idempotency": true
+  },
+  {
+    "method": "POST",
+    "path": "/cases/{caseId}/restore",
+    "operationId": "RestoreCase",
+    "request": "ArchiveRequest",
+    "response": "CaseRecord",
+    "precondition": "CaseRecord",
+    "idempotency": true
+  },
+  {
+    "method": "POST",
+    "path": "/cases/{caseId}/workflow",
+    "operationId": "WorkflowCase",
+    "request": "CaseWorkflowRequest",
+    "response": "CaseRecord",
+    "precondition": "CaseRecord",
+    "idempotency": true
+  },
+  {
+    "method": "POST",
+    "path": "/cases/{caseId}/route-binding",
+    "operationId": "RouteBindingCase",
+    "request": "BindCaseRoute",
+    "response": "CaseRecord",
+    "precondition": "CaseRecord",
+    "idempotency": true
+  },
+  {
+    "method": "POST",
+    "path": "/cases/{caseId}/canonical-binding",
+    "operationId": "CanonicalBindingCase",
+    "request": "CanonicalBindingRequest",
+    "response": "CaseRecord",
+    "precondition": "CaseRecord",
+    "idempotency": true
+  },
+  {
+    "method": "POST",
+    "path": "/cases/{caseId}/authority-selections",
+    "operationId": "selectCaseAuthority",
+    "request": "SelectAuthority",
+    "response": "CaseAuthoritySelection",
+    "precondition": "CaseRecord",
+    "idempotency": true
+  },
+  {
+    "method": "GET",
+    "path": "/cases/{caseId}/authority-selections",
+    "operationId": "listCaseAuthoritySelections",
+    "request": null,
+    "response": "CaseAuthoritySelectionPage",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "GET",
+    "path": "/cases/{caseId}/reported-items",
+    "operationId": "listCaseReportedItems",
+    "request": null,
+    "response": "ReportedItemPage",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "POST",
+    "path": "/cases/{caseId}/reported-items",
+    "operationId": "createReportedItem",
+    "request": "CreateReportedItem",
+    "response": "ReportedItem",
+    "precondition": "CaseRecord",
+    "idempotency": true
+  },
+  {
+    "method": "GET",
+    "path": "/cases/{caseId}/reported-items/{id}",
+    "operationId": "getReportedItem",
+    "request": null,
+    "response": "ReportedItem",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "PATCH",
+    "path": "/cases/{caseId}/reported-items/{id}",
+    "operationId": "patchReportedItem",
+    "request": "PatchReportedItem",
+    "response": "ReportedItem",
+    "precondition": "ReportedItem",
+    "idempotency": true
+  },
+  {
+    "method": "POST",
+    "path": "/cases/{caseId}/reported-items/{id}/archive",
+    "operationId": "archiveReportedItem",
+    "request": "ArchiveRequest",
+    "response": "ReportedItem",
+    "precondition": "ReportedItem",
+    "idempotency": true
+  },
+  {
+    "method": "POST",
+    "path": "/cases/{caseId}/reported-items/{id}/restore",
+    "operationId": "restoreReportedItem",
+    "request": "ArchiveRequest",
+    "response": "ReportedItem",
+    "precondition": "ReportedItem",
+    "idempotency": true
+  },
+  {
+    "method": "GET",
+    "path": "/cases/{caseId}/works",
+    "operationId": "listCaseCaseWorks",
+    "request": null,
+    "response": "CaseWorkPage",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "POST",
+    "path": "/cases/{caseId}/works",
+    "operationId": "createCaseWork",
+    "request": "CreateCaseWork",
+    "response": "CaseWork",
+    "precondition": "CaseRecord",
+    "idempotency": true
+  },
+  {
+    "method": "GET",
+    "path": "/cases/{caseId}/works/{id}",
+    "operationId": "getCaseWork",
+    "request": null,
+    "response": "CaseWork",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "PATCH",
+    "path": "/cases/{caseId}/works/{id}",
+    "operationId": "patchCaseWork",
+    "request": "PatchCaseWork",
+    "response": "CaseWork",
+    "precondition": "CaseWork",
+    "idempotency": true
+  },
+  {
+    "method": "POST",
+    "path": "/cases/{caseId}/works/{id}/archive",
+    "operationId": "archiveCaseWork",
+    "request": "ArchiveRequest",
+    "response": "CaseWork",
+    "precondition": "CaseWork",
+    "idempotency": true
+  },
+  {
+    "method": "POST",
+    "path": "/cases/{caseId}/works/{id}/restore",
+    "operationId": "restoreCaseWork",
+    "request": "ArchiveRequest",
+    "response": "CaseWork",
+    "precondition": "CaseWork",
+    "idempotency": true
+  },
+  {
+    "method": "GET",
+    "path": "/cases/{caseId}/mappings",
+    "operationId": "listCaseUseMappings",
+    "request": null,
+    "response": "UseMappingPage",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "POST",
+    "path": "/cases/{caseId}/mappings",
+    "operationId": "createUseMapping",
+    "request": "CreateUseMapping",
+    "response": "UseMapping",
+    "precondition": "CaseRecord",
+    "idempotency": true
+  },
+  {
+    "method": "GET",
+    "path": "/cases/{caseId}/mappings/{id}",
+    "operationId": "getUseMapping",
+    "request": null,
+    "response": "UseMapping",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "PATCH",
+    "path": "/cases/{caseId}/mappings/{id}",
+    "operationId": "patchUseMapping",
+    "request": "PatchUseMapping",
+    "response": "UseMapping",
+    "precondition": "UseMapping",
+    "idempotency": true
+  },
+  {
+    "method": "POST",
+    "path": "/cases/{caseId}/mappings/{id}/archive",
+    "operationId": "archiveUseMapping",
+    "request": "ArchiveRequest",
+    "response": "UseMapping",
+    "precondition": "UseMapping",
+    "idempotency": true
+  },
+  {
+    "method": "POST",
+    "path": "/cases/{caseId}/mappings/{id}/restore",
+    "operationId": "restoreUseMapping",
+    "request": "ArchiveRequest",
+    "response": "UseMapping",
+    "precondition": "UseMapping",
+    "idempotency": true
+  },
+  {
+    "method": "GET",
+    "path": "/sources",
+    "operationId": "listSources",
+    "request": null,
+    "response": "SourceReferencePage",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "POST",
+    "path": "/sources",
+    "operationId": "createSource",
+    "request": "CreateSource",
+    "response": "SourceReference",
+    "precondition": null,
+    "idempotency": true
+  },
+  {
+    "method": "GET",
+    "path": "/sources/{id}",
+    "operationId": "getSource",
+    "request": null,
+    "response": "SourceReference",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "POST",
+    "path": "/sources/{id}/revisions",
+    "operationId": "reviseSource",
+    "request": "ReviseSource",
+    "response": "SourceReference",
+    "precondition": null,
+    "idempotency": true
+  },
+  {
+    "method": "GET",
+    "path": "/cases/{caseId}/sources",
+    "operationId": "listCaseSources",
+    "request": null,
+    "response": "CaseSourcePage",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "POST",
+    "path": "/cases/{caseId}/sources",
+    "operationId": "linkCaseSource",
+    "request": "LinkCaseSource",
+    "response": "CaseSource",
+    "precondition": "CaseRecord",
+    "idempotency": true
+  },
+  {
+    "method": "GET",
+    "path": "/case-sources/{id}",
+    "operationId": "getCaseSource",
+    "request": null,
+    "response": "CaseSource",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "POST",
+    "path": "/case-sources/{id}/link-state",
+    "operationId": "setCaseSourceLinkState",
+    "request": "LinkStateRequest",
+    "response": "CaseSource",
+    "precondition": "CaseSource",
+    "idempotency": true
+  },
+  {
+    "method": "GET",
+    "path": "/cases/{caseId}/facts",
+    "operationId": "listCaseFacts",
+    "request": null,
+    "response": "CaseFactPage",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "POST",
+    "path": "/cases/{caseId}/facts",
+    "operationId": "createCaseFact",
+    "request": "CreateFact",
+    "response": "CaseFact",
+    "precondition": "CaseRecord",
+    "idempotency": true
+  },
+  {
+    "method": "GET",
+    "path": "/cases/{caseId}/facts/{id}",
+    "operationId": "getCaseFact",
+    "request": null,
+    "response": "CaseFact",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "POST",
+    "path": "/cases/{caseId}/facts/{id}/revisions",
+    "operationId": "reviseCaseFact",
+    "request": "ReviseFact",
+    "response": "CaseFact",
+    "precondition": "CaseRecord",
+    "idempotency": true
+  },
+  {
+    "method": "GET",
+    "path": "/correspondence",
+    "operationId": "listCorrespondence",
+    "request": null,
+    "response": "CorrespondencePage",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "POST",
+    "path": "/correspondence",
+    "operationId": "captureCorrespondence",
+    "request": "CreateCorrespondence",
+    "response": "Correspondence",
+    "precondition": null,
+    "idempotency": true
+  },
+  {
+    "method": "GET",
+    "path": "/correspondence/{id}",
+    "operationId": "getCorrespondence",
+    "request": null,
+    "response": "Correspondence",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "POST",
+    "path": "/cases/{caseId}/correspondence-bindings",
+    "operationId": "bindCaseCorrespondence",
+    "request": "BindCorrespondence",
+    "response": "CorrespondenceBinding",
+    "precondition": "CaseRecord",
+    "idempotency": true
+  },
+  {
+    "method": "GET",
+    "path": "/cases/{caseId}/correspondence-bindings",
+    "operationId": "listCaseCorrespondenceBindings",
+    "request": null,
+    "response": "CorrespondenceBindingPage",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "GET",
+    "path": "/cases/{caseId}/production-context",
+    "operationId": "getProductionContext",
+    "request": null,
+    "response": "ContextView",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "POST",
+    "path": "/cases/{caseId}/prompts",
+    "operationId": "generatePrompt",
+    "request": "GeneratePrompt",
+    "response": "PromptSnapshot",
+    "precondition": null,
+    "idempotency": true
+  },
+  {
+    "method": "GET",
+    "path": "/cases/{caseId}/prompts",
+    "operationId": "listCasePrompts",
+    "request": null,
+    "response": "PromptSnapshotPage",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "GET",
+    "path": "/prompts/{id}",
+    "operationId": "getPrompt",
+    "request": null,
+    "response": "PromptSnapshot",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "POST",
+    "path": "/cases/{caseId}/candidates",
+    "operationId": "importCandidate",
+    "request": "CreateCandidate",
+    "response": "NoticeCandidate",
+    "precondition": null,
+    "idempotency": true
+  },
+  {
+    "method": "GET",
+    "path": "/cases/{caseId}/candidates",
+    "operationId": "listCaseCandidates",
+    "request": null,
+    "response": "NoticeCandidatePage",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "GET",
+    "path": "/candidates/{id}",
+    "operationId": "getCandidate",
+    "request": null,
+    "response": "NoticeCandidate",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "POST",
+    "path": "/candidates/{id}/revisions",
+    "operationId": "reviseCandidate",
+    "request": "ReviseCandidate",
+    "response": "NoticeCandidate",
+    "precondition": null,
+    "idempotency": true
+  },
+  {
+    "method": "POST",
+    "path": "/candidates/{id}/supersede",
+    "operationId": "supersedeCandidate",
+    "request": "ArchiveRequest",
+    "response": "NoticeCandidate",
+    "precondition": null,
+    "idempotency": true
+  },
+  {
+    "method": "POST",
+    "path": "/candidates/{candidateId}/validation-runs",
+    "operationId": "validateCandidate",
+    "request": "ValidateCandidate",
+    "response": "ValidationRun",
+    "precondition": null,
+    "idempotency": true
+  },
+  {
+    "method": "GET",
+    "path": "/candidates/{candidateId}/validation-runs",
+    "operationId": "listValidationRuns",
+    "request": null,
+    "response": "ValidationRunPage",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "GET",
+    "path": "/validation-runs/{id}/issues",
+    "operationId": "listValidationIssues",
+    "request": null,
+    "response": "ValidationIssuePage",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "POST",
+    "path": "/candidates/{candidateId}/assessments",
+    "operationId": "captureCandidateAssessment",
+    "request": "CaptureAssessment",
+    "response": "CandidateAssessment",
+    "precondition": null,
+    "idempotency": true
+  },
+  {
+    "method": "GET",
+    "path": "/candidates/{candidateId}/assessments",
+    "operationId": "listCandidateAssessments",
+    "request": null,
+    "response": "CandidateAssessmentPage",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "GET",
+    "path": "/candidates/{candidateId}/readiness",
+    "operationId": "getCandidateReadiness",
+    "request": null,
+    "response": "Readiness",
+    "precondition": null,
+    "idempotency": false
+  },
+  {
+    "method": "POST",
+    "path": "/candidates/{candidateId}/unsigned-exports",
+    "operationId": "exportUnsignedCandidate",
+    "request": "ExportUnsigned",
+    "response": "UnsignedExport",
+    "precondition": null,
+    "idempotency": true
+  },
+  {
+    "method": "GET",
+    "path": "/audit-events",
+    "operationId": "listAuditEvents",
+    "request": null,
+    "response": "AuditEventPage",
+    "precondition": null,
+    "idempotency": false
+  }
+]

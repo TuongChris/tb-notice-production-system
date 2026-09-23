@@ -1,0 +1,11 @@
+{
+  "node": "v22.16.0",
+  "typescript": "Version 5.8.3",
+  "python": "3.13.5",
+  "os": "Linux",
+  "targetMySQL": "8.4",
+  "prismaCLIAvailable": false,
+  "dockerAvailable": false,
+  "mysqlAvailable": false,
+  "packageRegistryAttempt": "FAILED: registry.npmjs.org DNS resolution unavailable"
+}

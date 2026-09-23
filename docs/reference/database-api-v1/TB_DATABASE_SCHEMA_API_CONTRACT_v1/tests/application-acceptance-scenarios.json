@@ -1,0 +1,422 @@
+[
+  {
+    "id": "AC-001",
+    "area": "Directory",
+    "scenario": "An Agency is created with displayName only",
+    "expected": "DRAFT saved; no authority inferred",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-002",
+    "area": "Directory",
+    "scenario": "An Owner is created without legal subject",
+    "expected": "Intake usable; drafting claimant unresolved",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-003",
+    "area": "Directory",
+    "scenario": "One legal entity operates two owner brands",
+    "expected": "One subject, two OwnerSubject rows",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-004",
+    "area": "Directory",
+    "scenario": "Individual and LLC share a brand",
+    "expected": "Separate subjects; no fact/authority merge",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-005",
+    "area": "Directory",
+    "scenario": "An established subject is changed to another legal entity",
+    "expected": "Reject generic PATCH; explicit new/corrected binding required",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-006",
+    "area": "Directory",
+    "scenario": "Signer is changed to another agency",
+    "expected": "Reject; preserve original capacity record",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-007",
+    "area": "Route",
+    "scenario": "Same Agency/OwnerSubject/platform linked twice concurrently",
+    "expected": "One unique relation; no duplicate rows",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-008",
+    "area": "Route",
+    "scenario": "Route default signer belongs to another Agency",
+    "expected": "Composite FK and service reject",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-009",
+    "area": "Route",
+    "scenario": "Unlink route with existing case history",
+    "expected": "Preserve all history; no revocation/send",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-010",
+    "area": "Route",
+    "scenario": "Relink route after expired mandate",
+    "expected": "Do not revive authority",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-011",
+    "area": "Route",
+    "scenario": "Unlink OwnerSubject with linked routes",
+    "expected": "Dependency conflict, no silent cascade",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-012",
+    "area": "Authority",
+    "scenario": "One instrument covers two subjects",
+    "expected": "One version, two scope-specific coverages",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-013",
+    "area": "Authority",
+    "scenario": "Coverage combines route from another Agency",
+    "expected": "FK and service reject",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-014",
+    "area": "Authority",
+    "scenario": "Only one coverage is revoked",
+    "expected": "Unrelated subject coverage preserved",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-015",
+    "area": "Authority",
+    "scenario": "Mandate has unknown expiry",
+    "expected": "Not automatically perpetual",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-016",
+    "area": "Authority",
+    "scenario": "Two scopes overlap",
+    "expected": "Require source-based explicit selection, no latest-file shortcut",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-017",
+    "area": "Authority",
+    "scenario": "Child edit races version freeze",
+    "expected": "One serialized outcome, no post-freeze mutation",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-018",
+    "area": "Authority",
+    "scenario": "New currentness event added while prompt generates",
+    "expected": "Consistent context or 412; no mixed snapshot",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-019",
+    "area": "Case",
+    "scenario": "Local case has no canonical ID",
+    "expected": "Preparation allowed; no invented sequential code",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-020",
+    "area": "Case",
+    "scenario": "Binding uses a route from another Agency/platform",
+    "expected": "Reject",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-021",
+    "area": "Case",
+    "scenario": "Established case moved after correspondence",
+    "expected": "Refuse generic reparenting; preserve history",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-022",
+    "area": "Case",
+    "scenario": "Case default signer changes after snapshot",
+    "expected": "Original selection/snapshot unchanged",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-023",
+    "area": "Case",
+    "scenario": "Same video appears in two agencies or subjects",
+    "expected": "Scoped overlap warning; no global unique block or automatic resend",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-024",
+    "area": "Case",
+    "scenario": "Work from Case A mapped to reported item in Case B",
+    "expected": "Composite FK reject",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-025",
+    "area": "Case",
+    "scenario": "One work occurs three times in one reported video",
+    "expected": "Three UseMappings retained",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-026",
+    "area": "Case",
+    "scenario": "Timecodes longer than 24 hours",
+    "expected": "Stored as unsigned milliseconds, not wrapped TIME",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-027",
+    "area": "Case",
+    "scenario": "Known end precedes start",
+    "expected": "Reject at API and DB CHECK",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-028",
+    "area": "Facts",
+    "scenario": "No permission finding is known",
+    "expected": "MISSING/UNKNOWN retained; no affirmative prose",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-029",
+    "area": "Facts",
+    "scenario": "Two fact successor requests race",
+    "expected": "One head; second conflicts, old fact unchanged",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-030",
+    "area": "Facts",
+    "scenario": "Fact links CaseSource from another Case",
+    "expected": "Service rejects transaction",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-031",
+    "area": "Facts",
+    "scenario": "Scanner-only AV record used as primary finding",
+    "expected": "No verification PASS; reference-only remains",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-032",
+    "area": "Sources",
+    "scenario": "Private source lacks applicable agency scope",
+    "expected": "Access/source binding refused",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-033",
+    "area": "Sources",
+    "scenario": "New source revision changes previously used support",
+    "expected": "Fresh digest changes; prior snapshot preserved",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-034",
+    "area": "Sources",
+    "scenario": "Source URL exists but was never read",
+    "expected": "No DOCUMENT_REVIEWED or source-access claim inferred",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-035",
+    "area": "Correspondence",
+    "scenario": "One actual message concerns multiple reported items",
+    "expected": "One Correspondence; multiple bindings, one transmission count",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-036",
+    "area": "Correspondence",
+    "scenario": "Same Message-ID but different capture/provider facts",
+    "expected": "No blind global merge; variants preserved",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-037",
+    "area": "Correspondence",
+    "scenario": "Quoted prior email pasted inside new body",
+    "expected": "No invented separate transmission",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-038",
+    "area": "Correspondence",
+    "scenario": "A removal applies to one of three URLs",
+    "expected": "Only that item changes observed outcome",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-039",
+    "area": "Correspondence",
+    "scenario": "Later reinstatement arrives",
+    "expected": "Append event; keep earlier removal history",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-040",
+    "area": "Prompt",
+    "scenario": "Same intent retried after lost response",
+    "expected": "Same idempotent snapshot result",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-041",
+    "area": "Prompt",
+    "scenario": "Same Idempotency-Key used on another case/payload",
+    "expected": "409 IDEMPOTENCY_CONFLICT",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-042",
+    "area": "Prompt",
+    "scenario": "Reply parent from another case",
+    "expected": "Composite FK/service reject",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-043",
+    "area": "Prompt",
+    "scenario": "Reply missing previous AS_SENT capture",
+    "expected": "PREPARATION with limits, no fabricated prior notice",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-044",
+    "area": "Candidate",
+    "scenario": "Body changes by one space",
+    "expected": "New artifact; earlier validation not reused",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-045",
+    "area": "Candidate",
+    "scenario": "Recipient/subject/document plan changes without body change",
+    "expected": "artifactSha256 changes; readiness invalidated",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-046",
+    "area": "Candidate",
+    "scenario": "Signer name appears in identity block",
+    "expected": "Not automatically a signature violation",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-047",
+    "area": "Candidate",
+    "scenario": "Signature slot removed or completed",
+    "expected": "No unsigned final export; retain draft for correction",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-048",
+    "area": "Candidate",
+    "scenario": "Source prose includes hidden instructions",
+    "expected": "Treat as quoted data; do not execute/prompt-prioritize",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-049",
+    "area": "Validation",
+    "scenario": "Technical checks pass but no G1-G6 reviews exist",
+    "expected": "REVIEW_REQUIRED, not READY_FOR_SIGNER",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-050",
+    "area": "Validation",
+    "scenario": "A required rule was not executed",
+    "expected": "No technical pass",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-051",
+    "area": "Validation",
+    "scenario": "Two conflicting substantive assessments",
+    "expected": "CONFLICT until source-supported reconciliation",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-052",
+    "area": "Validation",
+    "scenario": "AI record fabricates an owner-controlled confirmation",
+    "expected": "Cannot satisfy source support; no readiness upgrade",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-053",
+    "area": "Export",
+    "scenario": "Current READY candidate with exact sources and G1-G6",
+    "expected": "Unsigned export; HUMAN_PENDING; no send/G7",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-054",
+    "area": "Export",
+    "scenario": "Revocation arrives before retry of earlier export",
+    "expected": "Recheck before replay; refuse stale READY content",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-055",
+    "area": "Concurrency",
+    "scenario": "Two tabs update row v7",
+    "expected": "First succeeds; second 412; no overwrite",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-056",
+    "area": "Concurrency",
+    "scenario": "Audit insert fails after attempted business change",
+    "expected": "Rollback both",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-057",
+    "area": "Security",
+    "scenario": "No cookie, invalid CSRF or wrong Origin",
+    "expected": "401/403 before mutation",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-058",
+    "area": "Security",
+    "scenario": "User attempts to PATCH signedAt/send/ready",
+    "expected": "Reject unknown field/absent route",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-059",
+    "area": "Migration",
+    "scenario": "Fresh MySQL8.4 migration and second-PC deploy",
+    "expected": "Same schema; no duplicated/regenerated migration",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  },
+  {
+    "id": "AC-060",
+    "area": "Recovery",
+    "scenario": "Backup restored into disposable database",
+    "expected": "Readback retains hashes, links, snapshots, FK integrity",
+    "status": "NOT_EXECUTED_APPLICATION_TEST"
+  }
+]

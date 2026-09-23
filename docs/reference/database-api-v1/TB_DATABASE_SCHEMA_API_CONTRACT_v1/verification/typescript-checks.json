@@ -1,0 +1,7 @@
+{
+  "apiTypesStrictTypecheck": "PASS",
+  "zodAdapterSyntaxTranspile": "PASS",
+  "diagnostics": [],
+  "zodAdapterActualTypecheck": "NOT_EXECUTED: Zod package unavailable",
+  "note": "Syntax transpilation is not Zod runtime validation or full dependency typechecking."
+}

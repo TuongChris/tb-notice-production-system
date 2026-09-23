@@ -1,0 +1,10 @@
+.env
+.env.*
+!.env.example
+node_modules/
+generated/
+dist/
+*.sql.dump
+*.eml
+*.pem
+*.key

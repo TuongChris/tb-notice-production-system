@@ -1,0 +1,172 @@
+TAP version 13
+# Subtest: SHA-256 standard known ASCII vector
+ok 1 - SHA-256 standard known ASCII vector
+  ---
+  duration_ms: 1.44442
+  type: 'test'
+  ...
+# Subtest: whitespace does not disappear
+ok 2 - whitespace does not disappear
+  ---
+  duration_ms: 0.238028
+  type: 'test'
+  ...
+# Subtest: line endings remain distinct
+ok 3 - line endings remain distinct
+  ---
+  duration_ms: 0.108723
+  type: 'test'
+  ...
+# Subtest: composed Unicode is not silently normalized
+ok 4 - composed Unicode is not silently normalized
+  ---
+  duration_ms: 0.095313
+  type: 'test'
+  ...
+# Subtest: valid surrogate pair preserved
+ok 5 - valid surrogate pair preserved
+  ---
+  duration_ms: 0.174492
+  type: 'test'
+  ...
+# Subtest: invalid high surrogate rejected
+ok 6 - invalid high surrogate rejected
+  ---
+  duration_ms: 0.199129
+  type: 'test'
+  ...
+# Subtest: invalid low surrogate rejected
+ok 7 - invalid low surrogate rejected
+  ---
+  duration_ms: 0.15293
+  type: 'test'
+  ...
+# Subtest: NUL rejected
+ok 8 - NUL rejected
+  ---
+  duration_ms: 0.101312
+  type: 'test'
+  ...
+# Subtest: object order is deterministic
+ok 9 - object order is deterministic
+  ---
+  duration_ms: 1.124079
+  type: 'test'
+  ...
+# Subtest: array order is retained
+ok 10 - array order is retained
+  ---
+  duration_ms: 0.364607
+  type: 'test'
+  ...
+# Subtest: unsupported undefined rejected
+ok 11 - unsupported undefined rejected
+  ---
+  duration_ms: 0.162485
+  type: 'test'
+  ...
+# Subtest: unsafe number rejected
+ok 12 - unsafe number rejected
+  ---
+  duration_ms: 0.083506
+  type: 'test'
+  ...
+# Subtest: Date is not silently stringified
+ok 13 - Date is not silently stringified
+  ---
+  duration_ms: 0.078608
+  type: 'test'
+  ...
+# Subtest: duration over 24 hours supported
+ok 14 - duration over 24 hours supported
+  ---
+  duration_ms: 0.128933
+  type: 'test'
+  ...
+# Subtest: duration zero is known zero
+ok 15 - duration zero is known zero
+  ---
+  duration_ms: 0.089385
+  type: 'test'
+  ...
+# Subtest: null interval retains missingness
+ok 16 - null interval retains missingness
+  ---
+  duration_ms: 0.566752
+  type: 'test'
+  ...
+# Subtest: negative duration rejected
+ok 17 - negative duration rejected
+  ---
+  duration_ms: 0.083495
+  type: 'test'
+  ...
+# Subtest: leading zero rejected
+ok 18 - leading zero rejected
+  ---
+  duration_ms: 0.067912
+  type: 'test'
+  ...
+# Subtest: BigInt boundary protected
+ok 19 - BigInt boundary protected
+  ---
+  duration_ms: 0.062604
+  type: 'test'
+  ...
+# Subtest: end before start rejected
+ok 20 - end before start rejected
+  ---
+  duration_ms: 0.05987
+  type: 'test'
+  ...
+# Subtest: equal endpoints rejected
+ok 21 - equal endpoints rejected
+  ---
+  duration_ms: 0.056284
+  type: 'test'
+  ...
+# Subtest: same-case accepted
+ok 22 - same-case accepted
+  ---
+  duration_ms: 0.075684
+  type: 'test'
+  ...
+# Subtest: cross-case rejected
+ok 23 - cross-case rejected
+  ---
+  duration_ms: 0.074883
+  type: 'test'
+  ...
+# Subtest: cross-agency rejected
+ok 24 - cross-agency rejected
+  ---
+  duration_ms: 0.088182
+  type: 'test'
+  ...
+# Subtest: controlled pending signature accepted
+ok 25 - controlled pending signature accepted
+  ---
+  duration_ms: 0.079379
+  type: 'test'
+  ...
+# Subtest: missing pending slot rejected
+ok 26 - missing pending slot rejected
+  ---
+  duration_ms: 0.064247
+  type: 'test'
+  ...
+# Subtest: two signature slots rejected
+ok 27 - two signature slots rejected
+  ---
+  duration_ms: 0.063866
+  type: 'test'
+  ...
+1..27
+# tests 27
+# suites 0
+# pass 27
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 67.133258
