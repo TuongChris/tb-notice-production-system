@@ -4,8 +4,8 @@
 # 8.4.11 image digest, loopback 127.0.0.1:3307, same init script) with synthetic secrets generated
 # at runtime by `yarn env:init` (never in this file). Never runs db push, migrate reset or
 # FOREIGN_KEY_CHECKS=0. No dependency cache: every run is a cold install.
-# P1: the only account ever created is a synthetic one in the disposable CI tb_notice_dev, with a
-# password generated at runtime, masked, passed on stdin and deleted with the runner.
+# P1/P1.1: the only account ever created or recovered is a synthetic one in the disposable CI
+# tb_notice_dev, with passwords generated at runtime, masked, passed on stdin and deleted.
 name: CI
 
 on:
@@ -141,9 +141,35 @@ jobs:
           fi
           grep -q 'already exists' "$RUNNER_TEMP/p1-dup.log"
       - name: P1 compiled login round trip (yarn smoke:auth)
+        run: yarn smoke:auth --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"
+      - name: P1.1 recovery commands (synthetic account; P0 actor untouched)
         run: |
-          yarn smoke:auth --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"
-          rm -f "$RUNNER_TEMP/p1-ci-admin-password" "$RUNNER_TEMP/p1-dup.log"
+          E=p1-ci-admin@example.invalid
+          PW="$RUNNER_TEMP/p1-ci-admin-password"
+          NEW="$RUNNER_TEMP/p1-ci-admin-password-new"
+          node -e "process.stdout.write(require('node:crypto').randomBytes(24).toString('base64url'))" > "$NEW"
+          echo "::add-mask::$(cat "$NEW")"
+          yarn admin:revoke-sessions --email "$E" --reason 'CI synthetic recovery check'
+          yarn admin:disable --email "$E" --reason 'CI synthetic recovery check'
+          yarn smoke:auth --email "$E" --expect-rejected < "$PW"
+          yarn admin:disable --email "$E" | tee "$RUNNER_TEMP/p1-disable-again.log"
+          grep -q 'is already disabled; nothing changed' "$RUNNER_TEMP/p1-disable-again.log"
+          yarn admin:enable --email "$E"
+          yarn smoke:auth --email "$E" < "$PW"
+          yarn admin:password --email "$E" --password-stdin < "$NEW"
+          yarn smoke:auth --email "$E" --expect-rejected < "$PW"
+          yarn smoke:auth --email "$E" < "$NEW"
+          if yarn admin:enable --email p0-synthetic-actor@example.invalid > "$RUNNER_TEMP/p1-actor.log" 2>&1; then
+            cat "$RUNNER_TEMP/p1-actor.log"; exit 1
+          fi
+          grep -q 'protected' "$RUNNER_TEMP/p1-actor.log"
+          if DATABASE_URL='mysql://tb_dev:ci-guard-check@127.0.0.1:3306/tb_notice_dev' node apps/api/dist/src/cli/admin.js revoke-sessions --email "$E" > "$RUNNER_TEMP/p1-direct.log" 2>&1; then
+            cat "$RUNNER_TEMP/p1-direct.log"; exit 1
+          fi
+          grep -q 'is not 3307' "$RUNNER_TEMP/p1-direct.log"
+          yarn db:seed | tee "$RUNNER_TEMP/p1-seed.log"
+          grep -q 'unchanged (already canonical)' "$RUNNER_TEMP/p1-seed.log"
+          rm -f "$PW" "$NEW" "$RUNNER_TEMP/p1-dup.log" "$RUNNER_TEMP"/p1-*.log
       - name: yarn dev clean shutdown (terminal Ctrl+C, top-only SIGINT/SIGTERM)
         run: yarn dev:verify-shutdown
       - name: Frozen references and working tree unchanged by the run

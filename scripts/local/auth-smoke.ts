@@ -1,4 +1,5 @@
-// yarn smoke:auth --email <email> < password — P1 login round trip against the COMPILED API.
+// yarn smoke:auth --email <email> [--expect-rejected] < password — P1 login round trip against
+// the COMPILED API.
 //
 // For an account that already exists (CI creates a synthetic one with `yarn admin:create
 // --password-stdin` in its disposable tb_notice_dev). The password is read from standard input,
@@ -7,6 +8,8 @@
 //   GET /auth/session → 200 with the same CSRF token; logout with X-CSRF-Token → 204 + cleared
 //   cookie; GET /auth/session with the old cookie → 401. Writes one session row and two audit
 //   events for that account. No external requests; ports are released at the end.
+// --expect-rejected: the login must instead fail with the generic 403 INVALID_CREDENTIALS and set
+//   no session cookie (used after admin:disable or a password reset).
 import { spawn, type ChildProcess } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { connect } from 'node:net';
@@ -76,7 +79,7 @@ async function main(): Promise<void> {
   const entry = path.join(repoRoot, 'apps/api/dist/src/main.js');
   if (!existsSync(entry)) fail('compiled API missing; run yarn build first');
   if (await listening(3000)) fail('port 3000 is already in use');
-  const { GetSessionResponseSchema, LoginResponseSchema } =
+  const { GetSessionResponseSchema, LoginResponseSchema, OperationErrorSchema } =
     await import('../../packages/contracts/dist/index.js');
 
   api = spawn(process.execPath, [entry], { cwd: path.join(repoRoot, 'apps/api'), stdio: 'ignore' });
@@ -93,6 +96,22 @@ async function main(): Promise<void> {
     headers: { Origin: origin, 'X-Requested-With': 'TB-APP', 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
   });
+  if (process.argv.includes('--expect-rejected')) {
+    const rejection = OperationErrorSchema.safeParse(await loginResponse.json());
+    const cookieSet = loginResponse.headers
+      .getSetCookie()
+      .some((value) => value.startsWith('tb_session_dev='));
+    if (
+      loginResponse.status !== 403 ||
+      !rejection.success ||
+      rejection.data.error.code !== 'INVALID_CREDENTIALS' ||
+      cookieSet
+    ) {
+      fail(`expected the generic 403 INVALID_CREDENTIALS, got HTTP ${loginResponse.status}`);
+    }
+    pass('login rejected → generic 403 INVALID_CREDENTIALS, no session cookie');
+    return;
+  }
   const loginBody = LoginResponseSchema.safeParse(await loginResponse.json());
   if (loginResponse.status !== 200 || !loginBody.success)
     fail(`login: HTTP ${loginResponse.status}`);
