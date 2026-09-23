@@ -1,9 +1,11 @@
-# TB Notice Production System — branch/PR CI (P0-E).
+# TB Notice Production System — branch/PR CI (P0-E; P1 authentication checks added).
 # Scope: build and verification only. No deployment, no cloud or production credentials, no real
 # TB data, no Drive/mail access. Database work uses the committed compose.yaml (pinned MySQL
 # 8.4.11 image digest, loopback 127.0.0.1:3307, same init script) with synthetic secrets generated
 # at runtime by `yarn env:init` (never in this file). Never runs db push, migrate reset or
 # FOREIGN_KEY_CHECKS=0. No dependency cache: every run is a cold install.
+# P1: the only account ever created is a synthetic one in the disposable CI tb_notice_dev, with a
+# password generated at runtime, masked, passed on stdin and deleted with the runner.
 name: CI
 
 on:
@@ -88,7 +90,7 @@ jobs:
       - name: Synthetic CI secrets (generated at runtime, masked, never printed)
         run: |
           yarn env:init
-          for key in MYSQL_ROOT_PASSWORD TB_DB_APP_PASSWORD TB_DB_MIGRATE_PASSWORD; do
+          for key in MYSQL_ROOT_PASSWORD TB_DB_APP_PASSWORD TB_DB_MIGRATE_PASSWORD TB_SESSION_SECRET; do
             echo "::add-mask::$(grep "^${key}=" .env | cut -d= -f2-)"
           done
       - name: Local MySQL 8.4.11 (committed compose.yaml, pinned digest, loopback 3307)
@@ -129,6 +131,19 @@ jobs:
           yarn db:drift:diff-datasource dev
       - name: yarn smoke:local
         run: yarn smoke:local
+      - name: P1 admin bootstrap (yarn admin:create, synthetic account, duplicate refused)
+        run: |
+          node -e "process.stdout.write(require('node:crypto').randomBytes(24).toString('base64url'))" > "$RUNNER_TEMP/p1-ci-admin-password"
+          echo "::add-mask::$(cat "$RUNNER_TEMP/p1-ci-admin-password")"
+          yarn admin:create --email p1-ci-admin@example.invalid --display-name 'P1 CI synthetic admin (disposable)' --password-stdin < "$RUNNER_TEMP/p1-ci-admin-password"
+          if yarn admin:create --email P1-CI-Admin@example.invalid --display-name 'duplicate attempt' --password-stdin < "$RUNNER_TEMP/p1-ci-admin-password" > "$RUNNER_TEMP/p1-dup.log" 2>&1; then
+            cat "$RUNNER_TEMP/p1-dup.log"; exit 1
+          fi
+          grep -q 'already exists' "$RUNNER_TEMP/p1-dup.log"
+      - name: P1 compiled login round trip (yarn smoke:auth)
+        run: |
+          yarn smoke:auth --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"
+          rm -f "$RUNNER_TEMP/p1-ci-admin-password" "$RUNNER_TEMP/p1-dup.log"
       - name: yarn dev clean shutdown (terminal Ctrl+C, top-only SIGINT/SIGTERM)
         run: yarn dev:verify-shutdown
       - name: Frozen references and working tree unchanged by the run

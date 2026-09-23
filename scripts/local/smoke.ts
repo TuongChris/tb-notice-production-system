@@ -7,7 +7,12 @@
 //  4. Request through http://localhost: web shell, its script bundle, and /api/v1/health both
 //     directly and through the web proxy; health must validate against the ACTIVE contract
 //     (GetHealthResponseSchema) with status "ok" and Cache-Control: no-store.
-//  5. Terminate both processes (SIGTERM, bounded wait, SIGKILL fallback) and verify ports 3000 and
+//  5. P1 auth boundary of the compiled API, read-only (no user is created; a failed login writes
+//     nothing): no-cookie session → 401, login without Origin → 403, login from the allowed origin
+//     for a synthetic unknown account → generic 403 (runs Argon2id in the compiled process), logout
+//     without a session → 401, proxied session check → 401 without CORS headers. Every response is
+//     a valid contract OperationError with Cache-Control: no-store.
+//  6. Terminate both processes (SIGTERM, bounded wait, SIGKILL fallback) and verify ports 3000 and
 //     5173 are released. Any failure exits non-zero.
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { connect } from 'node:net';
@@ -172,11 +177,78 @@ async function checkWeb(): Promise<void> {
   if (
     bundle.status !== 200 ||
     !code.includes('TB Notice Production System') ||
-    !code.includes('/api/v1/health')
+    !code.includes('/api/v1/health') ||
+    !code.includes('/api/v1/auth/session')
   ) {
     fail(`web shell: script bundle ${script} missing or unexpected (HTTP ${bundle.status})`);
   }
   pass(`web shell served on http://localhost:${WEB_PORT}/ with bundle ${script}`);
+}
+
+async function checkAuthBoundary(): Promise<void> {
+  const { OperationErrorSchema } = await import('../../packages/contracts/dist/index.js');
+  const origin = (process.env['TB_ALLOWED_WEB_ORIGINS'] ?? '').split(',')[0]?.trim() ?? '';
+  if (!origin) fail('TB_ALLOWED_WEB_ORIGINS is not set; run yarn env:init');
+  const api = `http://localhost:${API_PORT}/api/v1`;
+  const loginBody = JSON.stringify({
+    email: 'p1-smoke-nobody@example.invalid',
+    password: 'synthetic-smoke-password-not-a-credential',
+  });
+  const cases: Array<[string, string, RequestInit, number, string]> = [
+    ['GET /auth/session without a cookie', `${api}/auth/session`, {}, 401, 'SESSION_REQUIRED'],
+    [
+      'POST /auth/login without Origin',
+      `${api}/auth/login`,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: loginBody },
+      403,
+      'ORIGIN_REJECTED',
+    ],
+    [
+      'POST /auth/login for a synthetic unknown account',
+      `${api}/auth/login`,
+      {
+        method: 'POST',
+        headers: {
+          Origin: origin,
+          'X-Requested-With': 'TB-APP',
+          'Content-Type': 'application/json',
+        },
+        body: loginBody,
+      },
+      403,
+      'INVALID_CREDENTIALS',
+    ],
+    [
+      'POST /auth/logout without a session',
+      `${api}/auth/logout`,
+      { method: 'POST', headers: { Origin: origin } },
+      401,
+      'SESSION_REQUIRED',
+    ],
+    [
+      'GET /auth/session through the web proxy',
+      `http://localhost:${WEB_PORT}/api/v1/auth/session`,
+      { headers: { Origin: origin } },
+      401,
+      'SESSION_REQUIRED',
+    ],
+  ];
+  for (const [label, url, init, status, code] of cases) {
+    const response = await fetch(url, {
+      ...init,
+      signal: AbortSignal.timeout(10_000),
+      redirect: 'error',
+    });
+    const body: unknown = await response.json();
+    const parsed = OperationErrorSchema.safeParse(body);
+    if (response.status !== status || !parsed.success || parsed.data.error.code !== code) {
+      fail(`${label}: expected ${status} ${code}, got ${response.status} ${JSON.stringify(body)}`);
+    }
+    if (response.headers.get('cache-control') !== 'no-store') fail(`${label}: missing no-store`);
+    const cors = [...response.headers.keys()].filter((name) => name.startsWith('access-control-'));
+    if (cors.length > 0) fail(`${label}: unexpected CORS headers ${cors.join(', ')}`);
+    pass(`auth boundary: ${label} → ${status} ${code}, no-store, no CORS`);
+  }
 }
 
 async function stopAll(): Promise<void> {
@@ -212,6 +284,7 @@ async function main(): Promise<void> {
   await checkHealth(`http://localhost:${API_PORT}/api/v1/health`, 'API /api/v1/health');
   await checkHealth(`http://localhost:${WEB_PORT}/api/v1/health`, 'web proxy /api/v1/health');
   await checkWeb();
+  await checkAuthBoundary();
 }
 
 try {

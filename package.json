@@ -43,7 +43,8 @@
     "lint": "oxlint",
     "dev": "node scripts/local/dev.ts",
     "dev:verify-shutdown": "node scripts/local/verify-dev-shutdown.ts",
-    "smoke:local": "node scripts/local/smoke.ts"
+    "smoke:local": "node scripts/local/smoke.ts",
+    "smoke:auth": "node scripts/local/auth-smoke.ts"
   },
   "devDependencies": {
     "@types/node": "24.13.6",
