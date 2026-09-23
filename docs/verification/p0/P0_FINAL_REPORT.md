@@ -1,16 +1,18 @@
-# P0 final report — first PC and CI (review gate R3)
+# P0 final report — first PC, CI and Windows browser
 
-Mission TB-P0-LOCAL-BOOTSTRAP. Recorded 2026-09-23 on the first PC after P0-E. This report covers first-PC and GitHub Actions evidence only. The second-PC reproduction and the Windows-browser check have **not** been run.
+Mission TB-P0-LOCAL-BOOTSTRAP. Recorded 2026-09-23 on the first PC after P0-E (review gate R3); updated 2026-09-23 at the Windows-browser checkpoint with the operator-reported Windows-browser result. This report covers first-PC, GitHub Actions and operator-reported evidence. The second-PC reproduction has **not** been run.
 
 ## Status by scope (not collapsed)
 
 | Scope | Status | Basis |
 |---|---|---|
-| **P0_FIRST_PC** | **PASS** (automated scope) | P0-A…P0-E implemented and executed on the first PC; all automated checks below pass |
-| **P0_CI** | **PASS** | GitHub Actions run `35863416044` (commit `0dfc7a5`), both jobs success on the first attempt, cold install |
-| **P0_SECOND_PC** | **NOT_RUN** | Pending operator run of `docs/architecture/SECOND_PC_REPRODUCTION_RUNBOOK_v1.md` |
-| **P0_WINDOWS_BROWSER** | **NOT_RUN** | Requires a human in a Windows browser (runbook §11) |
-| **P0_OVERALL** | **NOT_COMPLETE** | Second PC and Windows browser outstanding |
+| **P0_FIRST_PC** | **PASS** | P0-A…P0-E implemented and executed on the first PC; all automated checks below pass (the Windows-browser check is its own scope) |
+| **P0_CI** | **PASS** | GitHub Actions runs `35863416044` (commit `0dfc7a5`) and `35864210436` (commit `f6f5a96`, documentation-only), both jobs success on the first attempt, cold install |
+| **P0_WINDOWS_BROWSER** | **PASS — OPERATOR_REPORTED** | Runbook §11 performed manually by the operator on the first (home) Windows PC, reported 2026-09-23; not automated or document-reviewed evidence (see *Windows-browser verification*) |
+| **P0_SECOND_PC** | **NOT_RUN** | Pending operator run of `docs/architecture/SECOND_PC_REPRODUCTION_RUNBOOK_v1.md` on the `P0_REPRODUCTION_BASELINE` commit |
+| **P0_OVERALL** | **NOT_COMPLETE** | Second-PC reproduction outstanding (P0-26, P0-27) |
+
+`P0_REPRODUCTION_BASELINE` is the documentation-only commit that records the Windows-browser checkpoint, designated once its branch CI run succeeds. Its SHA is reported with the checkpoint (a commit cannot contain its own SHA); `feature/p1-auth-shell` branches from this commit, the second-PC reproduction checks it out, and `bootstrap/p0-local` takes no P1 application code.
 
 `EXTERNAL_LEGAL_ACTIONS=0` · `REAL_CASE_MUTATIONS=0` · `G7_CREATED=0` · `DEPLOYMENTS=0` · `REAL_TB_DATA_IN_GIT=0`.
 
@@ -24,6 +26,7 @@ Mission TB-P0-LOCAL-BOOTSTRAP. Recorded 2026-09-23 on the first PC after P0-E. T
 | P0-C5/C7 migration runtime + structural tests | `C5_C7_DATABASE_RUNTIME.md`, `metadata/*.json`, `evidence/c5-*.txt`, `evidence/c7-*.txt` |
 | P0-D contracts | `P0_D_CONTRACTS.md`, ADR-0002, `evidence/p0d-*` |
 | P0-E (this report) | sections below, `evidence/p0e-ci-run-35863416044.txt` |
+| Windows-browser checkpoint | *Windows-browser verification (operator-reported)* below |
 
 ## P0-E results (first PC)
 
@@ -46,7 +49,31 @@ Mission TB-P0-LOCAL-BOOTSTRAP. Recorded 2026-09-23 on the first PC after P0-E. T
 - Run **35863416044** — https://github.com/TuongChris/tb-notice-production-system/actions/runs/35863416044 — commit `0dfc7a5497fff67df936d3309fe618831e745c61`, 12:53:50Z → 12:56:11Z, **success** on the first attempt; no failures, no fixes needed.
   - Job *Non-DB checks (cold install)* (107188923142): Yarn cache folder **absent (cold)** before install; `308 packages were added (+ 391.4 MiB)` in ~14 s; reference:check, helper tests 27/27, contracts:check, typecheck, lint, format:check, test (7 files passed), build, tree unchanged.
   - Job *Database, seed and smoke (MySQL 8.4.11)* (107188923525): synthetic `.env` generated and masked; committed compose.yaml → `mysql:8.4.11@sha256:0744ee5e…` healthy on `127.0.0.1:3307`; migrate deploy test/replay/dev (second replay deploy `No pending migrations to apply.`), `db:verify` PASS ×4 (33/541/50/34/125/30, checksum `b54c36fd…`), test:db 22/22, seed digest identical to the first PC, both Prisma diffs empty, smoke 9/9, dev shutdown 4/4, references and tree unchanged.
-- Log review: the only masked values are GitHub's own `GITHUB_TOKEN` in action inputs; no database secret appears.
+- Run **35864210436** — https://github.com/TuongChris/tb-notice-production-system/actions/runs/35864210436 — commit `f6f5a960baec483b0299f219ca7924593e83fcf1` (documentation-only), 13:01:10Z → 13:04:29Z, **success** on the first attempt.
+  - Job *Non-DB checks (cold install)* (107191581233): cache **absent (cold)**, 308 packages; helper tests 27/27, contracts:check OK, 7 files / 858 tests passed, references intact.
+  - Job *Database, seed and smoke (MySQL 8.4.11)* (107191580983): test:db 22/22, second replay deploy `No pending migrations to apply.`, seed `inserted` then `unchanged (already canonical)` with digest `0ee26dc3…b775`, smoke 9/9, dev shutdown 4/4, references intact.
+- The checkpoint commit's own run is reported with the checkpoint (a commit cannot record its own run).
+- Log review (both runs): the only masked values are GitHub's own `GITHUB_TOKEN` in action inputs; no database secret appears.
+
+## Windows-browser verification (operator-reported)
+
+Evidence class **OPERATOR_REPORTED**: the operator performed the manual check (runbook §11) on the first (home) Windows PC and reported the result on 2026-09-23. It is not automated evidence and not document-reviewed: no screenshot, browser log or other artefact was supplied or reviewed, and the engineer did not observe the browser.
+
+The operator reports:
+
+- `http://localhost:5173` loaded successfully in the Windows browser;
+- the P0 shell was visible;
+- API health reported `ok`;
+- `http://localhost:3000/api/v1/health` returned the expected JSON response;
+- Ctrl+C was used to stop the local dev process.
+
+Not stated in the report:
+
+- the browser name/version (runbook §11 asks for it) and the time;
+- the commit under test. The first-PC checkout was `f6f5a96`, clean and equal to origin, when the checkpoint began; the checkpoint commit changes documentation only;
+- a port check after Ctrl+C. Port release after Ctrl+C is covered by the automated `yarn dev:verify-shutdown` (4/4, first PC and CI).
+
+Runbook §11 step 4 names the proxied URL `http://localhost:5173/api/v1/health`; the operator reported the direct API URL. The page's own health line is requested through the web proxy: the relative `/api/v1/health` request in `apps/web/src/app/App.tsx`.
 
 ## Acceptance matrix (active copy of the frozen P0_ACCEPTANCE_MATRIX)
 
@@ -73,19 +100,19 @@ Mission TB-P0-LOCAL-BOOTSTRAP. Recorded 2026-09-23 on the first PC after P0-E. T
 | P0-19 | Generate works; check detects drift without mutation | PASS | `yarn test`, disposable-clone tamper |
 | P0-20 | Format/lint/typecheck/tests/build pass | PASS | first PC + CI |
 | P0-21 | DB-backed health; unavailable DB not healthy | PASS | `PRISMA.md`, smoke |
-| P0-22 | Web proxy / compiled API / **Windows browser** smoke | NOT_RUN | automated proxy/API/web checks PASS (smoke, CI); the Windows-browser part is outstanding |
+| P0-22 | Web proxy / compiled API / **Windows browser** smoke | PASS (browser part OPERATOR_REPORTED) | automated proxy/API/web checks PASS (smoke, CI); Windows-browser part reported PASS by the operator on the first PC, 2026-09-23 — not automated evidence |
 | P0-23 | Diff reviewed; no secrets, real cases or reference drift | PASS | secret scans per commit; reference:check |
 | P0-24 | CI workflow without deploy/production credentials | PASS | `.github/workflows/ci.yml` |
-| P0-25 | Actual CI run passes, commit/run recorded | PASS | run 35863416044 @ `0dfc7a5` |
-| P0-26 | Second PC fresh clone of the same commit | NOT_RUN | runbook |
+| P0-25 | Actual CI run passes, commit/run recorded | PASS | run 35863416044 @ `0dfc7a5`; run 35864210436 @ `f6f5a96` |
+| P0-26 | Second PC fresh clone of the same commit | NOT_RUN | runbook, on the `P0_REPRODUCTION_BASELINE` commit |
 | P0-27 | Second PC deploys committed migration, seed/check/test/build/run | NOT_RUN | runbook |
-| P0-28 | Final report distinguishes scopes | PASS (first-PC/CI version) | this report; to be updated after P0-26/27/22 |
+| P0-28 | Final report distinguishes scopes | PASS (first-PC/CI/browser version) | this report; to be updated after P0-26/27 |
 
 Deferred groups (P1 auth/admin/CSRF, P2+ HTTP CRUD/ETag/idempotency, P3+ freeze races, P4+ case/source scope, P5+ prompt/candidate/readiness/export, hardening E2E/restore/deployment) remain **DEFERRED**.
 
 ## Known limitations and warnings
 
-- Windows-browser behaviour and second-PC reproducibility are unproven until the operator runs them.
+- Second-PC reproducibility is unproven until the operator runs the runbook. The Windows-browser result is operator-reported: P0 has no automated browser test, and no browser name/version was reported.
 - `yarn dev` in a terminal stops cleanly on Ctrl+C; a supervisor that signals only the `yarn` PID must use `node scripts/local/dev.ts`.
 - Prisma downloads its schema engine on first CLI use (build scripts are disabled by Yarn's default); CI and the second PC need network access to Prisma's engine distribution for that.
 - The frozen `openapi.yaml` uses YAML anchors/aliases (default `yaml` limits refuse it); the generated YAML has none.

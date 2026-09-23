@@ -66,11 +66,11 @@ Before any commit: `yarn reference:check && yarn contracts:check && yarn typeche
 
 ## Git workflow
 
-- P0 branch: `bootstrap/p0-local`. One active writer per branch; small, scoped commits; review `git diff --cached` before committing; never `git add .` blindly.
+- Branches: `bootstrap/p0-local` is the P0 branch and takes no P1 application code; P1 work goes on `feature/p1-auth-shell`, branched from the P0 reproduction baseline (`docs/CURRENT_STATE.md`). One active writer per branch; small, scoped commits; review `git diff --cached` before committing; never `git add .` blindly.
 - No merge to `main`, force-push, history rewrite, tags or releases without explicit operator approval.
 
 ## Phase boundaries and stop conditions
 
-- P0-A…P0-D done; P0-E (CI + handoff) awaiting review at gate R3; second-PC reproduction pending. P1 (local admin, sessions, CSRF) and all later features are **not started** and need explicit approval.
+- P0-A…P0-E delivered on the first PC and in CI; Windows-browser check PASS (operator-reported); second-PC reproduction pending — P0 overall **NOT_COMPLETE**. P1 (local admin, sessions, CSRF) and all later features are **not started** and need explicit approval.
 - Stop and ask on: missing credentials/permissions, a package incompatibility needing an architecture change, any domain-semantic conflict, an unsafe or unrecognized database target, or any destructive plan.
 - Forbidden substitutions: MariaDB/SQLite/Postgres servers; `db push`; Zod built-in format validators or `z.toJSONSchema` for wire contracts; hand-edited generated contracts; Python in app/CI; Yarn Classic/PnP, npm or pnpm installs; binding services to `0.0.0.0`; writable readiness/signature fields.
