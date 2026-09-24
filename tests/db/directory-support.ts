@@ -22,6 +22,8 @@ import {
 export const DIRECTORY_SUITE_TABLES = [
   'idempotency_records',
   'audit_events',
+  // Synthetic case rows appear only as fixtures that reference a route (a delete blocker test).
+  'cases',
   'routes',
   'owner_subjects',
   'signers',
@@ -52,6 +54,9 @@ export async function cleanSuiteTables(prisma: PrismaClient): Promise<void> {
   await prisma.$executeRawUnsafe(
     'UPDATE `signers` SET `canonical_source_id` = NULL, `identity_source_id` = NULL, `delegation_source_id` = NULL',
   );
+  await prisma.$executeRawUnsafe('UPDATE `routes` SET `canonical_source_id` = NULL');
+  await prisma.$executeRawUnsafe('UPDATE `owner_subjects` SET `source_id` = NULL');
+  await prisma.$executeRawUnsafe('UPDATE `source_references` SET `supersedes_source_id` = NULL');
   for (const table of DIRECTORY_SUITE_TABLES) {
     await prisma.$executeRawUnsafe(`DELETE FROM \`${table}\``);
   }
@@ -183,11 +188,18 @@ export async function countRows(prisma: PrismaClient, table: string): Promise<nu
   return Number(row?.n ?? 0);
 }
 
-/** A synthetic SourceReference inserted directly (the product cannot author one before Source). */
+/**
+ * A synthetic SourceReference inserted directly: P2 fixtures, and shapes the API refuses to create
+ * (for example a case-scoped source before the Case phase).
+ */
 export async function insertSource(
   prisma: PrismaClient,
   actorUserId: string,
-  options: { agencyId?: string | null; scopeBindings?: unknown } = {},
+  options: {
+    agencyId?: string | null;
+    scopeBindings?: unknown;
+    sourceRole?: 'CANONICAL_RECORD' | 'OPERATOR_INPUT';
+  } = {},
 ): Promise<string> {
   const id = randomUUID();
   await prisma.sourceReference.create({
@@ -197,7 +209,7 @@ export async function insertSource(
       sourceGroupId: randomUUID(),
       revision: 1,
       title: 'SYNTHETIC source fixture (test only; not evidence)',
-      sourceRole: 'OPERATOR_INPUT',
+      sourceRole: options.sourceRole ?? 'OPERATOR_INPUT',
       scopeText: 'Synthetic test scope',
       ...(options.scopeBindings === undefined
         ? {}

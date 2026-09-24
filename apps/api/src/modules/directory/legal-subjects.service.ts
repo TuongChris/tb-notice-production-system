@@ -7,6 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import type {
   ArchiveRequest,
+  CanonicalBindingRequest,
   CreateLegalSubject,
   LegalSubject as LegalSubjectView,
   PatchLegalSubject,
@@ -41,9 +42,10 @@ import {
   stateChange,
   type RecordLifecycleChange,
 } from './lifecycle.js';
+import { applyCanonicalBinding } from './canonical-binding.js';
 import { created, deleted, unchanged, updated } from './outcomes.js';
 import { dependencyReasons, establishedBy, hasCanonicalBinding, lockForUpdate } from './records.js';
-import { assertSourcesUsable, sourceIdsOf } from './sources.js';
+import { assertSourcesUsable, sourceIdsOf } from '../sources/source-scope.js';
 import { toLegalSubjectView } from './views.js';
 
 const ENTITY = 'LegalSubject';
@@ -122,7 +124,7 @@ export class LegalSubjectsService {
       async (context) => {
         const id = randomUUID();
         const uses = attributionSourceUses(body.fieldAttributions);
-        await assertSourcesUsable(context.tx, uses, null);
+        await assertSourcesUsable(context.tx, uses, { kind: 'LegalSubject', legalSubjectId: id });
         const row = await context.tx.legalSubject.create({
           data: {
             ...writeData(body, FIELDS, JSON_FIELDS),
@@ -167,7 +169,7 @@ export class LegalSubjectsService {
         const uses = changed.includes('fieldAttributions')
           ? attributionSourceUses(body.fieldAttributions)
           : [];
-        await assertSourcesUsable(context.tx, uses, null);
+        await assertSourcesUsable(context.tx, uses, { kind: 'LegalSubject', legalSubjectId: id });
         if (changed.length === 0) return unchanged(ENTITY, toLegalSubjectView(current));
         const row = await context.tx.legalSubject.update({
           where: { id, rowVersion: current.rowVersion },
@@ -280,6 +282,41 @@ export class LegalSubjectsService {
           before: { ...auditFields(current, fields), rowVersion: current.rowVersion },
           after: { ...auditFields(row, fields), rowVersion: row.rowVersion },
           reason: body.reason,
+        });
+        return updated(ENTITY, toLegalSubjectView(row));
+      },
+    );
+  }
+
+  /**
+   * Records the SourceReference that holds this legal subject's canonical code (canonical-binding.ts):
+   * an identity/reference association only — no rights, authority, eligibility or readiness.
+   */
+  bindCanonical(
+    requester: WriteRequester,
+    id: string,
+    body: CanonicalBindingRequest,
+  ): Promise<WriteReply> {
+    return this.writes.execute(
+      { operationId: 'bindCanonicalLegalSubject', pathParams: { id }, body, requester },
+      async (context) => {
+        const current = await this.lock(context, id);
+        const row = await applyCanonicalBinding(context, {
+          entity: ENTITY,
+          operation: 'bindCanonicalLegalSubject',
+          current,
+          archived: current.recordState === 'ARCHIVED',
+          body,
+          scope: { kind: 'LegalSubject', legalSubjectId: id },
+          codeHolder: async (code) =>
+            (
+              await context.tx.legalSubject.findFirst({
+                where: { canonicalCode: code },
+                select: { id: true },
+              })
+            )?.id ?? null,
+          update: (data) =>
+            context.tx.legalSubject.update({ where: { id, rowVersion: current.rowVersion }, data }),
         });
         return updated(ENTITY, toLegalSubjectView(row));
       },

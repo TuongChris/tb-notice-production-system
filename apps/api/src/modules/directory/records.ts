@@ -1,8 +1,9 @@
-// Row locks and dependency checks of directory records.
+// Row locks and dependency checks of directory and representation records.
 //
 // Lock order (INVARIANTS §5 "parent identities … sorted by stable type+ID"): rows are locked in the
-// alphabetical order of their entity type — Agency, LegalSubject, Owner, OwnerSubject, Signer — and
-// a transaction never locks a type that sorts before one it already holds.
+// alphabetical order of their entity type — Agency, LegalSubject, Owner, OwnerSubject, Route,
+// Signer, SourceReference — rows of one type in id order, and a transaction never locks a type that
+// sorts before one it already holds.
 //
 // Dependencies: a record is referenced when another persisted business record points at it through
 // a foreign key (the complete FK inventory of the reviewed migration, guarded by a test) or through
@@ -13,13 +14,15 @@
 // READ COMMITTED reads see every reference committed before the lock was granted.
 import { Prisma } from '../../../generated/prisma/client.js';
 
-export type DirectoryEntity = 'Agency' | 'LegalSubject' | 'Owner' | 'OwnerSubject' | 'Signer';
+export type DirectoryEntity =
+  'Agency' | 'LegalSubject' | 'Owner' | 'OwnerSubject' | 'Route' | 'Signer';
 
 export const DIRECTORY_TABLES: Readonly<Record<DirectoryEntity, string>> = {
   Agency: 'agencies',
   LegalSubject: 'legal_subjects',
   Owner: 'owners',
   OwnerSubject: 'owner_subjects',
+  Route: 'routes',
   Signer: 'signers',
 };
 
@@ -28,7 +31,7 @@ export interface ColumnReference {
   readonly column: string;
 }
 
-/** Every foreign key of the reviewed migration that points at a directory table. */
+/** Every foreign key of the reviewed migration that points at a directory or route table. */
 export const DIRECT_REFERENCES: Readonly<Record<DirectoryEntity, readonly ColumnReference[]>> = {
   Agency: [
     { table: 'cases', column: 'agency_id' },
@@ -44,6 +47,11 @@ export const DIRECT_REFERENCES: Readonly<Record<DirectoryEntity, readonly Column
     { table: 'owner_subjects', column: 'owner_id' },
   ],
   OwnerSubject: [{ table: 'routes', column: 'owner_subject_id' }],
+  Route: [
+    { table: 'case_authority_selections', column: 'route_id' },
+    { table: 'cases', column: 'route_id' },
+    { table: 'mandate_coverages', column: 'route_id' },
+  ],
   Signer: [
     { table: 'case_authority_selections', column: 'signer_id' },
     { table: 'coverage_signers', column: 'signer_id' },

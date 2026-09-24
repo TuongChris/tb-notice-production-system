@@ -4,10 +4,10 @@ import type { WireEntity, WriteOutcome } from '../../infrastructure/write/write-
 const affected = (type: string, entity: WireEntity): AffectedResource => ({
   type,
   id: entity.id,
-  rowVersion: entity.rowVersion,
+  rowVersion: entity.rowVersion ?? null,
 });
 
-/** 201 with the new entity (its ETag is sent). */
+/** 201 with the new entity (its ETag is sent when it is a versioned record). */
 export function created(
   type: string,
   entity: WireEntity,

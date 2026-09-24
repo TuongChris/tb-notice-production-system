@@ -859,9 +859,43 @@ describe('LEGAL SUBJECT', () => {
     });
   });
 
-  it('attributions on a subject: sources must exist; MISSING and CONFLICT stay as recorded', async () => {
+  it('attributions on a subject: sources must exist and be scoped to the subject (P3A); MISSING and CONFLICT stay as recorded', async () => {
     const subject = await createSubject();
-    const source = await insertSource(prisma, client.session.userId);
+    // Since P3A a source supports a LegalSubject only when its scope names that subject.
+    const source = await insertSource(prisma, client.session.userId, {
+      scopeBindings: { legalSubjectIds: [subject.data.id] },
+    });
+    for (const [unscoped, reason] of [
+      [await insertSource(prisma, client.session.userId), 'NOT_SCOPED_TO_SUBJECT'],
+      [
+        await insertSource(prisma, client.session.userId, {
+          agencyId: (await createAgency()).data.id,
+          scopeBindings: { legalSubjectIds: [subject.data.id] },
+        }),
+        'AGENCY_OWNED_SOURCE',
+      ],
+    ] as const) {
+      const refused = await client.write(
+        'patchLegalSubject',
+        'PATCH',
+        `/legal-subjects/${subject.data.id}`,
+        {
+          fieldAttributions: [
+            {
+              field: 'legalName',
+              provenance: 'DOCUMENT_REVIEWED',
+              sourceIds: [unscoped],
+              scopeText: 'Synthetic extract',
+            },
+          ],
+        },
+        { ifMatch: subject.etag },
+      );
+      expect(errorOf(refused), reason).toMatchObject({
+        code: 'SOURCE_SCOPE_UNRESOLVED',
+        details: { field: 'fieldAttributions.0.sourceIds.0', reason },
+      });
+    }
     const attributions = [
       {
         field: 'legalName',
@@ -2497,12 +2531,11 @@ describe('SECURITY / VALIDATION / CONTRACT', () => {
     expect((await getAgency(agency.data.id)).data.rowVersion).toBe(1);
   });
 
-  it('deferred canonical-binding operations are not routed: 404, and nothing is bound or created', async () => {
+  it('canonical-binding operations are routed since P3A; an unknown source is refused and nothing is bound', async () => {
     const agency = await createAgency();
     const owner = await createOwner();
     const subject = await createSubject();
     const signer = await createSigner(agency.data.id);
-    const source = await insertSource(prisma, client.session.userId, { agencyId: agency.data.id });
     for (const [operationId, path, etag] of [
       ['bindCanonicalAgency', `/agencies/${agency.data.id}/canonical-bindings`, agency.etag],
       ['bindCanonicalOwner', `/owners/${owner.data.id}/canonical-bindings`, owner.etag],
@@ -2517,10 +2550,10 @@ describe('SECURITY / VALIDATION / CONTRACT', () => {
         operationId,
         'POST',
         path,
-        { canonicalCode: 'SYN-CODE', sourceId: source, reason: 'synthetic' },
+        { canonicalCode: 'SYN-CODE', sourceId: randomUUID(), reason: 'synthetic' },
         { ifMatch: etag },
       );
-      expect([result.status, code(result)], operationId).toEqual([404, 'NOT_FOUND']);
+      expect([result.status, code(result)], operationId).toEqual([422, 'REFERENCE_NOT_FOUND']);
     }
     for (const record of [
       (await getAgency(agency.data.id)).data,
@@ -2532,12 +2565,13 @@ describe('SECURITY / VALIDATION / CONTRACT', () => {
         canonicalCode: null,
         canonicalSourceId: null,
         bindingState: 'LOCAL_ONLY',
+        rowVersion: 1,
       });
     }
-    expect(await countRows(prisma, 'source_references')).toBe(1);
+    expect(await countRows(prisma, 'source_references')).toBe(0);
   });
 
-  it('exposes exactly the P1 routes plus the 36 implemented directory operations', async () => {
+  it('exposes exactly the P1 routes plus the 53 implemented directory, source and route operations', async () => {
     const express = t.app.getHttpAdapter().getInstance() as {
       router: { stack: Array<{ route?: { path: string; methods: Record<string, boolean> } }> };
     };
@@ -2549,17 +2583,19 @@ describe('SECURITY / VALIDATION / CONTRACT', () => {
         ),
       )
       .sort();
+    // P2: the 36 directory operations; P3A: the 4 canonical bindings, 4 source and 9 route
+    // operations. Nothing of Mandate, Case, production or validation is routed.
     const directory = operations
-      .filter(
-        (operation) =>
-          /^\/(agencies|owners|legal-subjects|signers|owner-subjects)/.test(operation.path) &&
-          !operation.operationId.startsWith('bindCanonical'),
+      .filter((operation) =>
+        /^\/(agencies|owners|legal-subjects|signers|owner-subjects|sources|routes)(\/|$)/.test(
+          operation.path,
+        ),
       )
       .map(
         (operation) =>
           `${operation.method.toUpperCase()} /api/v1${operation.path.replace(/\{([A-Za-z]+)\}/g, ':$1')}`,
       );
-    expect(directory).toHaveLength(36);
+    expect(directory).toHaveLength(53);
     expect(routes).toEqual(
       [
         'GET /api/v1/auth/session',

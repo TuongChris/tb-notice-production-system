@@ -11,7 +11,13 @@ import {
   Req,
   Res,
 } from '@nestjs/common';
-import type { ArchiveRequest, CreateAgency, PatchAgency, RecordStateRequest } from '@tb/contracts';
+import type {
+  ArchiveRequest,
+  CanonicalBindingRequest,
+  CreateAgency,
+  PatchAgency,
+  RecordStateRequest,
+} from '@tb/contracts';
 import type { HttpRequest, HttpResponse } from '../../infrastructure/http/http-types.js';
 import {
   contractOperation,
@@ -31,11 +37,12 @@ const op = {
   archive: contractOperation('archiveAgency'),
   restore: contractOperation('restoreAgency'),
   state: contractOperation('setAgencyState'),
+  bind: contractOperation('bindCanonicalAgency'),
 };
 
 /**
- * Agency operations of TB-SCHEMA-API-v1 except `bindCanonicalAgency`, which needs a SourceReference
- * that cannot be authored before the Source phase (decision D2) and is therefore not routed.
+ * Agency operations of TB-SCHEMA-API-v1, including `bindCanonicalAgency` (P3A): it records the SourceReference
+ * that holds the agency's canonical code and establishes no rights, authority or eligibility.
  */
 @Controller('agencies')
 export class AgenciesController {
@@ -143,6 +150,22 @@ export class AgenciesController {
       requesterOf(request),
       parsePathParam(op.state, 'id', id),
       parseBody<RecordStateRequest>(op.state, body),
+    );
+    return writeReply(response, reply);
+  }
+
+  @Post(':id/canonical-bindings')
+  @HttpCode(200)
+  async bindCanonical(
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @Req() request: HttpRequest,
+    @Res({ passthrough: true }) response: HttpResponse,
+  ) {
+    const reply = await this.agencies.bindCanonical(
+      requesterOf(request),
+      parsePathParam(op.bind, 'id', id),
+      parseBody<CanonicalBindingRequest>(op.bind, body),
     );
     return writeReply(response, reply);
   }

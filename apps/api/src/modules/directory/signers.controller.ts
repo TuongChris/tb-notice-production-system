@@ -11,7 +11,13 @@ import {
   Req,
   Res,
 } from '@nestjs/common';
-import type { ArchiveRequest, CreateSigner, PatchSigner, SignerStateRequest } from '@tb/contracts';
+import type {
+  ArchiveRequest,
+  CanonicalBindingRequest,
+  CreateSigner,
+  PatchSigner,
+  SignerStateRequest,
+} from '@tb/contracts';
 import type { HttpRequest, HttpResponse } from '../../infrastructure/http/http-types.js';
 import {
   contractOperation,
@@ -31,11 +37,12 @@ const op = {
   archive: contractOperation('archiveSigner'),
   restore: contractOperation('restoreSigner'),
   state: contractOperation('setSignerState'),
+  bind: contractOperation('bindCanonicalSigner'),
 };
 
 /**
- * Signer operations of TB-SCHEMA-API-v1 except `bindCanonicalSigner` (needs a SourceReference that
- * cannot be authored before the Source phase — decision D2 — so it is not routed).
+ * Signer operations of TB-SCHEMA-API-v1, including `bindCanonicalSigner` (P3A): it records the SourceReference
+ * that holds the signer's canonical code and establishes no rights, authority or eligibility.
  */
 @Controller('signers')
 export class SignersController {
@@ -143,6 +150,22 @@ export class SignersController {
       requesterOf(request),
       parsePathParam(op.state, 'id', id),
       parseBody<SignerStateRequest>(op.state, body),
+    );
+    return writeReply(response, reply);
+  }
+
+  @Post(':id/canonical-bindings')
+  @HttpCode(200)
+  async bindCanonical(
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @Req() request: HttpRequest,
+    @Res({ passthrough: true }) response: HttpResponse,
+  ) {
+    const reply = await this.signers.bindCanonical(
+      requesterOf(request),
+      parsePathParam(op.bind, 'id', id),
+      parseBody<CanonicalBindingRequest>(op.bind, body),
     );
     return writeReply(response, reply);
   }

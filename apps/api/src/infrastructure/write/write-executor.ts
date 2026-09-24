@@ -74,10 +74,13 @@ export interface WriteContext {
   audit(entry: AuditRecord): Promise<void>;
 }
 
-/** The versioned wire entity returned by a mutation. */
+/**
+ * The wire entity returned by a mutation. Mutable records carry `rowVersion` (and the response
+ * carries their strong ETag); immutable records such as a SourceReference revision have none.
+ */
 export interface WireEntity {
   readonly id: string;
-  readonly rowVersion: number;
+  readonly rowVersion?: number;
 }
 
 export interface WriteOutcome {
@@ -186,7 +189,7 @@ export class WriteExecutor {
           return {
             status: outcome.status,
             ...(body === undefined ? {} : { body }),
-            ...(outcome.data === undefined
+            ...(outcome.data?.rowVersion === undefined
               ? {}
               : {
                   etag: entityEtag(

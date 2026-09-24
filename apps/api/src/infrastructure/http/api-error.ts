@@ -112,21 +112,23 @@ export const apiErrors = {
     ),
   referenceNotFound: (field: string) =>
     new ApiError(422, 'REFERENCE_NOT_FOUND', 'A referenced record does not exist.', { field }),
-  crossAgencyReference: (field: string) =>
+  crossAgencyReference: (field: string, subject: 'source' | 'record' | 'scope' = 'source') =>
     new ApiError(
       422,
       'CROSS_AGENCY_REFERENCE',
-      'The referenced source belongs to another agency.',
       {
-        field,
-      },
+        source: 'The referenced source belongs to another agency.',
+        record: 'The referenced record belongs to another agency.',
+        scope: "An agency's own source cannot be scoped to another agency.",
+      }[subject],
+      { field },
     ),
-  sourceScopeUnresolved: (field: string) =>
+  sourceScopeUnresolved: (field: string, reason: string) =>
     new ApiError(
       422,
       'SOURCE_SCOPE_UNRESOLVED',
-      'The referenced source has no agency and is not explicitly scoped to this agency.',
-      { field },
+      "The referenced source's recorded scope does not include this record.",
+      { field, reason },
     ),
   fieldAttributionInvalid: (issues: readonly ValidationIssue[]) =>
     new ApiError(422, 'FIELD_ATTRIBUTION_INVALID', 'A field attribution is not acceptable.', {
@@ -166,5 +168,91 @@ export const apiErrors = {
       'DEPENDENT_ROUTES_LINKED',
       'Linked or paused routes still depend on this association; it cannot be unlinked.',
       { routes },
+    ),
+
+  // Sources, canonical bindings and routes (P3A).
+  crossOwnerReference: (field: string, ownerId: string) =>
+    new ApiError(
+      422,
+      'CROSS_OWNER_REFERENCE',
+      "The referenced source is already recorded as another owner's material.",
+      { field, ownerId },
+    ),
+  caseScopeUnavailable: (field: string) =>
+    new ApiError(
+      422,
+      'CASE_SCOPE_UNAVAILABLE',
+      'Case scope cannot be recorded before the Case phase exists.',
+      { field },
+    ),
+  contentHashIncomplete: (field: string) =>
+    new ApiError(
+      422,
+      'CONTENT_HASH_INCOMPLETE',
+      'A content hash needs its hash target, and a hash target needs its content hash.',
+      { field },
+    ),
+  reviewUnattributed: (field: string) =>
+    new ApiError(
+      422,
+      'REVIEW_UNATTRIBUTED',
+      'DOCUMENT_REVIEWED is only recorded with the reviewer who reviewed the document.',
+      { field },
+    ),
+  revisionNotHead: (headId: string | null) =>
+    new ApiError(
+      409,
+      'REVISION_NOT_HEAD',
+      'Only the current revision of a source can be revised.',
+      headId === null ? {} : { headId },
+    ),
+  revisionScopeChange: (fields: readonly string[]) =>
+    new ApiError(
+      422,
+      'REVISION_SCOPE_CHANGE',
+      "A revision keeps the source's agency and scope; a different scope needs a new source.",
+      { fields },
+    ),
+  sourceNotCurrent: (field: string, currentSourceId: string) =>
+    new ApiError(
+      409,
+      'SOURCE_NOT_CURRENT',
+      'The referenced source has a newer revision; bind the current revision.',
+      { field, currentSourceId },
+    ),
+  sourceRoleNotVerification: (field: string, sourceRole: string) =>
+    new ApiError(
+      422,
+      'SOURCE_ROLE_NOT_VERIFICATION',
+      'A canonical binding needs a source recorded as a canonical record.',
+      { field, sourceRole },
+    ),
+  bindingCorrectionRequiresReconciliation: (current: Readonly<Record<string, unknown>>) =>
+    new ApiError(
+      409,
+      'BINDING_CORRECTION_REQUIRES_RECONCILIATION',
+      'The record already has a canonical binding; changing it needs a reconciliation workflow.',
+      current,
+    ),
+  duplicateCanonicalCode: (recordId: string | null) =>
+    new ApiError(
+      409,
+      'DUPLICATE_CANONICAL_CODE',
+      'Another record of this kind already has this canonical code.',
+      recordId === null ? {} : { recordId },
+    ),
+  duplicateRoute: (routeId: string | null) =>
+    new ApiError(
+      409,
+      'DUPLICATE_ROUTE',
+      'A route for this agency, association and platform already exists. Use that route.',
+      routeId === null ? {} : { routeId },
+    ),
+  preferredCoverageUnavailable: (field: string) =>
+    new ApiError(
+      422,
+      'PREFERRED_COVERAGE_UNAVAILABLE',
+      'A preferred coverage can be set only once mandate coverage exists (not available yet).',
+      { field },
     ),
 } as const;

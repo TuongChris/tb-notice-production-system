@@ -14,9 +14,9 @@ import {
 import type {
   ArchiveRequest,
   CanonicalBindingRequest,
-  CreateLegalSubject,
-  PatchLegalSubject,
-  RecordStateRequest,
+  CreateRoute,
+  LinkStateRequest,
+  PatchRoute,
 } from '@tb/contracts';
 import type { HttpRequest, HttpResponse } from '../../infrastructure/http/http-types.js';
 import {
@@ -25,32 +25,32 @@ import {
   parsePathParam,
   parseQuery,
 } from '../../infrastructure/write/request-parsing.js';
-import { entityReply, pageReply, requesterOf, writeReply } from './directory-http.js';
-import { LegalSubjectsService } from './legal-subjects.service.js';
+import { entityReply, pageReply, requesterOf, writeReply } from '../directory/directory-http.js';
+import { RoutesService } from './routes.service.js';
 
 const op = {
-  list: contractOperation('listLegalSubjects'),
-  create: contractOperation('createLegalSubject'),
-  get: contractOperation('getLegalSubject'),
-  patch: contractOperation('patchLegalSubject'),
-  delete: contractOperation('deleteUnusedLegalSubject'),
-  archive: contractOperation('archiveLegalSubject'),
-  restore: contractOperation('restoreLegalSubject'),
-  state: contractOperation('setLegalSubjectState'),
-  bind: contractOperation('bindCanonicalLegalSubject'),
+  list: contractOperation('listRoutes'),
+  create: contractOperation('createRoute'),
+  get: contractOperation('getRoute'),
+  patch: contractOperation('patchRoute'),
+  delete: contractOperation('deleteUnusedRoute'),
+  archive: contractOperation('archiveRoute'),
+  restore: contractOperation('restoreRoute'),
+  bind: contractOperation('bindCanonicalRoute'),
+  linkState: contractOperation('setRouteLinkState'),
 };
 
 /**
- * LegalSubject operations of TB-SCHEMA-API-v1, including `bindCanonicalLegalSubject` (P3A): it records the SourceReference
- * that holds the legal subject's canonical code and establishes no rights, authority or eligibility.
+ * Route operations of TB-SCHEMA-API-v1: the operational path Agency + OwnerSubject + Platform.
+ * A route is a relationship record; it grants no authority, mandate, coverage or eligibility.
  */
-@Controller('legal-subjects')
-export class LegalSubjectsController {
-  constructor(private readonly legalSubjects: LegalSubjectsService) {}
+@Controller('routes')
+export class RoutesController {
+  constructor(private readonly routes: RoutesService) {}
 
   @Get()
   async list(@Query() query: unknown, @Req() request: HttpRequest) {
-    return pageReply(request, await this.legalSubjects.list(parseQuery(op.list, query)));
+    return pageReply(request, await this.routes.list(parseQuery(op.list, query)));
   }
 
   @Post()
@@ -60,9 +60,9 @@ export class LegalSubjectsController {
     @Req() request: HttpRequest,
     @Res({ passthrough: true }) response: HttpResponse,
   ) {
-    const reply = await this.legalSubjects.create(
+    const reply = await this.routes.create(
       requesterOf(request),
-      parseBody<CreateLegalSubject>(op.create, body),
+      parseBody<CreateRoute>(op.create, body),
     );
     return writeReply(response, reply);
   }
@@ -73,8 +73,8 @@ export class LegalSubjectsController {
     @Req() request: HttpRequest,
     @Res({ passthrough: true }) response: HttpResponse,
   ) {
-    const data = await this.legalSubjects.get(parsePathParam(op.get, 'id', id));
-    return entityReply(request, response, 'LegalSubject', data);
+    const data = await this.routes.get(parsePathParam(op.get, 'id', id));
+    return entityReply(request, response, 'Route', data);
   }
 
   @Patch(':id')
@@ -85,10 +85,10 @@ export class LegalSubjectsController {
     @Req() request: HttpRequest,
     @Res({ passthrough: true }) response: HttpResponse,
   ) {
-    const reply = await this.legalSubjects.patch(
+    const reply = await this.routes.patch(
       requesterOf(request),
       parsePathParam(op.patch, 'id', id),
-      parseBody<PatchLegalSubject>(op.patch, body),
+      parseBody<PatchRoute>(op.patch, body),
     );
     return writeReply(response, reply);
   }
@@ -101,9 +101,9 @@ export class LegalSubjectsController {
     @Req() request: HttpRequest,
     @Res({ passthrough: true }) response: HttpResponse,
   ) {
-    const subjectId = parsePathParam(op.delete, 'id', id);
+    const routeId = parsePathParam(op.delete, 'id', id);
     parseBody(op.delete, body);
-    return writeReply(response, await this.legalSubjects.delete(requesterOf(request), subjectId));
+    return writeReply(response, await this.routes.delete(requesterOf(request), routeId));
   }
 
   @Post(':id/archive')
@@ -114,7 +114,7 @@ export class LegalSubjectsController {
     @Req() request: HttpRequest,
     @Res({ passthrough: true }) response: HttpResponse,
   ) {
-    const reply = await this.legalSubjects.archive(
+    const reply = await this.routes.archive(
       requesterOf(request),
       parsePathParam(op.archive, 'id', id),
       parseBody<ArchiveRequest>(op.archive, body),
@@ -130,26 +130,10 @@ export class LegalSubjectsController {
     @Req() request: HttpRequest,
     @Res({ passthrough: true }) response: HttpResponse,
   ) {
-    const reply = await this.legalSubjects.restore(
+    const reply = await this.routes.restore(
       requesterOf(request),
       parsePathParam(op.restore, 'id', id),
       parseBody<ArchiveRequest>(op.restore, body),
-    );
-    return writeReply(response, reply);
-  }
-
-  @Post(':id/state')
-  @HttpCode(200)
-  async setState(
-    @Param('id') id: string,
-    @Body() body: unknown,
-    @Req() request: HttpRequest,
-    @Res({ passthrough: true }) response: HttpResponse,
-  ) {
-    const reply = await this.legalSubjects.setState(
-      requesterOf(request),
-      parsePathParam(op.state, 'id', id),
-      parseBody<RecordStateRequest>(op.state, body),
     );
     return writeReply(response, reply);
   }
@@ -162,10 +146,26 @@ export class LegalSubjectsController {
     @Req() request: HttpRequest,
     @Res({ passthrough: true }) response: HttpResponse,
   ) {
-    const reply = await this.legalSubjects.bindCanonical(
+    const reply = await this.routes.bindCanonical(
       requesterOf(request),
       parsePathParam(op.bind, 'id', id),
       parseBody<CanonicalBindingRequest>(op.bind, body),
+    );
+    return writeReply(response, reply);
+  }
+
+  @Post(':id/link-state')
+  @HttpCode(200)
+  async setLinkState(
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @Req() request: HttpRequest,
+    @Res({ passthrough: true }) response: HttpResponse,
+  ) {
+    const reply = await this.routes.setLinkState(
+      requesterOf(request),
+      parsePathParam(op.linkState, 'id', id),
+      parseBody<LinkStateRequest>(op.linkState, body),
     );
     return writeReply(response, reply);
   }

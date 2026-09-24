@@ -1,9 +1,5 @@
 import { Module } from '@nestjs/common';
-import { AUTH_CONFIG, type AuthConfig } from '../auth/auth-config.js';
-import { AuthModule } from '../auth/auth.module.js';
-import { AuditWriter } from '../../infrastructure/write/audit-writer.js';
-import { CursorCodec } from '../../infrastructure/write/cursor.js';
-import { WriteExecutor } from '../../infrastructure/write/write-executor.js';
+import { WriteModule } from '../../infrastructure/write/write.module.js';
 import { AgenciesController } from './agencies.controller.js';
 import { AgenciesService } from './agencies.service.js';
 import { LegalSubjectsController } from './legal-subjects.controller.js';
@@ -16,13 +12,14 @@ import { SignersController } from './signers.controller.js';
 import { SignersService } from './signers.service.js';
 
 /**
- * P2 Directory: Agency, Owner, LegalSubject, OwnerSubject and Signer records. Directory records are
- * administrative data: none of them grants legal authority, satisfies G1–G7, signs or sends
- * anything, and a Signer record is never an application User. Canonical-binding operations are not
- * routed until SourceReference authoring exists (decision D2).
+ * Directory: Agency, Owner, LegalSubject, OwnerSubject and Signer records (P2) and their canonical
+ * bindings (P3A). Directory records are administrative data: none of them grants legal authority,
+ * satisfies G1–G7, signs or sends anything, and a Signer record is never an application User. A
+ * canonical binding records the source that holds a record's canonical code; it establishes no
+ * rights, authority or eligibility.
  */
 @Module({
-  imports: [AuthModule],
+  imports: [WriteModule],
   controllers: [
     AgenciesController,
     OwnersController,
@@ -31,13 +28,6 @@ import { SignersService } from './signers.service.js';
     SignersController,
   ],
   providers: [
-    AuditWriter,
-    WriteExecutor,
-    {
-      provide: CursorCodec,
-      useFactory: (config: AuthConfig) => new CursorCodec(config.sessionSecret),
-      inject: [AUTH_CONFIG],
-    },
     AgenciesService,
     OwnersService,
     OwnerSubjectsService,

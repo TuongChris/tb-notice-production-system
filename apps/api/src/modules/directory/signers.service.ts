@@ -8,10 +8,13 @@
 // Lifecycle: operationalState DRAFT | AVAILABLE | PAUSED | ENDED is changed only by the state
 // command (any other state, with a reason); archive/restore is an orthogonal administrative flag
 // (archivedAt) that leaves the operational state unchanged. An archived Signer is read-only.
+// Canonical binding (P3A) records the source of the person's identity; once bound, fullLegalName is
+// locked against generic PATCH. The binding is not delegation, coverage, eligibility or G7.
 import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import type {
   ArchiveRequest,
+  CanonicalBindingRequest,
   CreateSigner,
   PatchSigner,
   Signer as SignerView,
@@ -38,9 +41,10 @@ import {
   type WriteRequester,
 } from '../../infrastructure/write/write-executor.js';
 import { auditFields, changedFields, presentFields, writeData } from './changes.js';
+import { applyCanonicalBinding } from './canonical-binding.js';
 import { created, deleted, unchanged, updated } from './outcomes.js';
 import { dependencyReasons, hasCanonicalBinding, lockForShare, lockForUpdate } from './records.js';
-import { assertSourcesUsable, sourceIdsOf, type SourceUse } from './sources.js';
+import { assertSourcesUsable, sourceIdsOf, type SourceUse } from '../sources/source-scope.js';
 import { toSignerView } from './views.js';
 
 const ENTITY = 'Signer';
@@ -125,7 +129,7 @@ export class SignersService {
           });
         }
         const uses = sourceUses(body);
-        await assertSourcesUsable(context.tx, uses, { agencyId: body.agencyId });
+        await assertSourcesUsable(context.tx, uses, { kind: 'Agency', agencyId: body.agencyId });
         const id = randomUUID();
         const row = await context.tx.signer.create({
           data: {
@@ -160,6 +164,11 @@ export class SignersService {
         const current = await this.lock(context, id);
         this.assertNotArchived(current, 'patch');
         const changed = changedFields(current, body);
+        // A canonical binding records the source of this person's identity; the bound name is no
+        // longer changed by generic PATCH (a correction needs a reconciliation workflow).
+        if (changed.includes('fullLegalName') && hasCanonicalBinding(current)) {
+          throw apiErrors.establishedIdentityImmutable(['fullLegalName'], ['CANONICAL_BINDING']);
+        }
         const uses = sourceUses({
           ...(changed.includes('identitySourceId')
             ? { identitySourceId: body.identitySourceId ?? null }
@@ -168,7 +177,7 @@ export class SignersService {
             ? { delegationSourceId: body.delegationSourceId ?? null }
             : {}),
         });
-        await assertSourcesUsable(context.tx, uses, { agencyId: current.agencyId });
+        await assertSourcesUsable(context.tx, uses, { kind: 'Agency', agencyId: current.agencyId });
         if (changed.length === 0) return unchanged(ENTITY, toSignerView(current));
         const row = await context.tx.signer.update({
           where: { id, rowVersion: current.rowVersion },
@@ -304,6 +313,41 @@ export class SignersService {
           before: { ...auditFields(current, fields), rowVersion: current.rowVersion },
           after: { ...auditFields(row, fields), rowVersion: row.rowVersion },
           reason: body.reason,
+        });
+        return updated(ENTITY, toSignerView(row));
+      },
+    );
+  }
+
+  /**
+   * Records the SourceReference that holds this signer's canonical code (canonical-binding.ts):
+   * an identity/reference association only — no rights, authority, eligibility or readiness.
+   */
+  bindCanonical(
+    requester: WriteRequester,
+    id: string,
+    body: CanonicalBindingRequest,
+  ): Promise<WriteReply> {
+    return this.writes.execute(
+      { operationId: 'bindCanonicalSigner', pathParams: { id }, body, requester },
+      async (context) => {
+        const current = await this.lock(context, id);
+        const row = await applyCanonicalBinding(context, {
+          entity: ENTITY,
+          operation: 'bindCanonicalSigner',
+          current,
+          archived: current.archivedAt !== null,
+          body,
+          scope: { kind: 'Agency', agencyId: current.agencyId },
+          codeHolder: async (code) =>
+            (
+              await context.tx.signer.findFirst({
+                where: { canonicalCode: code },
+                select: { id: true },
+              })
+            )?.id ?? null,
+          update: (data) =>
+            context.tx.signer.update({ where: { id, rowVersion: current.rowVersion }, data }),
         });
         return updated(ENTITY, toSignerView(row));
       },

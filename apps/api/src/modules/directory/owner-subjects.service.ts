@@ -41,7 +41,7 @@ import {
 import { auditFields } from './changes.js';
 import { created, updated } from './outcomes.js';
 import { lockForUpdate } from './records.js';
-import { assertSourcesUsable, sourceIdsOf, type SourceUse } from './sources.js';
+import { assertSourcesUsable, sourceIdsOf, type SourceUse } from '../sources/source-scope.js';
 import { toOwnerSubjectView } from './views.js';
 
 const ENTITY = 'OwnerSubject';
@@ -137,7 +137,11 @@ export class OwnerSubjectsService {
         const uses: SourceUse[] = body.sourceId
           ? [{ field: 'sourceId', sourceId: body.sourceId }]
           : [];
-        await assertSourcesUsable(tx, uses, null);
+        await assertSourcesUsable(tx, uses, {
+          kind: 'OwnerSubject',
+          ownerId,
+          legalSubjectId: body.legalSubjectId,
+        });
         const id = randomUUID();
         const row = await tx.ownerSubject
           .create({

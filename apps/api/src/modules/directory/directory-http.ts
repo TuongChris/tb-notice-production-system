@@ -41,13 +41,21 @@ export function writeReply(response: HttpResponse, reply: WriteReply): ResponseB
 }
 
 /** A GET of one mutable resource: the body plus its strong row-version ETag. */
-export function entityReply<T extends WireEntity>(
+export function entityReply<T extends WireEntity & { readonly rowVersion: number }>(
   request: HttpRequest,
   response: HttpResponse,
   entityType: string,
   data: T,
 ): { data: T; meta: ResponseMeta } {
   response.setHeader('ETag', entityEtag(entityType, data.id, data.rowVersion));
+  return { data, meta: { requestId: requestIdOf(request), affectedResources: [] } };
+}
+
+/**
+ * A GET of one immutable resource (API_CONTRACT_v1 §6: only mutable resources carry an ETag; an
+ * immutable record changes only through a new revision, never through a conditional write).
+ */
+export function resourceReply<T>(request: HttpRequest, data: T): { data: T; meta: ResponseMeta } {
   return { data, meta: { requestId: requestIdOf(request), affectedResources: [] } };
 }
 

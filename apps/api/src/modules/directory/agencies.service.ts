@@ -5,6 +5,7 @@ import { Injectable } from '@nestjs/common';
 import type {
   Agency as AgencyView,
   ArchiveRequest,
+  CanonicalBindingRequest,
   CreateAgency,
   PatchAgency,
   RecordStateRequest,
@@ -38,9 +39,10 @@ import {
   stateChange,
   type RecordLifecycleChange,
 } from './lifecycle.js';
+import { applyCanonicalBinding } from './canonical-binding.js';
 import { created, deleted, unchanged, updated } from './outcomes.js';
 import { dependencyReasons, establishedBy, hasCanonicalBinding, lockForUpdate } from './records.js';
-import { assertSourcesUsable, sourceIdsOf } from './sources.js';
+import { assertSourcesUsable, sourceIdsOf } from '../sources/source-scope.js';
 import { toAgencyView } from './views.js';
 
 const ENTITY = 'Agency';
@@ -121,7 +123,7 @@ export class AgenciesService {
       async (context) => {
         const id = randomUUID();
         const uses = attributionSourceUses(body.fieldAttributions);
-        await assertSourcesUsable(context.tx, uses, { agencyId: id });
+        await assertSourcesUsable(context.tx, uses, { kind: 'Agency', agencyId: id });
         const row = await context.tx.agency.create({
           data: {
             ...writeData(body, FIELDS, JSON_FIELDS),
@@ -165,7 +167,7 @@ export class AgenciesService {
         const uses = changed.includes('fieldAttributions')
           ? attributionSourceUses(body.fieldAttributions)
           : [];
-        await assertSourcesUsable(context.tx, uses, { agencyId: id });
+        await assertSourcesUsable(context.tx, uses, { kind: 'Agency', agencyId: id });
         if (changed.length === 0) return unchanged(ENTITY, toAgencyView(current));
         const row = await context.tx.agency.update({
           where: { id, rowVersion: current.rowVersion },
@@ -276,6 +278,41 @@ export class AgenciesService {
           before: { ...auditFields(current, fields), rowVersion: current.rowVersion },
           after: { ...auditFields(row, fields), rowVersion: row.rowVersion },
           reason: body.reason,
+        });
+        return updated(ENTITY, toAgencyView(row));
+      },
+    );
+  }
+
+  /**
+   * Records the SourceReference that holds this agency's canonical code (canonical-binding.ts):
+   * an identity/reference association only — no rights, authority, eligibility or readiness.
+   */
+  bindCanonical(
+    requester: WriteRequester,
+    id: string,
+    body: CanonicalBindingRequest,
+  ): Promise<WriteReply> {
+    return this.writes.execute(
+      { operationId: 'bindCanonicalAgency', pathParams: { id }, body, requester },
+      async (context) => {
+        const current = await this.lock(context, id);
+        const row = await applyCanonicalBinding(context, {
+          entity: ENTITY,
+          operation: 'bindCanonicalAgency',
+          current,
+          archived: current.recordState === 'ARCHIVED',
+          body,
+          scope: { kind: 'Agency', agencyId: id },
+          codeHolder: async (code) =>
+            (
+              await context.tx.agency.findFirst({
+                where: { canonicalCode: code },
+                select: { id: true },
+              })
+            )?.id ?? null,
+          update: (data) =>
+            context.tx.agency.update({ where: { id, rowVersion: current.rowVersion }, data }),
         });
         return updated(ENTITY, toAgencyView(row));
       },

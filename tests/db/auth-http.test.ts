@@ -824,9 +824,10 @@ describe('SECURITY', () => {
         ),
       )
       .sort();
-    // P2 adds the directory routes (exact inventory: directory-http.test.ts); nothing else.
+    // P2 adds the directory routes, P3A the source and route operations (exact inventory:
+    // directory-http.test.ts); nothing else.
     const directory =
-      /^[A-Z]+ \/api\/v1\/(agencies|owners|legal-subjects|signers|owner-subjects)(\/|$)/;
+      /^[A-Z]+ \/api\/v1\/(agencies|owners|legal-subjects|signers|owner-subjects|sources|routes)(\/|$)/;
     expect(routes.filter((route) => !directory.test(route))).toEqual([
       'GET /api/v1/auth/session',
       'GET /api/v1/health',

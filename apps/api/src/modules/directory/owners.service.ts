@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import type {
   ArchiveRequest,
+  CanonicalBindingRequest,
   CreateOwner,
   Owner as OwnerView,
   PatchOwner,
@@ -38,6 +39,7 @@ import {
   stateChange,
   type RecordLifecycleChange,
 } from './lifecycle.js';
+import { applyCanonicalBinding } from './canonical-binding.js';
 import { created, deleted, unchanged, updated } from './outcomes.js';
 import { dependencyReasons, hasCanonicalBinding, lockForUpdate } from './records.js';
 import { toOwnerView } from './views.js';
@@ -223,6 +225,41 @@ export class OwnersService {
           before: { ...auditFields(current, fields), rowVersion: current.rowVersion },
           after: { ...auditFields(row, fields), rowVersion: row.rowVersion },
           reason: body.reason,
+        });
+        return updated(ENTITY, toOwnerView(row));
+      },
+    );
+  }
+
+  /**
+   * Records the SourceReference that holds this owner namespace's canonical code (canonical-binding.ts):
+   * an identity/reference association only — no rights, authority, eligibility or readiness.
+   */
+  bindCanonical(
+    requester: WriteRequester,
+    id: string,
+    body: CanonicalBindingRequest,
+  ): Promise<WriteReply> {
+    return this.writes.execute(
+      { operationId: 'bindCanonicalOwner', pathParams: { id }, body, requester },
+      async (context) => {
+        const current = await this.lock(context, id);
+        const row = await applyCanonicalBinding(context, {
+          entity: ENTITY,
+          operation: 'bindCanonicalOwner',
+          current,
+          archived: current.recordState === 'ARCHIVED',
+          body,
+          scope: { kind: 'Owner', ownerId: id },
+          codeHolder: async (code) =>
+            (
+              await context.tx.owner.findFirst({
+                where: { canonicalCode: code },
+                select: { id: true },
+              })
+            )?.id ?? null,
+          update: (data) =>
+            context.tx.owner.update({ where: { id, rowVersion: current.rowVersion }, data }),
         });
         return updated(ENTITY, toOwnerView(row));
       },

@@ -3,13 +3,13 @@
 //   - `field` must name an attributable field of that entity (its identity/contact data; not notes,
 //     lifecycle, binding or server fields);
 //   - DOCUMENT_REVIEWED needs at least one source id (and every id must exist and be in scope —
-//     sources.ts);
+//     sources/source-scope.ts);
 //   - provenance is stored exactly as supplied: never upgraded, MISSING stays MISSING and CONFLICT
 //     stays CONFLICT; other provenance values do not require a source (the contract does not).
 // The list replaces the stored list as a whole (PATCH semantics for an array field).
 import type { FieldAttribution } from '@tb/contracts';
 import type { ValidationIssue } from '../../infrastructure/http/api-error.js';
-import type { SourceUse } from './sources.js';
+import type { SourceUse } from '../sources/source-scope.js';
 
 export const ATTRIBUTABLE_FIELDS = {
   Agency: [

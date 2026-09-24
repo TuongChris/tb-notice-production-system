@@ -11,7 +11,13 @@ import {
   Req,
   Res,
 } from '@nestjs/common';
-import type { ArchiveRequest, CreateOwner, PatchOwner, RecordStateRequest } from '@tb/contracts';
+import type {
+  ArchiveRequest,
+  CanonicalBindingRequest,
+  CreateOwner,
+  PatchOwner,
+  RecordStateRequest,
+} from '@tb/contracts';
 import type { HttpRequest, HttpResponse } from '../../infrastructure/http/http-types.js';
 import {
   contractOperation,
@@ -31,11 +37,12 @@ const op = {
   archive: contractOperation('archiveOwner'),
   restore: contractOperation('restoreOwner'),
   state: contractOperation('setOwnerState'),
+  bind: contractOperation('bindCanonicalOwner'),
 };
 
 /**
- * Owner operations of TB-SCHEMA-API-v1 except `bindCanonicalOwner` (needs a SourceReference that
- * cannot be authored before the Source phase — decision D2 — so it is not routed).
+ * Owner operations of TB-SCHEMA-API-v1, including `bindCanonicalOwner` (P3A): it records the SourceReference
+ * that holds the owner namespace's canonical code and establishes no rights, authority or eligibility.
  */
 @Controller('owners')
 export class OwnersController {
@@ -143,6 +150,22 @@ export class OwnersController {
       requesterOf(request),
       parsePathParam(op.state, 'id', id),
       parseBody<RecordStateRequest>(op.state, body),
+    );
+    return writeReply(response, reply);
+  }
+
+  @Post(':id/canonical-bindings')
+  @HttpCode(200)
+  async bindCanonical(
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @Req() request: HttpRequest,
+    @Res({ passthrough: true }) response: HttpResponse,
+  ) {
+    const reply = await this.owners.bindCanonical(
+      requesterOf(request),
+      parsePathParam(op.bind, 'id', id),
+      parseBody<CanonicalBindingRequest>(op.bind, body),
     );
     return writeReply(response, reply);
   }
