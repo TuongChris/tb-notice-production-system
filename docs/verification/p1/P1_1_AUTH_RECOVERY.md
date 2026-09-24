@@ -7,7 +7,9 @@ Mission TB_P1_1_AUTH_OPERATIONAL_RECOVERY_TO_R4_1 on `feature/p1-auth-shell`, af
 | Scope | Status | Basis |
 |---|---|---|
 | **P1_1_FIRST_PC** | **PASS** | All automated checks below executed on the first PC and passed |
-| **P1_1_CI** | reported at R4.1 | CI runs the recovery flow on a synthetic account in its disposable database |
+| **P1_1_CI** | **PASS** | GitHub Actions run `35894704102` on commit `8fe96ae` — both jobs success, including the recovery flow on a synthetic account in the disposable CI database (verified with `gh run view`, 2026-09-24) |
+| **R4.1 review** | **ACCEPTED** | Operator, 2026-09-24 |
+| **Port-bound first-PC checks** | **PASS — OPERATOR_REPORTED** | At R4.1 acceptance the operator reported that "the remaining first-PC verification checks have passed". The report names no command, commit or output; §5 lists `smoke:local` and `dev:verify-shutdown` as the checks NOT RUN locally |
 | **P1_WINDOWS_BROWSER** | **NOT_RUN** (not reported) | Recorded only when the operator reports it; not inferred from tests or database traces |
 | **P0_SECOND_PC** / **P0_OVERALL** | **NOT_RUN** / **NOT_COMPLETE** (unchanged) | — |
 
