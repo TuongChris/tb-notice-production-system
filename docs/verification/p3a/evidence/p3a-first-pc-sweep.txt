@@ -1,0 +1,29 @@
+P3A verification sweep (mission §34 and resume §8) — 2026-09-24T06:46:48Z–06:49:42Z — home PC (the first PC) — feature/p3a-sources-route @ 85c2839 (only this uncommitted documentation/evidence folder in the tree); node v24.21.0, yarn 4.18.0
+(each line: command, exit code, key output lines; full logs kept outside Git)
+reference:check                              exit=0 | [reference:check] OK — frozen references intact.
+reference:helper-tests                       exit=0 | [reference:helper-tests] frozen helper tests: pass 27, fail 0; exit 0
+contracts:check                              exit=0 | [contracts:check] OK — 3 generated outputs match the active source.
+install --immutable                          exit=0 | ➤ YN0000: · Done with warnings in 0s 721ms
+typecheck                                    exit=0 |
+lint                                         exit=0 |
+format:check                                 exit=0 | All matched files use Prettier code style!
+test                                         exit=0 | Test Files  28 passed (28) Tests  1093 passed (1093)
+test:db                                      exit=0 | [guard] test:db target: tb_migrate@127.0.0.1:3307/tb_notice_test Test Files  6 passed (6) Tests  190 passed (190)
+db:verify test --expect-empty                exit=0 | [verify] domain rows total: 0 [verify] PASS: metadata matches the reviewed inventory.
+db:verify dev                                exit=0 | [verify] domain rows total: 5 [verify] PASS: metadata matches the reviewed inventory.
+db:status test                               exit=0 | 1 migration found in prisma/migrations Database schema is up to date!
+db:status dev                                exit=0 | 1 migration found in prisma/migrations Database schema is up to date!
+db:drift:diff-migrations                     exit=0 | -- This is an empty migration.
+db:drift:diff-datasource dev                 exit=0 | -- This is an empty migration.
+build                                        exit=0 | ✓ built in 182ms
+smoke:local                                  exit=0 | [smoke] PASS (28 checks) — incl. 14 business-boundary checks: P2 directory and P3A source/route collections 401 without a session (also through the web proxy), unsafe writes without Origin 403, canonical bindings 401 without a session, POST /mandates (P3B) 404
+dev:verify-shutdown                          exit=0 | [verify-dev] PASS (4/4 scenarios)
+reference:check (after)                      exit=0 | [reference:check] OK — frozen references intact.
+
+Supplementary checks:
+no schema/contract/dependency change         exit=0 | git diff 31db581..HEAD: apps/api/prisma, packages/**, docs/reference/**, yarn.lock unchanged (0 files); package.json adds only the script smoke:p3a
+working tree after the sweep                 exit=0 | only the uncommitted docs/verification/p3a/ folder; no generated or stray file
+per-file counts (JSON reporter, output kept outside the repository, 06:52Z) | test:db 190 = admin-create 5, admin-recovery 14, auth-http 37, directory-http 71, p3a-http 41, structural 22; yarn test 1093 incl. api/source-rules 36, web/p3a 18, web/directory 22, web/app 10, api/directory-rules 15, api/write-executor 7, api/write-primitives 13
+
+smoke:local and dev:verify-shutdown ran locally (ports 3000/5173 free). db:verify dev reported 5 domain rows, as at R5 (metadata and a row count only; no row content read); nothing was written to tb_notice_dev — every P3A test, the sandbox runs and the browser checks use tb_notice_test, and smoke:p3a / smoke:directory refuse to run unless CI=true.
+Counts: yarn test 1093 in 28 files (R5 closeout: 1039 in 26; +36 tests/api/source-rules.test.ts, +18 tests/web/p3a.test.tsx); yarn test:db 190 in 6 files (R5 closeout: 147 in 5; +41 tests/db/p3a-http.test.ts, +2 tests/db/directory-http.test.ts). No earlier test was removed; three P2 tests were re-scoped for P3A (subject attributions now scope-checked, canonical bindings routed, route inventory 36 → 53 operations).

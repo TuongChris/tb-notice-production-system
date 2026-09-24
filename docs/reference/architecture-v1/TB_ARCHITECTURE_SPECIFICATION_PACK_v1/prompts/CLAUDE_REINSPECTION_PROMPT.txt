@@ -1,0 +1,25 @@
+MISSION: TB_ARCHITECTURE_V1_READ_ONLY_REINSPECTION_AND_P0_PLAN
+
+Inspect this repository read-only. Do not create, modify, delete, rename, install, format, migrate, start services, commit, push or merge anything. Do not run a script that writes generated files. This is NOT permission to implement P0.
+
+First read docs/architecture/ARCHITECTURE_RESOLUTIONS_v1.md, then the active Product Definition, Domain Model, Production Form Contract, Technology Architecture, Repository Blueprint, P0 Bootstrap Contract and Source Register. Compare with the unchanged frozen Database/API reference and your earlier 16 unresolved items. Verify current branch/worktree and existing manifests using read-only commands. Do not display .env, auth tokens or private session files.
+
+Preserve the exact TB-SCHEMA-API-v1.0.0 storage/wire semantics except the expressly documented authoring/config/phase resolutions. In particular:
+- PFC wire schemaVersion remains PFC-YT-EMAIL-v1.1.
+- READY_FOR_SIGNER is derived, not writable or a NoticeCandidate column.
+- Technical validation is distinct from sourced G1–G6 assessments; G7/sign/send are out of scope.
+- Zod-first active authoring is an explicit transition with frozen API behavior parity, not permission to discard code-point refinements or other constraints.
+- OpenAPI needs operation metadata in addition to Zod property definitions.
+- All original references remain frozen; the Python verifier must not be run in place.
+- Node24, Yarn4/node-modules, MySQL8.4 Docker on loopback3307, separate dev/shadow/test scopes and ESM compatibility must be verified in approved P0 work.
+- A disabled synthetic actor for fixture FKs is not P1 admin/auth implementation.
+- First-PC, CI and second-PC completion are reported separately.
+
+Return:
+1. Current read-only Git/reference-integrity findings with limits.
+2. A 16-row reconciliation: original issue, controlling resolution, RESOLVED_BY_SPEC / RUNTIME_CHECK_PENDING / BLOCKER and brief reason.
+3. Any remaining contradiction or missing detail that truly prevents a safe P0 plan. Identify files/sections; do not fill gaps by guessing.
+4. A bounded P0 plan in execution order: file/path, intended change, command category, validation evidence and stop/rollback condition. Package/image versions may remain to be resolved from official metadata in the implementation phase; do not invent them now.
+5. Explicit exclusions and the exact point where implementation would stop for review.
+
+Do not report tests PASS unless actually executed in the allowed read-only scope. Existing historical verification reports are not a current runtime test. Stop after the report and wait for explicit approval; do not begin P0 or P1 automatically.

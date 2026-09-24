@@ -1,0 +1,240 @@
+{
+  "release": "TB-ARCH-v1.0.0",
+  "all_entries_are_future_requirements": true,
+  "required": [
+    {
+      "id": "P0-01",
+      "requirement": "Reference manifests and current branch/worktree inspected",
+      "scope": "LOCAL",
+      "status": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "P0-02",
+      "requirement": "Root ignore and frozen-reference-aware text policy created before installs",
+      "scope": "LOCAL",
+      "status": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "P0-03",
+      "requirement": "Exact Node/Yarn/Prisma/Zod/tooling versions chosen from official metadata and recorded",
+      "scope": "LOCAL",
+      "status": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "P0-04",
+      "requirement": "Yarn workspaces and one-way contracts dependency graph valid",
+      "scope": "LOCAL",
+      "status": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "P0-05",
+      "requirement": "Fresh dependency resolution produces lockfile; subsequent immutable install passes",
+      "scope": "LOCAL",
+      "status": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "P0-06",
+      "requirement": "Pinned MySQL8.4 image, separate schemas/users, loopback ports and UTC verified",
+      "scope": "LOCAL",
+      "status": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "P0-07",
+      "requirement": "Prisma format/validate/generate actually run on active schema/config",
+      "scope": "LOCAL",
+      "status": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "P0-08",
+      "requirement": "Generated ESM Prisma client imports in compiled Nest runtime",
+      "scope": "LOCAL",
+      "status": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "P0-09",
+      "requirement": "Draft initial migration semantically compared, all custom checks/collation added",
+      "scope": "LOCAL",
+      "status": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "P0-10",
+      "requirement": "Migration applied to empty dev/test DBs without using preview as migration",
+      "scope": "LOCAL",
+      "status": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "P0-11",
+      "requirement": "FK and same-agency/same-case composite constraints reject invalid inserts",
+      "scope": "LOCAL",
+      "status": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "P0-12",
+      "requirement": "Unique, RESTRICT, range, version, signature/time CHECK behavior tested",
+      "scope": "LOCAL",
+      "status": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "P0-13",
+      "requirement": "Identifier collation and Unicode preservation behavior tested",
+      "scope": "LOCAL",
+      "status": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "P0-14",
+      "requirement": "History replays into empty DB; second migrate deploy causes no new migration",
+      "scope": "LOCAL",
+      "status": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "P0-15",
+      "requirement": "Shadow/drift workflow preserves custom SQL; unsafe target reset refused",
+      "scope": "LOCAL",
+      "status": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "P0-16",
+      "requirement": "Synthetic idempotent seed uses disabled non-authenticating actor only",
+      "scope": "LOCAL",
+      "status": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "P0-17",
+      "requirement": "284 schemas/141 operation declarations preserved during active contract transition",
+      "scope": "LOCAL",
+      "status": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "P0-18",
+      "requirement": "Actual Zod typecheck/runtime and Ajv2020 parity tested on original plus edge fixtures",
+      "scope": "LOCAL",
+      "status": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "P0-19",
+      "requirement": "Generate works; check detects drift and does not mutate failing output/reference",
+      "scope": "LOCAL",
+      "status": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "P0-20",
+      "requirement": "Formatting/lint/typecheck/pure tests and production build actually pass",
+      "scope": "LOCAL",
+      "status": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "P0-21",
+      "requirement": "Real DB-dependent health works, unavailable DB is not reported healthy",
+      "scope": "LOCAL",
+      "status": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "P0-22",
+      "requirement": "Web proxy/compiled API/local Windows browser smoke test recorded",
+      "scope": "LOCAL",
+      "status": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "P0-23",
+      "requirement": "Git diff reviewed; no secrets, real cases, unexpected writes or reference drift",
+      "scope": "LOCAL",
+      "status": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "P0-24",
+      "requirement": "CI workflow created without deploy/production credentials",
+      "scope": "CI_CONFIGURATION",
+      "status": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "P0-25",
+      "requirement": "An actual authorized GitHub CI run passes, exact commit/run recorded",
+      "scope": "CI_EXECUTION",
+      "status": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "P0-26",
+      "requirement": "Second physical PC fresh-clones same commit; no copied modules/env/volume",
+      "scope": "SECOND_PC",
+      "status": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "P0-27",
+      "requirement": "Second PC applies committed migration, seed/check/test/build/run independently",
+      "scope": "SECOND_PC",
+      "status": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "id": "P0-28",
+      "requirement": "Final redacted report distinguishes executed, failed, pending and deferred scopes",
+      "scope": "REPORT",
+      "status": "NOT_RUN",
+      "evidence": null
+    }
+  ],
+  "deferred": [
+    {
+      "phase": "P1",
+      "requirement": "Authentication/admin/bootstrap/CSRF/session tests",
+      "status": "DEFERRED",
+      "evidence": null
+    },
+    {
+      "phase": "P2+",
+      "requirement": "Business HTTP CRUD, ETags/idempotency and service-scope enforcement",
+      "status": "DEFERRED",
+      "evidence": null
+    },
+    {
+      "phase": "P3+",
+      "requirement": "Authority freeze/edit and successor races",
+      "status": "DEFERRED",
+      "evidence": null
+    },
+    {
+      "phase": "P4+",
+      "requirement": "Case source/fact/correspondence semantic scope",
+      "status": "DEFERRED",
+      "evidence": null
+    },
+    {
+      "phase": "P5+",
+      "requirement": "Prompt/candidate/readiness/substantive-review/export checks",
+      "status": "DEFERRED",
+      "evidence": null
+    },
+    {
+      "phase": "HARDENING",
+      "requirement": "Full browser workflow E2E, restore drills and deployment assessment",
+      "status": "DEFERRED",
+      "evidence": null
+    }
+  ]
+}

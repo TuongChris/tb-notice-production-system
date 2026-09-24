@@ -1,0 +1,58 @@
+{
+  "reference_release": "TB-SCHEMA-API-v1.0.0",
+  "source": "Attached local archive; not fetched from live GitHub in this mission",
+  "zip_name": "TB_DATABASE_SCHEMA_API_CONTRACT_v1.zip",
+  "zip_sha256": "0595ef5139f84d066b68e283cbb2fe43c5f3e9f5723e2fb9b1896454e2049931",
+  "manifest_sha256": "42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c",
+  "counts_observed": {
+    "models": 33,
+    "enums": 38,
+    "modeled_foreign_keys": 125,
+    "openapi_paths": 96,
+    "openapi_operations": 141,
+    "openapi_component_schemas": 284,
+    "manifest_entries": 31,
+    "sql_check_clauses": 30
+  },
+  "wire_pfc_identifier": "PFC-YT-EMAIL-v1.1",
+  "zod_refine_occurrences_observed": 1888,
+  "source_files": [
+    {
+      "path": "docs/API_CONTRACT_v1.md",
+      "sha256": "adacc6c0ada0a47e6449cca50db0373ad1a7c533c33b52f4e46827607bf5bdb8"
+    },
+    {
+      "path": "docs/INVARIANTS.md",
+      "sha256": "7b3e524d72764bf7fa34a6e847ef0307c168a2a42f931c4a768b5e0eb9da424e"
+    },
+    {
+      "path": "docs/LOCAL_FIRST_HANDOFF.md",
+      "sha256": "e4117046e1cb3c76e5915d58ed5d2f47e57f2168ab3c1ac86ec429cede1781da"
+    },
+    {
+      "path": "prisma/schema.prisma",
+      "sha256": "fab4607a80f448ed5d42b94ad00b936b622d5ef2622031973b7851f9b40134dc"
+    },
+    {
+      "path": "contracts/api-schemas.json",
+      "sha256": "bdb3213ba0070d13173fd5ba5f9177b769f54c90af6a46f5473667b0f1b4f7b4"
+    },
+    {
+      "path": "contracts/openapi.json",
+      "sha256": "c47e2ea160eaa747f64218746c2997a99dec4206fbec6294ebe1335f2a7a8ba2"
+    },
+    {
+      "path": "contracts/zod.schemas.ts",
+      "sha256": "752667f71d9a70e2a20d1ef09bb764130d4e8cb79106729a5d1fe340c4f58877"
+    },
+    {
+      "path": "contracts/consistency-reference.mjs",
+      "sha256": "d4e60b76fed483d8c75887640450372f57f6c5d45f2fb0ab490a5ad8eba1b457"
+    }
+  ],
+  "earlier_domain_file": {
+    "name": "TB_OPERATIONS_MANAGER_DOMAIN_MODEL_v1.md",
+    "sha256": "16b9322b5bc2934c7dcb5848fe1ea5f0ad2084331e7cd6b584737ee9f944e9eb"
+  },
+  "runtime_status": "NOT_EXECUTED_IN_PACK_AUTHORING"
+}

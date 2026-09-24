@@ -1,0 +1,193 @@
+# TB Notice Production System — branch/PR CI (P0-E; P1 authentication checks added).
+# Scope: build and verification only. No deployment, no cloud or production credentials, no real
+# TB data, no Drive/mail access. Database work uses the committed compose.yaml (pinned MySQL
+# 8.4.11 image digest, loopback 127.0.0.1:3307, same init script) with synthetic secrets generated
+# at runtime by `yarn env:init` (never in this file). Never runs db push, migrate reset or
+# FOREIGN_KEY_CHECKS=0. No dependency cache: every run is a cold install.
+# P1/P1.1: the only account ever created or recovered is a synthetic one in the disposable CI
+# tb_notice_dev, with passwords generated at runtime, masked, passed on stdin and deleted.
+# P2: yarn test / test:db cover the directory; smoke:local checks the compiled directory routes
+# and smoke:directory runs a compiled round trip that creates and deletes one synthetic Agency in
+# the disposable CI tb_notice_dev (it refuses to run outside CI).
+# P3A: smoke:local also checks the compiled source and route routes; smoke:p3a runs a compiled
+# source → canonical binding → OwnerSubject → Route → route binding flow with one expected
+# cross-agency refusal, leaving synthetic records in the disposable CI tb_notice_dev only
+# (it refuses to run outside CI). No Drive, mail or other external action.
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Explicit bash => `bash --noprofile --norc -eo pipefail {0}` (the implicit default lacks pipefail).
+defaults:
+  run:
+    shell: bash
+
+env:
+  COREPACK_ENABLE_DOWNLOAD_PROMPT: '0'
+  CHECKPOINT_DISABLE: '1'
+  PRISMA_HIDE_UPDATE_MESSAGE: '1'
+  # First-PC canonical digest of the synthetic seed (docs/verification/p0/P0_FINAL_REPORT.md).
+  EXPECTED_SEED_DIGEST: 0ee26dc3ee5f3a1030fb78a6cadaf4dabef1f5a296b58163248584e1e0bfb775
+
+jobs:
+  checks:
+    name: Non-DB checks (cold install)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.21.0
+          package-manager-cache: false
+      - name: Toolchain
+        run: |
+          corepack enable
+          echo "node $(node --version), yarn $(yarn --version), $(git --version)"
+      - name: Cold-install evidence (Yarn cache before install)
+        run: |
+          CACHE="$(yarn config get cacheFolder)"
+          if [ -d "$CACHE" ]; then echo "cache folder $CACHE: $(find "$CACHE" -type f | wc -l) files"; else echo "cache folder $CACHE: absent (cold)"; fi
+      - name: yarn install --immutable
+        run: yarn install --immutable
+      - run: yarn reference:check
+      - run: yarn reference:helper-tests
+      - run: yarn contracts:check
+      - run: yarn typecheck
+      - run: yarn lint
+      - run: yarn format:check
+      - run: yarn test
+      - run: yarn build
+      - name: Frozen references and working tree unchanged by the run
+        run: |
+          yarn reference:check
+          git diff --exit-code
+          test -z "$(git status --porcelain)" || { git status --porcelain; exit 1; }
+
+  database:
+    name: Database, seed and smoke (MySQL 8.4.11)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.21.0
+          package-manager-cache: false
+      - name: Toolchain
+        run: |
+          corepack enable
+          echo "node $(node --version), yarn $(yarn --version), $(docker --version), $(docker compose version)"
+      - name: yarn install --immutable
+        run: yarn install --immutable
+      - name: Synthetic CI secrets (generated at runtime, masked, never printed)
+        run: |
+          yarn env:init
+          for key in MYSQL_ROOT_PASSWORD TB_DB_APP_PASSWORD TB_DB_MIGRATE_PASSWORD TB_SESSION_SECRET; do
+            echo "::add-mask::$(grep "^${key}=" .env | cut -d= -f2-)"
+          done
+      - name: Local MySQL 8.4.11 (committed compose.yaml, pinned digest, loopback 3307)
+        run: |
+          yarn db:up
+          docker compose ps
+      - name: Migrate tb_notice_test (committed migration) and verify metadata
+        run: |
+          yarn db:migrate:deploy test
+          yarn db:status test
+          yarn db:verify test --expect-empty
+      - name: Database structural tests (tb_notice_test)
+        run: yarn test:db
+      - name: Replay into tb_notice_replay; second deploy must be a no-op
+        run: |
+          yarn db:migrate:deploy replay
+          yarn db:migrate:deploy replay | tee replay-second-deploy.log
+          grep -q "No pending migrations to apply" replay-second-deploy.log
+          rm replay-second-deploy.log
+          yarn db:verify replay --expect-empty
+      - name: Migrate tb_notice_dev and verify metadata
+        run: |
+          yarn db:migrate:deploy dev
+          yarn db:verify dev --expect-empty
+      - name: Synthetic seed twice (idempotent, canonical digest equals first PC)
+        run: |
+          yarn db:seed | tee seed-1.log
+          yarn db:seed | tee seed-2.log
+          D1="$(grep -o 'canonical digest [0-9a-f]*' seed-1.log | cut -d' ' -f3)"
+          D2="$(grep -o 'canonical digest [0-9a-f]*' seed-2.log | cut -d' ' -f3)"
+          grep -q 'unchanged (already canonical)' seed-2.log
+          test "$D1" = "$D2" && test "$D1" = "$EXPECTED_SEED_DIGEST"
+          rm seed-1.log seed-2.log
+          yarn db:verify dev
+      - name: Prisma drift compatibility (read-only diffs)
+        run: |
+          yarn db:drift:diff-migrations
+          yarn db:drift:diff-datasource dev
+      - name: yarn smoke:local
+        run: yarn smoke:local
+      - name: P1 admin bootstrap (yarn admin:create, synthetic account, duplicate refused)
+        run: |
+          node -e "process.stdout.write(require('node:crypto').randomBytes(24).toString('base64url'))" > "$RUNNER_TEMP/p1-ci-admin-password"
+          echo "::add-mask::$(cat "$RUNNER_TEMP/p1-ci-admin-password")"
+          yarn admin:create --email p1-ci-admin@example.invalid --display-name 'P1 CI synthetic admin (disposable)' --password-stdin < "$RUNNER_TEMP/p1-ci-admin-password"
+          if yarn admin:create --email P1-CI-Admin@example.invalid --display-name 'duplicate attempt' --password-stdin < "$RUNNER_TEMP/p1-ci-admin-password" > "$RUNNER_TEMP/p1-dup.log" 2>&1; then
+            cat "$RUNNER_TEMP/p1-dup.log"; exit 1
+          fi
+          grep -q 'already exists' "$RUNNER_TEMP/p1-dup.log"
+      - name: P1 compiled login round trip (yarn smoke:auth)
+        run: yarn smoke:auth --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"
+      - name: P2 compiled directory round trip (yarn smoke:directory, synthetic Agency created and deleted)
+        run: yarn smoke:directory --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"
+      - name: P3A compiled source → canonical binding → route round trip (yarn smoke:p3a, synthetic)
+        run: yarn smoke:p3a --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"
+      - name: P1.1 recovery commands (synthetic account; P0 actor untouched)
+        run: |
+          E=p1-ci-admin@example.invalid
+          PW="$RUNNER_TEMP/p1-ci-admin-password"
+          NEW="$RUNNER_TEMP/p1-ci-admin-password-new"
+          node -e "process.stdout.write(require('node:crypto').randomBytes(24).toString('base64url'))" > "$NEW"
+          echo "::add-mask::$(cat "$NEW")"
+          yarn admin:revoke-sessions --email "$E" --reason 'CI synthetic recovery check'
+          yarn admin:disable --email "$E" --reason 'CI synthetic recovery check'
+          yarn smoke:auth --email "$E" --expect-rejected < "$PW"
+          yarn admin:disable --email "$E" | tee "$RUNNER_TEMP/p1-disable-again.log"
+          grep -q 'is already disabled; nothing changed' "$RUNNER_TEMP/p1-disable-again.log"
+          yarn admin:enable --email "$E"
+          yarn smoke:auth --email "$E" < "$PW"
+          yarn admin:password --email "$E" --password-stdin < "$NEW"
+          yarn smoke:auth --email "$E" --expect-rejected < "$PW"
+          yarn smoke:auth --email "$E" < "$NEW"
+          if yarn admin:enable --email p0-synthetic-actor@example.invalid > "$RUNNER_TEMP/p1-actor.log" 2>&1; then
+            cat "$RUNNER_TEMP/p1-actor.log"; exit 1
+          fi
+          grep -q 'protected' "$RUNNER_TEMP/p1-actor.log"
+          if DATABASE_URL='mysql://tb_dev:ci-guard-check@127.0.0.1:3306/tb_notice_dev' node apps/api/dist/src/cli/admin.js revoke-sessions --email "$E" > "$RUNNER_TEMP/p1-direct.log" 2>&1; then
+            cat "$RUNNER_TEMP/p1-direct.log"; exit 1
+          fi
+          grep -q 'is not 3307' "$RUNNER_TEMP/p1-direct.log"
+          yarn db:seed | tee "$RUNNER_TEMP/p1-seed.log"
+          grep -q 'unchanged (already canonical)' "$RUNNER_TEMP/p1-seed.log"
+          rm -f "$PW" "$NEW" "$RUNNER_TEMP/p1-dup.log" "$RUNNER_TEMP"/p1-*.log
+      - name: yarn dev clean shutdown (terminal Ctrl+C, top-only SIGINT/SIGTERM)
+        run: yarn dev:verify-shutdown
+      - name: Frozen references and working tree unchanged by the run
+        run: |
+          yarn reference:check
+          git diff --exit-code
+          test -z "$(git status --porcelain)" || { git status --porcelain; exit 1; }
+      - name: MySQL container log (diagnostics)
+        if: failure()
+        run: docker compose logs mysql --tail 200

@@ -1,0 +1,12 @@
+# Frozen references and specification text are never reformatted (AR-008).
+docs/
+# Generated, lock and build output
+yarn.lock
+.yarn/
+**/dist/
+apps/api/generated/
+apps/api/prisma/migrations/
+coverage/
+# Generated contract artifacts (bytes owned by `yarn contracts:generate`, verified by contracts:check)
+packages/contracts/schemas/
+packages/contracts/openapi/

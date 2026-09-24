@@ -1,0 +1,1330 @@
+// TB-SCHEMA-API-v1.0.0 — proposed implementation schema. NOT migrated.
+// Read docs/DATABASE_SCHEMA_v1.md and docs/INVARIANTS.md before implementation.
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider     = "mysql"
+  relationMode = "foreignKeys"
+}
+
+enum BindingState {
+  LOCAL_ONLY
+  SOURCE_REFERENCED
+  DIVERGENT
+}
+
+enum RecordState {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum SubjectType {
+  INDIVIDUAL
+  LEGAL_ENTITY
+  OTHER
+}
+
+enum Platform {
+  YOUTUBE
+}
+
+enum LinkState {
+  LINKED
+  PAUSED
+  UNLINKED
+}
+
+enum SignerState {
+  DRAFT
+  AVAILABLE
+  PAUSED
+  ENDED
+}
+
+enum VersionState {
+  DRAFT
+  FROZEN
+}
+
+enum ChangeKind {
+  NEW_AUTHORIZATION
+  AMENDMENT
+  DOCUMENT_CAPTURE
+  METADATA_CORRECTION
+}
+
+enum ValidityModel {
+  UNKNOWN
+  FIXED_TERM
+  UNTIL_TERMINATED
+}
+
+enum DocumentState {
+  MISSING
+  DRAFT
+  SIGNED_APPEARING
+  UNKNOWN
+}
+
+enum ReviewState {
+  UNREVIEWED
+  REVIEWED_WITH_LIMITS
+  CONFLICT
+}
+
+enum CoverageState {
+  PROPOSED
+  RECORDED
+  SUSPENDED
+  ENDED
+}
+
+enum Exclusivity {
+  UNKNOWN
+  EXCLUSIVE
+  NON_EXCLUSIVE
+}
+
+enum AuthorityEventType {
+  CURRENTNESS_RECORDED
+  REVOCATION
+  TERMINATION
+  SUPERSESSION
+  RESIGNATION
+  CORRECTION
+}
+
+enum Provenance {
+  DOCUMENT_REVIEWED
+  OPERATOR_REPORTED
+  ANALYSIS
+  MISSING
+  CONFLICT
+}
+
+enum CaseClass {
+  WORKING_INTAKE
+  CURRENT_OPERATION
+  RECOVERED_HISTORY
+  EXTERNAL_REFERENCE
+}
+
+enum WorkflowState {
+  INTAKE
+  PREPARING
+  DRAFTING
+  AWAITING_HUMAN
+  AWAITING_PLATFORM
+  CLOSED
+}
+
+enum TaskType {
+  INITIAL
+  NMI_REPLY
+}
+
+enum GenerationMode {
+  PREPARATION
+  DRAFTING
+}
+
+enum SourceRole {
+  CANONICAL_RECORD
+  PRIMARY_CORRESPONDENCE
+  OPERATOR_INPUT
+  DERIVED_DRAFT
+  EXTERNAL_REFERENCE
+  POLICY_REFERENCE
+}
+
+enum AccessState {
+  NOT_CHECKED
+  ACCESSIBLE_AT_CHECK
+  UNAVAILABLE_AT_CHECK
+}
+
+enum HashTarget {
+  RAW_FILE
+  EXTRACTED_TEXT
+  OTHER
+}
+
+enum FactType {
+  RIGHTS_BASIS
+  RIGHTS_SCOPE
+  PERMISSION
+  AV_COMPARISON
+  EXCEPTION_REVIEW
+  WORK_IDENTIFICATION
+  REPORTED_IDENTIFICATION
+  DUPLICATE_REVIEW
+  AUTHORITY_CURRENTNESS
+}
+
+enum FactScope {
+  CASE
+  WORK
+  REPORTED_ITEM
+  USE
+}
+
+enum ResolutionState {
+  UNASSESSED
+  SUPPORTED_FOR_SCOPE
+  CONFLICT
+  WITHDRAWN
+}
+
+enum Direction {
+  INBOUND
+  OUTBOUND
+}
+
+enum CaptureMode {
+  RAW_SOURCE
+  COPIED_FULL_TEXT
+  EXCERPT
+  OPERATOR_REPORTED
+}
+
+enum BodyRole {
+  FULL_MESSAGE
+  AUTHORED_BODY
+  QUOTED_HISTORY
+  EXCERPT
+  UNKNOWN
+}
+
+enum EventType {
+  INITIAL_AS_SENT
+  ACK
+  NMI
+  REPLY_AS_SENT
+  SUPPLEMENT_AS_SENT
+  CORRECTION_AS_SENT
+  OUTCOME
+  OTHER
+}
+
+enum Outcome {
+  REMOVED
+  REINSTATED
+  REJECTED
+  RETRACTED
+  OTHER
+}
+
+enum TechnicalResult {
+  TECHNICAL_PASS
+  BLOCKED
+  REVIEW_REQUIRED
+  ERROR
+}
+
+enum IssueSeverity {
+  BLOCKER
+  REVIEW_REQUIRED
+  WARNING
+  INFO
+}
+
+enum CheckKind {
+  DETERMINISTIC
+  HEURISTIC
+}
+
+enum GateId {
+  G1
+  G2
+  G3
+  G4
+  G5
+  G6
+}
+
+enum GateResult {
+  PASS
+  HOLD
+  BLOCKED
+  MISSING
+  CONFLICT
+}
+
+enum PerformerKind {
+  HUMAN
+  AI_ASSISTED
+  DOCUMENTED_EXTERNAL_REVIEW
+}
+
+enum AssessmentScopeState {
+  RECORDED_NOT_ADOPTED
+  SCOPE_CONFIRMED_FOR_CANDIDATE
+}
+
+enum IdempotencyState {
+  IN_PROGRESS
+  COMPLETED
+}
+
+/// App operator, never automatically a signer. Bootstrap via local CLI, no public user creation API.
+model User {
+  id                               String                   @id @default(uuid()) @map("id") @db.Char(36)
+  email                            String                   @unique @map("email") @db.VarChar(254)
+  displayName                      String                   @map("display_name") @db.VarChar(160)
+  passwordHash                     String                   @map("password_hash") @db.VarChar(255)
+  enabled                          Boolean                  @default(true) @map("enabled")
+  sessionEpoch                     Int                      @default(1) @map("session_epoch") @db.UnsignedInt
+  passwordChangedAt                DateTime?                @map("password_changed_at") @db.DateTime(3)
+  disabledAt                       DateTime?                @map("disabled_at") @db.DateTime(3)
+  createdAt                        DateTime                 @default(now()) @map("created_at") @db.DateTime(3)
+  authSession_user                 AuthSession[]            @relation("R_AuthSession_user")
+  agency_createdBy                 Agency[]                 @relation("R_Agency_createdBy")
+  agency_updatedBy                 Agency[]                 @relation("R_Agency_updatedBy")
+  owner_createdBy                  Owner[]                  @relation("R_Owner_createdBy")
+  owner_updatedBy                  Owner[]                  @relation("R_Owner_updatedBy")
+  legalSubject_createdBy           LegalSubject[]           @relation("R_LegalSubject_createdBy")
+  legalSubject_updatedBy           LegalSubject[]           @relation("R_LegalSubject_updatedBy")
+  ownerSubject_createdBy           OwnerSubject[]           @relation("R_OwnerSubject_createdBy")
+  ownerSubject_updatedBy           OwnerSubject[]           @relation("R_OwnerSubject_updatedBy")
+  signer_createdBy                 Signer[]                 @relation("R_Signer_createdBy")
+  signer_updatedBy                 Signer[]                 @relation("R_Signer_updatedBy")
+  route_createdBy                  Route[]                  @relation("R_Route_createdBy")
+  route_updatedBy                  Route[]                  @relation("R_Route_updatedBy")
+  mandate_createdBy                Mandate[]                @relation("R_Mandate_createdBy")
+  mandate_updatedBy                Mandate[]                @relation("R_Mandate_updatedBy")
+  mandateVersion_createdBy         MandateVersion[]         @relation("R_MandateVersion_createdBy")
+  mandateVersion_updatedBy         MandateVersion[]         @relation("R_MandateVersion_updatedBy")
+  mandateCoverage_createdBy        MandateCoverage[]        @relation("R_MandateCoverage_createdBy")
+  mandateCoverage_updatedBy        MandateCoverage[]        @relation("R_MandateCoverage_updatedBy")
+  coverageSigner_createdBy         CoverageSigner[]         @relation("R_CoverageSigner_createdBy")
+  coverageSigner_updatedBy         CoverageSigner[]         @relation("R_CoverageSigner_updatedBy")
+  authorityEvent_createdBy         AuthorityEvent[]         @relation("R_AuthorityEvent_createdBy")
+  caseRecord_createdBy             CaseRecord[]             @relation("R_CaseRecord_createdBy")
+  caseRecord_updatedBy             CaseRecord[]             @relation("R_CaseRecord_updatedBy")
+  caseAuthoritySelection_createdBy CaseAuthoritySelection[] @relation("R_CaseAuthoritySelection_createdBy")
+  caseAuthorityCoverage_createdBy  CaseAuthorityCoverage[]  @relation("R_CaseAuthorityCoverage_createdBy")
+  reportedItem_createdBy           ReportedItem[]           @relation("R_ReportedItem_createdBy")
+  reportedItem_updatedBy           ReportedItem[]           @relation("R_ReportedItem_updatedBy")
+  caseWork_createdBy               CaseWork[]               @relation("R_CaseWork_createdBy")
+  caseWork_updatedBy               CaseWork[]               @relation("R_CaseWork_updatedBy")
+  useMapping_createdBy             UseMapping[]             @relation("R_UseMapping_createdBy")
+  useMapping_updatedBy             UseMapping[]             @relation("R_UseMapping_updatedBy")
+  sourceReference_createdBy        SourceReference[]        @relation("R_SourceReference_createdBy")
+  caseSource_createdBy             CaseSource[]             @relation("R_CaseSource_createdBy")
+  caseSource_updatedBy             CaseSource[]             @relation("R_CaseSource_updatedBy")
+  caseFact_createdBy               CaseFact[]               @relation("R_CaseFact_createdBy")
+  factSource_createdBy             FactSource[]             @relation("R_FactSource_createdBy")
+  correspondence_createdBy         Correspondence[]         @relation("R_Correspondence_createdBy")
+  correspondenceBinding_createdBy  CorrespondenceBinding[]  @relation("R_CorrespondenceBinding_createdBy")
+  promptSnapshot_createdBy         PromptSnapshot[]         @relation("R_PromptSnapshot_createdBy")
+  noticeCandidate_createdBy        NoticeCandidate[]        @relation("R_NoticeCandidate_createdBy")
+  validationRun_createdBy          ValidationRun[]          @relation("R_ValidationRun_createdBy")
+  validationIssue_createdBy        ValidationIssue[]        @relation("R_ValidationIssue_createdBy")
+  candidateAssessment_createdBy    CandidateAssessment[]    @relation("R_CandidateAssessment_createdBy")
+  assessmentSource_createdBy       AssessmentSource[]       @relation("R_AssessmentSource_createdBy")
+  auditEvent_actor                 AuditEvent[]             @relation("R_AuditEvent_actor")
+  idempotencyRecord_actor          IdempotencyRecord[]      @relation("R_IdempotencyRecord_actor")
+
+  @@map("users")
+}
+
+/// Store only hashes, never raw browser tokens.
+model AuthSession {
+  id            String    @id @default(uuid()) @map("id") @db.Char(36)
+  userId        String    @map("user_id") @db.Char(36)
+  tokenHash     String    @unique @map("token_hash") @db.VarChar(64)
+  csrfTokenHash String    @map("csrf_token_hash") @db.VarChar(64)
+  expiresAt     DateTime  @map("expires_at") @db.DateTime(3)
+  lastSeenAt    DateTime  @map("last_seen_at") @db.DateTime(3)
+  revokedAt     DateTime? @map("revoked_at") @db.DateTime(3)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  user          User      @relation("R_AuthSession_user", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_auth_sessions_user")
+
+  @@index([userId, expiresAt], map: "auth_sessions_user_id_expires_at_idx")
+  @@index([expiresAt], map: "auth_sessions_expires_at_idx")
+  @@map("auth_sessions")
+}
+
+/// Directory/configuration state is not legal authority. fieldAttributions has schema and source checks in service.
+model Agency {
+  id                     String            @id @default(uuid()) @map("id") @db.Char(36)
+  displayName            String            @map("display_name") @db.VarChar(200)
+  legalName              String?           @map("legal_name") @db.VarChar(255)
+  organizationType       String?           @map("organization_type") @db.VarChar(50)
+  jurisdictionCountry    String?           @map("jurisdiction_country") @db.VarChar(2)
+  registrationAuthority  String?           @map("registration_authority") @db.VarChar(200)
+  registrationNumber     String?           @map("registration_number") @db.VarChar(100)
+  websiteUrl             String?           @map("website_url") @db.VarChar(2048)
+  copyrightEmail         String?           @map("copyright_email") @db.VarChar(254)
+  verificationEmail      String?           @map("verification_email") @db.VarChar(254)
+  postalAddress          Json?             @map("postal_address")
+  phone                  String?           @map("phone") @db.VarChar(80)
+  driveRootUrl           String?           @map("drive_root_url") @db.VarChar(2048)
+  masterUrl              String?           @map("master_url") @db.VarChar(2048)
+  startHereUrl           String?           @map("start_here_url") @db.VarChar(2048)
+  fieldAttributions      Json?             @map("field_attributions")
+  recordState            RecordState       @default(DRAFT) @map("record_state")
+  canonicalCode          String?           @unique @map("canonical_code") @db.VarChar(100)
+  canonicalSourceId      String?           @map("canonical_source_id") @db.Char(36)
+  bindingState           BindingState      @default(LOCAL_ONLY) @map("binding_state")
+  notes                  String?           @map("notes") @db.LongText
+  archivedAt             DateTime?         @map("archived_at") @db.DateTime(3)
+  archiveReason          String?           @map("archive_reason") @db.LongText
+  createdAt              DateTime          @default(now()) @map("created_at") @db.DateTime(3)
+  createdById            String            @map("created_by_id") @db.Char(36)
+  updatedAt              DateTime          @updatedAt @map("updated_at") @db.DateTime(3)
+  updatedById            String            @map("updated_by_id") @db.Char(36)
+  rowVersion             Int               @default(1) @map("row_version") @db.UnsignedInt
+  createdBy              User              @relation("R_Agency_createdBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_agencies_created_by")
+  updatedBy              User              @relation("R_Agency_updatedBy", fields: [updatedById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_agencies_updated_by")
+  canonicalSource        SourceReference?  @relation("R_Agency_canonicalSource", fields: [canonicalSourceId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_agencies_canonical_source")
+  signer_agency          Signer[]          @relation("R_Signer_agency")
+  route_agency           Route[]           @relation("R_Route_agency")
+  mandate_agency         Mandate[]         @relation("R_Mandate_agency")
+  caseRecord_agency      CaseRecord[]      @relation("R_CaseRecord_agency")
+  sourceReference_agency SourceReference[] @relation("R_SourceReference_agency")
+  correspondence_agency  Correspondence[]  @relation("R_Correspondence_agency")
+
+  @@index([recordState, createdAt], map: "agencies_record_state_created_at_idx")
+  @@map("agencies")
+}
+
+/// Client namespace, not proof of work ownership.
+model Owner {
+  id                   String           @id @default(uuid()) @map("id") @db.Char(36)
+  displayName          String           @map("display_name") @db.VarChar(200)
+  aliases              Json?            @map("aliases")
+  contactName          String?          @map("contact_name") @db.VarChar(200)
+  contactEmail         String?          @map("contact_email") @db.VarChar(254)
+  sourceChannels       Json?            @map("source_channels")
+  websiteUrl           String?          @map("website_url") @db.VarChar(2048)
+  preferredLanguage    String?          @map("preferred_language") @db.VarChar(20)
+  driveFolderUrl       String?          @map("drive_folder_url") @db.VarChar(2048)
+  recordState          RecordState      @default(DRAFT) @map("record_state")
+  canonicalCode        String?          @unique @map("canonical_code") @db.VarChar(100)
+  canonicalSourceId    String?          @map("canonical_source_id") @db.Char(36)
+  bindingState         BindingState     @default(LOCAL_ONLY) @map("binding_state")
+  notes                String?          @map("notes") @db.LongText
+  archivedAt           DateTime?        @map("archived_at") @db.DateTime(3)
+  archiveReason        String?          @map("archive_reason") @db.LongText
+  createdAt            DateTime         @default(now()) @map("created_at") @db.DateTime(3)
+  createdById          String           @map("created_by_id") @db.Char(36)
+  updatedAt            DateTime         @updatedAt @map("updated_at") @db.DateTime(3)
+  updatedById          String           @map("updated_by_id") @db.Char(36)
+  rowVersion           Int              @default(1) @map("row_version") @db.UnsignedInt
+  createdBy            User             @relation("R_Owner_createdBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_owners_created_by")
+  updatedBy            User             @relation("R_Owner_updatedBy", fields: [updatedById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_owners_updated_by")
+  canonicalSource      SourceReference? @relation("R_Owner_canonicalSource", fields: [canonicalSourceId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_owners_canonical_source")
+  ownerSubject_owner   OwnerSubject[]   @relation("R_OwnerSubject_owner")
+  caseRecord_ownerHint CaseRecord[]     @relation("R_CaseRecord_ownerHint")
+
+  @@index([recordState, createdAt], map: "owners_record_state_created_at_idx")
+  @@map("owners")
+}
+
+/// Exact person or legal entity. Names/registration are matching hints, not automatic global deduplication.
+model LegalSubject {
+  id                        String           @id @default(uuid()) @map("id") @db.Char(36)
+  subjectType               SubjectType      @map("subject_type")
+  legalName                 String           @map("legal_name") @db.VarChar(255)
+  aliases                   Json?            @map("aliases")
+  jurisdictionCountry       String?          @map("jurisdiction_country") @db.VarChar(2)
+  legalForm                 String?          @map("legal_form") @db.VarChar(80)
+  registrationAuthority     String?          @map("registration_authority") @db.VarChar(200)
+  registrationNumber        String?          @map("registration_number") @db.VarChar(100)
+  contactEmail              String?          @map("contact_email") @db.VarChar(254)
+  postalAddress             Json?            @map("postal_address")
+  fieldAttributions         Json?            @map("field_attributions")
+  identityReviewState       ReviewState      @default(UNREVIEWED) @map("identity_review_state")
+  recordState               RecordState      @default(DRAFT) @map("record_state")
+  canonicalCode             String?          @unique @map("canonical_code") @db.VarChar(100)
+  canonicalSourceId         String?          @map("canonical_source_id") @db.Char(36)
+  bindingState              BindingState     @default(LOCAL_ONLY) @map("binding_state")
+  notes                     String?          @map("notes") @db.LongText
+  archivedAt                DateTime?        @map("archived_at") @db.DateTime(3)
+  archiveReason             String?          @map("archive_reason") @db.LongText
+  createdAt                 DateTime         @default(now()) @map("created_at") @db.DateTime(3)
+  createdById               String           @map("created_by_id") @db.Char(36)
+  updatedAt                 DateTime         @updatedAt @map("updated_at") @db.DateTime(3)
+  updatedById               String           @map("updated_by_id") @db.Char(36)
+  rowVersion                Int              @default(1) @map("row_version") @db.UnsignedInt
+  createdBy                 User             @relation("R_LegalSubject_createdBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_legal_subjects_created_by")
+  updatedBy                 User             @relation("R_LegalSubject_updatedBy", fields: [updatedById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_legal_subjects_updated_by")
+  canonicalSource           SourceReference? @relation("R_LegalSubject_canonicalSource", fields: [canonicalSourceId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_legal_subjects_canonical_source")
+  ownerSubject_legalSubject OwnerSubject[]   @relation("R_OwnerSubject_legalSubject")
+
+  @@index([legalName], map: "legal_subjects_legal_name_idx")
+  @@index([registrationAuthority, registrationNumber], map: "legal_subjects_registration_authority_registrati_902c1ede")
+  @@map("legal_subjects")
+}
+
+/// 
+model OwnerSubject {
+  id                 String           @id @default(uuid()) @map("id") @db.Char(36)
+  ownerId            String           @map("owner_id") @db.Char(36)
+  legalSubjectId     String           @map("legal_subject_id") @db.Char(36)
+  relationshipLabel  String?          @map("relationship_label") @db.VarChar(200)
+  sourceId           String?          @map("source_id") @db.Char(36)
+  linkState          LinkState        @default(LINKED) @map("link_state")
+  unlinkedAt         DateTime?        @map("unlinked_at") @db.DateTime(3)
+  unlinkReason       String?          @map("unlink_reason") @db.LongText
+  createdAt          DateTime         @default(now()) @map("created_at") @db.DateTime(3)
+  createdById        String           @map("created_by_id") @db.Char(36)
+  updatedAt          DateTime         @updatedAt @map("updated_at") @db.DateTime(3)
+  updatedById        String           @map("updated_by_id") @db.Char(36)
+  rowVersion         Int              @default(1) @map("row_version") @db.UnsignedInt
+  createdBy          User             @relation("R_OwnerSubject_createdBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_owner_subjects_created_by")
+  updatedBy          User             @relation("R_OwnerSubject_updatedBy", fields: [updatedById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_owner_subjects_updated_by")
+  owner              Owner            @relation("R_OwnerSubject_owner", fields: [ownerId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_owner_subjects_owner")
+  legalSubject       LegalSubject     @relation("R_OwnerSubject_legalSubject", fields: [legalSubjectId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_owner_subjects_legal_subject")
+  source             SourceReference? @relation("R_OwnerSubject_source", fields: [sourceId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_owner_subjects_source")
+  route_ownerSubject Route[]          @relation("R_Route_ownerSubject")
+
+  @@unique([ownerId, legalSubjectId], map: "owner_subjects_owner_id_legal_subject_id_key")
+  @@index([legalSubjectId, linkState], map: "owner_subjects_legal_subject_id_link_state_idx")
+  @@map("owner_subjects")
+}
+
+/// Person in an agency capacity. No signature blob, adoption, or send endpoint.
+model Signer {
+  id                            String                   @id @default(uuid()) @map("id") @db.Char(36)
+  agencyId                      String                   @map("agency_id") @db.Char(36)
+  fullLegalName                 String                   @map("full_legal_name") @db.VarChar(255)
+  title                         String?                  @map("title") @db.VarChar(200)
+  contactEmail                  String?                  @map("contact_email") @db.VarChar(254)
+  identitySourceId              String?                  @map("identity_source_id") @db.Char(36)
+  delegationSourceId            String?                  @map("delegation_source_id") @db.Char(36)
+  operationalState              SignerState              @default(DRAFT) @map("operational_state")
+  canonicalCode                 String?                  @unique @map("canonical_code") @db.VarChar(100)
+  canonicalSourceId             String?                  @map("canonical_source_id") @db.Char(36)
+  bindingState                  BindingState             @default(LOCAL_ONLY) @map("binding_state")
+  notes                         String?                  @map("notes") @db.LongText
+  archivedAt                    DateTime?                @map("archived_at") @db.DateTime(3)
+  archiveReason                 String?                  @map("archive_reason") @db.LongText
+  createdAt                     DateTime                 @default(now()) @map("created_at") @db.DateTime(3)
+  createdById                   String                   @map("created_by_id") @db.Char(36)
+  updatedAt                     DateTime                 @updatedAt @map("updated_at") @db.DateTime(3)
+  updatedById                   String                   @map("updated_by_id") @db.Char(36)
+  rowVersion                    Int                      @default(1) @map("row_version") @db.UnsignedInt
+  createdBy                     User                     @relation("R_Signer_createdBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_signers_created_by")
+  updatedBy                     User                     @relation("R_Signer_updatedBy", fields: [updatedById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_signers_updated_by")
+  agency                        Agency                   @relation("R_Signer_agency", fields: [agencyId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_signers_agency")
+  identitySource                SourceReference?         @relation("R_Signer_identitySource", fields: [identitySourceId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_signers_identity_source")
+  delegationSource              SourceReference?         @relation("R_Signer_delegationSource", fields: [delegationSourceId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_signers_delegation_source")
+  canonicalSource               SourceReference?         @relation("R_Signer_canonicalSource", fields: [canonicalSourceId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_signers_canonical_source")
+  route_defaultSigner           Route[]                  @relation("R_Route_defaultSigner")
+  coverageSigner_signer         CoverageSigner[]         @relation("R_CoverageSigner_signer")
+  caseAuthoritySelection_signer CaseAuthoritySelection[] @relation("R_CaseAuthoritySelection_signer")
+
+  @@unique([id, agencyId], map: "signers_id_agency_id_key")
+  @@index([agencyId, operationalState], map: "signers_agency_id_operational_state_idx")
+  @@map("signers")
+}
+
+/// 
+model Route {
+  id                           String                   @id @default(uuid()) @map("id") @db.Char(36)
+  agencyId                     String                   @map("agency_id") @db.Char(36)
+  ownerSubjectId               String                   @map("owner_subject_id") @db.Char(36)
+  platform                     Platform                 @default(YOUTUBE) @map("platform")
+  linkState                    LinkState                @default(LINKED) @map("link_state")
+  defaultSignerId              String?                  @map("default_signer_id") @db.Char(36)
+  preferredCoverageId          String?                  @map("preferred_coverage_id") @db.Char(36)
+  casePrefixHint               String?                  @map("case_prefix_hint") @db.VarChar(40)
+  unlinkedAt                   DateTime?                @map("unlinked_at") @db.DateTime(3)
+  stateReason                  String?                  @map("state_reason") @db.LongText
+  canonicalCode                String?                  @unique @map("canonical_code") @db.VarChar(100)
+  canonicalSourceId            String?                  @map("canonical_source_id") @db.Char(36)
+  bindingState                 BindingState             @default(LOCAL_ONLY) @map("binding_state")
+  notes                        String?                  @map("notes") @db.LongText
+  archivedAt                   DateTime?                @map("archived_at") @db.DateTime(3)
+  archiveReason                String?                  @map("archive_reason") @db.LongText
+  createdAt                    DateTime                 @default(now()) @map("created_at") @db.DateTime(3)
+  createdById                  String                   @map("created_by_id") @db.Char(36)
+  updatedAt                    DateTime                 @updatedAt @map("updated_at") @db.DateTime(3)
+  updatedById                  String                   @map("updated_by_id") @db.Char(36)
+  rowVersion                   Int                      @default(1) @map("row_version") @db.UnsignedInt
+  createdBy                    User                     @relation("R_Route_createdBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_routes_created_by")
+  updatedBy                    User                     @relation("R_Route_updatedBy", fields: [updatedById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_routes_updated_by")
+  agency                       Agency                   @relation("R_Route_agency", fields: [agencyId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_routes_agency")
+  ownerSubject                 OwnerSubject             @relation("R_Route_ownerSubject", fields: [ownerSubjectId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_routes_owner_subject")
+  defaultSigner                Signer?                  @relation("R_Route_defaultSigner", fields: [defaultSignerId, agencyId], references: [id, agencyId], onDelete: Restrict, onUpdate: Restrict, map: "fk_routes_default_signer")
+  preferredCoverage            MandateCoverage?         @relation("R_Route_preferredCoverage", fields: [preferredCoverageId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_routes_preferred_coverage")
+  canonicalSource              SourceReference?         @relation("R_Route_canonicalSource", fields: [canonicalSourceId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_routes_canonical_source")
+  mandateCoverage_route        MandateCoverage[]        @relation("R_MandateCoverage_route")
+  caseRecord_route             CaseRecord[]             @relation("R_CaseRecord_route")
+  caseAuthoritySelection_route CaseAuthoritySelection[] @relation("R_CaseAuthoritySelection_route")
+
+  @@unique([agencyId, ownerSubjectId, platform], map: "routes_agency_id_owner_subject_id_platform_key")
+  @@unique([id, agencyId, platform], map: "routes_id_agency_id_platform_key")
+  @@unique([id, agencyId], map: "routes_id_agency_id_key")
+  @@index([ownerSubjectId, linkState], map: "routes_owner_subject_id_link_state_idx")
+  @@map("routes")
+}
+
+/// 
+model Mandate {
+  id                     String           @id @default(uuid()) @map("id") @db.Char(36)
+  agencyId               String           @map("agency_id") @db.Char(36)
+  label                  String           @map("label") @db.VarChar(255)
+  externalReference      String?          @map("external_reference") @db.VarChar(191)
+  description            String?          @map("description") @db.LongText
+  canonicalCode          String?          @unique @map("canonical_code") @db.VarChar(100)
+  canonicalSourceId      String?          @map("canonical_source_id") @db.Char(36)
+  bindingState           BindingState     @default(LOCAL_ONLY) @map("binding_state")
+  notes                  String?          @map("notes") @db.LongText
+  archivedAt             DateTime?        @map("archived_at") @db.DateTime(3)
+  archiveReason          String?          @map("archive_reason") @db.LongText
+  createdAt              DateTime         @default(now()) @map("created_at") @db.DateTime(3)
+  createdById            String           @map("created_by_id") @db.Char(36)
+  updatedAt              DateTime         @updatedAt @map("updated_at") @db.DateTime(3)
+  updatedById            String           @map("updated_by_id") @db.Char(36)
+  rowVersion             Int              @default(1) @map("row_version") @db.UnsignedInt
+  createdBy              User             @relation("R_Mandate_createdBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_mandates_created_by")
+  updatedBy              User             @relation("R_Mandate_updatedBy", fields: [updatedById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_mandates_updated_by")
+  agency                 Agency           @relation("R_Mandate_agency", fields: [agencyId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_mandates_agency")
+  canonicalSource        SourceReference? @relation("R_Mandate_canonicalSource", fields: [canonicalSourceId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_mandates_canonical_source")
+  mandateVersion_mandate MandateVersion[] @relation("R_MandateVersion_mandate")
+  authorityEvent_mandate AuthorityEvent[] @relation("R_AuthorityEvent_mandate")
+
+  @@unique([id, agencyId], map: "mandates_id_agency_id_key")
+  @@index([agencyId, createdAt], map: "mandates_agency_id_created_at_idx")
+  @@map("mandates")
+}
+
+/// Freeze parent plus all coverage/signer children atomically before selection; successors do not automatically legally supersede predecessors.
+model MandateVersion {
+  id                         String            @id @default(uuid()) @map("id") @db.Char(36)
+  mandateId                  String            @map("mandate_id") @db.Char(36)
+  agencyId                   String            @map("agency_id") @db.Char(36)
+  version                    Int               @map("version") @db.UnsignedInt
+  versionState               VersionState      @default(DRAFT) @map("version_state")
+  changeKind                 ChangeKind        @map("change_kind")
+  predecessorId              String?           @map("predecessor_id") @db.Char(36)
+  primarySourceId            String?           @map("primary_source_id") @db.Char(36)
+  additionalSourceRefs       Json?             @map("additional_source_refs")
+  documentState              DocumentState     @default(UNKNOWN) @map("document_state")
+  sourceReviewState          ReviewState       @default(UNREVIEWED) @map("source_review_state")
+  signedDatesRaw             Json?             @map("signed_dates_raw")
+  validityModel              ValidityModel     @default(UNKNOWN) @map("validity_model")
+  effectiveOn                DateTime?         @map("effective_on") @db.Date
+  expiresOn                  DateTime?         @map("expires_on") @db.Date
+  validityNotes              String?           @map("validity_notes") @db.LongText
+  frozenAt                   DateTime?         @map("frozen_at") @db.DateTime(3)
+  changeReason               String            @map("change_reason") @db.LongText
+  createdAt                  DateTime          @default(now()) @map("created_at") @db.DateTime(3)
+  createdById                String            @map("created_by_id") @db.Char(36)
+  updatedAt                  DateTime          @updatedAt @map("updated_at") @db.DateTime(3)
+  updatedById                String            @map("updated_by_id") @db.Char(36)
+  rowVersion                 Int               @default(1) @map("row_version") @db.UnsignedInt
+  createdBy                  User              @relation("R_MandateVersion_createdBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_mandate_versions_created_by")
+  updatedBy                  User              @relation("R_MandateVersion_updatedBy", fields: [updatedById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_mandate_versions_updated_by")
+  mandate                    Mandate           @relation("R_MandateVersion_mandate", fields: [mandateId, agencyId], references: [id, agencyId], onDelete: Restrict, onUpdate: Restrict, map: "fk_mandate_versions_mandate")
+  predecessor                MandateVersion?   @relation("R_MandateVersion_predecessor", fields: [predecessorId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_mandate_versions_predecessor")
+  primarySource              SourceReference?  @relation("R_MandateVersion_primarySource", fields: [primarySourceId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_mandate_versions_primary_source")
+  mandateVersion_predecessor MandateVersion[]  @relation("R_MandateVersion_predecessor")
+  mandateCoverage_version    MandateCoverage[] @relation("R_MandateCoverage_version")
+
+  @@unique([mandateId, version], map: "mandate_versions_mandate_id_version_key")
+  @@unique([id, agencyId], map: "mandate_versions_id_agency_id_key")
+  @@map("mandate_versions")
+}
+
+/// Draft-editable only while parent version DRAFT. Source-backed legal changes are append-only AuthorityEvents.
+model MandateCoverage {
+  id                                  String                  @id @default(uuid()) @map("id") @db.Char(36)
+  mandateVersionId                    String                  @map("mandate_version_id") @db.Char(36)
+  routeId                             String                  @map("route_id") @db.Char(36)
+  agencyId                            String                  @map("agency_id") @db.Char(36)
+  coverageLabel                       String                  @map("coverage_label") @db.VarChar(191)
+  coveredWorksScope                   String?                 @map("covered_works_scope") @db.LongText
+  territorialScope                    String?                 @map("territorial_scope") @db.LongText
+  actionScope                         Json?                   @map("action_scope")
+  exclusions                          String?                 @map("exclusions") @db.LongText
+  conditions                          String?                 @map("conditions") @db.LongText
+  exclusivity                         Exclusivity             @default(UNKNOWN) @map("exclusivity")
+  effectiveOn                         DateTime?               @map("effective_on") @db.Date
+  expiresOn                           DateTime?               @map("expires_on") @db.Date
+  basisSourceId                       String?                 @map("basis_source_id") @db.Char(36)
+  predecessorCoverageId               String?                 @map("predecessor_coverage_id") @db.Char(36)
+  createdAt                           DateTime                @default(now()) @map("created_at") @db.DateTime(3)
+  createdById                         String                  @map("created_by_id") @db.Char(36)
+  updatedAt                           DateTime                @updatedAt @map("updated_at") @db.DateTime(3)
+  updatedById                         String                  @map("updated_by_id") @db.Char(36)
+  rowVersion                          Int                     @default(1) @map("row_version") @db.UnsignedInt
+  createdBy                           User                    @relation("R_MandateCoverage_createdBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_mandate_coverages_created_by")
+  updatedBy                           User                    @relation("R_MandateCoverage_updatedBy", fields: [updatedById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_mandate_coverages_updated_by")
+  version                             MandateVersion          @relation("R_MandateCoverage_version", fields: [mandateVersionId, agencyId], references: [id, agencyId], onDelete: Restrict, onUpdate: Restrict, map: "fk_mandate_coverages_version")
+  route                               Route                   @relation("R_MandateCoverage_route", fields: [routeId, agencyId], references: [id, agencyId], onDelete: Restrict, onUpdate: Restrict, map: "fk_mandate_coverages_route")
+  basisSource                         SourceReference?        @relation("R_MandateCoverage_basisSource", fields: [basisSourceId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_mandate_coverages_basis_source")
+  predecessorCoverage                 MandateCoverage?        @relation("R_MandateCoverage_predecessorCoverage", fields: [predecessorCoverageId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_mandate_coverages_predecessor_coverage")
+  route_preferredCoverage             Route[]                 @relation("R_Route_preferredCoverage")
+  mandateCoverage_predecessorCoverage MandateCoverage[]       @relation("R_MandateCoverage_predecessorCoverage")
+  coverageSigner_coverage             CoverageSigner[]        @relation("R_CoverageSigner_coverage")
+  authorityEvent_coverage             AuthorityEvent[]        @relation("R_AuthorityEvent_coverage")
+  caseAuthorityCoverage_coverage      CaseAuthorityCoverage[] @relation("R_CaseAuthorityCoverage_coverage")
+
+  @@unique([routeId, mandateVersionId, coverageLabel], map: "mandate_coverages_route_id_mandate_version_id_co_e7b0d69b")
+  @@unique([id, agencyId], map: "mandate_coverages_id_agency_id_key")
+  @@unique([id, routeId, agencyId], map: "mandate_coverages_id_route_id_agency_id_key")
+  @@map("mandate_coverages")
+}
+
+/// Never confers rights merely from insertion; parent version must be draft to alter this row.
+model CoverageSigner {
+  id          String           @id @default(uuid()) @map("id") @db.Char(36)
+  coverageId  String           @map("coverage_id") @db.Char(36)
+  agencyId    String           @map("agency_id") @db.Char(36)
+  signerId    String           @map("signer_id") @db.Char(36)
+  capacity    String           @map("capacity") @db.VarChar(120)
+  actionScope Json?            @map("action_scope")
+  sourceId    String?          @map("source_id") @db.Char(36)
+  effectiveOn DateTime?        @map("effective_on") @db.Date
+  endsOn      DateTime?        @map("ends_on") @db.Date
+  limitations String?          @map("limitations") @db.LongText
+  createdAt   DateTime         @default(now()) @map("created_at") @db.DateTime(3)
+  createdById String           @map("created_by_id") @db.Char(36)
+  updatedAt   DateTime         @updatedAt @map("updated_at") @db.DateTime(3)
+  updatedById String           @map("updated_by_id") @db.Char(36)
+  rowVersion  Int              @default(1) @map("row_version") @db.UnsignedInt
+  createdBy   User             @relation("R_CoverageSigner_createdBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_coverage_signers_created_by")
+  updatedBy   User             @relation("R_CoverageSigner_updatedBy", fields: [updatedById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_coverage_signers_updated_by")
+  coverage    MandateCoverage  @relation("R_CoverageSigner_coverage", fields: [coverageId, agencyId], references: [id, agencyId], onDelete: Restrict, onUpdate: Restrict, map: "fk_coverage_signers_coverage")
+  signer      Signer           @relation("R_CoverageSigner_signer", fields: [signerId, agencyId], references: [id, agencyId], onDelete: Restrict, onUpdate: Restrict, map: "fk_coverage_signers_signer")
+  source      SourceReference? @relation("R_CoverageSigner_source", fields: [sourceId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_coverage_signers_source")
+
+  @@unique([coverageId, signerId, capacity], map: "coverage_signers_coverage_id_signer_id_capacity_key")
+  @@map("coverage_signers")
+}
+
+/// Records observed currentness/revocation etc. Nullable coverage means whole mandate only if source supports it. No legal action is executed.
+model AuthorityEvent {
+  id                             String             @id @default(uuid()) @map("id") @db.Char(36)
+  mandateId                      String             @map("mandate_id") @db.Char(36)
+  agencyId                       String             @map("agency_id") @db.Char(36)
+  coverageId                     String?            @map("coverage_id") @db.Char(36)
+  eventType                      AuthorityEventType @map("event_type")
+  sourceId                       String             @map("source_id") @db.Char(36)
+  provenance                     Provenance         @map("provenance")
+  effectiveOn                    DateTime?          @map("effective_on") @db.Date
+  effectiveAt                    DateTime?          @map("effective_at") @db.DateTime(3)
+  rawEffectiveText               String?            @map("raw_effective_text") @db.VarChar(500)
+  scopeText                      String             @map("scope_text") @db.LongText
+  supersedesEventId              String?            @unique @map("supersedes_event_id") @db.Char(36)
+  interpretation                 String             @map("interpretation") @db.LongText
+  createdAt                      DateTime           @default(now()) @map("created_at") @db.DateTime(3)
+  createdById                    String             @map("created_by_id") @db.Char(36)
+  createdBy                      User               @relation("R_AuthorityEvent_createdBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_authority_events_created_by")
+  mandate                        Mandate            @relation("R_AuthorityEvent_mandate", fields: [mandateId, agencyId], references: [id, agencyId], onDelete: Restrict, onUpdate: Restrict, map: "fk_authority_events_mandate")
+  coverage                       MandateCoverage?   @relation("R_AuthorityEvent_coverage", fields: [coverageId, agencyId], references: [id, agencyId], onDelete: Restrict, onUpdate: Restrict, map: "fk_authority_events_coverage")
+  source                         SourceReference    @relation("R_AuthorityEvent_source", fields: [sourceId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_authority_events_source")
+  supersedesEvent                AuthorityEvent?    @relation("R_AuthorityEvent_supersedesEvent", fields: [supersedesEventId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_authority_events_supersedes_event")
+  authorityEvent_supersedesEvent AuthorityEvent?    @relation("R_AuthorityEvent_supersedesEvent")
+
+  @@index([mandateId, createdAt], map: "authority_events_mandate_id_created_at_idx")
+  @@index([coverageId, createdAt], map: "authority_events_coverage_id_created_at_idx")
+  @@map("authority_events")
+}
+
+/// Business case, not an automated legal verdict. Canonical code only binds to an actual sourced existing/registered code.
+model CaseRecord {
+  id                                String                   @id @default(uuid()) @map("id") @db.Char(36)
+  agencyId                          String                   @map("agency_id") @db.Char(36)
+  platform                          Platform                 @default(YOUTUBE) @map("platform")
+  intakeLabel                       String                   @map("intake_label") @db.VarChar(255)
+  ownerHintId                       String?                  @map("owner_hint_id") @db.Char(36)
+  routeId                           String?                  @map("route_id") @db.Char(36)
+  canonicalCaseId                   String?                  @unique @map("canonical_case_id") @db.VarChar(100)
+  canonicalBindingSourceId          String?                  @map("canonical_binding_source_id") @db.Char(36)
+  caseClass                         CaseClass                @default(WORKING_INTAKE) @map("case_class")
+  workflowState                     WorkflowState            @default(INTAKE) @map("workflow_state")
+  currentAuthoritySelectionId       String?                  @map("current_authority_selection_id") @db.Char(36)
+  packetSourceId                    String?                  @map("packet_source_id") @db.Char(36)
+  driveFolderUrl                    String?                  @map("drive_folder_url") @db.VarChar(2048)
+  contextRevision                   Int                      @default(1) @map("context_revision") @db.UnsignedInt
+  closedAt                          DateTime?                @map("closed_at") @db.DateTime(3)
+  closeReason                       String?                  @map("close_reason") @db.LongText
+  archivedAt                        DateTime?                @map("archived_at") @db.DateTime(3)
+  archiveReason                     String?                  @map("archive_reason") @db.LongText
+  notes                             String?                  @map("notes") @db.LongText
+  createdAt                         DateTime                 @default(now()) @map("created_at") @db.DateTime(3)
+  createdById                       String                   @map("created_by_id") @db.Char(36)
+  updatedAt                         DateTime                 @updatedAt @map("updated_at") @db.DateTime(3)
+  updatedById                       String                   @map("updated_by_id") @db.Char(36)
+  rowVersion                        Int                      @default(1) @map("row_version") @db.UnsignedInt
+  createdBy                         User                     @relation("R_CaseRecord_createdBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_cases_created_by")
+  updatedBy                         User                     @relation("R_CaseRecord_updatedBy", fields: [updatedById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_cases_updated_by")
+  agency                            Agency                   @relation("R_CaseRecord_agency", fields: [agencyId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_cases_agency")
+  ownerHint                         Owner?                   @relation("R_CaseRecord_ownerHint", fields: [ownerHintId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_cases_owner_hint")
+  route                             Route?                   @relation("R_CaseRecord_route", fields: [routeId, agencyId, platform], references: [id, agencyId, platform], onDelete: Restrict, onUpdate: Restrict, map: "fk_cases_route")
+  currentAuthoritySelection         CaseAuthoritySelection?  @relation("R_CaseRecord_currentAuthoritySelection", fields: [currentAuthoritySelectionId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_cases_current_authority_selection")
+  packetSource                      SourceReference?         @relation("R_CaseRecord_packetSource", fields: [packetSourceId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_cases_packet_source")
+  canonicalBindingSource            SourceReference?         @relation("R_CaseRecord_canonicalBindingSource", fields: [canonicalBindingSourceId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_cases_canonical_binding_source")
+  caseAuthoritySelection_caseRecord CaseAuthoritySelection[] @relation("R_CaseAuthoritySelection_caseRecord")
+  reportedItem_caseRecord           ReportedItem[]           @relation("R_ReportedItem_caseRecord")
+  caseWork_caseRecord               CaseWork[]               @relation("R_CaseWork_caseRecord")
+  useMapping_caseRecord             UseMapping[]             @relation("R_UseMapping_caseRecord")
+  caseSource_caseRecord             CaseSource[]             @relation("R_CaseSource_caseRecord")
+  caseFact_caseRecord               CaseFact[]               @relation("R_CaseFact_caseRecord")
+  correspondenceBinding_caseRecord  CorrespondenceBinding[]  @relation("R_CorrespondenceBinding_caseRecord")
+  promptSnapshot_caseRecord         PromptSnapshot[]         @relation("R_PromptSnapshot_caseRecord")
+  noticeCandidate_caseRecord        NoticeCandidate[]        @relation("R_NoticeCandidate_caseRecord")
+
+  @@unique([id, agencyId], map: "cases_id_agency_id_key")
+  @@index([agencyId, workflowState, createdAt, id], map: "cases_agency_id_workflow_state_created_at_id_idx")
+  @@index([routeId, createdAt, id], map: "cases_route_id_created_at_id_idx")
+  @@map("cases")
+}
+
+/// Immutable explicit selection; a new default signer does not rewrite this selection. Server checks case route equals selected route.
+model CaseAuthoritySelection {
+  id                                   String                  @id @default(uuid()) @map("id") @db.Char(36)
+  caseId                               String                  @map("case_id") @db.Char(36)
+  agencyId                             String                  @map("agency_id") @db.Char(36)
+  routeId                              String                  @map("route_id") @db.Char(36)
+  signerId                             String                  @map("signer_id") @db.Char(36)
+  taskType                             TaskType                @map("task_type")
+  intendedFromEmail                    String                  @map("intended_from_email") @db.VarChar(254)
+  basisSourceId                        String?                 @map("basis_source_id") @db.Char(36)
+  selectionNote                        String                  @map("selection_note") @db.LongText
+  createdAt                            DateTime                @default(now()) @map("created_at") @db.DateTime(3)
+  createdById                          String                  @map("created_by_id") @db.Char(36)
+  createdBy                            User                    @relation("R_CaseAuthoritySelection_createdBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_case_authority_selections_created_by")
+  caseRecord                           CaseRecord              @relation("R_CaseAuthoritySelection_caseRecord", fields: [caseId, agencyId], references: [id, agencyId], onDelete: Restrict, onUpdate: Restrict, map: "fk_case_authority_selections_case_record")
+  route                                Route                   @relation("R_CaseAuthoritySelection_route", fields: [routeId, agencyId], references: [id, agencyId], onDelete: Restrict, onUpdate: Restrict, map: "fk_case_authority_selections_route")
+  signer                               Signer                  @relation("R_CaseAuthoritySelection_signer", fields: [signerId, agencyId], references: [id, agencyId], onDelete: Restrict, onUpdate: Restrict, map: "fk_case_authority_selections_signer")
+  basisSource                          SourceReference?        @relation("R_CaseAuthoritySelection_basisSource", fields: [basisSourceId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_case_authority_selections_basis_source")
+  caseRecord_currentAuthoritySelection CaseRecord[]            @relation("R_CaseRecord_currentAuthoritySelection")
+  caseAuthorityCoverage_selection      CaseAuthorityCoverage[] @relation("R_CaseAuthorityCoverage_selection")
+  promptSnapshot_authoritySelection    PromptSnapshot[]        @relation("R_PromptSnapshot_authoritySelection")
+
+  @@unique([id, caseId], map: "case_authority_selections_id_case_id_key")
+  @@unique([id, caseId, agencyId, routeId], map: "case_authority_selections_id_case_id_agency_id_route_id_key")
+  @@index([caseId, createdAt], map: "case_authority_selections_case_id_created_at_idx")
+  @@map("case_authority_selections")
+}
+
+/// One or more precisely scoped coverages. Do not union grants into unsupported authority.
+model CaseAuthorityCoverage {
+  id               String                 @id @default(uuid()) @map("id") @db.Char(36)
+  selectionId      String                 @map("selection_id") @db.Char(36)
+  caseId           String                 @map("case_id") @db.Char(36)
+  agencyId         String                 @map("agency_id") @db.Char(36)
+  routeId          String                 @map("route_id") @db.Char(36)
+  coverageId       String                 @map("coverage_id") @db.Char(36)
+  applicationScope String                 @map("application_scope") @db.LongText
+  createdAt        DateTime               @default(now()) @map("created_at") @db.DateTime(3)
+  createdById      String                 @map("created_by_id") @db.Char(36)
+  createdBy        User                   @relation("R_CaseAuthorityCoverage_createdBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_case_authority_coverages_created_by")
+  selection        CaseAuthoritySelection @relation("R_CaseAuthorityCoverage_selection", fields: [selectionId, caseId, agencyId, routeId], references: [id, caseId, agencyId, routeId], onDelete: Restrict, onUpdate: Restrict, map: "fk_case_authority_coverages_selection")
+  coverage         MandateCoverage        @relation("R_CaseAuthorityCoverage_coverage", fields: [coverageId, routeId, agencyId], references: [id, routeId, agencyId], onDelete: Restrict, onUpdate: Restrict, map: "fk_case_authority_coverages_coverage")
+
+  @@unique([selectionId, coverageId], map: "case_authority_coverages_selection_id_coverage_id_key")
+  @@map("case_authority_coverages")
+}
+
+/// Only YouTube video formats in V1. Identifier remains case-sensitive. No global uniqueness across cases.
+model ReportedItem {
+  id                                 String                  @id @default(uuid()) @map("id") @db.Char(36)
+  caseId                             String                  @map("case_id") @db.Char(36)
+  rawUrl                             String                  @map("raw_url") @db.VarChar(4096)
+  normalizedUrl                      String                  @map("normalized_url") @db.VarChar(2048)
+  externalItemId                     String                  @map("external_item_id") @db.VarChar(64)
+  displayTitle                       String?                 @map("display_title") @db.VarChar(500)
+  observedAt                         DateTime?               @map("observed_at") @db.DateTime(3)
+  archivedAt                         DateTime?               @map("archived_at") @db.DateTime(3)
+  archiveReason                      String?                 @map("archive_reason") @db.LongText
+  createdAt                          DateTime                @default(now()) @map("created_at") @db.DateTime(3)
+  createdById                        String                  @map("created_by_id") @db.Char(36)
+  updatedAt                          DateTime                @updatedAt @map("updated_at") @db.DateTime(3)
+  updatedById                        String                  @map("updated_by_id") @db.Char(36)
+  rowVersion                         Int                     @default(1) @map("row_version") @db.UnsignedInt
+  createdBy                          User                    @relation("R_ReportedItem_createdBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_reported_items_created_by")
+  updatedBy                          User                    @relation("R_ReportedItem_updatedBy", fields: [updatedById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_reported_items_updated_by")
+  caseRecord                         CaseRecord              @relation("R_ReportedItem_caseRecord", fields: [caseId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_reported_items_case_record")
+  useMapping_reportedItem            UseMapping[]            @relation("R_UseMapping_reportedItem")
+  caseFact_reportedItem              CaseFact[]              @relation("R_CaseFact_reportedItem")
+  correspondenceBinding_reportedItem CorrespondenceBinding[] @relation("R_CorrespondenceBinding_reportedItem")
+
+  @@unique([caseId, externalItemId], map: "reported_items_case_id_external_item_id_key")
+  @@unique([id, caseId], map: "reported_items_id_case_id_key")
+  @@index([externalItemId], map: "reported_items_external_item_id_idx")
+  @@map("reported_items")
+}
+
+/// 
+model CaseWork {
+  id              String       @id @default(uuid()) @map("id") @db.Char(36)
+  caseId          String       @map("case_id") @db.Char(36)
+  title           String       @map("title") @db.VarChar(500)
+  sourceUrl       String?      @map("source_url") @db.VarChar(4096)
+  externalWorkId  String?      @map("external_work_id") @db.VarChar(191)
+  workType        String?      @map("work_type") @db.VarChar(100)
+  notes           String?      @map("notes") @db.LongText
+  archivedAt      DateTime?    @map("archived_at") @db.DateTime(3)
+  archiveReason   String?      @map("archive_reason") @db.LongText
+  createdAt       DateTime     @default(now()) @map("created_at") @db.DateTime(3)
+  createdById     String       @map("created_by_id") @db.Char(36)
+  updatedAt       DateTime     @updatedAt @map("updated_at") @db.DateTime(3)
+  updatedById     String       @map("updated_by_id") @db.Char(36)
+  rowVersion      Int          @default(1) @map("row_version") @db.UnsignedInt
+  createdBy       User         @relation("R_CaseWork_createdBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_case_works_created_by")
+  updatedBy       User         @relation("R_CaseWork_updatedBy", fields: [updatedById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_case_works_updated_by")
+  caseRecord      CaseRecord   @relation("R_CaseWork_caseRecord", fields: [caseId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_case_works_case_record")
+  useMapping_work UseMapping[] @relation("R_UseMapping_work")
+  caseFact_work   CaseFact[]   @relation("R_CaseFact_work")
+
+  @@unique([id, caseId], map: "case_works_id_case_id_key")
+  @@index([caseId, createdAt], map: "case_works_case_id_created_at_idx")
+  @@map("case_works")
+}
+
+/// Integer milliseconds exposed as decimal strings. Duration equality is never AV verification.
+model UseMapping {
+  id                 String           @id @default(uuid()) @map("id") @db.Char(36)
+  caseId             String           @map("case_id") @db.Char(36)
+  caseWorkId         String           @map("case_work_id") @db.Char(36)
+  reportedItemId     String           @map("reported_item_id") @db.Char(36)
+  occurrence         Int              @map("occurrence") @db.UnsignedInt
+  sourceStartMs      BigInt?          @map("source_start_ms") @db.UnsignedBigInt
+  sourceEndMs        BigInt?          @map("source_end_ms") @db.UnsignedBigInt
+  reportedStartMs    BigInt?          @map("reported_start_ms") @db.UnsignedBigInt
+  reportedEndMs      BigInt?          @map("reported_end_ms") @db.UnsignedBigInt
+  rawTimecodes       Json?            @map("raw_timecodes")
+  boundaryConvention String           @default("UNKNOWN") @map("boundary_convention") @db.VarChar(40)
+  provenance         Provenance       @default(MISSING) @map("provenance")
+  basisSourceId      String?          @map("basis_source_id") @db.Char(36)
+  limitations        String?          @map("limitations") @db.LongText
+  archivedAt         DateTime?        @map("archived_at") @db.DateTime(3)
+  archiveReason      String?          @map("archive_reason") @db.LongText
+  createdAt          DateTime         @default(now()) @map("created_at") @db.DateTime(3)
+  createdById        String           @map("created_by_id") @db.Char(36)
+  updatedAt          DateTime         @updatedAt @map("updated_at") @db.DateTime(3)
+  updatedById        String           @map("updated_by_id") @db.Char(36)
+  rowVersion         Int              @default(1) @map("row_version") @db.UnsignedInt
+  createdBy          User             @relation("R_UseMapping_createdBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_use_mappings_created_by")
+  updatedBy          User             @relation("R_UseMapping_updatedBy", fields: [updatedById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_use_mappings_updated_by")
+  caseRecord         CaseRecord       @relation("R_UseMapping_caseRecord", fields: [caseId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_use_mappings_case_record")
+  work               CaseWork         @relation("R_UseMapping_work", fields: [caseWorkId, caseId], references: [id, caseId], onDelete: Restrict, onUpdate: Restrict, map: "fk_use_mappings_work")
+  reportedItem       ReportedItem     @relation("R_UseMapping_reportedItem", fields: [reportedItemId, caseId], references: [id, caseId], onDelete: Restrict, onUpdate: Restrict, map: "fk_use_mappings_reported_item")
+  basisSource        SourceReference? @relation("R_UseMapping_basisSource", fields: [basisSourceId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_use_mappings_basis_source")
+  caseFact_mapping   CaseFact[]       @relation("R_CaseFact_mapping")
+
+  @@unique([caseWorkId, reportedItemId, occurrence], map: "use_mappings_case_work_id_reported_item_id_occurrence_key")
+  @@unique([id, caseId], map: "use_mappings_id_case_id_key")
+  @@index([reportedItemId, caseId], map: "use_mappings_reported_item_id_case_id_idx")
+  @@map("use_mappings")
+}
+
+/// Immutable capture metadata, not a guarantee of truth. A URL hash is not a content hash. Null agency only for public/shared-scoped sources, not permission to cross agencies.
+model SourceReference {
+  id                                 String                   @id @default(uuid()) @map("id") @db.Char(36)
+  agencyId                           String?                  @map("agency_id") @db.Char(36)
+  sourceGroupId                      String                   @map("source_group_id") @db.Char(36)
+  revision                           Int                      @map("revision") @db.UnsignedInt
+  supersedesSourceId                 String?                  @unique @map("supersedes_source_id") @db.Char(36)
+  title                              String                   @map("title") @db.VarChar(500)
+  canonicalUrl                       String?                  @map("canonical_url") @db.VarChar(4096)
+  providerFileId                     String?                  @map("provider_file_id") @db.VarChar(191)
+  providerRevisionId                 String?                  @map("provider_revision_id") @db.VarChar(191)
+  sourceRole                         SourceRole               @map("source_role")
+  accessState                        AccessState              @default(NOT_CHECKED) @map("access_state")
+  contentSha256                      String?                  @map("content_sha256") @db.VarChar(64)
+  hashTarget                         HashTarget?              @map("hash_target")
+  reportedProvenance                 Provenance               @default(OPERATOR_REPORTED) @map("reported_provenance")
+  rawProvenance                      String?                  @map("raw_provenance") @db.VarChar(120)
+  scopeText                          String                   @map("scope_text") @db.LongText
+  scopeBindings                      Json?                    @map("scope_bindings")
+  observedAt                         DateTime?                @map("observed_at") @db.DateTime(3)
+  reviewedByLabel                    String?                  @map("reviewed_by_label") @db.VarChar(255)
+  reviewedAt                         DateTime?                @map("reviewed_at") @db.DateTime(3)
+  excerpt                            String?                  @map("excerpt") @db.LongText
+  excerptLocator                     String?                  @map("excerpt_locator") @db.VarChar(500)
+  limitations                        String?                  @map("limitations") @db.LongText
+  createdAt                          DateTime                 @default(now()) @map("created_at") @db.DateTime(3)
+  createdById                        String                   @map("created_by_id") @db.Char(36)
+  createdBy                          User                     @relation("R_SourceReference_createdBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_source_references_created_by")
+  agency                             Agency?                  @relation("R_SourceReference_agency", fields: [agencyId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_source_references_agency")
+  supersedesSource                   SourceReference?         @relation("R_SourceReference_supersedesSource", fields: [supersedesSourceId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_source_references_supersedes_source")
+  agency_canonicalSource             Agency[]                 @relation("R_Agency_canonicalSource")
+  owner_canonicalSource              Owner[]                  @relation("R_Owner_canonicalSource")
+  legalSubject_canonicalSource       LegalSubject[]           @relation("R_LegalSubject_canonicalSource")
+  ownerSubject_source                OwnerSubject[]           @relation("R_OwnerSubject_source")
+  signer_identitySource              Signer[]                 @relation("R_Signer_identitySource")
+  signer_delegationSource            Signer[]                 @relation("R_Signer_delegationSource")
+  signer_canonicalSource             Signer[]                 @relation("R_Signer_canonicalSource")
+  route_canonicalSource              Route[]                  @relation("R_Route_canonicalSource")
+  mandate_canonicalSource            Mandate[]                @relation("R_Mandate_canonicalSource")
+  mandateVersion_primarySource       MandateVersion[]         @relation("R_MandateVersion_primarySource")
+  mandateCoverage_basisSource        MandateCoverage[]        @relation("R_MandateCoverage_basisSource")
+  coverageSigner_source              CoverageSigner[]         @relation("R_CoverageSigner_source")
+  authorityEvent_source              AuthorityEvent[]         @relation("R_AuthorityEvent_source")
+  caseRecord_packetSource            CaseRecord[]             @relation("R_CaseRecord_packetSource")
+  caseRecord_canonicalBindingSource  CaseRecord[]             @relation("R_CaseRecord_canonicalBindingSource")
+  caseAuthoritySelection_basisSource CaseAuthoritySelection[] @relation("R_CaseAuthoritySelection_basisSource")
+  useMapping_basisSource             UseMapping[]             @relation("R_UseMapping_basisSource")
+  sourceReference_supersedesSource   SourceReference?         @relation("R_SourceReference_supersedesSource")
+  caseSource_source                  CaseSource[]             @relation("R_CaseSource_source")
+  correspondence_rawSource           Correspondence[]         @relation("R_Correspondence_rawSource")
+
+  @@unique([sourceGroupId, revision], map: "source_references_source_group_id_revision_key")
+  @@index([agencyId, createdAt], map: "source_references_agency_id_created_at_idx")
+  @@index([providerFileId], map: "source_references_provider_file_id_idx")
+  @@map("source_references")
+}
+
+/// 
+model CaseSource {
+  id                          String             @id @default(uuid()) @map("id") @db.Char(36)
+  caseId                      String             @map("case_id") @db.Char(36)
+  sourceId                    String             @map("source_id") @db.Char(36)
+  useRole                     String             @map("use_role") @db.VarChar(60)
+  scopeNote                   String             @map("scope_note") @db.LongText
+  linkState                   LinkState          @default(LINKED) @map("link_state")
+  stateReason                 String?            @map("state_reason") @db.LongText
+  createdAt                   DateTime           @default(now()) @map("created_at") @db.DateTime(3)
+  createdById                 String             @map("created_by_id") @db.Char(36)
+  updatedAt                   DateTime           @updatedAt @map("updated_at") @db.DateTime(3)
+  updatedById                 String             @map("updated_by_id") @db.Char(36)
+  rowVersion                  Int                @default(1) @map("row_version") @db.UnsignedInt
+  createdBy                   User               @relation("R_CaseSource_createdBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_case_sources_created_by")
+  updatedBy                   User               @relation("R_CaseSource_updatedBy", fields: [updatedById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_case_sources_updated_by")
+  caseRecord                  CaseRecord         @relation("R_CaseSource_caseRecord", fields: [caseId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_case_sources_case_record")
+  source                      SourceReference    @relation("R_CaseSource_source", fields: [sourceId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_case_sources_source")
+  factSource_caseSource       FactSource[]       @relation("R_FactSource_caseSource")
+  assessmentSource_caseSource AssessmentSource[] @relation("R_AssessmentSource_caseSource")
+
+  @@unique([caseId, sourceId, useRole], map: "case_sources_case_id_source_id_use_role_key")
+  @@index([sourceId], map: "case_sources_source_id_idx")
+  @@map("case_sources")
+}
+
+/// Append-only revisions. The value schema is selected by FactType. Latest successor is current; WITHDRAWN is a retraction, not deletion.
+model CaseFact {
+  id                      String          @id @default(uuid()) @map("id") @db.Char(36)
+  caseId                  String          @map("case_id") @db.Char(36)
+  factGroupId             String          @map("fact_group_id") @db.Char(36)
+  revision                Int             @map("revision") @db.UnsignedInt
+  supersedesFactId        String?         @unique @map("supersedes_fact_id") @db.Char(36)
+  factType                FactType        @map("fact_type")
+  scopeKind               FactScope       @map("scope_kind")
+  caseWorkId              String?         @map("case_work_id") @db.Char(36)
+  reportedItemId          String?         @map("reported_item_id") @db.Char(36)
+  mappingId               String?         @map("mapping_id") @db.Char(36)
+  value                   Json            @map("value")
+  provenance              Provenance      @map("provenance")
+  rawProvenance           String?         @map("raw_provenance") @db.VarChar(120)
+  resolutionState         ResolutionState @default(UNASSESSED) @map("resolution_state")
+  assertedByLabel         String?         @map("asserted_by_label") @db.VarChar(255)
+  assertedAsOf            DateTime?       @map("asserted_as_of") @db.DateTime(3)
+  scopeText               String          @map("scope_text") @db.LongText
+  limitations             String?         @map("limitations") @db.LongText
+  changeReason            String          @map("change_reason") @db.LongText
+  createdAt               DateTime        @default(now()) @map("created_at") @db.DateTime(3)
+  createdById             String          @map("created_by_id") @db.Char(36)
+  createdBy               User            @relation("R_CaseFact_createdBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_case_facts_created_by")
+  caseRecord              CaseRecord      @relation("R_CaseFact_caseRecord", fields: [caseId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_case_facts_case_record")
+  work                    CaseWork?       @relation("R_CaseFact_work", fields: [caseWorkId, caseId], references: [id, caseId], onDelete: Restrict, onUpdate: Restrict, map: "fk_case_facts_work")
+  reportedItem            ReportedItem?   @relation("R_CaseFact_reportedItem", fields: [reportedItemId, caseId], references: [id, caseId], onDelete: Restrict, onUpdate: Restrict, map: "fk_case_facts_reported_item")
+  mapping                 UseMapping?     @relation("R_CaseFact_mapping", fields: [mappingId, caseId], references: [id, caseId], onDelete: Restrict, onUpdate: Restrict, map: "fk_case_facts_mapping")
+  supersedesFact          CaseFact?       @relation("R_CaseFact_supersedesFact", fields: [supersedesFactId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_case_facts_supersedes_fact")
+  caseFact_supersedesFact CaseFact?       @relation("R_CaseFact_supersedesFact")
+  factSource_fact         FactSource[]    @relation("R_FactSource_fact")
+
+  @@unique([factGroupId, revision], map: "case_facts_fact_group_id_revision_key")
+  @@unique([id, caseId], map: "case_facts_id_case_id_key")
+  @@index([caseId, factType, createdAt], map: "case_facts_case_id_fact_type_created_at_idx")
+  @@map("case_facts")
+}
+
+/// Server must check CaseFact.caseId = CaseSource.caseId. Named supporting assertion is not authentication.
+model FactSource {
+  id                 String     @id @default(uuid()) @map("id") @db.Char(36)
+  factId             String     @map("fact_id") @db.Char(36)
+  caseSourceId       String     @map("case_source_id") @db.Char(36)
+  supportRole        String     @map("support_role") @db.VarChar(80)
+  supportedAssertion String     @map("supported_assertion") @db.LongText
+  createdAt          DateTime   @default(now()) @map("created_at") @db.DateTime(3)
+  createdById        String     @map("created_by_id") @db.Char(36)
+  createdBy          User       @relation("R_FactSource_createdBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_fact_sources_created_by")
+  fact               CaseFact   @relation("R_FactSource_fact", fields: [factId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_fact_sources_fact")
+  caseSource         CaseSource @relation("R_FactSource_caseSource", fields: [caseSourceId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_fact_sources_case_source")
+
+  @@unique([factId, caseSourceId, supportRole], map: "fact_sources_fact_id_case_source_id_support_role_key")
+  @@map("fact_sources")
+}
+
+/// Preserve actual observations; not a send API. Source identity hash derived from a trustworthy provider/capture identity, never subject or Message-ID alone.
+model Correspondence {
+  id                                   String                  @id @default(uuid()) @map("id") @db.Char(36)
+  agencyId                             String                  @map("agency_id") @db.Char(36)
+  mailboxAddress                       String                  @map("mailbox_address") @db.VarChar(254)
+  direction                            Direction               @map("direction")
+  subject                              String                  @map("subject") @db.VarChar(998)
+  messageId                            String?                 @map("message_id") @db.VarChar(998)
+  inReplyTo                            String?                 @map("in_reply_to") @db.VarChar(998)
+  references                           Json?                   @map("references")
+  sourceIdentityHash                   String?                 @map("source_identity_hash") @db.VarChar(64)
+  captureMode                          CaptureMode             @map("capture_mode")
+  bodyRole                             BodyRole                @default(UNKNOWN) @map("body_role")
+  bodyText                             String?                 @map("body_text") @db.LongText
+  bodySha256                           String?                 @map("body_sha256") @db.VarChar(64)
+  rawSourceId                          String?                 @map("raw_source_id") @db.Char(36)
+  attachmentsManifest                  Json?                   @map("attachments_manifest")
+  headerDateRaw                        String?                 @map("header_date_raw") @db.VarChar(255)
+  occurredAt                           DateTime?               @map("occurred_at") @db.DateTime(3)
+  timestampPrecision                   String                  @default("UNKNOWN") @map("timestamp_precision") @db.VarChar(40)
+  fromAddress                          String?                 @map("from_address") @db.VarChar(254)
+  toAddress                            String?                 @map("to_address") @db.VarChar(254)
+  replyToAddress                       String?                 @map("reply_to_address") @db.VarChar(254)
+  limitations                          String?                 @map("limitations") @db.LongText
+  createdAt                            DateTime                @default(now()) @map("created_at") @db.DateTime(3)
+  createdById                          String                  @map("created_by_id") @db.Char(36)
+  createdBy                            User                    @relation("R_Correspondence_createdBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_correspondence_created_by")
+  agency                               Agency                  @relation("R_Correspondence_agency", fields: [agencyId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_correspondence_agency")
+  rawSource                            SourceReference?        @relation("R_Correspondence_rawSource", fields: [rawSourceId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_correspondence_raw_source")
+  correspondenceBinding_correspondence CorrespondenceBinding[] @relation("R_CorrespondenceBinding_correspondence")
+
+  @@unique([agencyId, mailboxAddress, sourceIdentityHash], map: "correspondence_agency_id_mailbox_address_source__77ddb99b")
+  @@unique([id, agencyId], map: "correspondence_id_agency_id_key")
+  @@index([agencyId, occurredAt, id], map: "correspondence_agency_id_occurred_at_id_idx")
+  @@map("correspondence")
+}
+
+/// Append-only semantic binding. Corrections create successors; one transmission may bind to multiple URLs. Outcome requires a specific item in V1.
+model CorrespondenceBinding {
+  id                                      String                 @id @default(uuid()) @map("id") @db.Char(36)
+  caseId                                  String                 @map("case_id") @db.Char(36)
+  agencyId                                String                 @map("agency_id") @db.Char(36)
+  correspondenceId                        String                 @map("correspondence_id") @db.Char(36)
+  reportedItemId                          String?                @map("reported_item_id") @db.Char(36)
+  eventType                               EventType              @map("event_type")
+  platformReference                       String?                @map("platform_reference") @db.VarChar(191)
+  outcome                                 Outcome?               @map("outcome")
+  interpretation                          String?                @map("interpretation") @db.LongText
+  supersedesBindingId                     String?                @unique @map("supersedes_binding_id") @db.Char(36)
+  createdAt                               DateTime               @default(now()) @map("created_at") @db.DateTime(3)
+  createdById                             String                 @map("created_by_id") @db.Char(36)
+  createdBy                               User                   @relation("R_CorrespondenceBinding_createdBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_correspondence_bindings_created_by")
+  caseRecord                              CaseRecord             @relation("R_CorrespondenceBinding_caseRecord", fields: [caseId, agencyId], references: [id, agencyId], onDelete: Restrict, onUpdate: Restrict, map: "fk_correspondence_bindings_case_record")
+  correspondence                          Correspondence         @relation("R_CorrespondenceBinding_correspondence", fields: [correspondenceId, agencyId], references: [id, agencyId], onDelete: Restrict, onUpdate: Restrict, map: "fk_correspondence_bindings_correspondence")
+  reportedItem                            ReportedItem?          @relation("R_CorrespondenceBinding_reportedItem", fields: [reportedItemId, caseId], references: [id, caseId], onDelete: Restrict, onUpdate: Restrict, map: "fk_correspondence_bindings_reported_item")
+  supersedesBinding                       CorrespondenceBinding? @relation("R_CorrespondenceBinding_supersedesBinding", fields: [supersedesBindingId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_correspondence_bindings_supersedes_binding")
+  correspondenceBinding_supersedesBinding CorrespondenceBinding? @relation("R_CorrespondenceBinding_supersedesBinding")
+  promptSnapshot_parentBinding            PromptSnapshot[]       @relation("R_PromptSnapshot_parentBinding")
+
+  @@unique([id, caseId], map: "correspondence_bindings_id_case_id_key")
+  @@index([caseId, createdAt], map: "correspondence_bindings_case_id_created_at_idx")
+  @@index([correspondenceId], map: "correspondence_bindings_correspondence_id_idx")
+  @@index([platformReference], map: "correspondence_bindings_platform_reference_idx")
+  @@map("correspondence_bindings")
+}
+
+/// Exact immutable prompt/context. SHA-256 of exact stored UTF-8 text, not a legal attestation.
+model PromptSnapshot {
+  id                     String                  @id @default(uuid()) @map("id") @db.Char(36)
+  caseId                 String                  @map("case_id") @db.Char(36)
+  taskType               TaskType                @map("task_type")
+  generationMode         GenerationMode          @map("generation_mode")
+  version                Int                     @map("version") @db.UnsignedInt
+  authoritySelectionId   String?                 @map("authority_selection_id") @db.Char(36)
+  parentBindingId        String?                 @map("parent_binding_id") @db.Char(36)
+  contractVersion        String                  @map("contract_version") @db.VarChar(80)
+  templateVersion        String                  @map("template_version") @db.VarChar(80)
+  contextRevision        Int                     @map("context_revision") @db.UnsignedInt
+  dependencyDigest       String                  @map("dependency_digest") @db.VarChar(64)
+  dependencyManifest     Json                    @map("dependency_manifest")
+  contextJson            Json                    @map("context_json")
+  sourceManifest         Json                    @map("source_manifest")
+  missingItems           Json                    @map("missing_items")
+  conflicts              Json                    @map("conflicts")
+  renderedPrompt         String                  @map("rendered_prompt") @db.LongText
+  promptSha256           String                  @map("prompt_sha256") @db.VarChar(64)
+  createdAt              DateTime                @default(now()) @map("created_at") @db.DateTime(3)
+  createdById            String                  @map("created_by_id") @db.Char(36)
+  createdBy              User                    @relation("R_PromptSnapshot_createdBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_prompt_snapshots_created_by")
+  caseRecord             CaseRecord              @relation("R_PromptSnapshot_caseRecord", fields: [caseId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_prompt_snapshots_case_record")
+  authoritySelection     CaseAuthoritySelection? @relation("R_PromptSnapshot_authoritySelection", fields: [authoritySelectionId, caseId], references: [id, caseId], onDelete: Restrict, onUpdate: Restrict, map: "fk_prompt_snapshots_authority_selection")
+  parentBinding          CorrespondenceBinding?  @relation("R_PromptSnapshot_parentBinding", fields: [parentBindingId, caseId], references: [id, caseId], onDelete: Restrict, onUpdate: Restrict, map: "fk_prompt_snapshots_parent_binding")
+  noticeCandidate_prompt NoticeCandidate[]       @relation("R_NoticeCandidate_prompt")
+
+  @@unique([caseId, taskType, version], map: "prompt_snapshots_case_id_task_type_version_key")
+  @@unique([id, caseId], map: "prompt_snapshots_id_case_id_key")
+  @@index([caseId, createdAt], map: "prompt_snapshots_case_id_created_at_idx")
+  @@map("prompt_snapshots")
+}
+
+/// Content immutable at insert. PATCH body is forbidden. Only supersededAt/reason may be set by dedicated command. Artifact hash binds body, subject, envelope, planned documents and signature slot; does not prove send.
+model NoticeCandidate {
+  id                              String                @id @default(uuid()) @map("id") @db.Char(36)
+  caseId                          String                @map("case_id") @db.Char(36)
+  promptSnapshotId                String                @map("prompt_snapshot_id") @db.Char(36)
+  parentCandidateId               String?               @map("parent_candidate_id") @db.Char(36)
+  version                         Int                   @map("version") @db.UnsignedInt
+  taskType                        TaskType              @map("task_type")
+  subject                         String                @map("subject") @db.VarChar(998)
+  envelopeJson                    Json                  @map("envelope_json")
+  bodyText                        String                @map("body_text") @db.LongText
+  bodySha256                      String                @map("body_sha256") @db.VarChar(64)
+  artifactSha256                  String                @map("artifact_sha256") @db.VarChar(64)
+  preparedDocuments               Json                  @map("prepared_documents")
+  signatureState                  String                @default("HUMAN_PENDING") @map("signature_state") @db.VarChar(40)
+  authoringTool                   String?               @map("authoring_tool") @db.VarChar(100)
+  revisionReason                  String?               @map("revision_reason") @db.LongText
+  supersededAt                    DateTime?             @map("superseded_at") @db.DateTime(3)
+  supersedeReason                 String?               @map("supersede_reason") @db.LongText
+  createdAt                       DateTime              @default(now()) @map("created_at") @db.DateTime(3)
+  createdById                     String                @map("created_by_id") @db.Char(36)
+  createdBy                       User                  @relation("R_NoticeCandidate_createdBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_notice_candidates_created_by")
+  caseRecord                      CaseRecord            @relation("R_NoticeCandidate_caseRecord", fields: [caseId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_notice_candidates_case_record")
+  prompt                          PromptSnapshot        @relation("R_NoticeCandidate_prompt", fields: [promptSnapshotId, caseId], references: [id, caseId], onDelete: Restrict, onUpdate: Restrict, map: "fk_notice_candidates_prompt")
+  parentCandidate                 NoticeCandidate?      @relation("R_NoticeCandidate_parentCandidate", fields: [parentCandidateId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_notice_candidates_parent_candidate")
+  noticeCandidate_parentCandidate NoticeCandidate[]     @relation("R_NoticeCandidate_parentCandidate")
+  validationRun_candidate         ValidationRun[]       @relation("R_ValidationRun_candidate")
+  candidateAssessment_candidate   CandidateAssessment[] @relation("R_CandidateAssessment_candidate")
+
+  @@unique([caseId, taskType, version], map: "notice_candidates_case_id_task_type_version_key")
+  @@unique([id, caseId], map: "notice_candidates_id_case_id_key")
+  @@index([caseId, createdAt], map: "notice_candidates_case_id_created_at_idx")
+  @@map("notice_candidates")
+}
+
+/// Server-generated structural/heuristic checks only. Never implies G1-G6 were reviewed substantively.
+model ValidationRun {
+  id                   String            @id @default(uuid()) @map("id") @db.Char(36)
+  candidateId          String            @map("candidate_id") @db.Char(36)
+  caseId               String            @map("case_id") @db.Char(36)
+  artifactSha256       String            @map("artifact_sha256") @db.VarChar(64)
+  dependencyDigest     String            @map("dependency_digest") @db.VarChar(64)
+  dependencyManifest   Json              @map("dependency_manifest")
+  evaluatedContextJson Json              @map("evaluated_context_json")
+  rulesetVersion       String            @map("ruleset_version") @db.VarChar(80)
+  result               TechnicalResult   @map("result")
+  coverageManifest     Json              @map("coverage_manifest")
+  blockerCount         Int               @map("blocker_count") @db.UnsignedInt
+  reviewRequiredCount  Int               @map("review_required_count") @db.UnsignedInt
+  warningCount         Int               @map("warning_count") @db.UnsignedInt
+  startedAt            DateTime          @map("started_at") @db.DateTime(3)
+  completedAt          DateTime          @map("completed_at") @db.DateTime(3)
+  createdAt            DateTime          @default(now()) @map("created_at") @db.DateTime(3)
+  createdById          String            @map("created_by_id") @db.Char(36)
+  createdBy            User              @relation("R_ValidationRun_createdBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_validation_runs_created_by")
+  candidate            NoticeCandidate   @relation("R_ValidationRun_candidate", fields: [candidateId, caseId], references: [id, caseId], onDelete: Restrict, onUpdate: Restrict, map: "fk_validation_runs_candidate")
+  validationIssue_run  ValidationIssue[] @relation("R_ValidationIssue_run")
+
+  @@unique([id, candidateId], map: "validation_runs_id_candidate_id_key")
+  @@index([candidateId, createdAt], map: "validation_runs_candidate_id_created_at_idx")
+  @@map("validation_runs")
+}
+
+/// 
+model ValidationIssue {
+  id          String        @id @default(uuid()) @map("id") @db.Char(36)
+  runId       String        @map("run_id") @db.Char(36)
+  ruleId      String        @map("rule_id") @db.VarChar(100)
+  checkKind   CheckKind     @map("check_kind")
+  severity    IssueSeverity @map("severity")
+  fieldPath   String?       @map("field_path") @db.VarChar(500)
+  message     String        @map("message") @db.LongText
+  details     Json?         @map("details")
+  createdAt   DateTime      @default(now()) @map("created_at") @db.DateTime(3)
+  createdById String        @map("created_by_id") @db.Char(36)
+  createdBy   User          @relation("R_ValidationIssue_createdBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_validation_issues_created_by")
+  run         ValidationRun @relation("R_ValidationIssue_run", fields: [runId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_validation_issues_run")
+
+  @@index([runId, severity], map: "validation_issues_run_id_severity_idx")
+  @@map("validation_issues")
+}
+
+/// Attributable source-bound G1-G6 review capture, not an automatic decision and never G7. Source inclusion alone cannot verify legal facts. POST is an operator report of an actual assessment, not a request for fabricated PASS.
+model CandidateAssessment {
+  id                                       String               @id @default(uuid()) @map("id") @db.Char(36)
+  candidateId                              String               @map("candidate_id") @db.Char(36)
+  caseId                                   String               @map("case_id") @db.Char(36)
+  gate                                     GateId               @map("gate")
+  result                                   GateResult           @map("result")
+  artifactSha256                           String               @map("artifact_sha256") @db.VarChar(64)
+  dependencyDigest                         String               @map("dependency_digest") @db.VarChar(64)
+  rulesetVersion                           String               @map("ruleset_version") @db.VarChar(80)
+  scopeState                               AssessmentScopeState @default(RECORDED_NOT_ADOPTED) @map("scope_state")
+  performerKind                            PerformerKind        @map("performer_kind")
+  performerLabel                           String               @map("performer_label") @db.VarChar(255)
+  assessedAt                               DateTime?            @map("assessed_at") @db.DateTime(3)
+  provenance                               Provenance           @map("provenance")
+  rationale                                String               @map("rationale") @db.LongText
+  scopeText                                String               @map("scope_text") @db.LongText
+  limitations                              String?              @map("limitations") @db.LongText
+  askDispositions                          Json?                @map("ask_dispositions")
+  supersedesAssessmentId                   String?              @unique @map("supersedes_assessment_id") @db.Char(36)
+  createdAt                                DateTime             @default(now()) @map("created_at") @db.DateTime(3)
+  createdById                              String               @map("created_by_id") @db.Char(36)
+  createdBy                                User                 @relation("R_CandidateAssessment_createdBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_candidate_assessments_created_by")
+  candidate                                NoticeCandidate      @relation("R_CandidateAssessment_candidate", fields: [candidateId, caseId], references: [id, caseId], onDelete: Restrict, onUpdate: Restrict, map: "fk_candidate_assessments_candidate")
+  supersedesAssessment                     CandidateAssessment? @relation("R_CandidateAssessment_supersedesAssessment", fields: [supersedesAssessmentId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_candidate_assessments_supersedes_assessment")
+  candidateAssessment_supersedesAssessment CandidateAssessment? @relation("R_CandidateAssessment_supersedesAssessment")
+  assessmentSource_assessment              AssessmentSource[]   @relation("R_AssessmentSource_assessment")
+
+  @@index([candidateId, gate, createdAt], map: "candidate_assessments_candidate_id_gate_created_at_idx")
+  @@map("candidate_assessments")
+}
+
+/// Backend checks the case and scope of both endpoints.
+model AssessmentSource {
+  id                  String              @id @default(uuid()) @map("id") @db.Char(36)
+  assessmentId        String              @map("assessment_id") @db.Char(36)
+  caseSourceId        String              @map("case_source_id") @db.Char(36)
+  supportedConclusion String              @map("supported_conclusion") @db.LongText
+  createdAt           DateTime            @default(now()) @map("created_at") @db.DateTime(3)
+  createdById         String              @map("created_by_id") @db.Char(36)
+  createdBy           User                @relation("R_AssessmentSource_createdBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_assessment_sources_created_by")
+  assessment          CandidateAssessment @relation("R_AssessmentSource_assessment", fields: [assessmentId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_assessment_sources_assessment")
+  caseSource          CaseSource          @relation("R_AssessmentSource_caseSource", fields: [caseSourceId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_assessment_sources_case_source")
+
+  @@unique([assessmentId, caseSourceId], map: "assessment_sources_assessment_id_case_source_id_key")
+  @@map("assessment_sources")
+}
+
+/// Append-only application audit, not tamper-proof evidence. Passwords, session tokens and raw confidential bodies excluded.
+model AuditEvent {
+  id             String   @id @default(uuid()) @map("id") @db.Char(36)
+  actorUserId    String?  @map("actor_user_id") @db.Char(36)
+  requestId      String   @map("request_id") @db.VarChar(100)
+  action         String   @map("action") @db.VarChar(120)
+  entityType     String   @map("entity_type") @db.VarChar(100)
+  entityId       String?  @map("entity_id") @db.Char(36)
+  beforeRedacted Json?    @map("before_redacted")
+  afterRedacted  Json?    @map("after_redacted")
+  reason         String?  @map("reason") @db.LongText
+  sourceIds      Json?    @map("source_ids")
+  createdAt      DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  actor          User?    @relation("R_AuditEvent_actor", fields: [actorUserId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_audit_events_actor")
+
+  @@index([entityType, entityId, createdAt, id], map: "audit_events_entity_type_entity_id_created_at_id_idx")
+  @@index([actorUserId, createdAt], map: "audit_events_actor_user_id_created_at_idx")
+  @@map("audit_events")
+}
+
+/// Same actor + operation + key + payload replays same response; failed tx leaves no committed result. Expiry is bounded replay horizon, not permanent deduplication.
+model IdempotencyRecord {
+  id             String           @id @default(uuid()) @map("id") @db.Char(36)
+  actorUserId    String           @map("actor_user_id") @db.Char(36)
+  operationId    String           @map("operation_id") @db.VarChar(100)
+  idempotencyKey String           @map("idempotency_key") @db.VarChar(100)
+  requestSha256  String           @map("request_sha256") @db.VarChar(64)
+  state          IdempotencyState @map("state")
+  responseStatus Int?             @map("response_status") @db.UnsignedSmallInt
+  responseJson   Json?            @map("response_json")
+  resourceType   String?          @map("resource_type") @db.VarChar(100)
+  resourceId     String?          @map("resource_id") @db.Char(36)
+  expiresAt      DateTime         @map("expires_at") @db.DateTime(3)
+  createdAt      DateTime         @default(now()) @map("created_at") @db.DateTime(3)
+  actor          User             @relation("R_IdempotencyRecord_actor", fields: [actorUserId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_idempotency_records_actor")
+
+  @@unique([actorUserId, operationId, idempotencyKey], map: "idempotency_records_actor_user_id_operation_id_i_92ad1804")
+  @@index([expiresAt], map: "idempotency_records_expires_at_idx")
+  @@map("idempotency_records")
+}

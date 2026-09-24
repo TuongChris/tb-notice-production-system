@@ -1,0 +1,75 @@
+# P2 R5 remediation — Playwright MCP re-run of the affected Directory scenarios (home PC, 2026-09-24 UTC)
+#
+# Supplemental evidence; the repository test suites (yarn test, yarn test:db) remain authoritative.
+# Re-run because the remediation changed the identity-lock behaviour of the Agency and LegalSubject
+# edit forms and the Signer state dialog wording. The 14 R5 checks in
+# p2-playwright-mcp-verification.txt are otherwise unaffected: lists, create, archive/restore, owner
+# and subject creation, linking, signers, validation, the two-tab 412, delete refusal, keyboard and
+# logout do not depend on the identity lock. The R5 "D3 in the real UI" observation is superseded
+# by R3 below.
+#
+# Environment
+#   Browser:   the same Playwright MCP isolated test browser (headless Chromium, WSL); no personal
+#              browser profile, no external account, no external site.
+#   App:       `yarn ui:sandbox` on the tree of commit 4b67fff (the remediation): compiled AppModule on
+#              127.0.0.1:3000 with Prisma on the disposable tb_notice_test (never tb_notice_dev), and
+#              `vite preview` of the freshly built web app on 127.0.0.1:5173, opened as
+#              http://localhost:5173.
+#   Account:   synthetic sandbox user p2-ui-sandbox@example.invalid; its generated password lived only
+#              in a mode-600 file outside the repository, which was deleted afterwards.
+#   Data:      synthetic records only ("SYNTHETIC R5 Agency One", "SYNTHETIC R5 Agency Two",
+#              "SYNTHETIC Nguyễn Văn Mẫu", "SYNTHETIC R5 Subject Joint Stock Company",
+#              "SYNTHETIC R5 Brand").
+#   Window:    04:02Z–04:05Z.
+#   Cleanup:   sandbox stopped with SIGINT, which deleted every sandbox row and verified the tables
+#              empty; `yarn db:verify test --expect-empty` then PASS (domain rows total: 0); ports
+#              3000/5173 released.
+#   Console:   only Chromium's "Failed to load resource" lines for the intended 401 (session check
+#              before login) and the two intended 409 refusals; no JavaScript error.
+
+Scenarios
+ 0 PASS session boundary
+        /directory/agencies without a session redirects to /login; sign-in reaches the app; at the end
+        "Sign out" returns to /login with "You have signed out."
+R1 PASS a DRAFT, unreferenced agency may fill an empty identity field
+        Created "SYNTHETIC R5 Agency One" (legal name only). In the edit form every identity field was
+        editable; registration number filled with SYN-R5-0001 and saved: "Changes saved.", Version 2.
+R2 PASS an ACTIVE agency locks every identity field, including empty ones; contact stays editable
+        Marked active through the reason dialog (Version 3). Edit form: legal name, registration number
+        and the three EMPTY fields (organization type, jurisdiction, registration authority) all
+        readOnly, each described by "Locked: this agency is established (active, canonically bound or
+        referenced by another record). Its legal identity can’t be filled in, changed or cleared
+        here."; the fieldset hint says the same. Phone and emails stayed editable. Saving a phone
+        sent PATCH body {"phone":"+84 28 5555 0001"} only: "Changes saved.", Version 4; the empty
+        identity fields still read "Not recorded". Screenshot 08.
+R3 PASS a DRAFT agency referenced by a signer: the server refuses the fill and the form locks
+        Created "SYNTHETIC R5 Agency Two" and, from its page, a draft signer. The edit form starts
+        editable (the reference is not visible to the page). Filled the empty registration number and
+        a phone number and saved: real 409 ESTABLISHED_IDENTITY_IMMUTABLE, details
+        {"fields":["registrationNumber"],"establishedBy":["REFERENCED_BY:signers.agency_id"]}. The
+        focused alert read "This agency's identity can't be filled in, changed or cleared here because
+        signers belong to it. Correcting or completing an established identity needs a separate
+        workflow that isn't available yet." All five identity fields became readOnly, the attempted
+        registration number reverted to empty, the phone stayed as typed. Saving again sent
+        {"phone":"+84 28 5555 0002"} only: "Changes saved.", Version 2 (the refused request changed
+        nothing, not even the version); registration number "Not recorded". Screenshot 09.
+R4 PASS a legal subject linked to an owner: same refusal and lock on the LegalSubject form
+        Created "SYNTHETIC R5 Subject Joint Stock Company" (legal entity) and owner "SYNTHETIC R5
+        Brand", linked them on the owner page. On the subject's edit form, filled the empty legal form
+        and a contact email: real 409; alert "This legal subject's identity can't be filled in,
+        changed or cleared here because owners are linked to it. …"; legal name, legal form,
+        jurisdiction, registration authority and registration number all readOnly; contact email kept.
+        Saving again sent {"contactEmail":"r5-subject@example.invalid"} only: Version 2; legal form
+        "Not recorded".
+R5 PASS the Signer state dialog states interpretation C
+        "Change operational state" dialog: "Operational state is an administrative note only. No state
+        gives mandate coverage, eligibility, G7 clearance, signature authority or the right to adopt a
+        notice." (closed with Escape; no state was changed).
+
+Screenshots (synthetic data only; docs/verification/p2/evidence/screenshots/)
+ 08-active-agency-identity-locked.png   R2: every identity field of an active agency locked, empty ones included
+ 09-referenced-agency-fill-refused.png  R3: server refusal for a referenced draft agency, fields locked
+
+Observation (cosmetic, not changed): when a record is established, the same lock note is repeated under
+each of the five identity fields. It is accurate and each field is described by its own note; a single
+note for the whole fieldset would read more quietly.

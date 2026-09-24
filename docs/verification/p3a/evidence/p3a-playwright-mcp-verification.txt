@@ -1,0 +1,165 @@
+# P3A Sources, canonical bindings and Route — Playwright MCP browser verification (home PC, 2026-09-24 UTC)
+#
+# Supplemental evidence. The repository suites (yarn test, yarn test:db) and the negative controls
+# remain authoritative for regression; this is an interactive check of the real UI against the
+# real compiled API.
+#
+# Environment
+#   Browser:   Playwright MCP isolated test browser (HeadlessChrome 154, chrome-headless-shell,
+#              Linux, WSL): config "isolated": true, no saved session, network limited to
+#              localhost / 127.0.0.1. No personal browser profile, no external account or site.
+#   App:       `yarn ui:sandbox` on the tree of commit 9481bd0 (first pass) and 85c2839 (fix
+#              re-verification): the COMPILED AppModule in-process on 127.0.0.1:3000 with Prisma
+#              pointed at the disposable tb_notice_test schema (never tb_notice_dev), and
+#              `vite preview` of the built web app on 127.0.0.1:5173.
+#   Account:   one synthetic sandbox user p2-ui-sandbox@example.invalid; password generated at
+#              start, written only to a mode-600 file outside the repository, deleted afterwards.
+#   Data:      synthetic records only: agencies "SYNTHETIC Agency Alpha" / "Gamma" (and "Delta" /
+#              "Epsilon" in the re-verification), owner "SYNTHETIC Brand Beta", legal subject
+#              "SYNTHETIC Beta Media Joint Stock Company", signer "SYNTHETIC Trần Thị Mẫu", five
+#              source pointers to drive.example.invalid or with no address, all titled
+#              "(not evidence)". No real owner, agency, case or authority data.
+#   Window:    first pass 06:29Z–06:42Z; the empty-state fix re-verified 06:45Z–06:46Z.
+#   Cleanup:   after each session the sandbox was stopped with SIGINT → every sandbox row deleted
+#              and verified empty; then `yarn db:verify test --expect-empty` → PASS (domain rows
+#              total: 0). Ports 3000 and 5173 released. Password file deleted.
+#   Console:   the only browser console errors were Chromium's "Failed to load resource" lines
+#              for intentional 401 (session check before sign-in / after sign-out), 409 and 412
+#              responses; no JavaScript error was logged.
+#   Screenshots (synthetic only): evidence/screenshots/p3a-01 … p3a-11.
+
+Mission checks (§27)
+
+SOURCE
+ 1 PASS source list loads
+        Unauthenticated /sources → Login. After sign-in, Sources: heading, statement "A source
+        record points to a document kept elsewhere, usually in Google Drive. Recording it proves
+        nothing, reviews nothing and fetches nothing.", search and agency filter, empty state
+        "No sources recorded yet. Record the first source." (screenshot 01).
+ 2 PASS create SourceReference
+        "SYNTHETIC Alpha registry extract (not evidence)", kind Canonical record, belongs to Agency
+        Alpha, address https://drive.example.invalid/file/SYN-ALPHA-1 → "Source recorded.". On the
+        wire: POST /sources body = exactly the entered fields plus the form's visible Access and
+        Provenance choices {title, sourceRole CANONICAL_RECORD, scopeText, accessState NOT_CHECKED,
+        reportedProvenance OPERATOR_REPORTED, canonicalUrl, agencyId}; 201, Cache-Control no-store,
+        no ETag (immutable record).
+ 3 PASS source detail
+        Stamps Current revision · Revision 1 · Canonical record · Agency source; "A pointer with
+        capture metadata — not evidence, permission, authority or proof of review."; "The app never
+        opens or fetches this address."; "A hash is shown as it was supplied; this app does not
+        compute or verify it."; provenance "Operator reported" with "Recorded exactly as reported.
+        This app reviews no documents and never upgrades provenance."; scope; revision history;
+        record and chain ids. No verified/approved badge anywhere.
+ 4 PASS revise and observe revision/history semantics
+        "Record a new revision" → form states "The current revision stays unchanged; this creates
+        revision 2 of the same source. Agency and scope stay as they are — a different scope needs
+        a new source record." → new title → "Revision 2 recorded." (Current revision · Revision 2,
+        history lists both). Revision 1 now shows Superseded; its revise action is disabled with
+        "Only the current revision of a source can be revised."; "A newer revision exists:
+        revision 2 … Records that cite this revision keep pointing at it." (screenshot 03). The
+        list shows only revision 2.
+ 5 PASS validation failure
+        Empty form → "Enter a title." / "Choose what kind of source this is." / "Describe what the
+        source covers.", aria-invalid, focus on the title. Document reviewed without a reviewer →
+        "Name who reviewed the document, or choose another provenance."; hash "ABC" → "Use exactly
+        64 lowercase hexadecimal characters." and on the target "Enter the SHA-256 value and what
+        it was computed from, or neither." Network: no request to /sources was sent (screenshot
+        02).
+
+CANONICAL BINDING
+ 6 PASS bind Agency
+        Agency Alpha → "Canonical identity source" section with the neutral meaning ("It is an
+        identity reference only: it does not establish rights, authority, eligibility or
+        permission.") → "Bind canonical source": the dialog offered only Alpha's own current
+        canonical records (revision 2 of the registry extract and the route record); the
+        superseded revision 1 and the shared sources were not offered. Code SYN-AG-0001 + reason →
+        "Canonical source bound."; stamps Draft (unchanged) · Version 2 · Canonical code
+        SYN-AG-0001; the bound source is shown (screenshot 04).
+ 7 PASS bind Owner
+        Brand Beta: only the shared, subject-free source was offered ("Not offered: 0 sources not
+        recorded as canonical records, 3 outside this owner namespace’s scope.") → SYN-OW-0001 →
+        Draft · Version 3; the page keeps "A client or brand namespace, not the legal claimant."
+ 8 PASS bind LegalSubject
+        Only the shared source naming this subject was offered → SYN-LS-0001 → Draft · Legal entity
+        · Version 2 · "Identity review: Unreviewed" (binding reviews nothing).
+ 9 PASS bind Signer
+        Only Agency Alpha's own current sources were offered → SYN-SG-0001 → operational state stays
+        Draft (not Available) · Version 2; "Not a login; signs nothing; eligibility comes only from
+        mandate coverage, which is not part of this phase."
+10 PASS generic identity PATCH remains locked after binding
+        Agency edit: all five legal-identity fields read-only, three of them empty, under ONE
+        section notice "Locked: this agency is established (active, canonically bound or referenced
+        by another record)…" (screenshot 05). A phone change saved alone (PATCH body
+        {"phone":…}, If-Match v2 → ETag v3). A direct PATCH {registrationNumber} from the page with
+        the current ETag → 409 ESTABLISHED_IDENTITY_IMMUTABLE, fields [registrationNumber],
+        establishedBy [CANONICAL_BINDING, REFERENCED_BY:signers.agency_id,
+        REFERENCED_BY:source_references.agency_id]. Signer edit: full legal name read-only
+        ("Locked: this signer has a canonical binding, so the bound name can’t be changed here."),
+        title editable.
+
+ROUTE
+11 PASS create Route from Agency + OwnerSubject + Platform
+        New route: explicit Agency, Owner, "Legal subject link" (only linked links), Platform
+        YouTube (the only platform), default signer (only non-archived, non-ended signers of the
+        chosen agency), "Preferred coverage: A preferred coverage needs mandate coverage, which is
+        not available yet." → "Route created (linked)."; stamps Linked · Version 1 · No canonical
+        code; "An operational path only: it creates no mandate, coverage, authority or signer
+        eligibility." POST body {agencyId, ownerSubjectId, platform YOUTUBE, defaultSignerId} — no
+        preferredCoverageId, nothing inferred (screenshot 06).
+12 PASS list/detail Route
+        Table (owner · legal subject, agency, platform, link, canonical code, updated), pagination
+        (Page 1, rows per page 25/50/100), search "beta media" finds the route, agency filter.
+        FINDING F1 (fixed): with the agency filter set to an agency without routes the page said
+        "No routes yet. Create the first route." — see the re-verification below.
+13 PASS patch allowed field
+        Edit: path shown as fixed text (agency, owner–subject link, platform); case prefix hint
+        SYN-A → "Changes saved.", Version 2. PATCH body {"casePrefixHint":"SYN-A"} only, If-Match
+        "Route:<id>:v1" → ETag "Route:<id>:v2".
+14 PASS stale ETag conflict (two tabs)
+        The edit page open in two tabs at v1; tab 1 saved (v2); tab 2 saved a note → 412, focused
+        alert "This route changed after you opened it, for example in another tab. Nothing was
+        saved. Load the latest version, check it, and make your change again." (screenshot 07).
+        "Load latest version" → prefix SYN-A shown, the stale note not saved.
+15 PASS link-state action
+        "Change link state" dialog (administrative; revokes nothing; no state grants authority;
+        only other states offered; empty reason refused "Enter a reason. It is kept in the audit
+        trail.") → Paused (v3) → Linked (v4). The owner–subject link stayed Linked (no cascade).
+16 PASS archive/restore
+        Archive dialog ("read-only … link state is kept; nothing is revoked or sent") → Linked +
+        Archived stamps, Version 5, reason shown; only Restore active; delete disabled "Archived
+        routes are kept for history and are not deleted."; binding disabled "Archived records are
+        read-only. Restore the route first." Restore dialog ("not restored while its agency, owner
+        or subject is archived") → Restored, Linked, Version 6.
+17 PASS bind canonical Route source
+        Opened with the keyboard (Enter); only Agency Alpha's current sources offered → the route
+        record, SYN-RT-0001 → Linked · Version 7 · Canonical code SYN-RT-0001.
+18 PASS blocked delete for a non-eligible Route
+        "Delete unused route" disabled: "This route has a canonical binding, so it is not an unused
+        route." (screenshot 08). A direct DELETE from the page with the current ETag → 409
+        REFERENCED_RECORD_CANNOT_DELETE, blockers [CANONICAL_BINDING].
+19 PASS successful deleteUnused on an eligible synthetic route
+        A new unbound route (Agency Gamma + the same link; Gamma has no signer, so none was offered)
+        → "Delete unused route" → confirmation with the safe choice "Keep it" focused → "Delete
+        route" → DELETE 204 → list "Unused route deleted." with only the Alpha route left.
+20 PASS keyboard/focus and narrow viewport
+        Binding dialog: focus starts in "Find a source"; Escape closes it and returns focus to
+        "Bind canonical source"; Enter on that button reopens it. Reason dialogs open with focus in
+        the reason field; the delete confirmation focuses "Keep it"; a failed form submit focuses
+        the first invalid field. At 390×844: route detail, source detail (long address), new
+        source form and new route form have scrollWidth = clientWidth = 390 (no horizontal
+        overflow); the binding dialog fits (18–372 px, scrolls vertically), shows "No applicable
+        source. Record a source first…" for Agency Gamma (Alpha's sources are not offered) and
+        refuses an empty submit ("Choose the source that holds the canonical code.")
+        (screenshots 09, 10).
+21 PASS logout → Login
+        "Sign out" → /login; /representation/routes afterwards → /login.
+
+Re-verification of F1 (commit 85c2839, 06:45Z–06:46Z, same method, fresh sandbox)
+    Sources filtered by an agency without sources → "No sources belong to this agency or are
+    shared with it." + "Show all sources" (screenshot 11) → the unfiltered list shows the other
+    agency's source. Routes filtered by an agency without routes → "No routes for this agency." +
+    "Show all agencies" → unfiltered "No routes yet. Create the first route." (none existed).
+    Covered by the new web test "an agency filter without matches says so and offers the full
+    list, for routes and sources" (it fails when the fix is reverted).
+
+RESULT 21/21 PASS (one copy defect found in check 12, fixed in 85c2839 and re-verified).

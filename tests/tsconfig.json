@@ -1,0 +1,21 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "types": ["node"],
+    "allowImportingTsExtensions": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
+  },
+  "include": [
+    "**/*.ts",
+    "../scripts/db/**/*.mjs",
+    "../scripts/local/env-file.mjs",
+    "../vitest.db.config.ts",
+    "../vitest.config.ts",
+    "../vitest.transition.config.ts"
+  ],
+  "exclude": ["web/**"]
+}

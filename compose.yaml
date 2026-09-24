@@ -1,0 +1,37 @@
+# Local-only MySQL 8.4 for development (AR-004, TECHNOLOGY_ARCHITECTURE §6, decision D3).
+# One service, loopback-only publication, named local volume, no X Protocol.
+# Secrets come from the untracked root .env (create with `yarn env:init`).
+name: tb-notice
+
+services:
+  mysql:
+    # Official image, pinned tag + multi-arch index digest observed on 2026-09-23.
+    image: mysql:8.4.11@sha256:0744ee5ef89ce6ccfa13de3e579fe6b9e27f93dd70da9c06d2c908b1b193fb8d
+    restart: 'no'
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_bin
+      - --default-time-zone=+00:00
+      - --mysqlx=OFF
+      - --skip-name-resolve
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD missing; run yarn env:init}
+      # root may connect only from inside the container; it is initialization-only.
+      MYSQL_ROOT_HOST: localhost
+      TB_DB_APP_PASSWORD: ${TB_DB_APP_PASSWORD:?TB_DB_APP_PASSWORD missing; run yarn env:init}
+      TB_DB_MIGRATE_PASSWORD: ${TB_DB_MIGRATE_PASSWORD:?TB_DB_MIGRATE_PASSWORD missing; run yarn env:init}
+    ports:
+      - '127.0.0.1:3307:3306'
+    volumes:
+      - tb_mysql_data:/var/lib/mysql
+      - ./infra/mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      # Unauthenticated liveness ping; no password on the command line.
+      test: ['CMD', 'mysqladmin', 'ping', '--host=127.0.0.1', '--silent']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+volumes:
+  tb_mysql_data:

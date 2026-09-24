@@ -1,0 +1,24 @@
+P0-E first-PC verification sweep — 2026-09-23T13:00:56Z — commit 0dfc7a5 + uncommitted P0-E docs; node v24.21.0, yarn 4.18.0
+(each line: command, exit code, key output lines)
+reference:check                                  exit=0 | [reference:check] OK — frozen references intact.
+reference:helper-tests                           exit=0 | # pass 27 [reference:helper-tests] frozen helper tests: pass 27, fail 0; exit 0
+contracts:check                                  exit=0 | [contracts:check] OK — 3 generated outputs match the active source.
+typecheck                                        exit=0 |
+lint                                             exit=0 |
+format:check                                     exit=0 | All matched files use Prettier code style!
+test                                             exit=0 |  Test Files  7 passed (7)       Tests  858 passed (858)
+test:transition-baseline (opt-in)                exit=0 |  Test Files  1 passed (1)       Tests  1 passed (1)
+test:db                                          exit=0 |  Test Files  1 passed (1)       Tests  22 passed (22)
+db:status test                                   exit=0 | Database schema is up to date!
+db:status replay                                 exit=0 | Database schema is up to date!
+db:status dev                                    exit=0 | Database schema is up to date!
+db:verify test --expect-empty                    exit=0 | [verify] PASS: metadata matches the reviewed inventory.
+db:verify replay --expect-empty                  exit=0 | [verify] PASS: metadata matches the reviewed inventory.
+db:verify dev                                    exit=0 | [verify] PASS: metadata matches the reviewed inventory.
+db:seed                                          exit=0 | [db:seed] synthetic actor 00000000-0000-4000-8000-00000000a0c7: unchanged (already canonical) [db:seed] canonical digest 0ee26dc3ee5f3a1030fb78a6cadaf4dabef1f5a296b58163248584e1e0bfb775 (identical on every PC) [db:seed] created_at
+db:drift:diff-migrations                         exit=0 | -- This is an empty migration.
+db:drift:diff-datasource dev                     exit=0 | -- This is an empty migration.
+build                                            exit=0 | ✓ built in 105ms
+smoke:local                                      exit=0 | [smoke] PASS MySQL compose service is healthy [smoke] PASS database reachable as tb_dev@% on tb_notice_dev (MySQL 8.4.11) ✓ built in 114ms [smoke] PASS Prisma client, contracts, API and web built (yarn build) [smoke] PASS api li
+dev:verify-shutdown                              exit=0 | [verify-dev] /home/dmin/.nvm/versions/node/v24.21.0/bin/node /home/dmin/projects/tb-notice-production-system/scripts/local/dev.ts [terminal-ctrl-c]: started=true exit=0 in 612ms portsReleased=true leftovers=0 → PASS [verify-dev]
+reference:check (after)                          exit=0 | [reference:check] OK — frozen references intact.
