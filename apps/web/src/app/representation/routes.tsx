@@ -833,7 +833,7 @@ function RoutePatchForm({ record, onReload }: { record: Versioned<Route>; onRelo
                 ? [
                     {
                       value: route.defaultSignerId,
-                      label: 'Current default signer (no longer eligible)',
+                      label: 'Current default signer (archived or ended)',
                       disabled: true,
                     },
                   ]
@@ -849,7 +849,7 @@ function RoutePatchForm({ record, onReload }: { record: Versioned<Route>; onRelo
             hint={`${PREFERRED_COVERAGE_MEANING} Only frozen coverage of this exact route, in a mandate of its agency that is not archived, is offered.`}
             locked={
               noCoverage
-                ? 'No frozen coverage names this route yet. Record and freeze a mandate version with coverage for this route first.'
+                ? 'No usable coverage names this route: only coverage of a frozen version, in a mandate that is not archived, can be preferred. Record and freeze a version with coverage for this route first.'
                 : null
             }
             value={preferredCoverageId}

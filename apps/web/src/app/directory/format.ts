@@ -135,6 +135,20 @@ export function formatDateTime(iso: string | null): string {
   return iso === null ? '' : dateTime.format(new Date(iso));
 }
 
+const instantWithZone = new Intl.DateTimeFormat(undefined, {
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit',
+  timeZoneName: 'short',
+});
+
+/** A recorded instant with the viewer's time-zone name, so a stated time is never read zoneless. */
+export function formatInstant(iso: string): string {
+  return instantWithZone.format(new Date(iso));
+}
+
 const calendarDate = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeZone: 'UTC' });
 
 /** A recorded calendar date (YYYY-MM-DD), shown without any time-zone shift. */

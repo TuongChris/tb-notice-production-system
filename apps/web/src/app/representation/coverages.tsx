@@ -306,6 +306,17 @@ export function NewCoveragePage() {
     return <ErrorNotice error={version.error} recordLabel="version" onRetry={reloadVersion} />;
   }
   const record = version.value;
+  if (record.data.versionState === 'FROZEN') {
+    return (
+      <article className="sheet">
+        <h1>Version {record.data.version} is frozen</h1>
+        <p className="notice notice-quiet">
+          A frozen version gains no coverage. Record a successor version to add or correct coverage.
+        </p>
+        <Link to={`/representation/versions/${record.data.id}`}>Back to the version</Link>
+      </article>
+    );
+  }
   const routeItems = routes.status === 'ready' ? routes.value : [];
   const chosen = routeItems.find((item) => item.route.id === routeId) ?? null;
   const target: SourceTarget | null =
@@ -924,6 +935,10 @@ export function NewCoverageSignerPage() {
   );
   const agencyId = coverage.status === 'ready' ? coverage.value.data.agencyId : '';
   const routeId = coverage.status === 'ready' ? coverage.value.data.routeId : '';
+  const versionId = coverage.status === 'ready' ? coverage.value.data.mandateVersionId : '';
+  const [version] = useLoad(`signer-form:version:${versionId}`, async () =>
+    versionId === '' ? null : (await api.versions.get(versionId)).data,
+  );
   const [signers] = useLoad(`signer-form:signers:${agencyId}`, async () =>
     agencyId === '' ? [] : (await api.signers.list({ agencyId, limit: 100 })).items,
   );
@@ -943,11 +958,26 @@ export function NewCoverageSignerPage() {
   const issues = issuesOf(submission.error);
   const errorFor = (path: string) =>
     clientErrors[path] ?? issues.find((issue) => issue.path === path)?.message;
-  if (coverage.status === 'loading') return <LoadingNotice label="Loading coverage…" />;
+  if (coverage.status === 'loading' || version.status === 'loading') {
+    return <LoadingNotice label="Loading coverage…" />;
+  }
   if (coverage.status === 'error') {
     return <ErrorNotice error={coverage.error} recordLabel="coverage" onRetry={reloadCoverage} />;
   }
   const record = coverage.value;
+  const versionRecord = version.status === 'ready' ? version.value : null;
+  if (versionRecord?.versionState === 'FROZEN') {
+    return (
+      <article className="sheet">
+        <h1>This coverage belongs to a frozen version</h1>
+        <p className="notice notice-quiet">
+          A frozen version, its coverage and their coverage signers never change. Record a successor
+          version to correct it.
+        </p>
+        <Link to={`/representation/coverages/${record.data.id}`}>Back to the coverage</Link>
+      </article>
+    );
+  }
   const offered = (signers.status === 'ready' ? signers.value : []).filter(
     (signer) => signer.archivedAt === null && signer.operationalState !== 'ENDED',
   );
@@ -993,7 +1023,10 @@ export function NewCoverageSignerPage() {
         trail={[
           ['Representation', '/representation'],
           ['Mandates', '/representation/mandates'],
-          ['Version', `/representation/versions/${record.data.mandateVersionId}`],
+          [
+            versionRecord === null ? 'Version' : `Version ${versionRecord.version}`,
+            `/representation/versions/${record.data.mandateVersionId}`,
+          ],
           [record.data.coverageLabel, `/representation/coverages/${record.data.id}`],
           ['Add coverage signer', null],
         ]}

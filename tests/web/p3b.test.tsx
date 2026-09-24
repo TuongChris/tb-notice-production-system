@@ -6,6 +6,7 @@
 // effective dates, provenance without upgrade, keyboard focus and the absence of authority wording.
 // All data is synthetic.
 import { describe, expect, it } from 'vitest';
+import { formatInstant } from '../../apps/web/src/app/directory/format.js';
 import {
   all,
   byText,
@@ -16,6 +17,7 @@ import {
   render,
   submit,
   type,
+  unmount,
   until,
   waitFor,
 } from './support.js';
@@ -353,6 +355,7 @@ describe('P3B versions UI', () => {
     await render(api, `/representation/versions/${frozen.id}`);
     await until('the source now has revision 2. The citation does not move to it.');
     await until('Citations are pinned to the exact revisions shown');
+    await unmount();
     await render(api, `/representation/versions/${frozen.id}/edit`);
     await until('Version 1 is frozen');
     expect(q('form.record-form')).toBeNull();
@@ -490,6 +493,25 @@ describe('P3B coverage UI', () => {
       false,
     );
   });
+
+  it('opened directly, the add-coverage and add-signer pages of a frozen version show no form', async () => {
+    const api = new FakeDirectory();
+    const w = world(api);
+    const frozen = version(api, w.mandate, { versionState: 'FROZEN' });
+    const c = coverage(api, frozen, w.route.id);
+    await render(api, `/representation/versions/${frozen.id}/coverages/new`);
+    await until('Version 1 is frozen');
+    expect(pageText()).toContain('A frozen version gains no coverage.');
+    expect(all('form')).toHaveLength(0);
+    expect(q('#coverage-routeId')).toBeNull();
+    await unmount();
+
+    await render(api, `/representation/coverages/${c.id}/signers/new`);
+    await until('This coverage belongs to a frozen version');
+    expect(all('form')).toHaveLength(0);
+    expect(q('#coverage-signer-signerId')).toBeNull();
+    expect(api.writes()).toHaveLength(0);
+  });
 });
 
 describe('P3B authority events UI', () => {
@@ -574,6 +596,14 @@ describe('P3B authority events UI', () => {
     await waitFor(() => all('.timeline-item').length === 2, 'timeline');
     const [newest, oldest] = all('.timeline-item').map((item) => item.textContent ?? '');
     expect(newest).toContain('Correction');
+    const effectiveAt = q('.timeline-item .effective time');
+    expect(effectiveAt?.getAttribute('datetime')).toBe('2025-06-30T10:15:00.000Z');
+    expect(effectiveAt?.textContent).toBe(formatInstant('2025-06-30T10:15:00.000Z'));
+    expect(
+      new Intl.DateTimeFormat(undefined, { timeZoneName: 'short' })
+        .formatToParts(new Date('2025-06-30T10:15:00.000Z'))
+        .some((part) => part.type === 'timeZoneName'),
+    ).toBe(true);
     expect(newest).toContain('Wording: “SYNTHETIC as of the end of June”');
     expect(newest).toContain('application user 00000000-0000-4000-8000-0000000000b2');
     expect(newest).toContain('An earlier event');
@@ -588,8 +618,9 @@ describe('P3B route preferred coverage UI', () => {
     const api = new FakeDirectory();
     const w = world(api);
     await render(api, `/representation/routes/${w.route.id}/edit`);
-    await until('No frozen coverage names this route yet.');
+    await until('No usable coverage names this route');
     expect((q('#route-preferredCoverageId') as HTMLSelectElement).disabled).toBe(true);
+    await unmount();
     const frozen = version(api, w.mandate, { versionState: 'FROZEN' });
     const usable = coverage(api, frozen, w.route.id, { coverageLabel: 'SYNTHETIC usable' });
     const draft = version(api, w.mandate, { version: 2 });
@@ -631,6 +662,23 @@ describe('P3B route preferred coverage UI', () => {
     });
     await until('SYNTHETIC usable');
     expect(stampTexts().join(' ')).not.toMatch(AUTHORITY_WORDS);
+  });
+
+  it('frozen coverage of an archived mandate is not offered, and the locked picker says why', async () => {
+    const api = new FakeDirectory();
+    const w = world(api);
+    Object.assign(api.rows.Mandate.get(w.mandate.id) ?? {}, {
+      archivedAt: '2026-09-24T08:00:00.000Z',
+    });
+    const frozen = version(api, w.mandate, { versionState: 'FROZEN' });
+    const archived = coverage(api, frozen, w.route.id, { coverageLabel: 'SYNTHETIC archived' });
+    await render(api, `/representation/routes/${w.route.id}/edit`);
+    await until(
+      'No usable coverage names this route: only coverage of a frozen version, in a mandate that is not archived, can be preferred.',
+    );
+    expect((q('#route-preferredCoverageId') as HTMLSelectElement).disabled).toBe(true);
+    expect(optionValues('#route-preferredCoverageId')).not.toContain(archived.id);
+    expect(pageText()).not.toContain('No frozen coverage names this route');
   });
 
   it('a preference the server refuses is explained (the mandate was archived meanwhile)', async () => {

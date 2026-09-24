@@ -10,7 +10,13 @@ import type { AuthorityEvent, CreateAuthorityEvent, MandateCoverage } from '@tb/
 import { useSession } from '../auth/session.js';
 import { Time } from '../directory/agencies.js';
 import { fieldIdFor, SelectField, TextField } from '../directory/fields.js';
-import { EVENT_TYPE_LABEL, issuesOf, PROVENANCE_LABEL } from '../directory/format.js';
+import {
+  EVENT_TYPE_LABEL,
+  formatDateTime,
+  formatInstant,
+  issuesOf,
+  PROVENANCE_LABEL,
+} from '../directory/format.js';
 import { useDirectoryApi, useLoad } from '../directory/hooks.js';
 import { RecordName } from '../directory/lookup.js';
 import { useSubmission, type FlashState } from '../directory/record-page.js';
@@ -44,7 +50,10 @@ function Effective({ event }: { event: AuthorityEvent }) {
       )}
       {event.effectiveAt !== null && (
         <span>
-          At <Time iso={event.effectiveAt} />
+          At{' '}
+          <time dateTime={event.effectiveAt} title={event.effectiveAt}>
+            {formatInstant(event.effectiveAt)}
+          </time>
         </span>
       )}
       {event.rawEffectiveText !== null && <span>Wording: “{event.rawEffectiveText}”</span>}
@@ -427,7 +436,7 @@ export function NewAuthorityEventPage() {
               { value: '', label: 'Supersedes no event' },
               ...supersedable.map((event) => ({
                 value: event.id,
-                label: `${EVENT_TYPE_LABEL[event.eventType]} recorded ${new Date(event.createdAt).toLocaleString()}`,
+                label: `${EVENT_TYPE_LABEL[event.eventType]} (recorded ${formatDateTime(event.createdAt)})`,
               })),
             ]}
             error={errorFor('supersedesEventId')}
