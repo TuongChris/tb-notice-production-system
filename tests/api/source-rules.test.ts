@@ -180,7 +180,8 @@ describe('captureProblem — request-only capture checks', () => {
     const paths = (extra: Partial<CreateSource>) => {
       const problem = captureProblem(capture(extra));
       expect(problem?.code).toBe('VALIDATION_FAILED');
-      return (problem?.details['issues'] as Array<{ path: string }>).map((issue) => issue.path);
+      const issues = (problem?.details['issues'] ?? []) as Array<{ path: string }>;
+      return issues.map((issue) => issue.path);
     };
     expect(
       paths({ observedAt: '2016-12-31T23:59:60Z', reviewedAt: '2025-06-30T10:15:00.123456Z' }),
