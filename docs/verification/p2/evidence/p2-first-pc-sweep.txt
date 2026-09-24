@@ -1,0 +1,28 @@
+P2 first-PC verification sweep (mission §19) — 2026-09-24T03:02:05Z–03:04:03Z — feature/p2-directory @ cbfd640 (source tree identical; only documentation uncommitted); node v24.21.0, yarn 4.18.0
+(each line: command, exit code, key output lines; full logs kept outside Git)
+reference:check                              exit=0 | [reference:check] OK — frozen references intact.
+reference:helper-tests                       exit=0 | [reference:helper-tests] frozen helper tests: pass 27, fail 0; exit 0 [reference:helper-tests] references after run: intact
+contracts:check                              exit=0 | [contracts:check] OK — 3 generated outputs match the active source.
+install --immutable                          exit=0 | ➤ YN0000: · Done with warnings in 0s 692ms
+typecheck                                    exit=0 | 
+lint                                         exit=0 | 
+format:check                                 exit=0 | All matched files use Prettier code style!
+test                                         exit=0 | Test Files  26 passed (26) Tests  1035 passed (1035)
+test:db                                      exit=0 | [guard] test:db target: tb_migrate@127.0.0.1:3307/tb_notice_test Test Files  5 passed (5) Tests  138 passed (138)
+db:verify test --expect-empty                exit=0 | [verify] domain rows total: 0 [verify] PASS: metadata matches the reviewed inventory.
+db:verify dev                                exit=0 | [verify] domain rows total: 5 [verify] PASS: metadata matches the reviewed inventory.
+build                                        exit=0 | ✓ built in 160ms
+smoke:local                                  exit=0 | [smoke] PASS (23 checks)
+dev:verify-shutdown                          exit=0 | [verify-dev] PASS (4/4 scenarios)
+reference:check (after)                      exit=0 | [reference:check] OK — frozen references intact.
+
+Supplementary read-only checks (same tree, 03:05Z):
+db:status test                               exit=0 | Database schema is up to date!
+db:status dev                                exit=0 | Database schema is up to date!
+db:drift:diff-migrations                     exit=0 | -- This is an empty migration.
+db:drift:diff-datasource dev                 exit=0 | -- This is an empty migration.
+no schema/contract/dependency change         exit=0 | git diff 8fe96ae..HEAD: apps/api/prisma, packages/**, docs/reference/**, yarn.lock unchanged; package.json adds only the scripts smoke:directory and ui:sandbox; migration.sql sha256 b54c36fd…6515
+working tree after the sweep                 exit=0 | only the uncommitted documentation (CLAUDE.md, docs/CURRENT_STATE.md, docs/verification/p2/); no generated or stray file
+
+smoke:local and dev:verify-shutdown ran on the first PC this time: ports 3000/5173 were free (no operator `yarn dev` running). db:verify dev reported 5 domain rows (the P1.1 sweep also reported 5). P2 work wrote nothing to tb_notice_dev: every P2 test, sandbox and browser check used tb_notice_test, and smoke:directory refuses to run unless CI=true.
+Per-file P2 counts (`vitest list` and the negative-control runs of the same files): tests/db/directory-http.test.ts 60; tests/web/directory.test.tsx 19; tests/api/directory-rules.test.ts 14; tests/api/write-primitives.test.ts 13; tests/api/write-executor.test.ts 7.

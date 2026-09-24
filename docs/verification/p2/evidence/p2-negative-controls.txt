@@ -1,0 +1,78 @@
+# P2 negative controls — 2026-09-24T02:52:58+00:00
+# Each control disables one protection, runs the responsible suite (must FAIL), restores
+# the file and verifies it byte-identical by SHA-256. Synthetic data only (tb_notice_test).
+
+NC01 PASS If-Match comparison skipped (stale ETags accepted)
+     file apps/api/src/infrastructure/write/write-executor.ts; suite exit 1 (21s); Tests  4 failed | 56 passed (60)
+     restored sha256 d75edb04675943faeea17aac3d0fa4c1b38053ab1bb3aff3e3d7047b07d82836 (before d75edb046759…, identical=True)
+NC02 PASS PATCH does not increment rowVersion
+     file apps/api/src/modules/directory/agencies.service.ts; suite exit 1 (22s); Tests  3 failed | 57 passed (60)
+     restored sha256 c7713d4552a31ed4168a0e3ce3c14bd81716f6ed0e9a4ab8fe336f211c6bf47d (before c7713d4552a3…, identical=True)
+NC03 PASS Idempotency payload digest not compared (key reuse with another payload replays)
+     file apps/api/src/infrastructure/write/idempotency.ts; suite exit 1 (22s); Tests  1 failed | 59 passed (60)
+     restored sha256 d0ff1c8a97a52da75ad20313d4909d24b3c47efc6ef0e2c0147934019fbc4c0e (before d0ff1c8a97a5…, identical=True)
+NC04 PASS Concurrent IN_PROGRESS duplicate not reported (treated as a new claim)
+     file apps/api/src/infrastructure/write/idempotency.ts; suite exit 1 (22s); Tests  2 failed | 58 passed (60)
+     restored sha256 d0ff1c8a97a52da75ad20313d4909d24b3c47efc6ef0e2c0147934019fbc4c0e (before d0ff1c8a97a5…, identical=True)
+NC05 PASS Audit failure swallowed (business write commits without its audit event)
+     file apps/api/src/infrastructure/write/write-executor.ts; suite exit 1 (22s); Tests  2 failed | 58 passed (60)
+     restored sha256 d75edb04675943faeea17aac3d0fa4c1b38053ab1bb3aff3e3d7047b07d82836 (before d75edb046759…, identical=True)
+NC06 PASS Failed request keeps its claim (not released)
+     file apps/api/src/infrastructure/write/write-executor.ts; suite exit 1 (20s); Tests  4 failed | 56 passed (60)
+     restored sha256 d75edb04675943faeea17aac3d0fa4c1b38053ab1bb3aff3e3d7047b07d82836 (before d75edb046759…, identical=True)
+NC07 PASS Cursor HMAC not verified (forged cursors accepted)
+     file apps/api/src/infrastructure/write/cursor.ts; suite exit 1 (21s); Tests  1 failed | 59 passed (60)
+     restored sha256 aab856271ab82ae05ff4631e1152ec8fcf269727dd3b5c34aef9fb6ba2c6a5e8 (before aab856271ab8…, identical=True)
+NC08 PASS Cursor filter fingerprint not checked (cursor reusable with other filters/scope)
+     file apps/api/src/infrastructure/write/cursor.ts; suite exit 1 (21s); Tests  1 failed | 59 passed (60)
+     restored sha256 aab856271ab82ae05ff4631e1152ec8fcf269727dd3b5c34aef9fb6ba2c6a5e8 (before aab856271ab8…, identical=True)
+NC09 PASS Established Agency identity not locked
+     file apps/api/src/modules/directory/agencies.service.ts; suite exit 1 (21s); Tests  2 failed | 58 passed (60)
+     restored sha256 c7713d4552a31ed4168a0e3ce3c14bd81716f6ed0e9a4ab8fe336f211c6bf47d (before c7713d4552a3…, identical=True)
+NC10 PASS Delete ignores relational and snapshot dependencies
+     file apps/api/src/modules/directory/agencies.service.ts; suite exit 1 (21s); Tests  1 failed | 59 passed (60)
+     restored sha256 c7713d4552a31ed4168a0e3ce3c14bd81716f6ed0e9a4ab8fe336f211c6bf47d (before c7713d4552a3…, identical=True)
+NC11 PASS Snapshot/scope JSON references not scanned
+     file apps/api/src/modules/directory/records.ts; suite exit 1 (21s); Tests  2 failed | 58 passed (60)
+     restored sha256 e7a740067fa3b50cf34cb0eb587a90cc6b12686f276d20e65022b90aacea75ff (before e7a740067fa3…, identical=True)
+NC12 PASS Duplicate OwnerSubject pre-check removed
+     file apps/api/src/modules/directory/owner-subjects.service.ts; suite exit 1 (22s); Tests  1 failed | 59 passed (60)
+     restored sha256 738c82f786f2d6819490d1d0d3d98479db4b4b3f732286fb976c7f796db9ef9e (before 738c82f786f2…, identical=True)
+NC13 PASS Unlink allowed while dependent routes are LINKED/PAUSED
+     file apps/api/src/modules/directory/owner-subjects.service.ts; suite exit 1 (21s); Tests  1 failed | 59 passed (60)
+     restored sha256 738c82f786f2d6819490d1d0d3d98479db4b4b3f732286fb976c7f796db9ef9e (before 738c82f786f2…, identical=True)
+NC14 PASS Supplied source ids not checked for existence
+     file apps/api/src/modules/directory/sources.ts; suite exit 1 (21s); Tests  4 failed | 56 passed (60)
+     restored sha256 3cc4610ed86e5319c47332e882967a04a2a5e33ac1096db85a1b654dd2a7fa5a (before 3cc4610ed86e…, identical=True)
+NC15 PASS Cross-agency source accepted
+     file apps/api/src/modules/directory/sources.ts; suite exit 1 (21s); Tests  2 failed | 58 passed (60)
+     restored sha256 3cc4610ed86e5319c47332e882967a04a2a5e33ac1096db85a1b654dd2a7fa5a (before 3cc4610ed86e…, identical=True)
+NC16 PASS DOCUMENT_REVIEWED accepted without a source
+     file apps/api/src/modules/directory/attributions.ts; suite exit 1 (21s); Tests  1 failed | 59 passed (60)
+     restored sha256 0c44a8f787b05b3a827e7622ec3fe66f2c96fb32ad840eb82f09d88c285a348d (before 0c44a8f787b0…, identical=True)
+NC17 PASS Unknown body fields tolerated (a Signer agencyId PATCH passes through)
+     file apps/api/src/infrastructure/write/request-parsing.ts; suite exit 1 (21s); Tests  4 failed | 56 passed (60)
+     restored sha256 50a32673adf400de75aefb39e5c120aeadab0e002d0df2c897311ae497d7ec25 (before 50a32673adf4…, identical=True)
+NC18 PASS Archived records stay editable
+     file apps/api/src/modules/directory/lifecycle.ts; suite exit 1 (22s); Tests  2 failed | 58 passed (60)
+     restored sha256 17d219eeeccaa0ed35560056b43acd76cdb1b60efeab4ca4e36ecfd9cb975432 (before 17d219eeecca…, identical=True)
+NC19 PASS Signer may be created in an archived Agency
+     file apps/api/src/modules/directory/signers.service.ts; suite exit 1 (22s); Tests  1 failed | 59 passed (60)
+     restored sha256 2755cb2563d04b21430ee4b7c850a69254a7dbc3670d46c95127c3c242ed9e79 (before 2755cb2563d0…, identical=True)
+NC20 PASS CSRF token not required for directory writes (guard)
+     file apps/api/src/modules/auth/auth.guard.ts; suite exit 1 (22s); Tests  1 failed | 59 passed (60)
+     restored sha256 2018f0ed629aa4bc532a0994276eaba42cbded6ccb2d642d30ba98d356e8189c (before 2018f0ed629a…, identical=True)
+NC21 PASS Retry classification disabled (deadlocks surface as errors, no bounded retry)
+     file apps/api/src/infrastructure/write/database-errors.ts; suite exit 1 (1s); Tests  3 failed | 17 passed (20)
+     restored sha256 15f4c8f229fd9e292e786bf695bb3bfae3c28e34f9b5531e8e01cbb9b59554d4 (before 15f4c8f229fd…, identical=True)
+NC22 PASS Web client does not send If-Match
+     file apps/web/src/app/api/client.ts; suite exit 1 (29s); Tests  9 failed | 10 passed (19)
+     restored sha256 a6501ac6fdc4ffc4cba1e3fb625e2f684ade43130ee25ad415e9a8b2da475326 (before a6501ac6fdc4…, identical=True)
+NC23 PASS Web CSRF retry uses a new Idempotency-Key
+     file apps/web/src/app/directory/hooks.tsx; suite exit 1 (1s); Tests  1 failed | 18 passed (19)
+     restored sha256 bc7d09155618c59f1608651cb09b7824d82ab6ef387ee099f240baa204068e54 (before bc7d09155618…, identical=True)
+NC24 PASS Reference inventory guard (a directory FK missing from DIRECT_REFERENCES)
+     file apps/api/src/modules/directory/records.ts; suite exit 1 (1s); Tests  1 failed | 13 passed (14)
+     restored sha256 e7a740067fa3b50cf34cb0eb587a90cc6b12686f276d20e65022b90aacea75ff (before e7a740067fa3…, identical=True)
+
+RESULT ALL CONTROLS FAILED THEIR SUITE AS EXPECTED; ALL FILES RESTORED

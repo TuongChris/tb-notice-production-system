@@ -1,0 +1,108 @@
+# P2 Directory — Playwright MCP browser verification (first PC, 2026-09-24 UTC)
+#
+# Supplemental evidence. The repository test suites (yarn test, yarn test:db) remain authoritative
+# for regression; this is an interactive check of the real UI against the real compiled API.
+#
+# Environment
+#   Browser:   Playwright MCP isolated test browser (HeadlessChrome 154, Linux, WSL); no personal
+#              browser profile, no external account, no external site.
+#   App:       `yarn ui:sandbox` (commit 7e889be tree): the COMPILED AppModule in-process on
+#              127.0.0.1:3000 with Prisma pointed at the disposable tb_notice_test schema (never
+#              tb_notice_dev), and `vite preview` of the built web app on 127.0.0.1:5173.
+#   Account:   one synthetic sandbox user p2-ui-sandbox@example.invalid; password generated at start,
+#              written only to a mode-600 file outside the repository, deleted afterwards.
+#   Data:      synthetic records only ("SYNTHETIC Agency Alpha", "SYNTHETIC Brand Beta",
+#              "SYNTHETIC Beta Media Joint Stock Company", "SYNTHETIC Trần Thị Mẫu").
+#   Window:    02:36Z–02:46Z (first pass 02:36–02:43Z; fixes re-verified 02:45–02:46Z).
+#   Cleanup:   sandbox stopped with SIGINT → every sandbox row deleted and verified empty; then
+#              `yarn db:verify test --expect-empty` → PASS (domain rows total: 0). Ports released.
+#   Console:   the only browser console errors were Chromium's own "Failed to load resource" lines
+#              for intentional 401/412/409/422 responses; no JavaScript error was logged.
+
+Mission checks
+ 1 PASS unauthenticated visitor reaches Login
+        http://localhost:5173/directory/agencies without a session → redirected to /login.
+ 2 PASS synthetic account reaches the protected Directory
+        Sign-in → Overview; shell "Directory" link → /directory/agencies; empty state "No agencies
+        yet." with a link to create the first record; Directory sub-navigation marks "Agencies".
+ 3 PASS Agency create → list → detail
+        New agency form (every control labelled, grouped in fieldsets) → created
+        "SYNTHETIC Agency Alpha": detail shows the Draft stamp, "Version 1", "No canonical code
+        (local only)", the boundary line and the announced status "Agency created as a draft."; the
+        list table (caption, column headers, row-header link) shows the record.
+ 4 PASS edit updates the visible state
+        Edit → phone + organization type → "Changes saved.", "Version 2", new values shown. On the
+        wire (network panel): PATCH body {"organizationType":…,"phone":…} only; request headers
+        If-Match "Agency:<id>:v1", Idempotency-Key (UUID), X-CSRF-Token, Origin
+        http://localhost:5173, X-Requested-With TB-APP; response ETag "Agency:<id>:v2",
+        Cache-Control no-store.
+ 5 PASS archive / restore
+        Archive dialog: empty reason refused ("Enter a reason. It is kept in the audit trail.",
+        aria-invalid, described-by); with a reason → Archived stamp, Version 3, archive reason
+        shown, Edit/state actions withdrawn; Restore dialog states "never revives any authority"
+        → Draft, Version 4, actions back.
+ 6 PASS Owner creation
+        "SYNTHETIC Brand Beta" with two aliases (one Vietnamese, preserved exactly), contact and one
+        YouTube channel → Draft; "No legal subject is linked. The owner can stay unlinked until the
+        legal party is known."; nothing inferred from the names or channel.
+ 7 PASS LegalSubject creation
+        Submitting without a subject type sends nothing ("Choose the subject type.", aria-invalid);
+        with "Legal entity" → created: Draft, Legal entity, Version 1, Identity review: Unreviewed.
+ 8 PASS OwnerSubject link
+        Owner page: explicit search and radio choice of the exact subject, relationship label
+        "brand operated by" → "Linked SYNTHETIC Beta Media Joint Stock Company."; association row
+        with Linked stamp and actions named "Pause <subject>", "Unlink <subject>"; the owner shows
+        Version 2 (the association set changed; link precondition = Owner ETag).
+ 9 PASS Signer creation
+        From the agency page "Add signer" (agency preselected) → "SYNTHETIC Trần Thị Mẫu",
+        Director (synthetic) → "Signer recorded as a draft."; boundary "Not a login; signs nothing;
+        eligibility comes only from mandate coverage, which is not part of this phase."
+10 PASS validation errors
+        Client side: empty display name → field aria-invalid + message, no request. Server side
+        (real 422 VALIDATION_FAILED for an invalid email): focused error summary (role=alert)
+        linking to #agency-copyrightEmail; field aria-invalid, aria-describedby → its message.
+11 PASS stale ETag conflict UI (two tabs)
+        Tab 2 opened the edit form at v4; tab 1 saved (v5); tab 2 saved → real 412
+        RECORD_VERSION_CONFLICT → conflict notice (role=alert) "This agency changed after you
+        opened it … Nothing was saved."; the operator's unsaved value stays visible;
+        "Load latest version" reloads the form with tab 1's saved value and clears the notice.
+12 PASS deleting an ineligible record is blocked
+        Agency with a signer: confirmation dialog ("Keep it" focused by default) → real 409
+        REFERENCED_RECORD_CANNOT_DELETE → "This agency can't be deleted because signers belong to
+        it. Archive it instead; that keeps its history."; the record remains. After the fix below
+        the page itself shows "Delete draft" as unavailable with that reason.
+13 PASS keyboard / focus on critical dialogs
+        Archive opened with Enter from the focused button; dialog is modal (:modal), labelled by its
+        heading, focus lands in "Reason"; Tab order Reason → Cancel → Archive; Enter on Archive with
+        an empty reason shows the error; Escape closes and returns focus to the opening button,
+        which shows a 2 px focus outline.
+14 PASS logout returns to Login
+        Sign out → /login with "You have signed out."; /directory/owners afterwards → /login.
+
+Additional observations
+ - D3 in the real UI: the DRAFT agency referenced by a signer (not knowable client-side) → changing
+   its legal name → real 409 ESTABLISHED_IDENTITY_IMMUTABLE → alert "…because signers belong to
+   it. A correction workflow is not available yet."; the field reverted to its stored value and
+   became read-only with the lock note.
+ - Deferred canonical binding: "Bind canonical code" is exposed as disabled (aria-disabled) with the
+   reason next to it; no canonical-bindings request was ever sent.
+ - Phone width (390 × 844): no horizontal overflow; navigation, header and actions stack.
+
+Defects found during the run, fixed, and re-verified in the rebuilt bundle (02:45–02:46Z)
+ D1 "Not implemented" badges wrapped mid-phrase in the side navigation → nowrap (verified).
+ D2 a failed submit at the bottom of a long form showed its conflict/error notice above the
+    viewport → such notices now take focus (scroll into view); verified: conflict notice focused and
+    fully inside the viewport after the two-tab 412.
+ D3 client-side validation did not move focus → focus moves to the first invalid field.
+ D4 buttons inside fieldsets stretched to full width → natural width.
+ D5 a subject already linked to the owner stayed selectable → disabled, "already linked".
+ D6 "Delete draft" was offered when the page already listed the record's signers/links → shown as
+    unavailable with the reason (verified on the agency with a signer).
+ D3–D5 are covered by the UI test suite (tests/web/directory.test.tsx).
+
+Screenshots (synthetic data only; docs/verification/p2/evidence/screenshots/)
+ 03-agency-detail.png          record header, actions, identity/contact (before D1/D6)
+ 04-stale-etag-conflict.png    two-tab 412 conflict notice in view (after D2)
+ 05-owner-linked.png           owner with a linked legal subject and the link picker (before D1/D5)
+ 06-delete-refused.png         server refusal of an ineligible delete (before D6)
+ 07-agency-detail-narrow.png   390 px layout (after D1/D6)
