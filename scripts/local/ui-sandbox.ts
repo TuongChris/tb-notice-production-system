@@ -1,6 +1,6 @@
 // yarn ui:sandbox --password-file <path> — a disposable local UI sandbox for manual or browser-
-// automation checks of the Directory, Sources, Routes and representation-authority pages (P2, P3A,
-// P3B) WITHOUT touching tb_notice_dev.
+// automation checks of the Directory, Sources, Routes, representation-authority and Case pages (P2,
+// P3A, P3B, P4A) WITHOUT touching tb_notice_dev.
 //
 //  1. Guards: the target is the allowlisted disposable tb_notice_test schema (tooling account,
 //     loopback port 3307, never tb_notice_dev); every table the sandbox can write must be empty
@@ -28,14 +28,19 @@ const WEB_PORT = 5173;
 const SANDBOX_EMAIL = 'p2-ui-sandbox@example.invalid';
 /**
  * Every table the running app can write (P2 directory, P3A sources and routes, P3B mandates,
- * versions, coverage, coverage signers and authority events), in foreign-key deletion order. Source
- * references and the records that point at them reference each other (canonical bindings, revision
- * chains, citations), and routes ⇄ coverage and the version / coverage / event chains point at
- * their own tables, so those pointers are cleared first (see cleanup).
+ * versions, coverage, coverage signers and authority events, P4A cases, case sources and authority
+ * selections with their pinned coverage), in foreign-key deletion order. Source references and the
+ * records that point at them reference each other (canonical bindings, revision chains, citations),
+ * routes ⇄ coverage, cases ⇄ selections and the version / coverage / event chains point at their
+ * own tables, so those pointers are cleared first (see cleanup).
  */
 const TABLES = [
   'idempotency_records',
   'audit_events',
+  'case_authority_coverages',
+  'case_authority_selections',
+  'case_sources',
+  'cases',
   'authority_events',
   'coverage_signers',
   'mandate_coverages',
@@ -54,9 +59,10 @@ const TABLES = [
 
 /**
  * Pointers cleared before deleting rows (canonical bindings, citations, revision chains, preferred
- * coverage, version / coverage lineage and event supersession).
+ * coverage, version / coverage lineage, event supersession and a case's selection pointer).
  */
 const SOURCE_POINTERS = [
+  'UPDATE `cases` SET `current_authority_selection_id` = NULL, `packet_source_id` = NULL, `canonical_binding_source_id` = NULL',
   'UPDATE `agencies` SET `canonical_source_id` = NULL',
   'UPDATE `owners` SET `canonical_source_id` = NULL',
   'UPDATE `legal_subjects` SET `canonical_source_id` = NULL',
