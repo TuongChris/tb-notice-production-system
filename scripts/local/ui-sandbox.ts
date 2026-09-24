@@ -1,6 +1,6 @@
 // yarn ui:sandbox --password-file <path> — a disposable local UI sandbox for manual or browser-
-// automation checks of the Directory, Sources and Routes pages (P2, P3A) WITHOUT touching
-// tb_notice_dev.
+// automation checks of the Directory, Sources, Routes and representation-authority pages (P2, P3A,
+// P3B) WITHOUT touching tb_notice_dev.
 //
 //  1. Guards: the target is the allowlisted disposable tb_notice_test schema (tooling account,
 //     loopback port 3307, never tb_notice_dev); every table the sandbox can write must be empty
@@ -27,13 +27,20 @@ const API_PORT = 3000;
 const WEB_PORT = 5173;
 const SANDBOX_EMAIL = 'p2-ui-sandbox@example.invalid';
 /**
- * Every table the running app can write (P2 directory, P3A sources and routes), in foreign-key
- * deletion order. Source references and the records that point at them reference each other
- * (canonical bindings, revision chains), so those pointers are cleared first (see cleanup).
+ * Every table the running app can write (P2 directory, P3A sources and routes, P3B mandates,
+ * versions, coverage, coverage signers and authority events), in foreign-key deletion order. Source
+ * references and the records that point at them reference each other (canonical bindings, revision
+ * chains, citations), and routes ⇄ coverage and the version / coverage / event chains point at
+ * their own tables, so those pointers are cleared first (see cleanup).
  */
 const TABLES = [
   'idempotency_records',
   'audit_events',
+  'authority_events',
+  'coverage_signers',
+  'mandate_coverages',
+  'mandate_versions',
+  'mandates',
   'routes',
   'owner_subjects',
   'signers',
@@ -45,13 +52,20 @@ const TABLES = [
   'users',
 ] as const;
 
-/** Source pointers cleared before deleting rows (canonical bindings, citations, revision chains). */
+/**
+ * Pointers cleared before deleting rows (canonical bindings, citations, revision chains, preferred
+ * coverage, version / coverage lineage and event supersession).
+ */
 const SOURCE_POINTERS = [
   'UPDATE `agencies` SET `canonical_source_id` = NULL',
   'UPDATE `owners` SET `canonical_source_id` = NULL',
   'UPDATE `legal_subjects` SET `canonical_source_id` = NULL',
   'UPDATE `signers` SET `canonical_source_id` = NULL, `identity_source_id` = NULL, `delegation_source_id` = NULL',
-  'UPDATE `routes` SET `canonical_source_id` = NULL',
+  'UPDATE `routes` SET `canonical_source_id` = NULL, `preferred_coverage_id` = NULL',
+  'UPDATE `authority_events` SET `supersedes_event_id` = NULL',
+  'UPDATE `mandate_coverages` SET `predecessor_coverage_id` = NULL',
+  'UPDATE `mandate_versions` SET `predecessor_id` = NULL',
+  'UPDATE `mandates` SET `canonical_source_id` = NULL',
   'UPDATE `owner_subjects` SET `source_id` = NULL',
   'UPDATE `source_references` SET `supersedes_source_id` = NULL',
 ] as const;
