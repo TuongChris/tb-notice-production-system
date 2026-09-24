@@ -13,6 +13,12 @@
 # source → canonical binding → OwnerSubject → Route → route binding flow with one expected
 # cross-agency refusal, leaving synthetic records in the disposable CI tb_notice_dev only
 # (it refuses to run outside CI). No Drive, mail or other external action.
+# P3B: smoke:local also checks the compiled mandate, version, coverage and event routes;
+# smoke:p3b runs a compiled source → Mandate → MandateVersion → MandateCoverage → CoverageSigner →
+# freeze → Route preferred coverage → AuthorityEvent flow with expected refusals (frozen version,
+# stale freeze, unsupported review, cross-agency preference), leaving synthetic records in the
+# disposable CI tb_notice_dev only (it refuses to run outside CI). Nothing in it is authority,
+# readiness, a signature or an external action.
 name: CI
 
 on:
@@ -153,6 +159,8 @@ jobs:
         run: yarn smoke:directory --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"
       - name: P3A compiled source → canonical binding → route round trip (yarn smoke:p3a, synthetic)
         run: yarn smoke:p3a --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"
+      - name: P3B compiled mandate → version → coverage → signer → freeze → preference → event (yarn smoke:p3b, synthetic)
+        run: yarn smoke:p3b --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"
       - name: P1.1 recovery commands (synthetic account; P0 actor untouched)
         run: |
           E=p1-ci-admin@example.invalid
