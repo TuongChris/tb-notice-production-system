@@ -42,6 +42,12 @@ export function useRecordPage<T>(key: string, load: () => Promise<Versioned<T>>)
       setMessage(null);
       reload();
     },
+    /** Reloads after a change made through a child record (its reply does not carry this record). */
+    reloadWith: (text: string) => {
+      setConflict(false);
+      setMessage(text);
+      reload();
+    },
     update: (next: Versioned<T>, text: string) => {
       replace(next);
       setConflict(false);

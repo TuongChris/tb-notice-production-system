@@ -1273,6 +1273,55 @@ code.hash {
   max-width: 100%;
 }
 
+/* Cases (P4A). The meaning of an authority selection is stated in a ruled note, never as a badge:
+   a selection records what will be evaluated and decides nothing. */
+.selection-meaning {
+  margin: 0 0 0.6rem;
+  padding: 0.45rem 0.7rem;
+  border-left: 3px solid var(--ink-2);
+  background: var(--sunken);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.tag {
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border: 1px solid var(--rule-strong);
+  border-radius: 3px;
+  padding: 0 0.35rem;
+  color: var(--ink-2);
+  white-space: normal;
+}
+
+.tag-quiet {
+  font-weight: 400;
+  color: var(--ink-3);
+}
+
+.chain-summary {
+  margin: 1rem 0 0;
+  padding: 0.8rem 1rem;
+  border: 1px solid var(--rule-strong);
+  background: var(--sunken);
+  max-width: 48rem;
+}
+
+.chain-summary h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+.chain {
+  margin: 0 0 0.75rem;
+  padding-left: 1.25rem;
+}
+
+.chain > li + li {
+  margin-top: 0.2rem;
+}
+
 @media (max-width: 48rem) {
   .shell-body {
     grid-template-columns: 1fr;

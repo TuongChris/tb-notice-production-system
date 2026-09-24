@@ -1,5 +1,5 @@
 // Names of related records shown next to their ids (a route's agency, owner and subject, a source's
-// agency or scope, a coverage's route, mandate or version). Each record is fetched once per page and
+// agency or scope, a coverage's route, mandate or version, a case's intake label). Each record is fetched once per page and
 // shared by every cell that shows it; a record that cannot be loaded is shown as an explicit
 // fallback, never as a guessed name.
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
@@ -16,7 +16,8 @@ export type LookupKind =
   | 'route'
   | 'mandate'
   | 'version'
-  | 'coverage';
+  | 'coverage'
+  | 'case';
 
 type Loaded = { readonly name: string } | { readonly failed: true };
 
@@ -82,6 +83,8 @@ export function LookupProvider({ children }: { children: ReactNode }) {
           return { name: `Version ${(await api.versions.get(id)).data.version}` };
         case 'coverage':
           return { name: (await api.coverages.get(id)).data.coverageLabel };
+        case 'case':
+          return { name: (await api.cases.get(id)).data.intakeLabel };
       }
     };
     return { get, ownerSubject };
@@ -105,6 +108,7 @@ const PATHS: Readonly<Record<LookupKind, string>> = {
   mandate: '/representation/mandates',
   version: '/representation/versions',
   coverage: '/representation/coverages',
+  case: '/cases',
 };
 
 /** The name of a related record (a link to it unless `plain`). */

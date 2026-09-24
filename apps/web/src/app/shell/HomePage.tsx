@@ -19,8 +19,13 @@ export function HomePage() {
         <Link to="/representation">Representation</Link> holds routes — operational paths from an
         agency to an owner’s legal subject — and mandates with their versions, coverage, coverage
         signers and authority events. These record what cited sources are reported to support: none
-        of them is authority by existing, a G1–G7 decision or a signature. Cases and production are
-        not implemented yet.
+        of them is authority by existing, a G1–G7 decision or a signature.
+      </p>
+      <p>
+        <Link to="/cases">Cases</Link> hold case-specific records: a case’s route binding, the
+        sources linked to it and the authority materials selected for its evaluation. A case is not
+        a legal verdict, a linked source is not proof, and a selection records only what will be
+        evaluated — it is not a G1 decision. Production is not implemented yet.
       </p>
       <dl>
         <dt>Session</dt>

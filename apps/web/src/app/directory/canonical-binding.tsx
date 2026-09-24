@@ -153,7 +153,8 @@ interface Candidates {
   readonly outOfScope: number;
 }
 
-function BindDialog<T extends Bindable>({
+/** The binding dialog; the case page reuses it with the case's own display of the binding. */
+export function BindDialog<T extends { readonly id: string }>({
   open,
   noun,
   record,

@@ -1,15 +1,22 @@
-// Typed access to the contracted directory, source, route and representation-authority operations
-// (TB-SCHEMA-API-v1). Types come from @tb/contracts; the server validates everything again.
-// SourceReferences and AuthorityEvents are immutable: they carry no ETag (a source changes only
-// through a new revision, an event is superseded by a later event).
+// Typed access to the contracted directory, source, route, representation-authority and case
+// operations (TB-SCHEMA-API-v1). Types come from @tb/contracts; the server validates everything
+// again. SourceReferences, AuthorityEvents and CaseAuthoritySelections are immutable: they carry no
+// ETag (a source changes only through a new revision, an event is superseded by a later event, a
+// selection is followed by a later selection).
 import type {
   Agency,
   ArchiveRequest,
   AuthorityEvent,
+  BindCaseRoute,
   CanonicalBindingRequest,
+  CaseAuthoritySelection,
+  CaseRecord,
+  CaseSource,
+  CaseWorkflowRequest,
   CoverageSigner,
   CreateAgency,
   CreateAuthorityEvent,
+  CreateCase,
   CreateCoverage,
   CreateCoverageSigner,
   CreateLegalSubject,
@@ -20,6 +27,7 @@ import type {
   CreateSigner,
   CreateSource,
   LegalSubject,
+  LinkCaseSource,
   LinkOwnerSubject,
   LinkStateRequest,
   Mandate,
@@ -28,6 +36,7 @@ import type {
   Owner,
   OwnerSubject,
   PatchAgency,
+  PatchCase,
   PatchCoverage,
   PatchLegalSubject,
   PatchMandate,
@@ -38,6 +47,7 @@ import type {
   RecordStateRequest,
   ReviseSource,
   Route,
+  SelectAuthority,
   Signer,
   SignerStateRequest,
   SourceReference,
@@ -55,8 +65,12 @@ export interface ListQuery {
   readonly q?: string;
   readonly cursor?: string;
   readonly limit?: number;
-  /** listSigners, listSources, listRoutes and listMandates. */
+  /** listSigners, listSources, listRoutes, listMandates and listCases. */
   readonly agencyId?: string;
+  /** listCases only. */
+  readonly routeId?: string;
+  /** listCases only. */
+  readonly workflowState?: string;
 }
 
 export interface Page<T> {
@@ -82,6 +96,8 @@ function queryString(query: ListQuery): string {
   const params = new URLSearchParams();
   if (query.q) params.set('q', query.q);
   if (query.agencyId) params.set('agencyId', query.agencyId);
+  if (query.routeId) params.set('routeId', query.routeId);
+  if (query.workflowState) params.set('workflowState', query.workflowState);
   if (query.limit !== undefined) params.set('limit', String(query.limit));
   if (query.cursor) params.set('cursor', query.cursor);
   const text = params.toString();
@@ -134,6 +150,7 @@ export function createDirectoryApi(api: ApiClient) {
   return {
     sources: createSourcesApi(api),
     routes: createRoutesApi(api),
+    cases: createCasesApi(api),
     ...createAuthorityApi(api),
     agencies: directoryRecord<Agency, CreateAgency, PatchAgency, RecordStateRequest>(
       api,
@@ -397,6 +414,92 @@ export function createAuthorityApi(api: ApiClient) {
           await api.request<Page<AuthorityEvent>>(
             'GET',
             `${mandates}/${mandateId}/events${queryString(query)}`,
+          )
+        ).data,
+    },
+  };
+}
+
+/**
+ * Cases (P4A): the case record, its explicit source links and its append-only authority
+ * selections. Case commands and new children carry the case's ETag; a link-state change carries the
+ * link's own ETag. A selection is "the authority chain selected/pinned for evaluation in this
+ * specific Case" — never a G1 decision, current authority, signer eligibility or readiness — and
+ * has no ETag: it is never edited, only followed by a later selection.
+ */
+export function createCasesApi(api: ApiClient) {
+  const base = '/api/v1/cases';
+  const command =
+    <B>(suffix: string) =>
+    (id: string, body: B, ifMatch: string, auth: WriteAuth) =>
+      versioned(
+        api.request<CaseRecord>('POST', `${base}/${id}/${suffix}`, {
+          body,
+          ...writeHeaders(auth, ifMatch),
+        }),
+      );
+  return {
+    list: async (query: ListQuery = {}) =>
+      (await api.request<Page<CaseRecord>>('GET', `${base}${queryString(query)}`)).data,
+    get: (id: string) => versioned(api.request<CaseRecord>('GET', `${base}/${id}`)),
+    create: (body: CreateCase, auth: WriteAuth) =>
+      versioned(api.request<CaseRecord>('POST', base, { body, ...writeHeaders(auth) })),
+    patch: (id: string, body: PatchCase, ifMatch: string, auth: WriteAuth) =>
+      versioned(
+        api.request<CaseRecord>('PATCH', `${base}/${id}`, {
+          body,
+          ...writeHeaders(auth, ifMatch),
+        }),
+      ),
+    remove: async (id: string, ifMatch: string, auth: WriteAuth) => {
+      await api.request<void>('DELETE', `${base}/${id}`, writeHeaders(auth, ifMatch));
+    },
+    archive: command<ArchiveRequest>('archive'),
+    restore: command<ArchiveRequest>('restore'),
+    setWorkflow: command<CaseWorkflowRequest>('workflow'),
+    bindRoute: command<BindCaseRoute>('route-binding'),
+    bindCanonical: command<CanonicalBindingRequest>('canonical-binding'),
+    sources: {
+      list: async (caseId: string, query: ListQuery = {}) =>
+        (
+          await api.request<Page<CaseSource>>(
+            'GET',
+            `${base}/${caseId}/sources${queryString(query)}`,
+          )
+        ).data,
+      get: (id: string) => versioned(api.request<CaseSource>('GET', `/api/v1/case-sources/${id}`)),
+      /** Precondition target: the case's ETag (its context changes). */
+      link: (caseId: string, body: LinkCaseSource, caseEtag: string, auth: WriteAuth) =>
+        versioned(
+          api.request<CaseSource>('POST', `${base}/${caseId}/sources`, {
+            body,
+            ...writeHeaders(auth, caseEtag),
+          }),
+        ),
+      /** Precondition target: the link's own ETag. */
+      setLinkState: (id: string, body: LinkStateRequest, ifMatch: string, auth: WriteAuth) =>
+        versioned(
+          api.request<CaseSource>('POST', `/api/v1/case-sources/${id}/link-state`, {
+            body,
+            ...writeHeaders(auth, ifMatch),
+          }),
+        ),
+    },
+    selections: {
+      list: async (caseId: string, query: ListQuery = {}) =>
+        (
+          await api.request<Page<CaseAuthoritySelection>>(
+            'GET',
+            `${base}/${caseId}/authority-selections${queryString(query)}`,
+          )
+        ).data,
+      /** Precondition target: the case's ETag. The selection itself carries no ETag. */
+      select: async (caseId: string, body: SelectAuthority, caseEtag: string, auth: WriteAuth) =>
+        (
+          await api.request<CaseAuthoritySelection>(
+            'POST',
+            `${base}/${caseId}/authority-selections`,
+            { body, ...writeHeaders(auth, caseEtag) },
           )
         ).data,
     },

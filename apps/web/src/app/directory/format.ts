@@ -1,7 +1,7 @@
-// Display vocabulary of the directory, source, route and authority pages: enum labels, dates, and
-// plain-language explanations of the contract error codes (what happened and what to do next).
-// Authority vocabulary is neutral: a recorded state never reads as authorized, approved, eligible,
-// current or ready.
+// Display vocabulary of the directory, source, route, authority and case pages: enum labels, dates,
+// and plain-language explanations of the contract error codes (what happened and what to do next).
+// Authority and case vocabulary is neutral: a recorded state never reads as authorized, approved,
+// eligible, current, valid or ready, and a case state is never a legal conclusion.
 import { ApiError } from '../api/client.js';
 
 export const RECORD_STATE_LABEL = {
@@ -105,6 +105,27 @@ export const EVENT_TYPE_LABEL = {
   CORRECTION: 'Correction',
 } as const;
 
+/** Operational activity of a case only — never infringement, authority, readiness or an outcome. */
+export const WORKFLOW_STATE_LABEL = {
+  INTAKE: 'Intake',
+  PREPARING: 'Preparing',
+  DRAFTING: 'Drafting',
+  AWAITING_HUMAN: 'Awaiting a person',
+  AWAITING_PLATFORM: 'Awaiting the platform',
+  CLOSED: 'Closed',
+} as const;
+export const CASE_CLASS_LABEL = {
+  WORKING_INTAKE: 'Working intake',
+  CURRENT_OPERATION: 'Current operation',
+  RECOVERED_HISTORY: 'Recovered history',
+  EXTERNAL_REFERENCE: 'External reference',
+} as const;
+/** The kind of notice work a selection is recorded for (stored as supplied, evaluated later). */
+export const TASK_TYPE_LABEL = {
+  INITIAL: 'Initial notice',
+  NMI_REPLY: 'Reply to a request for more information',
+} as const;
+
 export type Tone = 'draft' | 'active' | 'archived' | 'paused' | 'ended' | 'frozen';
 
 export const RECORD_STATE_TONE: Record<keyof typeof RECORD_STATE_LABEL, Tone> = {
@@ -122,6 +143,15 @@ export const LINK_STATE_TONE: Record<keyof typeof LINK_STATE_LABEL, Tone> = {
   LINKED: 'active',
   PAUSED: 'paused',
   UNLINKED: 'ended',
+};
+/** Neutral tones: no workflow state is shown in the green of an active record. */
+export const WORKFLOW_STATE_TONE: Record<keyof typeof WORKFLOW_STATE_LABEL, Tone> = {
+  INTAKE: 'draft',
+  PREPARING: 'draft',
+  DRAFTING: 'draft',
+  AWAITING_HUMAN: 'paused',
+  AWAITING_PLATFORM: 'paused',
+  CLOSED: 'ended',
 };
 /** Neutral tones: "frozen" is not the green of an active record. */
 export const VERSION_STATE_TONE: Record<keyof typeof VERSION_STATE_LABEL, Tone> = {
@@ -181,11 +211,22 @@ const BLOCKER_TEXT: Record<string, string> = {
   'REFERENCED_BY:mandate_coverages.route_id': 'mandate coverage uses it',
   'REFERENCED_BY:mandate_versions.mandate_id': 'versions were recorded under it',
   'REFERENCED_BY:authority_events.mandate_id': 'authority events were recorded under it',
+  'REFERENCED_BY:case_sources.case_id': 'sources are linked to it',
+  'REFERENCED_BY:case_authority_selections.case_id': 'authority selections were recorded for it',
+  'REFERENCED_BY:reported_items.case_id': 'reported items belong to it',
+  'REFERENCED_BY:case_works.case_id': 'works belong to it',
+  'REFERENCED_BY:use_mappings.case_id': 'use mappings belong to it',
+  'REFERENCED_BY:case_facts.case_id': 'facts were recorded for it',
+  'REFERENCED_BY:correspondence_bindings.case_id': 'correspondence is bound to it',
+  'REFERENCED_BY:prompt_snapshots.case_id': 'prompt snapshots were taken for it',
+  'REFERENCED_BY:notice_candidates.case_id': 'notice candidates belong to it',
 };
 
 /** Why a source's recorded scope does not include a record (SOURCE_SCOPE_UNRESOLVED reasons). */
 export const SOURCE_SCOPE_REASON_TEXT: Record<string, string> = {
-  CASE_SCOPED_SOURCE: 'the source is scoped to a case, and cases do not exist yet',
+  CASE_SCOPED_SOURCE: 'the source is scoped to particular cases, and this record is not a case',
+  CASE_SUBJECT_UNBOUND:
+    'the source is about particular legal subjects, and this case has no route yet that tells its legal subject',
   NOT_SCOPED_TO_AGENCY: 'the source is neither this agency’s own nor shared with this agency',
   AGENCY_OWNED_SOURCE:
     'the source belongs to one agency, but this record is shared by all agencies',
@@ -253,7 +294,14 @@ export function describeError(error: unknown, recordLabel = 'record'): string {
       if (record === 'LegalSubject') return 'The legal subject is archived. Restore it first.';
       if (record === 'Owner') return 'The owner is archived. Restore it first.';
       if (record === 'Agency') return 'The agency is archived. Restore it first.';
-      if (record === 'Route') return 'The route is archived. Restore it first.';
+      if (record === 'CaseRecord') {
+        return 'This case is archived, so it and everything under it are read-only until it is restored.';
+      }
+      if (record === 'Route') {
+        return typeof details['linkState'] === 'string'
+          ? 'That route is paused or unlinked, so no case can be bound to it or select authority under it.'
+          : 'The route is archived. Restore it first.';
+      }
       if (record === 'Mandate') {
         return 'The mandate is archived, so it and everything under it are read-only until it is restored.';
       }
@@ -261,9 +309,18 @@ export function describeError(error: unknown, recordLabel = 'record'): string {
         return 'The owner–subject link is not linked, so no route can use it. Relink it first.';
       }
       if (record === 'Signer') {
+        if (details['operation'] === 'selectCaseAuthority') {
+          return 'That signer is archived or ended, so it cannot be selected for a case.';
+        }
         return details['operation'] === 'createCoverageSigner'
           ? 'That signer is archived or ended, so it cannot be recorded under a coverage.'
           : 'That signer is archived or ended, so it cannot be a default signer.';
+      }
+      if (typeof details['workflowState'] === 'string') {
+        return 'The case is already in that workflow state.';
+      }
+      if (details['operation'] === 'route-binding') {
+        return 'The case is already bound to that route.';
       }
       return `This action isn't available in the ${recordLabel}'s current state. Reload to see its latest state.`;
     }
@@ -274,6 +331,19 @@ export function describeError(error: unknown, recordLabel = 'record'): string {
     case 'REFERENCE_NOT_FOUND':
       return 'A referenced record no longer exists. Reload and choose again.';
     case 'CROSS_AGENCY_REFERENCE':
+      if (recordLabel === 'case') {
+        const field = typeof details['field'] === 'string' ? details['field'] : '';
+        if (field === 'routeId') {
+          return 'That route belongs to another agency. A case uses only routes of its own agency.';
+        }
+        if (field === 'signerId') {
+          return 'That signer acts for another agency. A case selects only signers of its own agency.';
+        }
+        if (field.startsWith('coverages.')) {
+          return 'That coverage belongs to another agency’s mandate, so this case cannot select it.';
+        }
+        return 'That source belongs to another agency, so it cannot support this case.';
+      }
       switch (details['field']) {
         case 'defaultSignerId':
           return 'That signer belongs to another agency. A route’s default signer must act for the route’s agency.';
@@ -288,17 +358,35 @@ export function describeError(error: unknown, recordLabel = 'record'): string {
       }
     case 'SOURCE_SCOPE_UNRESOLVED': {
       const reason = typeof details['reason'] === 'string' ? details['reason'] : '';
+      if (typeof details['conflict'] === 'string') {
+        return `A source this case relies on would not apply on that route: ${
+          SOURCE_SCOPE_REASON_TEXT[reason] ?? 'its recorded scope does not include the route'
+        }. Unlink that source or choose another route.`;
+      }
       return `That source cannot support this ${recordLabel}: ${
         SOURCE_SCOPE_REASON_TEXT[reason] ?? 'its recorded scope does not include this record'
       }.`;
     }
     case 'CROSS_OWNER_REFERENCE':
+      if (typeof details['conflict'] === 'string') {
+        return 'A source this case relies on is recorded as another owner’s material, so the case cannot move to that route.';
+      }
+      if (details['field'] === 'routeId' || details['field'] === 'ownerHintId') {
+        return 'The case’s owner hint and its route’s owner must be the same owner. Change the owner hint or choose that owner’s route.';
+      }
       return 'That source is already recorded as another owner’s material, so it cannot be used for this owner.';
+    case 'CROSS_CASE_REFERENCE':
+      return 'That source is scoped to another case, so it cannot support this case.';
+    case 'DUPLICATE_CASE_SOURCE':
+      return 'This source is already linked to this case in that role. Change the existing link’s state instead.';
     case 'SOURCE_NOT_CURRENT':
       return 'That source has a newer revision. Choose the current revision.';
     case 'SOURCE_ROLE_NOT_VERIFICATION':
       return 'A canonical binding needs a source recorded as a canonical record.';
     case 'BINDING_CORRECTION_REQUIRES_RECONCILIATION':
+      if (Array.isArray(details['blockers'])) {
+        return 'This case already has history on its bound route (for example an authority selection). Changing the route needs a reconciliation workflow that isn’t available yet.';
+      }
       return `This ${recordLabel} already has a canonical binding. Changing it needs a reconciliation workflow that isn't available yet.`;
     case 'DUPLICATE_CANONICAL_CODE':
       return 'Another record of this kind already has that canonical code. Check the code in the source.';
@@ -308,8 +396,6 @@ export function describeError(error: unknown, recordLabel = 'record'): string {
       return 'A newer revision of this source exists. Only the current revision can be revised.';
     case 'REVISION_SCOPE_CHANGE':
       return 'A revision keeps the source’s agency and scope. A different scope needs a new source record.';
-    case 'CASE_SCOPE_UNAVAILABLE':
-      return 'Case scope cannot be recorded before cases exist.';
     case 'CONTENT_HASH_INCOMPLETE':
       return 'Enter both the SHA-256 value and what it was computed from, or neither.';
     case 'REVIEW_UNATTRIBUTED':
@@ -325,15 +411,27 @@ export function describeError(error: unknown, recordLabel = 'record'): string {
         case 'preferredCoverageId':
           return 'That coverage belongs to a draft version. Only coverage of a frozen version can be a preferred coverage.';
         default:
+          if (String(details['field']).startsWith('coverages.')) {
+            return 'That coverage belongs to a draft version. Only coverage of a frozen version can be selected for a case.';
+          }
           return 'The referenced version is still a draft; only a frozen version can be used here.';
       }
     case 'VERSION_SUCCESSOR_EXISTS':
       return 'That version already has a successor. A version chain does not fork: open the successor instead.';
     case 'AUTHORITY_SCOPE_UNRESOLVED':
       switch (details['reason']) {
+        case 'CASE_ROUTE_UNBOUND':
+          return 'Bind this case to a route before selecting authority materials.';
+        case 'NOT_CASE_ROUTE':
+          return 'A selection names the case’s own bound route. Reload the case and try again.';
+        case 'SIGNER_NOT_RECORDED':
+          return 'The chosen signer is not recorded under that coverage. Choose coverage that records this signer, or another signer.';
         case 'OTHER_MANDATE':
           return 'That record belongs to another mandate, so it cannot be used here.';
         case 'OTHER_ROUTE':
+          if (recordLabel === 'case') {
+            return 'That coverage names another route, not the route this case is bound to.';
+          }
           return 'That coverage names another route. A route can prefer only its own coverage, and a coverage lineage stays on one route.';
         case 'SCOPE_CHANGE':
           return 'A superseding event keeps the scope of the event it supersedes (the whole mandate or the same coverage).';
