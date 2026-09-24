@@ -1,0 +1,75 @@
+# R7 remediation — root cause of the SourceReference instant defects (measured, not assumed)
+# 2026-09-24 ~12:20–12:40Z, home PC, before the fix (storage path of 8e513f0: Prisma 7.10.0 +
+# @prisma/adapter-mariadb 7.10.0 → MySQL 8.4.11; session time zone +00:00; sql_mode
+# IGNORE_SPACE,ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,
+# ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION).
+#
+# Method. (1) A scratchpad probe (not committed) wrote SourceReference rows with the generated Prisma
+# client and the driver configuration of the test suites, all inside ONE interactive transaction on
+# the disposable tb_notice_test schema that was always rolled back ("rows after rollback: 0 sources,
+# 0 users"); it read each value back twice: as MySQL's own text (CAST(observed_at AS CHAR)) and
+# through Prisma. (2) A second probe (no database) compared V8's Date parser (Node 24.21.0) with
+# an exact component parser over wire-valid strings. Every input below passes the contract's
+# `date-time` format (ajv-formats 3.0.1 "full", the wire oracle), so it reached the service.
+
+## Column metadata (information_schema, tb_notice_test; also the reviewed migration SQL)
+source_references.observed_at   datetime(3) NULL   DATETIME_PRECISION 3
+source_references.reviewed_at   datetime(3) NULL   DATETIME_PRECISION 3
+authority_events.effective_at   datetime(3) NULL   DATETIME_PRECISION 3
+authority_events.effective_on   date NULL          (P3B DATE columns: effective_on / expires_on / ends_on)
+MySQL 8.4 Reference Manual, "The DATE, DATETIME, and TIMESTAMP Types": the supported DATETIME range is
+'1000-01-01 00:00:00' to '9999-12-31 23:59:59'; "With the fractional part included … the range for
+DATETIME values is '1000-01-01 00:00:00.000000' to '9999-12-31 23:59:59.499999'".
+
+## What the contract admits (ajv-formats "full" date-time)
+Date part \d{4}-\d{2}-\d{2} (years 0000–9999, calendar-checked); separator T, t or ANY single
+whitespace character; seconds with ANY number of fraction digits; offset Z/z, ±HH:MM, ±HHMM or ±HH;
+a "leap-second" branch that accepts second 60 whenever the UTC time is 23:59 — and, through its
+arithmetic, also hour-24 / minute-overflow forms with an offset (e.g. 2025-06-30T24:59:30+01:00).
+
+## P3A before R7: captureProblem() never checked observedAt / reviewedAt; captureData() handed the
+## request STRING to Prisma (Prisma's DateTime parser, then the adapter's JS Date conversion)
+input                              MySQL text stored          read back (Prisma)          outcome over HTTP
+2026-06-30T10:00:00.123Z           2026-06-30 10:00:00.123    2026-06-30T10:00:00.123Z    201 exact (control)
+2026-06-30T10:00:00.123456Z        2026-06-30 10:00:00.123    2026-06-30T10:00:00.123Z    201, microseconds silently CUT
+2026-06-30T10:00:00.123999Z        2026-06-30 10:00:00.123    2026-06-30T10:00:00.123Z    201, cut (not rounded: JS Date keeps whole ms)
+1999-12-31T23:59:59.9995Z          1999-12-31 23:59:59.999    1999-12-31T23:59:59.999Z    201, cut
+2026-06-30T23:59:60Z               — MySQL error 1292 "Incorrect datetime value: '0NaN-NaN-NaN NaN:NaN:NaN'"   500 INTERNAL_ERROR
+2026-06-30T23:59:60.5Z             — same 1292                                                               500
+2026-06-30T16:59:60-07:00          — same 1292 (a leap second written with an offset)                         500
+9999-12-31T23:59:59-01:00          — same 1292 (UTC year 10000; the adapter cannot format it)                  500
+2026-06-30T24:59:30+01:00          — PrismaClientValidationError "input is out of range"                        500
+2026-06-30T10:00:00+05             — PrismaClientValidationError "premature end of input"                       500
+2026-06-30T10:00:00+0530           — PrismaClientValidationError "input contains invalid characters"            500
+2026-06-30<TAB>10:00:00Z           — PrismaClientValidationError "input contains invalid characters"            500
+  (the same for LF, NO-BREAK SPACE and IDEOGRAPHIC SPACE separators; a plain space and lowercase t/z worked)
+0999-06-30T10:00:00Z               0999-06-30 10:00:00.000    0999-06-30T10:00:00.000Z    201, outside MySQL's supported range
+1000-01-01T00:30:00+01:00          0999-12-31 23:30:00.000    0999-12-31T23:30:00.000Z    201, outside the supported range (UTC 0999)
+0099-06-30T10:00:00Z               0099-06-30 10:00:00.000    1999-06-30T10:00:00.000Z    201, READ BACK SHIFTED by the driver
+0050-06-30T10:00:00Z               0050-06-30 10:00:00.000    1950-06-30T10:00:00.000Z    201, read back shifted
+0000-01-01T00:00:00Z               0000-01-01 00:00:00.000    2000-01-01T00:00:00.000Z    201, read back shifted
+9999-12-31T23:59:59.999Z           9999-12-31 23:59:59.999    9999-12-31T23:59:59.999Z    201; outside the documented range with a fraction (…59.499999)
+Nothing was persisted by a 500 (the write executor rolls back and releases the idempotency claim).
+"Outcome over HTTP" is what the API makes of each storage-path result: any error that is not an ApiError is rendered
+as 500 INTERNAL_ERROR (apps/api/src/infrastructure/http/api-exception.filter.ts), and the create response is built
+from the row Prisma reads back. Observed over HTTP: the leap-second, microsecond and 0999 rows at the R7 submission
+(p3b-observation-p3a-source-instants.txt); R7-NC07 (pre-remediation capture code restored on ee31fa3) reproduced
+the leap-second 500 and the +0530 500 through the HTTP suite (p3b-r7-negative-controls.txt).
+
+## P3B before R7 (authority event effectiveAt): the rule judged and converted with V8's Date parser
+storabilityProblem() accepted a value when new Date(value) was valid, had ≤ 3 fraction digits and a
+UTC date 1000-01-01…9999-12-31; the write used new Date(value). V8 falls back to a legacy parser for
+any separator other than T/t, and that parser reads 4-digit years 0000–0099 as 1950–2049:
+  new Date('0050-06-30 10:00:00Z') → 1950-06-30T10:00:00.000Z   (100 of 100 years 0000–0099 shift,
+  for space, TAB, LF, NO-BREAK SPACE and IDEOGRAPHIC SPACE separators; none with T or t)
+so '0050-06-30 10:00:00Z' (wire-valid) passed the range check and would have been stored as 1950 —
+a silent date change. The same rule also refused exactly storable values ('….123000Z', '…+05') and
+accepted the last half-second of 9999 (…23:59:59.500–.999Z), outside MySQL's documented range.
+
+## Root cause (one, shared)
+Values were judged and converted by parsers that disagree with the wire oracle and with the column:
+P3A had no storability check and passed the raw string through Prisma's DateTime parser and the
+adapter's JS Date conversion (leap second → Invalid Date → '0NaN…' → 1292 → 500; microseconds cut
+by JS Date; years outside MySQL's range stored or shifted on read); P3B's check relied on V8's
+parser. Fix: one exact component parser of the contract grammar (infrastructure/write/storability.ts)
+decides storability for both, and the exact Date it computes — never the request string — is written.

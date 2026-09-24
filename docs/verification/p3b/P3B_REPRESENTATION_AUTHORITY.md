@@ -2,6 +2,8 @@
 
 Mission TB_P3B_REPRESENTATION_AUTHORITY_TO_R7 on `feature/p3b-representation-authority`, branched from `main` `adea2bc` (post-P3A merge) and started at the R6 closeout head `c8da59f`. Recorded 2026-09-24 (UTC) on the home PC, the primary development workstation (ADR-0003). The mission stops at review gate **R7** and is submitted as **PENDING**. Cases and every later phase were **not started**. No case, CaseAuthoritySelection, reported item, case work, use mapping, case fact, correspondence, prompt, NoticeCandidate, ValidationRun workflow, CandidateAssessment, G1–G7 readiness, READY_FOR_SIGNER, signing, adoption, sending, retraction, counter-notification, uploader contact, Drive write, mailbox or other external action exists.
 
+> **R7 (operator, 2026-09-24): PASS_WITH_ONE_REMEDIATION.** P3B is functionally accepted; the accepted decisions and the one remediation (SourceReference instant storability, `ee31fa3`) are recorded in §21.
+
 ## Status by scope (not collapsed)
 
 | Scope | Status | Basis |
@@ -10,7 +12,7 @@ Mission TB_P3B_REPRESENTATION_AUTHORITY_TO_R7 on `feature/p3b-representation-aut
 | **P3B_CI** | **PASS** for the code head `04b8528` (push run 35990960584, both jobs success, `smoke:p3b` 36 checks) and for `f79aa0a` (run 35980464772) | CI runs `yarn test`, `yarn test:db`, `smoke:local`, `smoke:auth`, `smoke:directory`, `smoke:p3a` and the new compiled `smoke:p3b` flow (§14). A commit cannot record its own run; the final run of the submitted documentation head is reported with R7 |
 | **P3B_BROWSER (Playwright MCP)** | **PASS** 20/20 (supplemental); three UI findings found and fixed (`04b8528`) | Isolated test browser against the compiled API on the disposable `tb_notice_test` (`evidence/p3b-playwright-mcp-verification.txt`, §12) |
 | **P3B_NEGATIVE_CONTROLS** | **PASS** 51/51 | Every disabled protection made its responsible suites fail; files restored byte-identically (§13, `evidence/p3b-negative-controls.txt`) |
-| **R7 review** | **PENDING** | — |
+| **R7 review** | **PASS_WITH_ONE_REMEDIATION** (operator, 2026-09-24): P3B functionally accepted; decisions accepted (§21.1) | The one remediation — SourceReference instant storability — is implemented (`ee31fa3`) and verified (§21); R7 closeout pending |
 | **P1_WINDOWS_BROWSER** | **NOT_RUN** (not reported) | Unchanged |
 | **P0_SECOND_PC** / **P0_TWO_PC_ACCEPTANCE** / **P0_SINGLE_PC_BASELINE** / **P0_OVERALL** | **DEFERRED_BY_OPERATOR** / **NOT_COMPLETED** / **VERIFIED** / **NOT_COMPLETE** against the original two-PC contract | ADR-0003; unchanged by P3B |
 
@@ -275,7 +277,7 @@ Totals (home PC, 2026-09-24): `yarn test` **1148** in 30 files (P3A at R6: 1093 
 ## 18. Deviations, warnings and limitations
 
 - **§41 flow order.** The mission lists "MandateVersion → freeze → MandateCoverage → CoverageSigner". Because a frozen version is immutable (§8), coverage and coverage signers are recorded **before** the freeze; `smoke:p3b` then shows `createCoverage` on the frozen version as an expected refusal (409 `FROZEN_VERSION`). Every listed step is covered; only the order differs.
-- **Latent P3A defect (observed and reported; not changed — outside this mission).** The contract's `date-time` format admits instants MySQL cannot store exactly. P3B refuses them for its own fields (422 `VALIDATION_FAILED`), but P3A's source capture does not: on the compiled API (`yarn ui:sandbox`, synthetic data), a source `observedAt` or `reviewedAt` with a leap second (`…T23:59:60Z`) returns **500 `INTERNAL_ERROR`** (nothing persisted), a microsecond `observedAt` is accepted and silently truncated to milliseconds, and year 0999 is accepted. Proposed remediation for the operator's decision: the same storability check in P3A source capture, with tests and a negative control. Evidence: `evidence/p3b-observation-p3a-source-instants.txt`.
+- **Latent P3A defect (observed and reported; not changed — outside this mission).** The contract's `date-time` format admits instants MySQL cannot store exactly. P3B refuses them for its own fields (422 `VALIDATION_FAILED`), but P3A's source capture does not: on the compiled API (`yarn ui:sandbox`, synthetic data), a source `observedAt` or `reviewedAt` with a leap second (`…T23:59:60Z`) returns **500 `INTERNAL_ERROR`** (nothing persisted), a microsecond `observedAt` is accepted and silently truncated to milliseconds, and year 0999 is accepted. Proposed remediation for the operator's decision: the same storability check in P3A source capture, with tests and a negative control. Evidence: `evidence/p3b-observation-p3a-source-instants.txt`. **Remediated at R7 — §21** (the defect class turned out wider; one shared rule now serves both phases).
 - Cosmetic items left unchanged (evidence file): generic "Mandate" breadcrumbs on some creation pages, "its 0 coverages" in the freeze dialog of an empty version, and the list-table scroll frame of earlier phases not being focusable itself.
 - `smoke:p3b` writes records and runs only in CI (`CI=true`); on the home PC the same operations were exercised through the browser pass on `yarn ui:sandbox` and the DB suite.
 - Session-row and idempotency-record retention cleanup remain DEFERRED (unchanged, non-blocking).
@@ -288,3 +290,121 @@ None.
 ## 20. Proposed next phase (not started)
 
 **P4A — Case core and case authority selection** (gate R8, needs its own explicit, approved mission): `Case` (list, create, get, patch, delete-unused, archive, restore, workflow, route binding, canonical binding), case-scoped SourceReference links (`listCaseSources`, `linkCaseSource`, `getCaseSource`, `setCaseSourceLinkState`, which lifts the current refusal of `caseIds`), and `CaseAuthoritySelection` (`selectCaseAuthority`, `listCaseAuthoritySelections`) — the first place where case authority is determined from a frozen coverage and its recorded signers. Excluded: reported items, case works, use mappings, case facts, correspondence, prompts, NoticeCandidate, ValidationRun, assessments, readiness, G1–G7, signing, sending and any external action. Nothing of it is started.
+
+## 21. R7 result and remediation (2026-09-24, home PC)
+
+**R7 result (operator): PASS_WITH_ONE_REMEDIATION.** P3B Representation Authority is functionally accepted. The one blocking remediation before the R7 closeout was the latent P3A SourceReference timestamp-storability defect found during P3B (§18). Mission: TB_R7_SOURCE_TIMESTAMP_STORABILITY_REMEDIATION, on `feature/p3b-representation-authority` from the submitted head `8e513f0`. P4A was **not** started; nothing was merged to `main`.
+
+### 21.1 R7 decisions accepted (operator)
+
+1. A Mandate has no established-identity lock: it is a representation/appointment container, not a LegalSubject identity record.
+2. An archived Mandate stays read-only, including no new AuthorityEvent. A historical or retroactive event is recorded by restoring the Mandate administratively, recording the event with its actual supplied effective/occurred date, and archiving again if appropriate. `recordedAt` is never substituted for `effectiveAt`.
+3. UNTIL_TERMINATED together with an `expiresOn` value may be preserved as supplied documentary facts. The system infers no currentness, expiry or contradiction resolution from that combination.
+4. A PAUSED Route and a PAUSED Signer may take part in P3B documentary records where the contract allows them. PAUSED is administrative state and neither proves nor disproves legal authority.
+5. A truthful incomplete DRAFT MandateVersion may be frozen. FROZEN means an immutable snapshot only — not complete, legally approved, current authority, G1 PASS, owner-confirmed or signer-adopted.
+6. `Route.preferredCoverageId` is not cleared automatically when its parent Mandate is later archived. The recorded operational preference is preserved; any later Case/authority-selection workflow must revalidate whether the Coverage is usable.
+7. The conservative owner-material source-scope extension stays accepted until a more explicit owner-scope model exists.
+8. Permanent semantics: Coverage ≠ G1 PASS; CoverageSigner ≠ G7; an AuthorityEvent's existence is not proof by itself; an application User is not a Signer.
+
+No contract amendment is authorized by these decisions.
+
+### 21.2 Remediation (commit `ee31fa3`)
+
+**Accepted rule (R7).** If a supplied timestamp cannot be stored and read back exactly under the current database representation, it is refused deterministically before persistence: no 500, no silent truncation, no silent date change.
+
+**Root cause (measured; `evidence/p3b-r7-source-instants-root-cause.txt`).** The contract's `date-time` format (ajv-formats 3.0.1 "full", the wire oracle) admits leap seconds, any number of fraction digits, years 0000–9999, the offsets `±HHMM` and `±HH`, any single whitespace character as separator, and — through its leap-second arithmetic — hour-24 / minute-overflow forms with an offset. `observed_at` and `reviewed_at` are `DATETIME(3)` (UTC). P3A's `captureProblem` never checked these fields, and `captureData` handed the request string to Prisma:
+
+| Defect | Mechanism |
+|---|---|
+| A. leap second → 500 | Prisma's DateTime validation accepts `…23:59:60…`; the adapter's JS `Date` of it is Invalid and is formatted as `'0NaN-NaN-NaN NaN:NaN:NaN'`; MySQL error 1292; the unmapped Prisma error became 500 `INTERNAL_ERROR` (nothing persisted) |
+| B. sub-millisecond digits silently cut | The adapter converts to a JS `Date`, which keeps whole milliseconds: `.123456` and `.123999` were stored as `.123` (cut, not rounded) |
+| C. years outside MySQL's range accepted | `0999-…` was stored (outside MySQL's supported range); years `0000–0099` were stored but read back shifted by the driver (`0050` → `1950`, `0000-01-01` → `2000-01-01`) |
+| further members of the same class (all 500) | A UTC instant after 9999 through an offset (`9999-12-31T23:59:59-01:00` → 1292); spellings Prisma's parser refuses: `+05`, `+0530`, TAB / LF / NO-BREAK SPACE / IDEOGRAPHIC SPACE separators, `24:59:30+01:00` |
+
+The P3B rule had a related gap: it judged and converted `effectiveAt` with V8's `Date` parser, whose legacy fallback (any separator other than `T`/`t`) reads years `0000–0099` as `1950–2049` — `0050-06-30 10:00:00Z` would have been accepted and stored as **1950**-06-30.
+
+**Shared implementation (`apps/api/src/infrastructure/write/storability.ts`).** One exact parser of the contract `date-time` grammar computes the instant from its components (no V8 or Prisma string parsing):
+
+- `storableInstant(value)` → the exact `Date` a `DATETIME(3)` column stores and reads back unchanged, or null: a real time of day (no second 60, no hour 24, no minute overflow), no non-zero digit after the milliseconds, a calendar date, and a UTC instant within MySQL's supported DATETIME range with a fractional part.
+- `storabilityProblem(body, dateFields, timestampFields)` — moved unchanged in signature and date behaviour from `authority-rules.ts` → 422 `VALIDATION_FAILED` naming every unstorable field, before any idempotency claim or write.
+- `toDbInstant(value)` — the exact `Date` that is written; a value that was never checked fails (500) rather than being written altered.
+- Users: P3A `captureProblem` (`observedAt`, `reviewedAt`; checked first, so the result is deterministic) and `captureData` (writes the exact `Date`); P3B `recordAuthorityEvent` (`effectiveAt`, now written with `toDbInstant` instead of `new Date(string)`) and the P3B date checks of versions, coverages and coverage signers (unchanged).
+
+**Boundaries (UTC).**
+
+| | Accepted | Refused |
+|---|---|---|
+| Lower | `1000-01-01T00:00:00.000Z`; a local date in 0999 only when its UTC instant is in range (`0999-12-31T23:30:00-01:00` = `1000-01-01T00:30:00.000Z`) | `0999-12-31T23:59:59.999Z`, `1000-01-01T00:30:00+01:00`, `0999-…`, `0000-…`, `0050-06-30 10:00:00Z` |
+| Upper | `9999-12-31T23:59:59.499Z` | `9999-12-31T23:59:59.500Z`, `…23:59:59.999Z` (MySQL: "…'9999-12-31 23:59:59.499999'" with a fractional part), `9999-12-31T23:59:59-01:00` (UTC year 10000) |
+| Time of day | `00:00:00`–`23:59:59.999` | `23:59:60` in any offset (`2016-12-31T15:59:60-08:00`), `24:59:30+01:00`, `23:99:60+00:40` |
+| Fraction | up to 3 digits; further digits only zeros (`.123000` = `.123`) | any non-zero digit after the third (`.1234`, `.123456`, `.123999`, `.0005`) |
+| Spelling | `Z`/`z`, `±HH:MM`, `±HHMM`, `±HH`, `-00:00`; separator `T`, `t` or one whitespace character — all stored as the same UTC instant | — (outside the contract format: already 422 at body parsing) |
+| DATE (P3B) | `1000-01-01`…`9999-12-31` (unchanged) | outside (unchanged) |
+
+**Behaviour changes (all no-write refusals or exact stores; wire schemas unchanged).**
+
+| Input | Before R7 | After |
+|---|---|---|
+| Source `observedAt`/`reviewedAt`: leap second, `24:59:30+01:00`, UTC year 10000 | 500 | 422 `VALIDATION_FAILED` |
+| Source: `.123456` / `.1239` | 201, cut to `.123` | 422 |
+| Source: years before 1000 (UTC), `0000`–`0099` shifted on read | 201 | 422 |
+| Source: `…23:59:59.500Z`–`.999Z` on 9999-12-31 | 201 | 422 |
+| Source: `+05`, `+0530`, TAB / LF / NBSP / U+3000 separator | 500 | 201, the exact instant |
+| Event `effectiveAt`: `0050-06-30 10:00:00Z` (non-`T` separator, years 0000–0099) | 201, stored as 1950-06-30 | 422 |
+| Event `effectiveAt`: `…23:59:59.500Z`–`.999Z` on 9999-12-31 | 201 | 422 |
+| Event `effectiveAt`: `.123000` (zeros after the milliseconds), `+05` | 422 | 201, the exact instant |
+| Refusal message for an unstorable instant | "…between years 1000 and 9999 (keep the exact wording in the raw text field)" | "Must be a real instant (no leap second) with at most millisecond precision, between 1000-01-01T00:00:00.000Z and 9999-12-31T23:59:59.499Z" |
+
+Every value inside MySQL's documented supported range that was stored exactly before is still stored as the same instant. The previously accepted values now refused are those the storage path altered (cut fractions, shifted years) and those outside the documented range — years before 1000 in UTC and the last half-second of 9999-12-31, which the pinned server happens to store but MySQL does not support (the same "current MySQL contract" standard R7 applied to year 0999, which also happens to round-trip). No migration, no column change, no wire-contract change, no dependency change.
+
+### 21.3 Tests added or extended
+
+| Suite | Change | Covers |
+|---|---|---|
+| `tests/api/storability.test.ts` | **new, 47** | The shared rule: every case is proven wire-valid first (it reaches the rule); 19 stored spellings with their exact instants (fraction zeros, `±HH:MM`/`±HHMM`/`±HH`/`-00:00`, `t`/`z`, space/TAB/U+3000 separators, leap day, lowest `1000-01-01T00:00:00Z`, `0999-12-31T23:30:00-01:00` = UTC 1000, highest `9999-12-31T23:59:59.499Z`); 18 refusals, never altered (leap seconds in any offset, hour 24, minute 99, `.1234`/`.123456`/`.123999`/`.0005`, 0999, UTC 0999 through an offset, 0000, `0050-06-30 10:00:00Z`, `…59.500Z`, `…59.999Z`, UTC 10000); values outside the format; an oracle test against the ECMAScript-specified `Date.parse` over 6 930 canonical wire strings (years 0999–9999, fractions, offsets) — the stored instant equals it inside MySQL's range and nothing outside; a metamorphic test that 512 alternative spellings (offset forms and separators) name the canonical instant; date boundaries; every unstorable field reported in order |
+| `tests/api/source-rules.test.ts` | +1 (36 → 37) | `captureProblem` refuses unstorable `observedAt`/`reviewedAt` per field and **first** (before any other capture rule), including an offset-written leap second; storable spellings and nulls pass |
+| `tests/api/authority-rules.test.ts` | import path only | The P3B storability cases stay byte-identical as the regression guard of the accepted P3B semantics |
+| `tests/db/p3a-http.test.ts` | +4 (41 → 45) | Over real HTTP on `tb_notice_test`: **create** stores 16 spellings as exactly their instant — checked in the response, by GET, in the audit record and in the column's own text (`CAST(observed_at AS CHAR)`, not Prisma's read path); **revise** stores each revision's own instants and leaves earlier revisions unchanged; **15 unstorable values × 2 fields × (create, revise)** are 422 `VALIDATION_FAILED` naming the field — never 500 — with no SourceReference row, no audit event and no idempotency record written and the head unchanged; the same refusal is deterministic; a refused request's Idempotency-Key keeps no result and then runs the corrected request once (exact replay returns it) |
+| `tests/db/p3b-http.test.ts` | +1 (61 → 62) | `effectiveAt` under the shared rule: `.123000`, `+05`, TAB separator and both boundaries stored exactly (column text checked); `0050-06-30 10:00:00Z`, an offset-written leap second, `0000-…`, `…59.500Z`, `…59.999Z`, `24:59:30+01:00` refused with no event and no Mandate version change |
+
+Totals: `yarn test` 1196 in 31 files (R7 submission: 1148 in 30); `yarn test:db` 256 in 7 files (R7 submission: 251).
+
+### 21.4 No write on rejection
+
+The check runs in the service before `WriteExecutor.execute` — before the idempotency claim, the transaction and the audit writer — so a refused value cannot write anything. The HTTP suites prove it: after every refusal, `source_references`, `audit_events` and `idempotency_records` are unchanged (P3A) and `authority_events` and the Mandate's `rowVersion` are unchanged (P3B); no response is 500. `tb_notice_test` was verified empty after every DB suite, negative control and the sandbox session.
+
+### 21.5 Negative controls R7-NC01–R7-NC08 (`evidence/p3b-r7-negative-controls.txt`) — 8/8 PASS on `ee31fa3`
+
+| Control | Disabled protection | Responsible suites (all failed) |
+|---|---|---|
+| R7-NC01 | leap-second rejection (`second > 59` → `> 60`) | storability, source-rules, p3a-http, p3b-http |
+| R7-NC02 | refusal of digits after the milliseconds (silent truncation) | storability, source-rules, authority-rules, p3a-http, p3b-http |
+| R7-NC03 | the DB year bounds (any UTC year accepted) | storability, source-rules, authority-rules, p3a-http, p3b-http |
+| R7-NC04 | the P3A capture check (the original gap) | source-rules, p3a-http (unchecked values fail closed as 500, never stored) |
+| R7-NC05 | the exact write of P3A (request string to Prisma) | p3a-http (`+0530` etc. → 500) |
+| R7-NC06 | the exact write of P3B (`new Date(string)`) | p3b-http (`+05` → 500) |
+| R7-NC07 | the whole pre-remediation P3A capture code (8e513f0) | source-rules, p3a-http — reproduces `observedAt "2016-12-31T23:59:60Z" → [500, INTERNAL_ERROR]` and `+0530` → 500 |
+| R7-NC08 | the pre-remediation P3B rule as the shared rule (V8 parsing) | storability, p3a-http, p3b-http — reproduces `0050-06-30 10:00:00Z` → **1950-06-30** |
+
+Every file was restored byte-identically (SHA-256) and `tb_notice_test` was empty after every control. A first run found one gap: with only the explicit check removed (R7-NC01), a leap second written as local `23:59:60` is still refused (it rolls into the next day, which the calendar check refuses), so only an offset-written leap second exposes it — and only two suites contained one. Offset-written leap seconds were added to the source-rules, P3A and P3B suites before the commit, and the final run repeated all eight controls (the first run is kept in the evidence file).
+
+### 21.6 P3B date regression
+
+Unchanged, and proven by the unchanged P3B suites — the 61 earlier P3B HTTP tests are untouched and the 38 P3B unit tests differ only in the import path of `storabilityProblem`; all pass: MandateVersion `effectiveOn`/`expiresOn` (same DATE range check and `toDbDate`), signed dates (`signedDatesRaw` stays JSON text, never converted), coverage and coverage-signer periods (same DATE checks, `DATE_RANGE_INVALID`), AuthorityEvent `effectiveOn` and `rawEffectiveText` (stored as supplied), and the `recordedAt` ≠ `effectiveAt` distinction (the event's `createdAt` is the app clock; the browser re-check shows the two separately). `effectiveAt` changed only as listed in §21.2 (exact write; `.123000`/`+05` accepted; V8-shifted years and `…59.500Z`–`.999Z` refused). No accepted P3B decision was changed to share the helper.
+
+### 21.7 Regression, browser re-check and CI
+
+- **Regression sweep** (`evidence/p3b-r7-remediation-sweep.txt`, `ee31fa3`, 13:08–13:12Z): `reference:check`, `reference:helper-tests` (27/27), `contracts:check`, `install --immutable`, `typecheck`, `lint`, `format:check`, `yarn test` 1196, `yarn test:db` 256, `db:verify test --expect-empty`, `db:verify dev`, `db:status` test/dev, both drift diffs empty, `build`, `smoke:local` (33 checks), `dev:verify-shutdown` (4/4), `reference:check` again — **19/19 exit 0**. `smoke:directory`, `smoke:p3a` and `smoke:p3b` run in CI only.
+- **Targeted browser re-check** (`evidence/p3b-r7-playwright-mcp-verification.txt`, 7/7 PASS, supplemental): on `yarn ui:sandbox` (compiled API, `tb_notice_test`), the source form refuses an Observed-at year 0999 with the field-linked message and saves nothing, then stores the corrected local time exactly; forced requests to the compiled API refuse every unstorable create/revise value with 422 and store `+0530`, `.123000` and both boundaries exactly; the event form refuses an offset-written leap second and `0050-06-30 10:00:00Z` and records `2025-06-30T15:15:00+05` as `2025-06-30T10:15:00.000Z`. The UI code is unchanged (only the message text it displays changed).
+- **CI** — push run **36002633201** on `ee31fa3`: **success**, both jobs (`evidence/p3b-r7-ci-run-36002633201.txt`): `yarn test` 1196, `yarn test:db` 256, `smoke:local` 33, `smoke:auth`, `smoke:directory` 14, `smoke:p3a` 24, `smoke:p3b` 36, seed canonical, `dev:verify-shutdown` 4/4, frozen references and working tree unchanged. A commit cannot record its own run: the run of this documentation commit is reported with the R7 closeout.
+
+### 21.8 Status
+
+| Scope | Status |
+|---|---|
+| R7 review | **PASS_WITH_ONE_REMEDIATION** (operator, 2026-09-24) |
+| R7 remediation (SourceReference instant storability) | **IMPLEMENTED AND VERIFIED** — `ee31fa3`; tests, 8/8 negative controls, 19/19 sweep, 7/7 browser re-check, CI 36002633201 success |
+| Database / wire contract / dependencies | **No change** (no migration; `20260923103912_initial_schema` still the only one; columns unchanged; `contracts:check` OK; PFC wire id `PFC-YT-EMAIL-v1.1`; lockfile unchanged) |
+| Merge to `main` | **Not merged**; `main` keeps the pre-fix P3A capture path until an approved merge |
+| P4A | **Not started** |
+| Recommendation | R7 closeout: **PASS** — P3B accepted, the one remediation delivered; merge only on explicit operator approval |

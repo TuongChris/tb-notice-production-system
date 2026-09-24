@@ -1,0 +1,31 @@
+R7 remediation regression sweep (mission §9) — 2026-09-24T13:08:06Z–13:11:36Z — home PC (the first PC) — feature/p3b-representation-authority @ ee31fa3 (only the uncommitted documentation change CLAUDE.md in the tree); node v24.21.0, yarn 4.18.0
+(each line: command, exit code, duration, key output lines; full logs kept outside Git)
+reference:check                              exit=0 | [reference:check] database-api-v1: 31 manifest entries, MANIFEST.sha256 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c [reference:check] architecture-v1: 18 manifest entries, MANIFEST.sha256 62b4d1136db81d31cf91dbd38a59c4ba57af265b228b479c909e0dbce693c3de [reference:check] pinned identity (REFERENCE_BASELINE.json): 42c2a419332
+reference:helper-tests                       exit=0 | [reference:helper-tests] frozen helper tests: pass 27, fail 0; exit 0 [reference:helper-tests] references after run: intact
+contracts:check                              exit=0 | [contracts:check] OK — 3 generated outputs match the active source.
+install --immutable                          exit=0 | ➤ YN0000: · Done with warnings in 0s 676ms
+typecheck                                    exit=0 | 
+lint                                         exit=0 | 
+format:check                                 exit=0 | All matched files use Prettier code style!
+test                                         exit=0 | Test Files  31 passed (31) Tests  1196 passed (1196)
+test:db                                      exit=0 | [guard] test:db target: tb_migrate@127.0.0.1:3307/tb_notice_test Test Files  7 passed (7) Tests  256 passed (256)
+db:verify test --expect-empty                exit=0 | [verify] domain rows total: 0 [verify] PASS: metadata matches the reviewed inventory.
+db:verify dev                                exit=0 | [verify] domain rows total: 5 [verify] PASS: metadata matches the reviewed inventory.
+db:status test                               exit=0 | 1 migration found in prisma/migrations Database schema is up to date!
+db:status dev                                exit=0 | 1 migration found in prisma/migrations Database schema is up to date!
+db:drift:diff-migrations                     exit=0 | -- This is an empty migration.
+db:drift:diff-datasource dev                 exit=0 | -- This is an empty migration.
+build                                        exit=0 | ✓ built in 188ms
+smoke:local                                  exit=0 | [smoke] PASS MySQL compose service is healthy [smoke] PASS database reachable as tb_dev@% on tb_notice_dev (MySQL 8.4.11) [smoke] PASS Prisma client, contracts, API and web built (yarn build) [smoke] PASS api listening on 127.0.0.1:3000 [smoke] PASS web listening on 127.0.0.1:5173 [smoke] PASS API /api/v1/health: 200, no-store, valid GetHealthR
+dev:verify-shutdown                          exit=0 | [verify-dev] PASS (4/4 scenarios)
+reference:check (after)                      exit=0 | [reference:check] database-api-v1: 31 manifest entries, MANIFEST.sha256 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c [reference:check] architecture-v1: 18 manifest entries, MANIFEST.sha256 62b4d1136db81d31cf91dbd38a59c4ba57af265b228b479c909e0dbce693c3de [reference:check] pinned identity (REFERENCE_BASELINE.json): 42c2a419332
+
+db:verify metadata (both targets): tables 33/33 (InnoDB 33, utf8mb4_0900_bin 33); columns 541/541; primary keys 33/33; unique keys 50/50; indexes 34/34; foreign keys 125/125 RESTRICT/RESTRICT (composite 27); CHECK constraints 30/30 ENFORCED=YES; applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515 (the only one). Column types unchanged: source_references.observed_at / reviewed_at and authority_events.effective_at datetime(3), effective_on date.
+
+Supplementary checks:
+no schema/contract/dependency change         exit=0 | git diff 8e513f0..ee31fa3: apps/api/prisma, packages/**, docs/reference/**, yarn.lock, .yarnrc.yml, .nvmrc and every package.json unchanged (0 files); 13 files changed, all under apps/api/src (8) and tests (5)
+working tree after the sweep                 exit=0 | only the uncommitted CLAUDE.md; no generated or stray file (no .vitest folder)
+per-file counts                              | test:db 256 in 7 files = admin-create 5, admin-recovery 14, auth-http 37, directory-http 71, p3a-http 45 (+4), p3b-http 62 (+1), structural 22; yarn test 1196 in 31 files = the 1148 of the R7 submission + tests/api/storability.test.ts 47 (new) + 1 in tests/api/source-rules.test.ts (36 → 37). Counts of the changed files from the JSON reports of the negative-control baseline on ee31fa3 (outside the repository); totals from this sweep and CI run 36002633201 (identical)
+
+smoke:local (33 checks) and dev:verify-shutdown (4/4) ran locally (ports 3000/5173 free; no operator `yarn dev` running). db:verify dev reported 5 domain rows, as at R5, R6 and the R7 submission (metadata and a row count only; no row content read); nothing was written to tb_notice_dev — every test, the negative controls and the sandbox re-check use tb_notice_test, and smoke:directory / smoke:p3a / smoke:p3b refuse to run unless CI=true (they ran in CI run 36002633201: 14, 24 and 36 checks, all PASS).
+Counts vs the R7 submission: yarn test 1148 → 1196 (+47 in the new tests/api/storability.test.ts, +1 new test in tests/api/source-rules.test.ts); yarn test:db 251 → 256 (+4 P3A source-instant tests, +1 P3B effectiveAt test). No earlier test was removed or weakened; the only edit to an existing test is the import path of storabilityProblem in tests/api/authority-rules.test.ts (its cases are unchanged).
