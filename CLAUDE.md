@@ -15,14 +15,14 @@ Read this first in every session. It summarizes binding decisions; the documents
 1. `docs/architecture/ARCHITECTURE_RESOLUTIONS_v1.md` (precedence rules), then `docs/product/PRODUCT_DEFINITION_v1.md`, `docs/domain/DOMAIN_MODEL_v1.md`, `docs/contracts/PRODUCTION_FORM_CONTRACT_v1.md`, `docs/architecture/TECHNOLOGY_ARCHITECTURE_v1.md`, `REPOSITORY_BLUEPRINT_v1.md`, `P0_BOOTSTRAP_CONTRACT_v1.md`.
 2. Decisions: `docs/decisions/ADR-0001-mysql-manual-migration-semantics.md`, `ADR-0002-zod-first-contract-authoring.md`, `ADR-0003-single-pc-development-baseline.md` (all ACCEPTED).
 3. Frozen DB/API baseline `TB-SCHEMA-API-v1.0.0`: `docs/reference/database-api-v1/…/docs/INVARIANTS.md`, `API_CONTRACT_v1.md`.
-4. State: `docs/CURRENT_STATE.md`; evidence: `docs/verification/p0/`, `docs/verification/p1/`, `docs/verification/p2/`, `docs/verification/p3a/`.
+4. State: `docs/CURRENT_STATE.md`; evidence: `docs/verification/p0/`, `docs/verification/p1/`, `docs/verification/p2/`, `docs/verification/p3a/`, `docs/verification/p3b/`.
 
 **Frozen trees — never edit, move, format, lint-fix or generate into:** `docs/reference/**`. Verify with `yarn reference:check`. Never run `docs/reference/…/tests/verify_contracts.py` (it writes files).
 
 ## Architecture (modular monolith)
 
 - `apps/web` (`@tb/web`): React 19 + Vite 8, `127.0.0.1:5173`, proxies `/api`.
-- `apps/api` (`@tb/api`): NestJS 12 + Express, REST `/api/v1`, `127.0.0.1:3000`. P1 exposes `GET /api/v1/health` (public) and `POST /api/v1/auth/login`, `GET /api/v1/auth/session`, `POST /api/v1/auth/logout`. P2 adds the 36 contracted directory operations (Agency, Owner, LegalSubject, OwnerSubject, Signer); P3A adds 17: the SourceReference registry (4), the four directory `bindCanonical*` operations and Route (9, including `bindCanonicalRoute`). Mandates (P3B) and every later operation stay unrouted. A global guard makes every other route session-protected by default.
+- `apps/api` (`@tb/api`): NestJS 12 + Express, REST `/api/v1`, `127.0.0.1:3000`. P1 exposes `GET /api/v1/health` (public) and `POST /api/v1/auth/login`, `GET /api/v1/auth/session`, `POST /api/v1/auth/logout`. P2 adds the 36 contracted directory operations (Agency, Owner, LegalSubject, OwnerSubject, Signer); P3A adds 17: the SourceReference registry (4), the four directory `bindCanonical*` operations and Route (9, including `bindCanonicalRoute`); P3B adds the 23 representation-authority operations (Mandate 8, MandateVersion 5, MandateCoverage 4, CoverageSigner 4, AuthorityEvent 2) — 76 business operations. Cases and every later operation stay unrouted. A global guard makes every other route session-protected by default.
 - `packages/contracts` (`@tb/contracts`): Zod wire schemas + operation metadata; depends on no app, Nest, React or Prisma.
 - One MySQL 8.4 container. Yarn Workspaces only. No Nx/Turborepo/Lerna, queues, Redis, GraphQL/tRPC, microservices, generic BaseCrud layers.
 
@@ -65,6 +65,28 @@ npm `prisma@latest` currently points at an 8.x release candidate — always pin 
 - OwnerSubject with an archived Owner or LegalSubject (R5 closeout rule): no new link and no relink; PAUSE and UNLINK stay allowed; the row is never deleted.
 - Never show AUTHORIZED, READY, ELIGIBLE, G1 PASS or "verified" badges for sources, bindings or routes. `smoke:p3a` writes records and runs only in CI.
 
+## Representation authority (P3B, submitted at R7 — PENDING; details `docs/verification/p3b/P3B_REPRESENTATION_AUTHORITY.md`)
+
+Persistent rules (never weaken; UI copy follows them):
+
+- **Authority records are not self-proving.** A Mandate, MandateVersion, MandateCoverage, CoverageSigner or AuthorityEvent records what cited sources are reported to support; existing, completeness, a frozen state or being the latest proves nothing.
+- **A frozen version is not approval.** FROZEN = the system record is immutable; not a signature, legal approval, owner confirmation, G1 decision, notice adoption or current authority. No unfreeze; every later change of the version or its coverage/signers is 409 `FROZEN_VERSION`; a correction is a successor version.
+- **Coverage ≠ G1.** A coverage is the documented scope of one version over one exact Route, stored exactly as supplied and never derived; case authority is determined later.
+- **CoverageSigner ≠ G7.** A Signer recorded under one coverage (same agency, not archived or ENDED; duplicates refused); not signature authority, G7 clearance or eligibility; never transfers to another coverage, route or case. An application User is never a Signer. Wording: "Associated signer", "Coverage signer", "Recorded under this coverage" — never AUTHORIZED/APPROVED SIGNER, READY TO SIGN or ELIGIBLE FOR NOTICE.
+- **An AuthorityEvent is not proof by existence.** Append-only (no ETag, update or delete), exactly as reported with an explicit provenance; nothing creates one automatically; recordedAt is never an effective date; supersession keeps mandate and scope, at most one successor, the earlier event unchanged.
+- **Source revision pinning.** Versions, coverages, signers and events cite exact SourceReference revisions and never follow a newer one.
+- **No currentness from dates or silence.** Nothing computes "currently authorized" — not from dates, a frozen state, the highest version, a missing end date, a missing event or the latest source. Dates are stored only as supplied; start > end is 422 `DATE_RANGE_INVALID`.
+
+Implementation rules:
+
+- Mandate = container of one Agency (agency fixed; no identity lock; archive is a flag — an archived mandate and everything under it are read-only except restore; an archived Agency blocks new authority records, freeze and restore; delete only unused).
+- Versions: number max+1; predecessor = FROZEN version of the same mandate without a successor (no fork, no cycle); DRAFT-only edits; DRAFT/SIGNED_APPEARING need the primary source; REVIEWED_WITH_LIMITS and a DOCUMENT_REVIEWED event need a cited source recorded as DOCUMENT_REVIEWED — citing one never upgrades anything.
+- Parent ETags cover children: create version / record event increment the Mandate; coverage and signer changes increment the version (signers also the coverage). Freeze locks the version FOR UPDATE, re-validates the structure, changes the version once and audits once.
+- `Route.preferredCoverageId` = frozen coverage of the same route in an unarchived mandate (operational default only; no cascade on a later archive).
+- Source applicability: mandate context (Agency) for version and whole-mandate event citations; route context for coverage basis, signer and coverage-scoped event sources, which also count as that route owner's material (`CROSS_OWNER_REFERENCE`).
+- Error codes: frozen stable codes where they fit; P3B implementation codes `VERSION_NOT_FROZEN`, `VERSION_SUCCESSOR_EXISTS`, `DATE_RANGE_INVALID`, `DOCUMENT_STATE_UNSUPPORTED`, `REVIEW_UNSUPPORTED`, `DUPLICATE_COVERAGE`, `DUPLICATE_COVERAGE_SIGNER`, `EVENT_ALREADY_SUPERSEDED` (free-string `code`, contracted statuses). `PREFERRED_COVERAGE_UNAVAILABLE` is retired.
+- Never show AUTHORIZED, APPROVED, VALID, CURRENT AUTHORITY, READY, ELIGIBLE or G1/G7 PASS labels for authority records. `smoke:p3b` writes records and runs only in CI.
+
 ## Database safety
 
 - MySQL publishes on **127.0.0.1:3307 only**. Schemas: `tb_notice_dev` (app + seed), `tb_notice_shadow` (Prisma shadow), `tb_notice_test` (structural tests), `tb_notice_replay` (migration replay). Accounts: `tb_dev` (runtime DML on dev only), `tb_migrate` (tooling, those four schemas only). `root` is init-only; the app never uses it.
@@ -95,11 +117,12 @@ npm `prisma@latest` currently points at an 8.x release candidate — always pin 
 | `yarn contracts:generate` · `yarn contracts:check`                                         | Regenerate / verify generated contract artifacts                          |
 | `yarn typecheck` · `yarn lint` · `yarn format:check`                                       | Static checks (format:check never rewrites)                               |
 | `yarn test`                                                                                | All non-database tests (contract parity, tooling, API units, UI)          |
-| `yarn test:db`                                                                             | DB structural, P1 HTTP/CLI and P2 directory HTTP tests (`tb_notice_test`) |
+| `yarn test:db`                                                                             | DB structural, P1 HTTP/CLI, P2, P3A and P3B HTTP tests (`tb_notice_test`) |
 | `yarn build` · `yarn smoke:local`                                                          | Build everything · build + run API/web, health, shell, auth bounds        |
 | `yarn smoke:auth --email <e> [--expect-rejected] < pw`                                     | Compiled login round trip (or expected rejection), CI synthetic           |
 | `yarn smoke:directory --email <e> < pw`                                                    | Compiled directory round trip; refuses unless `CI=true`                   |
 | `yarn smoke:p3a --email <e> < pw`                                                          | Compiled source → binding → route round trip; refuses unless `CI=true`    |
+| `yarn smoke:p3b --email <e> < pw`                                                          | Compiled mandate → coverage → freeze → event; refuses unless `CI=true`    |
 | `yarn ui:sandbox --password-file <path outside repo>`                                      | Compiled API on `tb_notice_test` + built web, synthetic user              |
 | `yarn dev` · `yarn dev:verify-shutdown`                                                    | Dev servers (Ctrl+C stops both) · verify clean shutdown                   |
 
@@ -107,13 +130,13 @@ Before any commit: `yarn reference:check && yarn contracts:check && yarn typeche
 
 ## Git workflow
 
-- Branches: `bootstrap/p0-local` is the P0 branch and takes no P1 application code; P1/P1.1 are on `feature/p1-auth-shell` (accepted at R4.1, unchanged since); P2 work went on `feature/p2-directory`, branched from the accepted P1.1 head `8fe96ae`; P3A on `feature/p3a-sources-route` (from `31db581`), merged into `main` by PR #1 (merge commit `adea2bc`) after R6; P3B work goes on `feature/p3b-representation-authority`, branched from that exact `main` head `adea2bc`. One active writer per branch; small, scoped commits; review `git diff --cached` before committing; never `git add .` blindly.
+- Branches: `bootstrap/p0-local` is the P0 branch and takes no P1 application code; P1/P1.1 are on `feature/p1-auth-shell` (accepted at R4.1, unchanged since); P2 work went on `feature/p2-directory`, branched from the accepted P1.1 head `8fe96ae`; P3A on `feature/p3a-sources-route` (from `31db581`), merged into `main` by PR #1 (merge commit `adea2bc`) after R6; P3B is implemented on `feature/p3b-representation-authority`, branched from that exact `main` head `adea2bc`, and submitted at R7 (not merged). One active writer per branch; small, scoped commits; review `git diff --cached` before committing; never `git add .` blindly.
 - Development topology (ADR-0003): the home PC (the "first PC" of the records) is the primary development workstation; the second-PC reproduction is DEFERRED_BY_OPERATOR. GitHub is the source of truth for code, branches, committed migrations and CI verification. Never copy or synchronize local database volumes through Git; a workstation rebuilds its databases from committed migrations and the synthetic seed.
 - No merge to `main`, force-push, history rewrite, tags or releases without explicit operator approval.
 
 ## Phase boundaries and stop conditions
 
 - P0-A…P0-E delivered on the first (home) PC and in CI; Windows-browser check PASS (operator-reported); second-PC reproduction **DEFERRED_BY_OPERATOR** (ADR-0003): the two-PC acceptance is NOT_COMPLETED, the single-PC baseline is VERIFIED, and P0 overall stays **NOT_COMPLETE** against the original two-PC contract — never describe it otherwise. P1 (authentication + app shell) passed review gate R4 with notes; P1.1 (local recovery commands) was accepted at R4.1. P2 (Directory) passed R5 with one remediation (the identity lock), implemented on `feature/p2-directory`; R5 is closed. P3A (Sources, canonical bindings, Route) passed R6 (PASS; VERIFIED_COMPLETE) and is merged to `main` (`adea2bc`, `main` CI green); the failed CI of its first two commits `afeb012`/`0c289be` stays as historical evidence — never rewrite history to make it green.
-- Next phases, each needing an explicit approved mission: **P3B** — Mandate, MandateVersion, MandateCoverage, CoverageSigner, AuthorityEvent; gate R7; its branch is prepared but no P3B code or migration exists until its mission starts. Cases and all case-specific functions come later.
+- P3B (Mandate, MandateVersion, MandateCoverage, CoverageSigner, AuthorityEvent) is implemented on its branch (no migration) and submitted at **R7 — PENDING**; wait at R7. Next, each needing an explicit approved mission: Cases and all case-specific functions (proposed first slice P4A — Case core and case authority selection, gate R8; not started).
 - Stop and ask on: missing credentials/permissions, a package incompatibility needing an architecture change, any domain-semantic conflict, an unsafe or unrecognized database target, or any destructive plan.
 - Forbidden substitutions: MariaDB/SQLite/Postgres servers; `db push`; Zod built-in format validators or `z.toJSONSchema` for wire contracts; hand-edited generated contracts; Python in app/CI; Yarn Classic/PnP, npm or pnpm installs; binding services to `0.0.0.0`; writable readiness/signature fields.

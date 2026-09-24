@@ -1,0 +1,259 @@
+# P3B Representation authority — Playwright MCP browser verification (home PC, 2026-09-24 UTC)
+#
+# Supplemental evidence. The repository suites (yarn test, yarn test:db), the negative controls and
+# CI remain authoritative for regression; this is an interactive check of the real UI against the
+# real compiled API.
+#
+# Environment
+#   Browser:   Playwright MCP isolated test browser (HeadlessChrome 154, chrome-headless-shell,
+#              Linux, WSL): config "isolated": true, saveSession false, network limited to
+#              localhost / 127.0.0.1. No personal browser profile, no external account or site.
+#   App:       `yarn ui:sandbox` started on the tree of commit e23da02 (the ui:sandbox now also
+#              guards and cleans the P3B tables): the COMPILED AppModule in-process on
+#              127.0.0.1:3000 with Prisma pointed at the disposable tb_notice_test schema (never
+#              tb_notice_dev), and `vite preview` of the built web app on 127.0.0.1:5173.
+#              During the session the web bundle was rebuilt in place three times (apps/web
+#              `yarn build`) to re-verify the fixes of findings F1–F3 below (~09:56Z F1, ~09:59Z
+#              F1+F2, ~10:03Z F1+F2+F3). The last bundle is the source committed as 04b8528.
+#              The API was not changed or restarted.
+#   Account:   one synthetic sandbox user p2-ui-sandbox@example.invalid; password generated at
+#              start, written only to a mode-600 file outside the repository, deleted afterwards.
+#   Data:      synthetic records only. Prerequisites (directory records and source pointers) were
+#              created through the same compiled API by a scratchpad script with the same
+#              synthetic user: agencies "SYNTHETIC Agency Kappa" / "SYNTHETIC Agency Lambda";
+#              owners "SYNTHETIC Brand Mu" / "SYNTHETIC Brand Omicron" with legal subjects
+#              "SYNTHETIC Mu Media Company" / "SYNTHETIC Omicron Studio Company", both LINKED;
+#              routes Kappa·Mu, Kappa·Omicron and Lambda·Mu (YouTube); signers "SYNTHETIC Signer
+#              Nu" and "SYNTHETIC Signer Pi" (Kappa, AVAILABLE) and "SYNTHETIC Signer Xi"
+#              (Lambda); four source pointers titled "(not evidence)" at drive.example.invalid:
+#              Kappa representation letter and Kappa coverage schedule (OPERATOR_REPORTED), Kappa
+#              renewal letter copy (DOCUMENT_REVIEWED, reviewedByLabel "SYNTHETIC Reviewer One",
+#              exactly as supplied), Lambda representation letter. EVERY P3B record (mandate,
+#              versions, coverage, coverage signers, authority events, the route's preferred
+#              coverage) was created in the browser, except where a check says "forced": those
+#              requests were sent with fetch() from the same signed-in page (same session cookie,
+#              CSRF token and Origin) to prove the server refusal the UI never offers.
+#              No real owner, agency, case, authority or LOA data.
+#   Window:    09:44Z–10:11Z.
+#   Cleanup:   the sandbox was stopped with SIGINT → "sandbox rows deleted; tb_notice_test is empty
+#              again"; then `yarn db:verify test --expect-empty` → PASS (domain rows total: 0).
+#              Ports 3000 and 5173 released. Password file deleted.
+#   Console:   the only browser console errors in the whole session were Chromium's "Failed to load
+#              resource" lines for intentional 401 (7: session check before sign-in, lookups in
+#              flight at sign-out, after sign-out), 409 (15), 412 (3), 422 (12) and 428 (1)
+#              responses; no JavaScript error or warning was logged.
+#   Screenshots (synthetic only): evidence/screenshots/p3b-01 … p3b-14.
+#
+# Ids (synthetic, deleted at cleanup): mandate c1505b1d…; version 1 45a943f2…, version 2 c336d6a5…,
+# version 3 d0a385b5…; coverage Mu 86166606…, coverage Omicron f01e7651…, coverage Mu (amended)
+# 654724d4…; coverage signer 642e7efd…; events 2905eb13… (E1), E2, 8bb63675… (E3).
+
+Mission checks (§35)
+
+ 1 PASS hierarchy loads
+        Unauthenticated /representation/mandates → Login. After sign-in: Representation nav
+        "Routes · Mandates"; Mandates: "Containers of one agency’s representation records … A
+        mandate is not authority by existing.", search + agency filter, empty state "No mandates
+        yet. Record the first mandate."; Agency Kappa's page has the section "Mandates of this
+        agency" with New mandate (?agencyId=) and "A mandate records what cited sources are
+        reported to support. It is not authority by existing, a G1–G7 decision or a signature.".
+        Later the mandate page shows the tree Mandate → Version 3 (Draft) / Version 2 (Frozen) →
+        coverage → Version 1 (Frozen) → Omicron coverage, Mu coverage → "Coverage signer SYNTHETIC
+        Signer Nu" plus the authority-event timeline (screenshots 11, 12).
+ 2 PASS create Mandate
+        Empty label → "Enter the administrative label.", focus on #mandate-label (aria-invalid,
+        described by hint + error), no request sent. Then POST /mandates body exactly {agencyId,
+        label, externalReference} → 201, ETag "Mandate:…:v1", Cache-Control no-store; "Mandate
+        recorded. Record its versions and coverage next."; no state stamp; "The container of one
+        agency’s representation record. It is not authority: it proves no current effectiveness,
+        scope, signer eligibility, owner rights or case standing." (screenshot 01).
+ 3 PASS create MandateVersion
+        Only Kappa's three sources offered (Lambda's letter never). effectiveOn 2026-12-31 >
+        expiresOn 2026-01-01 → 422 DATE_RANGE_INVALID {fields [effectiveOn, expiresOn]} → "A start
+        date is after its end date. Check both dates exactly as the source states them.", focus on
+        the error, nothing saved. Corrected → POST /mandates/{id}/versions with If-Match
+        "Mandate:…:v1", body exactly {changeKind NEW_AUTHORIZATION, changeReason, primarySourceId,
+        documentState SIGNED_APPEARING, validityModel FIXED_TERM, effectiveOn, expiresOn} → 201;
+        "Version 1 recorded as a draft."; Draft stamp; "A draft snapshot of recorded terms.
+        Complete or not, a draft is not adopted authority."; review state Unreviewed; citation
+        "revision 1 · agency’s own source · access not checked · reported provenance: operator
+        reported".
+ 4 PASS edit draft
+        "Reviewed with limits" with only an operator-reported source → 422 REVIEW_UNSUPPORTED →
+        "“Reviewed with limits” needs a cited primary or additional source that records who
+        reviewed the document." Then a signed-date row (who signed / "20 December 2025" as written /
+        source) + validity notes → PATCH with If-Match "MandateVersion:…:v1", body ONLY
+        {signedDatesRaw, validityNotes} → 200; "Draft saved."; record version 2; the date is shown
+        exactly as written.
+ 5 PASS freeze
+        Dialog "Freeze version 1": "Freezing makes this system record immutable. Its terms, its 2
+        coverages and their coverage signers can no longer be changed; a correction needs a
+        successor version. / Freezing is not a signature, legal approval, owner confirmation, G1
+        decision or notice adoption, and it does not make any authority current." (screenshot 05).
+        POST /mandate-versions/{id}/freeze If-Match "…:v5", body {reason} → 200, ETag v6 (exactly
+        +1). Page: Frozen stamp, "Frozen means only that the system record is immutable. It is not
+        a signature, legal approval, owner confirmation, G1 decision or current authority.",
+        "Version 1 frozen: the record is now immutable.", only action "Record a successor
+        version", no Add coverage, Frozen timestamp (screenshot 06).
+ 6 PASS frozen immutable
+        A coverage edit typed in another tab before the freeze (coverage ETag still v2) → Save →
+        409 FROZEN_VERSION → "This version is frozen: it and its coverage and coverage signers can
+        no longer change. Record a successor version instead." (screenshot 08). /versions/{id}/edit
+        → "Version 1 is frozen", no form; /coverages/{id}/edit → "This coverage belongs to a
+        frozen version", no form; frozen coverage page: Frozen stamp, no Edit / Add signer /
+        Remove. Forced with the CURRENT ETags: PATCH version, a second freeze, POST coverage,
+        PATCH coverage, POST coverage signer, DELETE coverage signer → all 409 FROZEN_VERSION;
+        ETags unchanged (version v6, coverage v2, coverage signer v1). Finding F1 (fixed, below).
+ 7 PASS concurrent / stale freeze
+        Stale tab (loaded at v5, still showing Draft) → Freeze → 412 → "This version changed after
+        you opened it, for example in another tab. Nothing was saved. Load the latest version,
+        check it, and make your change again." + "Load latest version" → Frozen, only the
+        successor action (screenshot 07). Concurrent: on draft version 2, two freeze POSTs sent at
+        once with the same If-Match "…:v2" and different Idempotency-Keys → exactly one 200 (ETag
+        v3, FROZEN) and one 412 RECORD_VERSION_CONFLICT; replaying the winner's key → 200 with
+        the same ETag v3 (no second freeze); final record version 3 (exactly +1), frozenAt set.
+ 8 PASS create Coverage
+        Route picker: only Agency Kappa's unarchived routes (Lambda·Mu absent); the basis picker
+        stays disabled ("Choose the record first") until a route is chosen. POST
+        /mandate-versions/{v1}/coverages body exactly {routeId, coverageLabel, coveredWorksScope,
+        territorialScope, actionScope [PREPARE_NOTICE, SIGN_NOTICE], exclusivity NON_EXCLUSIVE,
+        effectiveOn, expiresOn, basisSourceId} → 201; the version's ETag v2 → v3. Page: "A coverage
+        is not a G1 decision and adjudicates nothing; case authority is determined later.",
+        "Covered route" path, "This coverage names this route only; it does not extend to another
+        route, subject or owner.", absent fields "Not recorded".
+ 9 PASS incompatible Coverage target refused
+        (a) other-agency and archived routes never offered; (b) stale form: Omicron route chosen,
+        route archived in a second tab, submit → 409 RECORD_STATE_CONFLICT {record Route,
+        archived, operation createCoverage, field routeId} → "The route is archived. Restore it
+        first." (screenshot 02); reload → the archived route is no longer offered; the route was
+        restored afterwards; (c) forced routeId = Lambda·Mu with the current If-Match → 422
+        CROSS_AGENCY_REFERENCE {field routeId}; version ETag unchanged.
+10 PASS compatible CoverageSigner
+        "Associated signers are recorded under this coverage only. An association is not
+        signature authority, G7 clearance or eligibility for any notice, and it does not carry
+        over to other coverages, routes or cases. The signed-in application user is never a
+        signer." Signer picker: only Kappa's non-archived, non-ENDED signers. POST
+        /coverages/{id}/signers with If-Match "MandateCoverage:…:v1", body exactly {signerId,
+        capacity, actionScope [SIGN_NOTICE], sourceId} → 201; "Signer recorded under this
+        coverage."; listed as "Associated signer SYNTHETIC Signer Nu — Director (as the synthetic
+        schedule states)" with "Remove from this draft".
+11 PASS incompatible Agency Signer refused
+        (a) Lambda's signer never offered; (b) stale form with Pi while Pi is set to Ended in a
+        second tab → 409 RECORD_STATE_CONFLICT → "That signer is archived or ended, so it cannot
+        be recorded under a coverage." (screenshot 04); reload → Pi no longer offered; (c) forced:
+        Lambda's signer → 422 CROSS_AGENCY_REFERENCE {field signerId}; the same signer and
+        capacity again → 409 DUPLICATE_COVERAGE_SIGNER; the application User's id as signerId →
+        422 REFERENCE_NOT_FOUND (a User is not a Signer); signer list and coverage ETag unchanged.
+12 PASS create AuthorityEvent
+        "Record only what the cited source is reported to support, exactly as it states it. An
+        event is appended to the history and never changed; the recording time is kept separately
+        and is never an effective date. Nothing is inferred from silence, a missing end date or a
+        later version." Scope options: whole mandate + coverage of FROZEN versions only.
+        "Document reviewed" is disabled until a DOCUMENT_REVIEWED source is chosen, and then only
+        enabled — not selected (provenance stays "Operator reported" until chosen). Supersedes
+        offers only same-scope events without a successor. E1: POST /mandates/{id}/events with
+        If-Match "Mandate:…:v4", body exactly {eventType CURRENTNESS_RECORDED, sourceId, provenance
+        OPERATOR_REPORTED, scopeText, interpretation, coverageId, effectiveOn 2026-03-01} → 201, no
+        ETag (append-only), effectiveAt null (not inferred); "Authority event recorded.". E2
+        (whole mandate, CORRECTION, no date) and E3 (coverage, REVOCATION, DOCUMENT_REVIEWED chosen
+        with the reviewed source, effectiveAt 2026-09-30T17:00:00+07:00 → stored
+        2026-09-30T10:00:00.000Z, wording, supersedes E1) → 201. Forced: DOCUMENT_REVIEWED with an
+        operator-reported source → 422 REVIEW_UNSUPPORTED {reason SOURCE_NOT_REVIEWED};
+        superseding E1 again → 409 EVENT_ALREADY_SUPERSEDED; Lambda's source → 422
+        CROSS_AGENCY_REFERENCE; stale Mandate ETag → 412; no If-Match → 428; event count stays 3.
+        Afterwards every source is unchanged: letter and schedule OPERATOR_REPORTED (no reviewer),
+        renewal copy DOCUMENT_REVIEWED as created, all still revision 1 (no upgrade by use).
+13 PASS timeline recorded vs effective
+        "“Recorded” is when this application recorded the event — never a legal effective date.
+        Effective dates are shown only as the source is reported to state them." Newest first:
+        E3 "RECORDED Sep 24, 2026, 5:02 PM by you (application user)" · "Effective (as recorded)
+        At Sep 30, 2026, 5:00 PM GMT+7" (<time datetime="2026-09-30T10:00:00.000Z">) + the
+        wording · Supersedes "An earlier event"; E2 "No effective date recorded"; E1 "On Mar 1,
+        2026" · Superseded by "A later event" (screenshot 11). Finding F3 (fixed, below).
+14 PASS valid preferredCoverageId
+        Route Kappa·Mu edit: the picker offers only the frozen Mu coverage ("SYNTHETIC Mu YouTube
+        coverage — SYNTHETIC Kappa representation mandate, version 1"), not the Omicron coverage;
+        "Preferred coverage is an operational default. Case authority is determined later. Only
+        frozen coverage of this exact route, in a mandate of its agency that is not archived, is
+        offered." PATCH If-Match "Route:…:v1", body ONLY {preferredCoverageId} → 200 (v2); route
+        page shows the preferred coverage with the same sentence (screenshot 10). No side effect:
+        coverage v2, version v6 and coverage signer v1 unchanged.
+15 PASS incompatible preferred coverage refused
+        Stale form: coverage selected, mandate archived in a second tab ("Archiving is an
+        administrative flag … Nothing is revoked, terminated or recorded as an authority event.")
+        → Save → 409 RECORD_STATE_CONFLICT {record Mandate, archived, operation preferredCoverage}
+        → "The mandate is archived, so it and everything under it are read-only until it is
+        restored." (screenshot 09); then restored ("Restoring revives nothing: it states nothing
+        about current authority."). Forced: Lambda's route preferring the Kappa coverage → 422
+        CROSS_AGENCY_REFERENCE; the Omicron route preferring the Mu coverage → 422
+        AUTHORITY_SCOPE_UNRESOLVED OTHER_ROUTE; unknown id → 422 REFERENCE_NOT_FOUND; each route
+        ETag unchanged and preferredCoverageId still null. Finding F2 (fixed, below).
+16 PASS source applicability refusal
+        An Omicron coverage citing the schedule (already recorded as Mu's coverage basis; the
+        page cannot see owner material, so it offers it) → 422 CROSS_OWNER_REFERENCE {field
+        basisSourceId, ownerId Mu} → "That source is already recorded as another owner’s material,
+        so it cannot be used for this owner." (screenshot 03); recorded afterwards without a basis
+        source (a truthful incomplete record). Forced PATCH of the version's primarySourceId to
+        Lambda's letter → 422 CROSS_AGENCY_REFERENCE {field primarySourceId}; unchanged.
+17 PASS no UI copy implying G1/G7/ownership/authority
+        19 pages scanned (overview, mandate list/detail/new/edit, version new/detail (frozen ×2,
+        draft)/edit, coverage new/detail ×2, coverage-signer new, route detail/edit, agency,
+        signer): 0 hits of /authori[sz]ed|approved|ready|eligible|verified|valid|current
+        authority|… signer|ready to sign|eligible for notice|G1/G7 pass|owner confirmed|in force/
+        in stamps, headings, buttons, links, labels, options, table headers, terms, legends or
+        status messages. Stamps seen: Draft, Frozen, Linked, Available, Ended only. Every one of
+        the 28 distinct sentences that mention G1/G7/authority/eligibility/approval/currentness/
+        signature/adoption is a negation or a neutral name (e.g. "Authority events", the event
+        type "Currentness recorded", "Case authority is determined later.").
+18 PASS keyboard / focus
+        Freeze by keyboard: Tab from "Edit draft" → "Freeze version" → Enter opens a native modal
+        <dialog> (:modal) with focus in Reason; Tab cycles Reason → Cancel → Freeze version →
+        (browser chrome) → Reason — the page behind is never focused; Escape closes and focus
+        returns to "Freeze version". Client validation focuses the first invalid field with
+        aria-invalid/aria-describedby; every server refusal moved focus to the error notice.
+19 PASS 390 px viewport
+        9 pages (mandate list/detail, version new, event new, version frozen/draft, coverage new,
+        coverage detail, route edit): document scrollWidth 390 = viewport, no horizontal page
+        scroll; the list table scrolls inside its own frame (overflow-x auto, the shared table of
+        earlier phases); checkbox rows fit; freeze dialog 354 px wide inside the viewport
+        (screenshots 12, 13).
+20 PASS logout → Login
+        Sign out → /login; GET /auth/session → 401; protected P3B URLs in both open tabs → Login
+        (screenshot 14).
+
+Additional observations
+  §25  "Delete unused mandate" on a mandate with versions → confirm → 409 → "This mandate can't be
+       deleted because versions were recorded under it. Archive it instead; that keeps its
+       history."; nothing deleted.
+  §17  Version chain: successor version 2 (predecessor v1, change kind Amendment, primary source =
+       the reviewed renewal copy) → source review state stays "Unreviewed" (citing a reviewed
+       source marks nothing reviewed); version 1 then shows "Successor: Version 2" and its
+       successor action is inert (aria-disabled, "This version already has a successor; a chain
+       does not fork."); new-version predecessor options offer only frozen versions without a
+       successor; forced fork of v1 → 409 VERSION_SUCCESSOR_EXISTS {successorId v2}; forced
+       successor of the draft v2 → 409 VERSION_NOT_FROZEN.
+  §11  Coverage lineage: v2's coverage with predecessor = v1's Mu coverage inherits nothing
+       (covered works, actions, exclusivity and dates "Not recorded"/Unknown; no signers).
+
+Findings (all fixed in 04b8528 "fix(p3b-ui): …", with UI tests; re-verified in the browser)
+  F1  Opened by URL, "Add coverage" of a frozen version and "Add coverage signer" of a frozen
+      coverage still rendered their forms (the API refused with 409 FROZEN_VERSION, so nothing
+      could be written). Both now show the frozen notice and no form. UI test "opened directly,
+      the add-coverage and add-signer pages of a frozen version show no form"; negative control:
+      with both guards disabled that test fails ("timed out waiting for Version 1 is frozen");
+      file restored byte-identically (cmp).
+  F2  The locked preferred-coverage picker said "No frozen coverage names this route yet" when a
+      frozen coverage did name the route but its mandate was archived. Now: "No usable coverage
+      names this route: only coverage of a frozen version, in a mandate that is not archived, can
+      be preferred. Record and freeze a version with coverage for this route first." (new UI
+      test). The unavailable default signer option now reads "(archived or ended)" instead of
+      "(no longer eligible)".
+  F3  An event's effectiveAt was shown in the viewer's local time without a zone ("Sep 30, 2026,
+      5:00 PM"); now "Sep 30, 2026, 5:00 PM GMT+7" with the exact instant in datetime/title (UI
+      test asserts both). The supersedes option label now reads "<type> (recorded <time>)".
+
+Cosmetic, not changed (reported only)
+  - Some creation pages that do not load the mandate show the generic breadcrumb "Mandate"
+    instead of its label.
+  - The freeze dialog of a version without coverage says "its 0 coverages".
+  - The list-table scroll frame is not itself focusable (shared P2 component; its links are).

@@ -1,0 +1,401 @@
+# P3B negative controls — 2026-09-24T10:21:53.618Z — head 04b852863705da8115c7d165eb852768afe3c976
+# Each control disables one protection, runs every listed responsible suite (each must FAIL),
+# restores the file and verifies it byte-identical by SHA-256. Synthetic data only:
+# tb_notice_test (DB suites, emptiness verified after every DB control) and the in-memory
+# web API (WEB). tb_notice_dev is never used.
+
+## Baseline (unmutated; every suite must pass)
+BASELINE DB PASS tests/db/p3b-http.test.ts; exit 0 (48s); Tests  61 passed (61)
+BASELINE UNIT PASS tests/api/authority-rules.test.ts; exit 0 (1s); Tests  38 passed (38)
+BASELINE WEB PASS tests/web/p3b.test.tsx; exit 0 (1s); Tests  17 passed (17)
+
+## Controls
+P3B-NC01 PASS cross-agency coverage: a route of another agency is accepted (service check removed; composite FK left)
+     file apps/api/src/modules/representation/coverages.service.ts
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (49s); Tests  2 failed | 59 passed (61)
+       failed: COVERAGES — explicit scope over one exact route; not G1 create refuses another agency’s route, unknown references, unsupported fields, inverted dates and duplicate labels
+       failed: CONTAMINATION — no transfer across agencies, owners, routes, coverages or cases; the User is not a Signer a Mandate of Agency A never supports Agency B: routes, signers, sources, preferences, predecessors and bindings
+     restored sha256 bcf16d5c7340fe60c9c5188be10618a3b39650f3dd00205c1886892bd9a5f068 (before bcf16d5c7340…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC02 PASS cross-agency coverage signer: a signer of another agency is accepted
+     file apps/api/src/modules/representation/coverage-signers.service.ts
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (48s); Tests  2 failed | 59 passed (61)
+       failed: COVERAGE SIGNERS — a Signer recorded under one coverage; not G7, not the User create refuses another agency’s signer, unknown signers (the User is not one), archived or ENDED signers, duplicates and inverted dates
+       failed: CONTAMINATION — no transfer across agencies, owners, routes, coverages or cases; the User is not a Signer a Mandate of Agency A never supports Agency B: routes, signers, sources, preferences, predecessors and bindings
+     restored sha256 502aea01dc255ea0d356f85522a3d7335e9d9dd4b466f2dd0034983fdb802a03 (before 502aea01dc25…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC03 PASS cross-agency preferred coverage: a route may prefer another agency’s coverage
+     file apps/api/src/modules/representation/routes.service.ts
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (48s); Tests  3 failed | 58 passed (61)
+       failed: ROUTE PREFERRED COVERAGE — an operational default, not adjudicated authority refuses another agency’s coverage, another route’s coverage, a draft coverage, an archived mandate’s coverage and unknown ids
+       failed: CONTAMINATION — no transfer across agencies, owners, routes, coverages or cases; the User is not a Signer a Mandate of Agency A never supports Agency B: routes, signers, sources, preferences, predecessors and bindings
+       failed: SECURITY / CONTRACT a full synthetic tour: source → mandate → version → coverage → coverage signer → freeze → preferred coverage → event, plus expected refusals
+     restored sha256 45ae48c41f4d63d459f4bd25848ffd184bb35167397cd00e02ac8f9db0504bf9 (before 45ae48c41f4d…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC04 PASS source applicability (mandate context): version citations are not checked against the mandate’s agency
+     file apps/api/src/modules/representation/mandate-versions.service.ts
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (47s); Tests  3 failed | 58 passed (61)
+       failed: MANDATE VERSIONS — pinned documentary snapshots, a linear chain version citations apply to the mandate’s agency only; unknown, other-agency and case-scoped sources are refused per field
+       failed: CONTAMINATION — no transfer across agencies, owners, routes, coverages or cases; the User is not a Signer a Mandate of Agency A never supports Agency B: routes, signers, sources, preferences, predecessors and bindings
+       failed: CONTAMINATION — no transfer across agencies, owners, routes, coverages or cases; the User is not a Signer a coverage never broadens to another route, and no case-scoped fact or source is used anywhere
+     restored sha256 d95d8bc0f07ae398c760fd8c8ad6a16cc4099b51b37475451a80a1c9444fa112 (before d95d8bc0f07a…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC05 PASS source applicability (route context): a coverage basis source is not checked at create
+     file apps/api/src/modules/representation/coverages.service.ts
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (47s); Tests  2 failed | 59 passed (61)
+       failed: COVERAGES — explicit scope over one exact route; not G1 create refuses another agency’s route, unknown references, unsupported fields, inverted dates and duplicate labels
+       failed: COVERAGES — explicit scope over one exact route; not G1 the basis source must apply to the route: agency, subject and owner material; case scope applies to nothing
+     restored sha256 bcf16d5c7340fe60c9c5188be10618a3b39650f3dd00205c1886892bd9a5f068 (before bcf16d5c7340…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC06 PASS source applicability (event): an authority event source is not checked
+     file apps/api/src/modules/representation/authority-events.service.ts
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (48s); Tests  5 failed | 56 passed (61)
+       failed: AUTHORITY EVENTS — append-only history, exactly as reported; not proof by existence refuses unknown fields, a missing source, unstorable instants and unsupported provenance vocabulary
+       failed: AUTHORITY EVENTS — append-only history, exactly as reported; not proof by existence coverage-scoped events need a frozen coverage of this mandate, and a source that applies to its route
+       failed: CONTAMINATION — no transfer across agencies, owners, routes, coverages or cases; the User is not a Signer a Mandate of Agency A never supports Agency B: routes, signers, sources, preferences, predecessors and bindings
+       failed: CONTAMINATION — no transfer across agencies, owners, routes, coverages or cases; the User is not a Signer one Owner’s authority chain never transfers to another Owner: route-level material stays with its owner
+       failed: CONTAMINATION — no transfer across agencies, owners, routes, coverages or cases; the User is not a Signer a coverage never broadens to another route, and no case-scoped fact or source is used anywhere
+     restored sha256 5c422cbaa0177cfef11fc44326293880df5b263c5d47981b90539e2433b35f97 (before 5c422cbaa017…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC07 PASS owner contamination: a coverage basis is no longer recorded as its owner’s material
+     file apps/api/src/modules/sources/source-scope.ts
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (48s); Tests  1 failed | 60 passed (61)
+       failed: CONTAMINATION — no transfer across agencies, owners, routes, coverages or cases; the User is not a Signer one Owner’s authority chain never transfers to another Owner: route-level material stays with its owner
+     restored sha256 4e3de246fbe2636282e810a2eb40c2daf25537a9a88319339c8d99d8a9daf14e (before 4e3de246fbe2…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC08 PASS frozen immutability: a frozen version’s terms can be patched
+     file apps/api/src/modules/representation/mandate-versions.service.ts
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (48s); Tests  2 failed | 59 passed (61)
+       failed: MANDATE VERSIONS — pinned documentary snapshots, a linear chain pinning: versions and coverages keep the exact revision they cite; revising a source repoints nothing and records nothing
+       failed: FREEZE — the system record becomes immutable; not a signature, approval, G1 or currentness a frozen version never changes: its terms, coverages and coverage signers are refused with FROZEN_VERSION; there is no unfreeze
+     restored sha256 d95d8bc0f07ae398c760fd8c8ad6a16cc4099b51b37475451a80a1c9444fa112 (before d95d8bc0f07a…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC09 PASS frozen immutability: a frozen version gains a coverage
+     file apps/api/src/modules/representation/coverages.service.ts
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (49s); Tests  2 failed | 59 passed (61)
+       failed: FREEZE — the system record becomes immutable; not a signature, approval, G1 or currentness a frozen version never changes: its terms, coverages and coverage signers are refused with FROZEN_VERSION; there is no unfreeze
+       failed: SECURITY / CONTRACT a full synthetic tour: source → mandate → version → coverage → coverage signer → freeze → preferred coverage → event, plus expected refusals
+     restored sha256 bcf16d5c7340fe60c9c5188be10618a3b39650f3dd00205c1886892bd9a5f068 (before bcf16d5c7340…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC10 PASS frozen immutability: a coverage signer of a frozen version can be deleted
+     file apps/api/src/modules/representation/coverage-signers.service.ts
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (49s); Tests  1 failed | 60 passed (61)
+       failed: FREEZE — the system record becomes immutable; not a signature, approval, G1 or currentness a frozen version never changes: its terms, coverages and coverage signers are refused with FROZEN_VERSION; there is no unfreeze
+     restored sha256 502aea01dc255ea0d356f85522a3d7335e9d9dd4b466f2dd0034983fdb802a03 (before 502aea01dc25…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC11 PASS archived mandate: an archived mandate’s records are writable (read-only rule removed)
+     file apps/api/src/modules/representation/authority-chain.ts
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (48s); Tests  1 failed | 60 passed (61)
+       failed: MANDATE — a container of one agency, not authority archive/restore: an administrative flag only — nothing is revoked or recorded; archived is read-only; restore needs an unarchived agency
+     restored sha256 04622ebdb59e51daf8d4f985cff9ab47b6728c5e3015694af67bcfc77dbae1d9 (before 04622ebdb59e…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC12 PASS version chain: a predecessor with a successor can be succeeded again (fork; head check removed)
+     file apps/api/src/modules/representation/mandate-versions.service.ts
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (48s); Tests  1 failed | 60 passed (61)
+       failed: MANDATE VERSIONS — pinned documentary snapshots, a linear chain the chain: numbers are max+1; a predecessor is a FROZEN version of the same mandate without a successor (no fork, no cycle)
+     restored sha256 d95d8bc0f07ae398c760fd8c8ad6a16cc4099b51b37475451a80a1c9444fa112 (before d95d8bc0f07a…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC13 PASS version chain: a DRAFT version can be a predecessor
+     file apps/api/src/modules/representation/mandate-versions.service.ts
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (48s); Tests  1 failed | 60 passed (61)
+       failed: MANDATE VERSIONS — pinned documentary snapshots, a linear chain the chain: numbers are max+1; a predecessor is a FROZEN version of the same mandate without a successor (no fork, no cycle)
+     restored sha256 d95d8bc0f07ae398c760fd8c8ad6a16cc4099b51b37475451a80a1c9444fa112 (before d95d8bc0f07a…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC14 PASS version chain: a version of another mandate can be a predecessor
+     file apps/api/src/modules/representation/mandate-versions.service.ts
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (48s); Tests  2 failed | 59 passed (61)
+       failed: MANDATE VERSIONS — pinned documentary snapshots, a linear chain the chain: numbers are max+1; a predecessor is a FROZEN version of the same mandate without a successor (no fork, no cycle)
+       failed: CONTAMINATION — no transfer across agencies, owners, routes, coverages or cases; the User is not a Signer a Mandate of Agency A never supports Agency B: routes, signers, sources, preferences, predecessors and bindings
+     restored sha256 d95d8bc0f07ae398c760fd8c8ad6a16cc4099b51b37475451a80a1c9444fa112 (before d95d8bc0f07a…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC15 PASS concurrent freeze: the version row is read without its FOR UPDATE lock (serialization removed)
+     file apps/api/src/modules/representation/mandate-versions.service.ts
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (47s); Tests  2 failed | 59 passed (61)
+       failed: FREEZE — the system record becomes immutable; not a signature, approval, G1 or currentness two concurrent freezes with one ETag: exactly one transition, one audit event, rowVersion +1 once; a later freeze is FROZEN_VERSION
+       failed: FREEZE — the system record becomes immutable; not a signature, approval, G1 or currentness AC-017: a child edit racing a freeze serializes on the version — one wins, the other is refused; a frozen version never gains or changes a child
+     restored sha256 d95d8bc0f07ae398c760fd8c8ad6a16cc4099b51b37475451a80a1c9444fa112 (before d95d8bc0f07a…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC16 PASS coverage scope: a predecessor coverage of another route is accepted (lineage broadens)
+     file apps/api/src/modules/representation/coverages.service.ts
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (49s); Tests  1 failed | 60 passed (61)
+       failed: COVERAGES — explicit scope over one exact route; not G1 predecessorCoverageId is lineage within one mandate and one route, from a frozen version; it inherits nothing
+     restored sha256 bcf16d5c7340fe60c9c5188be10618a3b39650f3dd00205c1886892bd9a5f068 (before bcf16d5c7340…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC17 PASS coverage scope: an archived route (or its owner / subject) can be covered
+     file apps/api/src/modules/representation/coverages.service.ts
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (49s); Tests  1 failed | 60 passed (61)
+       failed: COVERAGES — explicit scope over one exact route; not G1 archived routes, owners and legal subjects are refused; a paused route still records what a document covers
+     restored sha256 bcf16d5c7340fe60c9c5188be10618a3b39650f3dd00205c1886892bd9a5f068 (before bcf16d5c7340…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC18 PASS coverage scope: duplicate (route, version, label) coverages are not refused (check and unique mapping removed)
+     file apps/api/src/modules/representation/coverages.service.ts
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (48s); Tests  2 failed | 59 passed (61)
+       failed: COVERAGES — explicit scope over one exact route; not G1 create refuses another agency’s route, unknown references, unsupported fields, inverted dates and duplicate labels
+       failed: COVERAGES — explicit scope over one exact route; not G1 patch: draft parent only; dates checked against stored values; labels unique per route and version; the version moves on
+     restored sha256 bcf16d5c7340fe60c9c5188be10618a3b39650f3dd00205c1886892bd9a5f068 (before bcf16d5c7340…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC19 PASS coverage signer: an ENDED signer can be recorded
+     file apps/api/src/modules/representation/coverage-signers.service.ts
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (48s); Tests  1 failed | 60 passed (61)
+       failed: COVERAGE SIGNERS — a Signer recorded under one coverage; not G7, not the User create refuses another agency’s signer, unknown signers (the User is not one), archived or ENDED signers, duplicates and inverted dates
+     restored sha256 502aea01dc255ea0d356f85522a3d7335e9d9dd4b466f2dd0034983fdb802a03 (before 502aea01dc25…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC20 PASS coverage signer: an archived signer can be recorded
+     file apps/api/src/modules/representation/coverage-signers.service.ts
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (48s); Tests  2 failed | 59 passed (61)
+       failed: COVERAGE SIGNERS — a Signer recorded under one coverage; not G7, not the User create refuses another agency’s signer, unknown signers (the User is not one), archived or ENDED signers, duplicates and inverted dates
+       failed: SHARED WRITE LAYER — If-Match, Idempotency-Key, atomic audit in progress and failures: a running claim is 409 with Retry-After and writes nothing; a refused request is never stored
+     restored sha256 502aea01dc255ea0d356f85522a3d7335e9d9dd4b466f2dd0034983fdb802a03 (before 502aea01dc25…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC21 PASS coverage signer: duplicate associations are not refused (check and unique mapping removed)
+     file apps/api/src/modules/representation/coverage-signers.service.ts
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (48s); Tests  1 failed | 60 passed (61)
+       failed: COVERAGE SIGNERS — a Signer recorded under one coverage; not G7, not the User create refuses another agency’s signer, unknown signers (the User is not one), archived or ENDED signers, duplicates and inverted dates
+     restored sha256 502aea01dc255ea0d356f85522a3d7335e9d9dd4b466f2dd0034983fdb802a03 (before 502aea01dc25…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC22 PASS preferred coverage: a route may prefer another route’s coverage
+     file apps/api/src/modules/representation/routes.service.ts
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (48s); Tests  2 failed | 59 passed (61)
+       failed: ROUTE PREFERRED COVERAGE — an operational default, not adjudicated authority refuses another agency’s coverage, another route’s coverage, a draft coverage, an archived mandate’s coverage and unknown ids
+       failed: CONTAMINATION — no transfer across agencies, owners, routes, coverages or cases; the User is not a Signer one Owner’s authority chain never transfers to another Owner: route-level material stays with its owner
+     restored sha256 45ae48c41f4d63d459f4bd25848ffd184bb35167397cd00e02ac8f9db0504bf9 (before 45ae48c41f4d…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC23 PASS preferred coverage: a coverage of a DRAFT version can be preferred
+     file apps/api/src/modules/representation/routes.service.ts
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (48s); Tests  1 failed | 60 passed (61)
+       failed: ROUTE PREFERRED COVERAGE — an operational default, not adjudicated authority refuses another agency’s coverage, another route’s coverage, a draft coverage, an archived mandate’s coverage and unknown ids
+     restored sha256 45ae48c41f4d63d459f4bd25848ffd184bb35167397cd00e02ac8f9db0504bf9 (before 45ae48c41f4d…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC24 PASS preferred coverage: a coverage of an archived mandate can be preferred
+     file apps/api/src/modules/representation/routes.service.ts
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (49s); Tests  1 failed | 60 passed (61)
+       failed: ROUTE PREFERRED COVERAGE — an operational default, not adjudicated authority refuses another agency’s coverage, another route’s coverage, a draft coverage, an archived mandate’s coverage and unknown ids
+     restored sha256 45ae48c41f4d63d459f4bd25848ffd184bb35167397cd00e02ac8f9db0504bf9 (before 45ae48c41f4d…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC25 PASS audit rollback: a coverage commits although its audit event failed (failure swallowed)
+     file apps/api/src/modules/representation/coverages.service.ts
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (48s); Tests  1 failed | 60 passed (61)
+       failed: SHARED WRITE LAYER — If-Match, Idempotency-Key, atomic audit a failing audit insert rolls back every P3B write: no row, no version change, no idempotency record
+     restored sha256 bcf16d5c7340fe60c9c5188be10618a3b39650f3dd00205c1886892bd9a5f068 (before bcf16d5c7340…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC26 PASS ETag: createCoverage no longer checks the version’s If-Match
+     file apps/api/src/modules/representation/coverages.service.ts
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (35s); Tests  38 failed | 23 passed (61)
+       failed: MANDATE — a container of one agency, not authority archive/restore: an administrative flag only — nothing is revoked or recorded; archived is read-only; restore needs an unarchived agency
+       failed: MANDATE VERSIONS — pinned documentary snapshots, a linear chain pinning: versions and coverages keep the exact revision they cite; revising a source repoints nothing and records nothing
+       failed: FREEZE — the system record becomes immutable; not a signature, approval, G1 or currentness freeze: DRAFT → FROZEN once, with a reason; the children are frozen through it; nothing else is created or changed
+       failed: FREEZE — the system record becomes immutable; not a signature, approval, G1 or currentness a frozen version never changes: its terms, coverages and coverage signers are refused with FROZEN_VERSION; there is no unfreeze
+       failed: FREEZE — the system record becomes immutable; not a signature, approval, G1 or currentness two concurrent freezes with one ETag: exactly one transition, one audit event, rowVersion +1 once; a later freeze is FROZEN_VERSION
+       failed: FREEZE — the system record becomes immutable; not a signature, approval, G1 or currentness AC-017: a child edit racing a freeze serializes on the version — one wins, the other is refused; a frozen version never gains or changes a child
+       … and 32 more
+     restored sha256 bcf16d5c7340fe60c9c5188be10618a3b39650f3dd00205c1886892bd9a5f068 (before bcf16d5c7340…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC27 PASS ETag: recordAuthorityEvent no longer checks the Mandate’s If-Match
+     file apps/api/src/modules/representation/authority-events.service.ts
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (47s); Tests  14 failed | 47 passed (61)
+       failed: MANDATE — a container of one agency, not authority archive/restore: an administrative flag only — nothing is revoked or recorded; archived is read-only; restore needs an unarchived agency
+       failed: MANDATE — a container of one agency, not authority delete: only an unused mandate; a version, an event, a binding or the archive flag keeps it
+       failed: AUTHORITY EVENTS — append-only history, exactly as reported; not proof by existence record: a whole-mandate event stored exactly as given — no date is inferred; the Mandate moves on; no ETag, no update or delete
+       failed: AUTHORITY EVENTS — append-only history, exactly as reported; not proof by existence coverage-scoped events need a frozen coverage of this mandate, and a source that applies to its route
+       failed: AUTHORITY EVENTS — append-only history, exactly as reported; not proof by existence supersession: an event is superseded at most once, by an event of the same scope and mandate; the earlier event never changes
+       failed: AUTHORITY EVENTS — append-only history, exactly as reported; not proof by existence provenance is stored exactly as given; DOCUMENT_REVIEWED needs a source recording an attributed review; nothing upgrades
+       … and 8 more
+     restored sha256 5c422cbaa0177cfef11fc44326293880df5b263c5d47981b90539e2433b35f97 (before 5c422cbaa017…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC28 PASS idempotency: the request digest ignores the body (another payload replays the first result)
+     file apps/api/src/infrastructure/write/request-digest.ts
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (48s); Tests  1 failed | 60 passed (61)
+       failed: SHARED WRITE LAYER — If-Match, Idempotency-Key, atomic audit Idempotency-Key per write family: required; an exact replay returns the stored result once; another payload is 409
+     restored sha256 0cc4b33009e74b0bcf700d345e3b6e3d20dee4db76f64a25bb10d547be3d8bc9 (before 0cc4b33009e7…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC29 PASS provenance no-upgrade: an event takes DOCUMENT_REVIEWED from a reviewed source
+     file apps/api/src/modules/representation/authority-events.service.ts
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (48s); Tests  1 failed | 60 passed (61)
+       failed: AUTHORITY EVENTS — append-only history, exactly as reported; not proof by existence provenance is stored exactly as given; DOCUMENT_REVIEWED needs a source recording an attributed review; nothing upgrades
+     restored sha256 5c422cbaa0177cfef11fc44326293880df5b263c5d47981b90539e2433b35f97 (before 5c422cbaa017…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC30 PASS review claim: REVIEWED_WITH_LIMITS is accepted without a cited reviewed source
+     file apps/api/src/modules/representation/authority-rules.ts
+     suite UNIT (tests/api/authority-rules.test.ts): exit 1 (1s); Tests  1 failed | 37 passed (38)
+       failed: version terms — claims need their support; unknown stays unknown REVIEWED_WITH_LIMITS needs a cited primary or additional source that records a review
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (48s); Tests  3 failed | 58 passed (61)
+       failed: MANDATE VERSIONS — pinned documentary snapshots, a linear chain document and review claims: a document state needs its document; a review needs a cited source recording a review; CONFLICT and MISSING stay truthful
+       failed: DOCUMENT_REVIEWED — never upgraded by a reviewer name, a hash, a binding, a revision or a P3B record 1. a reviewer name without an explicit DOCUMENT_REVIEWED does not upgrade provenance
+       failed: DOCUMENT_REVIEWED — never upgraded by a reviewer name, a hash, a binding, a revision or a P3B record 2. a hash or hash target alone is refused as incomplete, and a complete hash still does not upgrade provenance
+     restored sha256 75f62b47d9d0df06903cc773d4678ddedea9ebeab58704fcc67a15188398048f (before 75f62b47d9d0…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC31 PASS review claim: an event is DOCUMENT_REVIEWED with an unreviewed source
+     file apps/api/src/modules/representation/authority-rules.ts
+     suite UNIT (tests/api/authority-rules.test.ts): exit 1 (1s); Tests  2 failed | 36 passed (38)
+       failed: event review — DOCUMENT_REVIEWED needs a source that records a review event DOCUMENT_REVIEWED on a OPERATOR_REPORTED source → REVIEW_UNSUPPORTED
+       failed: event review — DOCUMENT_REVIEWED needs a source that records a review event DOCUMENT_REVIEWED on a ANALYSIS source → REVIEW_UNSUPPORTED
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (49s); Tests  5 failed | 56 passed (61)
+       failed: AUTHORITY EVENTS — append-only history, exactly as reported; not proof by existence provenance is stored exactly as given; DOCUMENT_REVIEWED needs a source recording an attributed review; nothing upgrades
+       failed: DOCUMENT_REVIEWED — never upgraded by a reviewer name, a hash, a binding, a revision or a P3B record 1. a reviewer name without an explicit DOCUMENT_REVIEWED does not upgrade provenance
+       failed: DOCUMENT_REVIEWED — never upgraded by a reviewer name, a hash, a binding, a revision or a P3B record 2. a hash or hash target alone is refused as incomplete, and a complete hash still does not upgrade provenance
+       failed: DOCUMENT_REVIEWED — never upgraded by a reviewer name, a hash, a binding, a revision or a P3B record 3. a canonical binding does not upgrade provenance
+       failed: DOCUMENT_REVIEWED — never upgraded by a reviewer name, a hash, a binding, a revision or a P3B record 4. a source revision does not upgrade provenance, in either direction of the chain
+     restored sha256 75f62b47d9d0df06903cc773d4678ddedea9ebeab58704fcc67a15188398048f (before 75f62b47d9d0…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC32 PASS DOCUMENT_REVIEWED regression: a reviewer name upgrades a source to DOCUMENT_REVIEWED
+     file apps/api/src/modules/sources/sources.service.ts
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (49s); Tests  1 failed | 60 passed (61)
+       failed: DOCUMENT_REVIEWED — never upgraded by a reviewer name, a hash, a binding, a revision or a P3B record 1. a reviewer name without an explicit DOCUMENT_REVIEWED does not upgrade provenance
+     restored sha256 b5ba073866ccb0c3de60b188b0bb947dc51c596fd3a333d6c533224ea43898f4 (before b5ba073866cc…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC33 PASS DOCUMENT_REVIEWED regression: a content hash upgrades a source to DOCUMENT_REVIEWED
+     file apps/api/src/modules/sources/sources.service.ts
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (49s); Tests  1 failed | 60 passed (61)
+       failed: DOCUMENT_REVIEWED — never upgraded by a reviewer name, a hash, a binding, a revision or a P3B record 2. a hash or hash target alone is refused as incomplete, and a complete hash still does not upgrade provenance
+     restored sha256 b5ba073866ccb0c3de60b188b0bb947dc51c596fd3a333d6c533224ea43898f4 (before b5ba073866cc…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC34 PASS DOCUMENT_REVIEWED regression: a hash target upgrades a source to DOCUMENT_REVIEWED
+     file apps/api/src/modules/sources/sources.service.ts
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (48s); Tests  1 failed | 60 passed (61)
+       failed: DOCUMENT_REVIEWED — never upgraded by a reviewer name, a hash, a binding, a revision or a P3B record 2. a hash or hash target alone is refused as incomplete, and a complete hash still does not upgrade provenance
+     restored sha256 b5ba073866ccb0c3de60b188b0bb947dc51c596fd3a333d6c533224ea43898f4 (before b5ba073866cc…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC35 PASS DOCUMENT_REVIEWED regression: a source revision inherits its predecessor’s review
+     file apps/api/src/modules/sources/sources.service.ts
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (49s); Tests  1 failed | 60 passed (61)
+       failed: DOCUMENT_REVIEWED — never upgraded by a reviewer name, a hash, a binding, a revision or a P3B record 4. a source revision does not upgrade provenance, in either direction of the chain
+     restored sha256 b5ba073866ccb0c3de60b188b0bb947dc51c596fd3a333d6c533224ea43898f4 (before b5ba073866cc…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC36 PASS DOCUMENT_REVIEWED regression: a canonical binding upgrades its source
+     file apps/api/src/modules/directory/canonical-binding.ts
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (48s); Tests  2 failed | 59 passed (61)
+       failed: MANDATE — a container of one agency, not authority canonical binding: identity/reference only, with a current canonical source of the mandate’s agency
+       failed: DOCUMENT_REVIEWED — never upgraded by a reviewer name, a hash, a binding, a revision or a P3B record 3. a canonical binding does not upgrade provenance
+     restored sha256 044d73c1897cf830630a0a0fd77a28f32fbcb44c2d8e7f5f21445c6faa2b7cd7 (before 044d73c1897c…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC37 PASS G7 side effect: recording a coverage signer makes the Signer AVAILABLE
+     file apps/api/src/modules/representation/coverage-signers.service.ts
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (48s); Tests  3 failed | 58 passed (61)
+       failed: FREEZE — the system record becomes immutable; not a signature, approval, G1 or currentness freeze: DRAFT → FROZEN once, with a reason; the children are frozen through it; nothing else is created or changed
+       failed: COVERAGE SIGNERS — a Signer recorded under one coverage; not G7, not the User create: a same-agency Signer with its recorded limits; coverage and version move on; the Signer and the User are untouched
+       failed: COVERAGE SIGNERS — a Signer recorded under one coverage; not G7, not the User delete: a draft association only, with If-Match; the parents move on; the audit keeps what was removed
+     restored sha256 502aea01dc255ea0d356f85522a3d7335e9d9dd4b466f2dd0034983fdb802a03 (before 502aea01dc25…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC38 PASS G1 side effect: freezing sets each covered route’s preferred coverage
+     file apps/api/src/modules/representation/mandate-versions.service.ts
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (48s); Tests  5 failed | 56 passed (61)
+       failed: FREEZE — the system record becomes immutable; not a signature, approval, G1 or currentness freeze: DRAFT → FROZEN once, with a reason; the children are frozen through it; nothing else is created or changed
+       failed: ROUTE PREFERRED COVERAGE — an operational default, not adjudicated authority a frozen coverage of this exact route can be preferred and removed with If-Match; nothing else changes
+       failed: ROUTE PREFERRED COVERAGE — an operational default, not adjudicated authority refuses another agency’s coverage, another route’s coverage, a draft coverage, an archived mandate’s coverage and unknown ids
+       failed: CONTAMINATION — no transfer across agencies, owners, routes, coverages or cases; the User is not a Signer a Mandate of Agency A never supports Agency B: routes, signers, sources, preferences, predecessors and bindings
+       failed: SHARED WRITE LAYER — If-Match, Idempotency-Key, atomic audit a failing audit insert rolls back every P3B write: no row, no version change, no idempotency record
+     restored sha256 d95d8bc0f07ae398c760fd8c8ad6a16cc4099b51b37475451a80a1c9444fa112 (before d95d8bc0f07a…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC39 PASS no inferred date: an event without effectiveOn is dated with the recording time
+     file apps/api/src/modules/representation/authority-events.service.ts
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (49s); Tests  2 failed | 59 passed (61)
+       failed: AUTHORITY EVENTS — append-only history, exactly as reported; not proof by existence record: a whole-mandate event stored exactly as given — no date is inferred; the Mandate moves on; no ETag, no update or delete
+       failed: AUTHORITY EVENTS — append-only history, exactly as reported; not proof by existence list: newest recording first; by type, coverage, source or superseded id, or words; recordedAt is not an effective date
+     restored sha256 5c422cbaa0177cfef11fc44326293880df5b263c5d47981b90539e2433b35f97 (before 5c422cbaa017…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC40 PASS dates: a start after its end is accepted (DATE_RANGE_INVALID removed)
+     file apps/api/src/modules/representation/authority-rules.ts
+     suite UNIT (tests/api/authority-rules.test.ts): exit 1 (1s); Tests  3 failed | 35 passed (38)
+       failed: dateRangeProblem — only a known start after a known end is refused 2026-01-02 → 2026-01-01
+       failed: dateRangeProblem — only a known start after a known end is refused names both fields and carries the record id it was given
+       failed: version terms — claims need their support; unknown stays unknown {"primarySourceId":null,"additionalSourceRefs":null,"signedDatesRaw":null,"documentState":"UNKNOWN","sourceReviewState":"UNREVIEWED","effectiveOn":"2026-02-01","expiresOn":"2026-01-01"} → DATE_RANGE_INVALID
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (48s); Tests  6 failed | 55 passed (61)
+       failed: MANDATE VERSIONS — pinned documentary snapshots, a linear chain patch: DRAFT only, contracted terms only; claims are checked against the merged terms; a no-op writes nothing
+       failed: MANDATE VERSIONS — pinned documentary snapshots, a linear chain dates: stored exactly as given; a start after its end is refused; dates the database cannot store are refused
+       failed: FREEZE — the system record becomes immutable; not a signature, approval, G1 or currentness freeze re-validates the structure under its locks: rows changed outside the API, archived parents and agencies block it
+       failed: COVERAGES — explicit scope over one exact route; not G1 create refuses another agency’s route, unknown references, unsupported fields, inverted dates and duplicate labels
+       failed: COVERAGES — explicit scope over one exact route; not G1 patch: draft parent only; dates checked against stored values; labels unique per route and version; the version moves on
+       failed: COVERAGE SIGNERS — a Signer recorded under one coverage; not G7, not the User create refuses another agency’s signer, unknown signers (the User is not one), archived or ENDED signers, duplicates and inverted dates
+     restored sha256 75f62b47d9d0df06903cc773d4678ddedea9ebeab58704fcc67a15188398048f (before 75f62b47d9d0…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC41 PASS dates: unstorable instants (leap second, sub-millisecond, out of range) are accepted
+     file apps/api/src/modules/representation/authority-rules.ts
+     suite UNIT (tests/api/authority-rules.test.ts): exit 1 (1s); Tests  5 failed | 33 passed (38)
+       failed: storabilityProblem — values the database cannot store exactly are refused, never altered instant 2025-06-30T10:15:00.1234Z → VALIDATION_FAILED
+       failed: storabilityProblem — values the database cannot store exactly are refused, never altered instant 2016-12-31T23:59:60Z → VALIDATION_FAILED
+       failed: storabilityProblem — values the database cannot store exactly are refused, never altered instant 0999-12-31T23:59:59Z → VALIDATION_FAILED
+       failed: storabilityProblem — values the database cannot store exactly are refused, never altered instant 9999-12-31T23:59:59.000-01:00 → VALIDATION_FAILED
+       failed: storabilityProblem — values the database cannot store exactly are refused, never altered reports every unstorable field
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (49s); Tests  1 failed | 60 passed (61)
+       failed: AUTHORITY EVENTS — append-only history, exactly as reported; not proof by existence refuses unknown fields, a missing source, unstorable instants and unsupported provenance vocabulary
+     restored sha256 75f62b47d9d0df06903cc773d4678ddedea9ebeab58704fcc67a15188398048f (before 75f62b47d9d0…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC42 PASS append-only history: an event can be superseded twice (check and unique mapping removed)
+     file apps/api/src/modules/representation/authority-events.service.ts
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (49s); Tests  1 failed | 60 passed (61)
+       failed: AUTHORITY EVENTS — append-only history, exactly as reported; not proof by existence supersession: an event is superseded at most once, by an event of the same scope and mandate; the earlier event never changes
+     restored sha256 5c422cbaa0177cfef11fc44326293880df5b263c5d47981b90539e2433b35f97 (before 5c422cbaa017…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC43 PASS event scope: an event may name a coverage of a DRAFT version
+     file apps/api/src/modules/representation/authority-events.service.ts
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (48s); Tests  1 failed | 60 passed (61)
+       failed: AUTHORITY EVENTS — append-only history, exactly as reported; not proof by existence coverage-scoped events need a frozen coverage of this mandate, and a source that applies to its route
+     restored sha256 5c422cbaa0177cfef11fc44326293880df5b263c5d47981b90539e2433b35f97 (before 5c422cbaa017…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC44 PASS event scope: a superseding event may change scope (whole mandate ↔ coverage)
+     file apps/api/src/modules/representation/authority-events.service.ts
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (48s); Tests  1 failed | 60 passed (61)
+       failed: AUTHORITY EVENTS — append-only history, exactly as reported; not proof by existence supersession: an event is superseded at most once, by an event of the same scope and mandate; the earlier event never changes
+     restored sha256 5c422cbaa0177cfef11fc44326293880df5b263c5d47981b90539e2433b35f97 (before 5c422cbaa017…, identical=True)
+     tb_notice_test empty after the control: True
+P3B-NC45 PASS UI: the add-coverage / add-signer pages of a frozen version render their forms (F1 guards removed)
+     file apps/web/src/app/representation/coverages.tsx
+     suite WEB (tests/web/p3b.test.tsx): exit 1 (5s); Tests  1 failed | 16 passed (17)
+       failed: P3B coverage UI opened directly, the add-coverage and add-signer pages of a frozen version show no form
+     restored sha256 077533166a30a7802b1b7abb5f6510954faa48168a98e031cea05d52e962da68 (before 077533166a30…, identical=True)
+P3B-NC46 PASS UI: the freeze dialog no longer says freezing is NOT a signature / approval / G1 / adoption
+     file apps/web/src/app/representation/versions.tsx
+     suite WEB (tests/web/p3b.test.tsx): exit 1 (2s); Tests  1 failed | 16 passed (17)
+       failed: P3B versions UI freeze: the dialog says what freezing is and is not; the version then offers no change
+     restored sha256 6097071a13a1d8e89c528e0221bad614ea23e8b6063257b90c0376cb805d298b (before 6097071a13a1…, identical=True)
+P3B-NC47 PASS UI: the preferred-coverage picker also offers coverage of draft versions
+     file apps/web/src/app/representation/routes.tsx
+     suite WEB (tests/web/p3b.test.tsx): exit 1 (5s); Tests  1 failed | 16 passed (17)
+       failed: P3B route preferred coverage UI the picker is enabled only when a frozen coverage of this route exists, and offers only that
+     restored sha256 88a0642fa3269ffe551fb324e904cb0472a94877cb40635c2926da1f78f6e4b4 (before 88a0642fa326…, identical=True)
+P3B-NC48 PASS UI: “Document reviewed” provenance is offered with any source
+     file apps/web/src/app/representation/events.tsx
+     suite WEB (tests/web/p3b.test.tsx): exit 1 (1s); Tests  1 failed | 16 passed (17)
+       failed: P3B authority events UI records an event: scope only whole-mandate or frozen coverage; DOCUMENT_REVIEWED only with a reviewed source
+     restored sha256 27d39d121b057e23247efb84caca73fb096099cf0af457ab9527442611425bb3 (before 27d39d121b05…, identical=True)
+P3B-NC49 PASS UI: a frozen version is stamped “Approved”
+     file apps/web/src/app/directory/format.ts
+     suite WEB (tests/web/p3b.test.tsx): exit 1 (1s); Tests  2 failed | 15 passed (17)
+       failed: P3B mandates UI lists mandates and shows the recorded hierarchy: versions → coverage → coverage signers
+       failed: P3B versions UI freeze: the dialog says what freezing is and is not; the version then offers no change
+     restored sha256 de38e8393f0d0e57c759148eadead7276483719bacfaf0f510886aeed6ca0271 (before de38e8393f0d…, identical=True)
+P3B-NC50 PASS UI: a coverage signer is labelled “Authorized signer”
+     file apps/web/src/app/representation/coverages.tsx
+     suite WEB (tests/web/p3b.test.tsx): exit 1 (2s); Tests  1 failed | 16 passed (17)
+       failed: P3B coverage UI records a coverage signer with neutral wording; other agencies’, archived and ended signers are not offered
+     restored sha256 077533166a30a7802b1b7abb5f6510954faa48168a98e031cea05d52e962da68 (before 077533166a30…, identical=True)
+P3B-NC51 PASS UI: the timeline fills a missing effective date from the recording time
+     file apps/web/src/app/representation/events.tsx
+     suite WEB (tests/web/p3b.test.tsx): exit 1 (2s); Tests  1 failed | 16 passed (17)
+       failed: P3B authority events UI the timeline keeps recorded and effective dates apart and never fills one from the other
+     restored sha256 27d39d121b057e23247efb84caca73fb096099cf0af457ab9527442611425bb3 (before 27d39d121b05…, identical=True)
+
+## Summary: 51 PASS, 0 not passing (of 51 run)
+git status of apps/ packages/ tests/ scripts/ after all controls: clean (every file restored)
+
+## Repeats of the timing-dependent control NC15 (concurrency)
+P3B-NC15 PASS concurrent freeze: the version row is read without its FOR UPDATE lock (serialization removed)
+     file apps/api/src/modules/representation/mandate-versions.service.ts
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (48s); Tests  2 failed | 59 passed (61)
+       failed: FREEZE — the system record becomes immutable; not a signature, approval, G1 or currentness two concurrent freezes with one ETag: exactly one transition, one audit event, rowVersion +1 once; a later freeze is FROZEN_VERSION
+       failed: FREEZE — the system record becomes immutable; not a signature, approval, G1 or currentness AC-017: a child edit racing a freeze serializes on the version — one wins, the other is refused; a frozen version never gains or changes a child
+     restored sha256 d95d8bc0f07ae398c760fd8c8ad6a16cc4099b51b37475451a80a1c9444fa112 (before d95d8bc0f07a…, identical=True)
+     tb_notice_test empty after the control: True
+
+## Summary: 1 PASS, 0 not passing (of 1 run)
+git status of apps/ packages/ tests/ scripts/ after all controls: clean (every file restored)
+P3B-NC15 PASS concurrent freeze: the version row is read without its FOR UPDATE lock (serialization removed)
+     file apps/api/src/modules/representation/mandate-versions.service.ts
+     suite DB (tests/db/p3b-http.test.ts): exit 1 (48s); Tests  2 failed | 59 passed (61)
+       failed: FREEZE — the system record becomes immutable; not a signature, approval, G1 or currentness two concurrent freezes with one ETag: exactly one transition, one audit event, rowVersion +1 once; a later freeze is FROZEN_VERSION
+       failed: FREEZE — the system record becomes immutable; not a signature, approval, G1 or currentness AC-017: a child edit racing a freeze serializes on the version — one wins, the other is refused; a frozen version never gains or changes a child
+     restored sha256 d95d8bc0f07ae398c760fd8c8ad6a16cc4099b51b37475451a80a1c9444fa112 (before d95d8bc0f07a…, identical=True)
+     tb_notice_test empty after the control: True
+
+## Summary: 1 PASS, 0 not passing (of 1 run)
+git status of apps/ packages/ tests/ scripts/ after all controls: clean (every file restored)
