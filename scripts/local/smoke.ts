@@ -12,7 +12,11 @@
 //     for a synthetic unknown account → generic 403 (runs Argon2id in the compiled process), logout
 //     without a session → 401, proxied session check → 401 without CORS headers. Every response is
 //     a valid contract OperationError with Cache-Control: no-store.
-//  6. Terminate both processes (SIGTERM, bounded wait, SIGKILL fallback) and verify ports 3000 and
+//  6. P2 directory boundary of the compiled API, read-only: every directory collection is routed and
+//     session-protected (no cookie → 401), an unsafe directory write without Origin → 403 before any
+//     handler, and the deferred canonical-binding operations are not routed (404). The web bundle
+//     contains the Directory pages.
+//  7. Terminate both processes (SIGTERM, bounded wait, SIGKILL fallback) and verify ports 3000 and
 //     5173 are released. Any failure exits non-zero.
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { connect } from 'node:net';
@@ -178,7 +182,9 @@ async function checkWeb(): Promise<void> {
     bundle.status !== 200 ||
     !code.includes('TB Notice Production System') ||
     !code.includes('/api/v1/health') ||
-    !code.includes('/api/v1/auth/session')
+    !code.includes('/api/v1/auth/session') ||
+    !code.includes('/api/v1/agencies') ||
+    !code.includes('/api/v1/owner-subjects/')
   ) {
     fail(`web shell: script bundle ${script} missing or unexpected (HTTP ${bundle.status})`);
   }
@@ -285,6 +291,70 @@ async function main(): Promise<void> {
   await checkHealth(`http://localhost:${WEB_PORT}/api/v1/health`, 'web proxy /api/v1/health');
   await checkWeb();
   await checkAuthBoundary();
+  await checkDirectoryBoundary();
+}
+
+async function checkDirectoryBoundary(): Promise<void> {
+  const { OperationErrorSchema } = await import('../../packages/contracts/dist/index.js');
+  const origin = (process.env['TB_ALLOWED_WEB_ORIGINS'] ?? '').split(',')[0]?.trim() ?? '';
+  const api = `http://localhost:${API_PORT}/api/v1`;
+  const id = '00000000-0000-4000-8000-00000000c0de';
+  const json = { 'Content-Type': 'application/json' };
+  const cases: Array<[string, string, RequestInit, number, string]> = [
+    ['GET /agencies without a session', `${api}/agencies`, {}, 401, 'SESSION_REQUIRED'],
+    ['GET /owners without a session', `${api}/owners`, {}, 401, 'SESSION_REQUIRED'],
+    ['GET /legal-subjects without a session', `${api}/legal-subjects`, {}, 401, 'SESSION_REQUIRED'],
+    ['GET /signers without a session', `${api}/signers`, {}, 401, 'SESSION_REQUIRED'],
+    [
+      'GET /owners/{ownerId}/subjects without a session',
+      `${api}/owners/${id}/subjects`,
+      {},
+      401,
+      'SESSION_REQUIRED',
+    ],
+    [
+      'GET /owner-subjects/{id} through the web proxy without a session',
+      `http://localhost:${WEB_PORT}/api/v1/owner-subjects/${id}`,
+      {},
+      401,
+      'SESSION_REQUIRED',
+    ],
+    [
+      'POST /agencies without Origin',
+      `${api}/agencies`,
+      { method: 'POST', headers: json, body: '{"displayName":"x"}' },
+      403,
+      'ORIGIN_REJECTED',
+    ],
+    [
+      'POST /agencies/{id}/canonical-bindings (deferred, not routed)',
+      `${api}/agencies/${id}/canonical-bindings`,
+      { method: 'POST', headers: { ...json, Origin: origin }, body: '{}' },
+      404,
+      'NOT_FOUND',
+    ],
+    [
+      'POST /signers/{id}/canonical-bindings (deferred, not routed)',
+      `${api}/signers/${id}/canonical-bindings`,
+      { method: 'POST', headers: { ...json, Origin: origin }, body: '{}' },
+      404,
+      'NOT_FOUND',
+    ],
+  ];
+  for (const [label, url, init, status, code] of cases) {
+    const response = await fetch(url, {
+      ...init,
+      signal: AbortSignal.timeout(10_000),
+      redirect: 'error',
+    });
+    const body: unknown = await response.json();
+    const parsed = OperationErrorSchema.safeParse(body);
+    if (response.status !== status || !parsed.success || parsed.data.error.code !== code) {
+      fail(`${label}: expected ${status} ${code}, got ${response.status} ${JSON.stringify(body)}`);
+    }
+    if (response.headers.get('cache-control') !== 'no-store') fail(`${label}: missing no-store`);
+    pass(`directory boundary: ${label} → ${status} ${code}, no-store`);
+  }
 }
 
 try {

@@ -6,6 +6,9 @@
 # FOREIGN_KEY_CHECKS=0. No dependency cache: every run is a cold install.
 # P1/P1.1: the only account ever created or recovered is a synthetic one in the disposable CI
 # tb_notice_dev, with passwords generated at runtime, masked, passed on stdin and deleted.
+# P2: yarn test / test:db cover the directory; smoke:local checks the compiled directory routes
+# and smoke:directory runs a compiled round trip that creates and deletes one synthetic Agency in
+# the disposable CI tb_notice_dev (it refuses to run outside CI).
 name: CI
 
 on:
@@ -142,6 +145,8 @@ jobs:
           grep -q 'already exists' "$RUNNER_TEMP/p1-dup.log"
       - name: P1 compiled login round trip (yarn smoke:auth)
         run: yarn smoke:auth --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"
+      - name: P2 compiled directory round trip (yarn smoke:directory, synthetic Agency created and deleted)
+        run: yarn smoke:directory --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"
       - name: P1.1 recovery commands (synthetic account; P0 actor untouched)
         run: |
           E=p1-ci-admin@example.invalid
