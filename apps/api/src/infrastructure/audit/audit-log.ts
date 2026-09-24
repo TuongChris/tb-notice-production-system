@@ -12,6 +12,8 @@ export interface AuditEntry {
   /** Minimal redacted after-state; never credentials, tokens or their digests. */
   readonly after?: Prisma.InputJsonObject;
   readonly reason?: string;
+  /** Source references the recorded change cites (AuditEvent.sourceIds); never inferred. */
+  readonly sourceIds?: readonly string[];
 }
 
 // Defensive guard: these key names must never appear in an audit payload (DATABASE_SCHEMA_v1
@@ -39,6 +41,9 @@ export async function appendAuditEvent(
       ...(entry.before === undefined ? {} : { beforeRedacted: entry.before }),
       ...(entry.after === undefined ? {} : { afterRedacted: entry.after }),
       ...(entry.reason === undefined ? {} : { reason: entry.reason }),
+      ...(entry.sourceIds === undefined || entry.sourceIds.length === 0
+        ? {}
+        : { sourceIds: [...entry.sourceIds] }),
     },
   });
 }

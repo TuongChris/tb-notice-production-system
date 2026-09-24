@@ -29,6 +29,7 @@ import {
   type LoginThrottleSettings,
 } from '../../apps/api/src/modules/auth/login-throttle.js';
 import { PasswordHasher } from '../../apps/api/src/modules/auth/password-hasher.js';
+import { AuditWriter } from '../../apps/api/src/infrastructure/write/audit-writer.js';
 import { driverConfig, loadRootEnv, resolveTarget } from '../../scripts/db/lib/targets.mjs';
 
 export const ALLOWED_ORIGIN = 'http://localhost:5173';
@@ -140,7 +141,12 @@ export function testAuthConfig(
 /** Boots the real AppModule + configureApp pipeline on an ephemeral loopback port. */
 export async function startTestApp(
   prisma: PrismaClient,
-  overrides: { secret?: Buffer; throttle?: Partial<LoginThrottleSettings>; clock?: TestClock } = {},
+  overrides: {
+    secret?: Buffer;
+    throttle?: Partial<LoginThrottleSettings>;
+    clock?: TestClock;
+    auditWriter?: AuditWriter;
+  } = {},
 ): Promise<TestApp> {
   const clock = overrides.clock ?? new TestClock();
   const hasher = new CountingHasher();
@@ -154,6 +160,8 @@ export async function startTestApp(
     .useValue(clock)
     .overrideProvider(PasswordHasher)
     .useValue(hasher)
+    .overrideProvider(AuditWriter)
+    .useValue(overrides.auditWriter ?? new AuditWriter())
     .compile();
   const app = moduleRef.createNestApplication<NestExpressApplication>({
     bodyParser: false,

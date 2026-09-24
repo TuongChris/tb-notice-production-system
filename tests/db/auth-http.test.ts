@@ -812,7 +812,7 @@ describe('SECURITY', () => {
     }
   });
 
-  it('exposes exactly the four contracted routes: no signup, user-management, signing or sending route', async () => {
+  it('exposes the four auth/health routes and no signup, user-management, signing or sending route', async () => {
     const express = t.app.getHttpAdapter().getInstance() as {
       router: { stack: Array<{ route?: { path: string; methods: Record<string, boolean> } }> };
     };
@@ -824,7 +824,10 @@ describe('SECURITY', () => {
         ),
       )
       .sort();
-    expect(routes).toEqual([
+    // P2 adds the directory routes (exact inventory: directory-http.test.ts); nothing else.
+    const directory =
+      /^[A-Z]+ \/api\/v1\/(agencies|owners|legal-subjects|signers|owner-subjects)(\/|$)/;
+    expect(routes.filter((route) => !directory.test(route))).toEqual([
       'GET /api/v1/auth/session',
       'GET /api/v1/health',
       'POST /api/v1/auth/login',
@@ -834,7 +837,8 @@ describe('SECURITY', () => {
       '/api/v1/auth/signup',
       '/api/v1/auth/register',
       '/api/v1/users',
-      '/api/v1/signers',
+      '/api/v1/signers/00000000-0000-4000-8000-000000000001/sign',
+      '/api/v1/candidates/00000000-0000-4000-8000-000000000001/send',
     ]) {
       const result = await http(t.port, 'POST', path, { headers: loginHeaders(), body: '{}' });
       expect(result.status, path).toBe(404);

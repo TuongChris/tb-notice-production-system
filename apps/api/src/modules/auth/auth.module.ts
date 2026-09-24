@@ -28,6 +28,6 @@ import { SessionService } from './session.service.js';
     AuthService,
     { provide: APP_GUARD, useClass: AuthGuard },
   ],
-  exports: [AUTH_CONFIG],
+  exports: [AUTH_CONFIG, CLOCK],
 })
 export class AuthModule {}
