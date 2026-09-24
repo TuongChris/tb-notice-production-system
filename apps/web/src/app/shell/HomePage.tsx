@@ -1,3 +1,4 @@
+import { Link } from 'react-router';
 import { useSession } from '../auth/session.js';
 
 export function HomePage() {
@@ -8,8 +9,10 @@ export function HomePage() {
     <section>
       <h1>Overview</h1>
       <p>
-        This phase provides local sign-in and this protected shell only. Directory, representation,
-        case and production features are not implemented yet.
+        The <Link to="/directory">directory</Link> holds agencies, owners, legal subjects, the links
+        between owners and legal subjects, and signers. Directory records are administrative: they
+        grant no authority and make nothing ready to send. Representation, case and production
+        features are not implemented yet.
       </p>
       <dl>
         <dt>Session</dt>

@@ -1,0 +1,212 @@
+// Display vocabulary of the directory pages: enum labels, dates, and plain-language explanations
+// of the contract error codes (what happened and what to do next).
+import { ApiError } from '../api/client.js';
+
+export const RECORD_STATE_LABEL = {
+  DRAFT: 'Draft',
+  ACTIVE: 'Active',
+  ARCHIVED: 'Archived',
+} as const;
+export const SIGNER_STATE_LABEL = {
+  DRAFT: 'Draft',
+  AVAILABLE: 'Available',
+  PAUSED: 'Paused',
+  ENDED: 'Ended',
+} as const;
+export const LINK_STATE_LABEL = {
+  LINKED: 'Linked',
+  PAUSED: 'Paused',
+  UNLINKED: 'Unlinked',
+} as const;
+export const SUBJECT_TYPE_LABEL = {
+  INDIVIDUAL: 'Individual',
+  LEGAL_ENTITY: 'Legal entity',
+  OTHER: 'Other',
+} as const;
+export const BINDING_STATE_LABEL = {
+  LOCAL_ONLY: 'Local only',
+  SOURCE_REFERENCED: 'Source-referenced',
+  DIVERGENT: 'Divergent',
+} as const;
+export const REVIEW_STATE_LABEL = {
+  UNREVIEWED: 'Unreviewed',
+  REVIEWED_WITH_LIMITS: 'Reviewed with limits',
+  CONFLICT: 'Conflict',
+} as const;
+export const PROVENANCE_LABEL = {
+  DOCUMENT_REVIEWED: 'Document reviewed',
+  OPERATOR_REPORTED: 'Operator reported',
+  ANALYSIS: 'Analysis',
+  MISSING: 'Missing',
+  CONFLICT: 'Conflict',
+} as const;
+
+export type Tone = 'draft' | 'active' | 'archived' | 'paused' | 'ended';
+
+export const RECORD_STATE_TONE: Record<keyof typeof RECORD_STATE_LABEL, Tone> = {
+  DRAFT: 'draft',
+  ACTIVE: 'active',
+  ARCHIVED: 'archived',
+};
+export const SIGNER_STATE_TONE: Record<keyof typeof SIGNER_STATE_LABEL, Tone> = {
+  DRAFT: 'draft',
+  AVAILABLE: 'active',
+  PAUSED: 'paused',
+  ENDED: 'ended',
+};
+export const LINK_STATE_TONE: Record<keyof typeof LINK_STATE_LABEL, Tone> = {
+  LINKED: 'active',
+  PAUSED: 'paused',
+  UNLINKED: 'ended',
+};
+
+const dateTime = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+
+export function formatDateTime(iso: string | null): string {
+  return iso === null ? '' : dateTime.format(new Date(iso));
+}
+
+/** "Not recorded" for empty values, so absence is explicit rather than a blank cell. */
+export const NOT_RECORDED = 'Not recorded';
+
+const BLOCKER_TEXT: Record<string, string> = {
+  NOT_DRAFT: 'it is no longer a draft',
+  ARCHIVED: 'it is archived',
+  CANONICAL_BINDING: 'it has a canonical binding',
+  'REFERENCED_BY:signers.agency_id': 'signers belong to it',
+  'REFERENCED_BY:routes.agency_id': 'routes use it',
+  'REFERENCED_BY:mandates.agency_id': 'mandates belong to it',
+  'REFERENCED_BY:cases.agency_id': 'cases belong to it',
+  'REFERENCED_BY:source_references.agency_id': 'source references belong to it',
+  'REFERENCED_BY:correspondence.agency_id': 'correspondence belongs to it',
+  'REFERENCED_BY:owner_subjects.owner_id': 'it is linked to legal subjects',
+  'REFERENCED_BY:cases.owner_hint_id': 'cases refer to it',
+  'REFERENCED_BY:owner_subjects.legal_subject_id': 'owners are linked to it',
+  'REFERENCED_BY:routes.default_signer_id': 'a route uses it as default signer',
+  'REFERENCED_BY:coverage_signers.signer_id': 'mandate coverage names it',
+  'REFERENCED_BY:case_authority_selections.signer_id': 'a case selected it',
+  'REFERENCED_BY:routes.owner_subject_id': 'routes use it',
+};
+
+function blockerText(blocker: string): string {
+  if (blocker.startsWith('SNAPSHOT_REFERENCE:'))
+    return 'saved snapshots or source scopes mention it';
+  return BLOCKER_TEXT[blocker] ?? blocker;
+}
+
+const ESTABLISHED_TEXT: Record<string, string> = {
+  ACTIVE: 'it is active',
+  CANONICAL_BINDING: 'it has a canonical binding',
+};
+
+function establishedText(reason: string): string {
+  if (reason.startsWith('REFERENCED_BY:')) return `${blockerText(reason)}`;
+  if (reason.startsWith('SNAPSHOT_REFERENCE:')) return blockerText(reason);
+  return ESTABLISHED_TEXT[reason] ?? reason;
+}
+
+function listOf(parts: string[]): string {
+  const unique = [...new Set(parts)];
+  if (unique.length <= 1) return unique[0] ?? '';
+  return `${unique.slice(0, -1).join(', ')} and ${unique.at(-1)}`;
+}
+
+function stringList(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string')
+    : [];
+}
+
+/** One sentence explaining a failed request and what to do next. */
+export function describeError(error: unknown, recordLabel = 'record'): string {
+  if (!(error instanceof ApiError))
+    return 'Something went wrong in the page. Reload and try again.';
+  const { code, details } = error;
+  switch (code) {
+    case 'NETWORK_ERROR':
+      return 'The API could not be reached. Check that the local API is running, then try again.';
+    case 'NOT_FOUND':
+      return `This ${recordLabel} does not exist (it may have been deleted).`;
+    case 'RECORD_VERSION_CONFLICT':
+      return `This ${recordLabel} changed after you opened it, for example in another tab. Nothing was saved. Load the latest version and try again.`;
+    case 'PRECONDITION_REQUIRED':
+      return 'The page did not send the record version. Reload the page and try again.';
+    case 'ESTABLISHED_IDENTITY_IMMUTABLE':
+      return `Identity fields that already have a value can't be changed or cleared because ${listOf(
+        stringList(details['establishedBy']).map(establishedText),
+      )}. A correction workflow is not available yet.`;
+    case 'REFERENCED_RECORD_CANNOT_DELETE':
+      return `This ${recordLabel} can't be deleted because ${listOf(
+        stringList(details['blockers']).map(blockerText),
+      )}. Archive it instead; that keeps its history.`;
+    case 'RECORD_STATE_CONFLICT': {
+      const record = typeof details['record'] === 'string' ? details['record'] : null;
+      if (record === 'LegalSubject') return 'The legal subject is archived. Restore it first.';
+      if (record === 'Owner') return 'The owner is archived. Restore it first.';
+      if (record === 'Agency') return 'The agency is archived. Restore it first.';
+      return `This action isn't available in the ${recordLabel}'s current state. Reload to see its latest state.`;
+    }
+    case 'DUPLICATE_OWNER_SUBJECT':
+      return 'This owner is already linked to that legal subject. Change the existing link instead.';
+    case 'DEPENDENT_ROUTES_LINKED':
+      return 'Routes still use this link, so it cannot be unlinked yet. Route management is not available in this phase.';
+    case 'REFERENCE_NOT_FOUND':
+      return 'A referenced record no longer exists. Reload and choose again.';
+    case 'CROSS_AGENCY_REFERENCE':
+    case 'SOURCE_SCOPE_UNRESOLVED':
+      return 'A source reference does not belong to this agency.';
+    case 'IDEMPOTENCY_IN_PROGRESS':
+      return 'The same change is still being processed. Wait a moment and try again.';
+    case 'IDEMPOTENCY_CONFLICT':
+      return 'This change collides with an earlier request. Reload the page and try again.';
+    case 'RETRYABLE_TRANSACTION_CONFLICT':
+      return 'Another change was saved at the same moment. Try again.';
+    case 'VALIDATION_FAILED':
+    case 'FIELD_ATTRIBUTION_INVALID':
+      return 'Some fields need attention. Nothing was saved.';
+    case 'CSRF_TOKEN_INVALID':
+    case 'SESSION_REQUIRED':
+      return 'Your session has ended. Sign in again.';
+    default:
+      if (error.status >= 500) {
+        return "The server couldn't confirm the change. Try again; repeating the same change is safe.";
+      }
+      return `The request was refused (${code}).`;
+  }
+}
+
+export interface FieldIssue {
+  readonly path: string;
+  readonly message: string;
+}
+
+/** Validation issues of a 422 response, with messages phrased for the form. */
+export function issuesOf(error: unknown): FieldIssue[] {
+  if (!(error instanceof ApiError)) return [];
+  const issues = error.details['issues'];
+  if (!Array.isArray(issues)) return [];
+  return issues
+    .filter(
+      (issue): issue is FieldIssue =>
+        typeof issue === 'object' &&
+        issue !== null &&
+        typeof (issue as FieldIssue).path === 'string' &&
+        typeof (issue as FieldIssue).message === 'string',
+    )
+    .map((issue) => ({ path: issue.path, message: friendlyMessage(issue.message) }));
+}
+
+export function friendlyMessage(message: string): string {
+  const atMost = /^Must contain at most (\d+) Unicode code points$/.exec(message);
+  if (atMost) return `Use at most ${atMost[1]} characters.`;
+  if (/^Must contain at least 1 Unicode code points$/.test(message)) return 'Enter a value.';
+  if (message.startsWith('Must be a valid email')) return 'Enter a valid email address.';
+  if (message.startsWith('Must be a valid uri') || message === 'Must match pattern ^https?://') {
+    return 'Enter a full web address starting with http:// or https://.';
+  }
+  if (message === 'Must match pattern ^[A-Z]{2}$') return 'Use a two-letter country code, e.g. VN.';
+  if (message === 'At least one field is required')
+    return 'Change at least one field before saving.';
+  if (message === 'Unknown field') return 'The page sent a field the API does not accept.';
+  return message;
+}

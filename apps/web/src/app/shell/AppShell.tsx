@@ -4,8 +4,8 @@ import type { ApiClient } from '../api/client.js';
 import { useSession } from '../auth/session.js';
 import { HealthIndicator } from '../health.js';
 
-/** Future modules, listed for orientation only. None is implemented or reachable in P1. */
-export const UNAVAILABLE_MODULES = ['Directory', 'Representation', 'Cases', 'Production'] as const;
+/** Future modules, listed for orientation only. None is implemented or reachable yet. */
+export const UNAVAILABLE_MODULES = ['Representation', 'Cases', 'Production'] as const;
 
 /**
  * Protected application shell. Shows only safe application identity (display name and email of
@@ -30,6 +30,9 @@ export function AppShell({ api }: { api: ApiClient }) {
 
   return (
     <div className="shell" data-testid="app-shell">
+      <a className="skip-link" href="#main">
+        Skip to content
+      </a>
       <header className="shell-header">
         <strong>TB Notice Production System</strong>
         <span className="identity" data-testid="identity">
@@ -52,6 +55,9 @@ export function AppShell({ api }: { api: ApiClient }) {
                 Overview
               </NavLink>
             </li>
+            <li>
+              <NavLink to="/directory">Directory</NavLink>
+            </li>
             {UNAVAILABLE_MODULES.map((name) => (
               <li
                 key={name}
@@ -64,7 +70,7 @@ export function AppShell({ api }: { api: ApiClient }) {
             ))}
           </ul>
         </nav>
-        <main className="shell-main">
+        <main className="shell-main" id="main" tabIndex={-1}>
           <Outlet />
         </main>
       </div>

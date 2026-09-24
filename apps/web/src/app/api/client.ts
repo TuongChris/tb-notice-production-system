@@ -23,10 +23,29 @@ export class ApiError extends Error {
     readonly code: string,
     message: string,
     readonly retryAfterSeconds?: number,
+    readonly details: Readonly<Record<string, unknown>> = {},
   ) {
     super(message);
     this.name = 'ApiError';
   }
+}
+
+export type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE';
+
+export interface RequestOptions {
+  readonly body?: unknown;
+  readonly csrfToken?: string;
+  /** Exact ETag of the operation's precondition target. */
+  readonly ifMatch?: string;
+  /** One key per user intent; a retry of the same intent reuses it. */
+  readonly idempotencyKey?: string;
+}
+
+/** A successful call: the response `data` (undefined for 204) and the ETag header, if any. */
+export interface ApiResult<T> {
+  readonly status: number;
+  readonly data: T;
+  readonly etag: string | null;
 }
 
 export interface ApiClient {
@@ -34,6 +53,8 @@ export interface ApiClient {
   login(credentials: LoginRequest): Promise<SessionView>;
   logout(csrfToken: string): Promise<void>;
   getHealth(): Promise<HealthStatus>;
+  /** Any contracted operation under /api/v1; used by the directory pages. */
+  request<T>(method: HttpMethod, path: string, options?: RequestOptions): Promise<ApiResult<T>>;
 }
 
 type Fetch = (input: string, init: RequestInit) => Promise<Response>;
@@ -45,9 +66,9 @@ type Fetch = (input: string, init: RequestInit) => Promise<Response>;
  */
 export function createApiClient(fetchImpl: Fetch = (input, init) => fetch(input, init)): ApiClient {
   async function send(
-    method: 'GET' | 'POST',
+    method: HttpMethod,
     path: string,
-    options: { body?: unknown; csrfToken?: string } = {},
+    options: RequestOptions = {},
   ): Promise<Response> {
     const headers: Record<string, string> = {
       Accept: 'application/json',
@@ -55,6 +76,8 @@ export function createApiClient(fetchImpl: Fetch = (input, init) => fetch(input,
     };
     if (options.body !== undefined) headers['Content-Type'] = 'application/json';
     if (options.csrfToken !== undefined) headers['X-CSRF-Token'] = options.csrfToken;
+    if (options.ifMatch !== undefined) headers['If-Match'] = options.ifMatch;
+    if (options.idempotencyKey !== undefined) headers['Idempotency-Key'] = options.idempotencyKey;
     let response: Response;
     try {
       response = await fetchImpl(path, {
@@ -88,6 +111,13 @@ export function createApiClient(fetchImpl: Fetch = (input, init) => fetch(input,
       const body = (await (await send('GET', API_PATHS.health)).json()) as GetHealthResponse;
       return body.data.status;
     },
+    async request<T>(method: HttpMethod, path: string, options: RequestOptions = {}) {
+      const response = await send(method, path, options);
+      const etag = response.headers.get('ETag');
+      if (response.status === 204) return { status: 204, data: undefined as T, etag };
+      const body = (await response.json()) as { data: T };
+      return { status: response.status, data: body.data, etag };
+    },
   };
 }
 
@@ -97,7 +127,13 @@ async function errorFrom(response: Response): Promise<ApiError> {
   try {
     const body = (await response.json()) as Partial<OperationError>;
     if (body.error && typeof body.error.code === 'string') {
-      return new ApiError(response.status, body.error.code, body.error.message, retryAfterSeconds);
+      return new ApiError(
+        response.status,
+        body.error.code,
+        body.error.message,
+        retryAfterSeconds,
+        body.error.details ?? {},
+      );
     }
   } catch {
     // Not a contract error body (for example a proxy error page).

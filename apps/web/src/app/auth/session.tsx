@@ -36,6 +36,13 @@ interface SessionContextValue {
   logout(): Promise<LogoutOutcome>;
   /** Re-checks the server session; a 401 ends the local session (expired/revoked elsewhere). */
   revalidate(): Promise<void>;
+  /**
+   * Re-reads the session after the API rejected the CSRF token (for example a newer sign-in in
+   * another tab) and returns the current token, or null when the session has ended.
+   */
+  freshCsrfToken(): Promise<string | null>;
+  /** An API call answered 401: the session ended elsewhere; return to the Login screen. */
+  sessionEnded(): void;
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null);
@@ -93,6 +100,24 @@ export function SessionProvider({ api, children }: { api: ApiClient; children: R
         setState({ status: 'unauthenticated', notice: 'session-ended' });
     }
   }, [api]);
+
+  const freshCsrfToken = useCallback(async (): Promise<string | null> => {
+    try {
+      const session = await api.getSession();
+      setState({ status: 'authenticated', session });
+      return session.csrfToken;
+    } catch (error) {
+      if (isUnauthenticated(error)) {
+        setState({ status: 'unauthenticated', notice: 'session-ended' });
+        return null;
+      }
+      throw error;
+    }
+  }, [api]);
+
+  const sessionEnded = useCallback(() => {
+    setState({ status: 'unauthenticated', notice: 'session-ended' });
+  }, []);
 
   const login = useCallback(
     async (email: string, password: string): Promise<LoginOutcome> => {
@@ -182,8 +207,8 @@ export function SessionProvider({ api, children }: { api: ApiClient; children: R
   }, [expiresAt, revalidate]);
 
   const value = useMemo(
-    () => ({ state, login, logout, revalidate }),
-    [state, login, logout, revalidate],
+    () => ({ state, login, logout, revalidate, freshCsrfToken, sessionEnded }),
+    [state, login, logout, revalidate, freshCsrfToken, sessionEnded],
   );
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
