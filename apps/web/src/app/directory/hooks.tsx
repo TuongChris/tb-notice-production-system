@@ -135,11 +135,7 @@ export function useIntentKey(): { keyFor(intent: unknown): string; done(): void 
   );
 }
 
-/** Fields an ESTABLISHED_IDENTITY_IMMUTABLE refusal names (empty for any other outcome). */
-export function lockedFields(error: unknown): string[] {
-  if (!(error instanceof ApiError) || error.code !== 'ESTABLISHED_IDENTITY_IMMUTABLE') return [];
-  const fields = error.details['fields'];
-  return Array.isArray(fields)
-    ? fields.filter((field): field is string => typeof field === 'string')
-    : [];
+/** True when the server refused a change because the record's identity is established. */
+export function isEstablishedRefusal(error: unknown): boolean {
+  return error instanceof ApiError && error.code === 'ESTABLISHED_IDENTITY_IMMUTABLE';
 }

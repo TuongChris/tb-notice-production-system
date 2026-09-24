@@ -32,7 +32,7 @@ import {
   SIGNER_STATE_LABEL,
   SIGNER_STATE_TONE,
 } from './format.js';
-import { lockedFields, useDirectoryApi, useLoad } from './hooks.js';
+import { isEstablishedRefusal, useDirectoryApi, useLoad } from './hooks.js';
 import { DirectoryList } from './list.js';
 import { RecordStateActions } from './record-actions.js';
 import { useRecordPage, useSubmission, type FlashState } from './record-page.js';
@@ -464,25 +464,25 @@ function AgencyForm({
   );
   const [nothingToSave, setNothingToSave] = useState(false);
   const [clientErrors, setClientErrors] = useState<Record<string, string>>({});
-  const [lockedByServer, setLockedByServer] = useState<string[]>([]);
+  const [establishedByServer, setEstablishedByServer] = useState(false);
   const submission = useSubmission();
   const issues = issuesOf(submission.error);
   const errorFor = (path: string) =>
     clientErrors[path] ?? issues.find((issue) => issue.path === path)?.message;
 
-  // Identity values of an established agency are locked; empty ones can still be completed.
-  const establishedLocally =
-    initial !== null &&
-    (initial.recordState === 'ACTIVE' ||
-      initial.canonicalCode !== null ||
-      initial.bindingState !== 'LOCAL_ONLY');
-  const lockNote = (name: TextKey): string | null => {
-    if (!IDENTITY_KEYS.has(name) || initial === null || initial[name] === null) return null;
-    if (lockedByServer.includes(name) || establishedLocally) {
-      return 'Locked: this agency is established (active, canonically bound or referenced by another record). Set identity values can’t be changed or cleared here.';
-    }
-    return null;
-  };
+  // Every identity field of an established agency is locked, empty ones included. The page can
+  // see "active" and "canonically bound"; a reference from another record is only learned from
+  // the server's refusal.
+  const established =
+    establishedByServer ||
+    (initial !== null &&
+      (initial.recordState === 'ACTIVE' ||
+        initial.canonicalCode !== null ||
+        initial.bindingState !== 'LOCAL_ONLY'));
+  const lockNote = (name: TextKey): string | null =>
+    initial !== null && established && IDENTITY_KEYS.has(name)
+      ? 'Locked: this agency is established (active, canonically bound or referenced by another record). Its legal identity can’t be filled in, changed or cleared here.'
+      : null;
 
   function setValue(name: TextKey, value: string) {
     setValues((current) => ({ ...current, [name]: value }));
@@ -537,17 +537,12 @@ function AgencyForm({
       });
       return;
     }
-    // The server found the agency established: lock the refused fields and restore their values.
-    const refused = lockedFields(outcome.error);
-    if (refused.length > 0) {
-      setLockedByServer((current) => [...new Set([...current, ...refused])]);
+    // The server found the agency established: lock every identity field and restore its value.
+    if (isEstablishedRefusal(outcome.error)) {
+      setEstablishedByServer(true);
       setValues((current) => ({
         ...current,
-        ...Object.fromEntries(
-          refused
-            .filter((name): name is TextKey => IDENTITY_KEYS.has(name))
-            .map((name) => [name, text(initial[name])]),
-        ),
+        ...Object.fromEntries(IDENTITY.map(({ name }) => [name, text(initial[name])])),
       }));
     }
   }
@@ -618,8 +613,9 @@ function AgencyForm({
         <fieldset className="fieldset">
           <legend>Legal identity</legend>
           <p className="hint">
-            The legal entity this record stands for. Once the agency is established, values that are
-            already set can’t be changed; a different legal entity needs its own agency record.
+            The legal entity this record stands for. Once the agency is established, these fields
+            can’t be filled in, changed or cleared here; a different legal entity needs its own
+            agency record.
           </p>
           <div className="field-grid">{IDENTITY.map(field)}</div>
         </fieldset>

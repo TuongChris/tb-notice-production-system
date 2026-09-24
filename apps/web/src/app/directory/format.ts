@@ -132,9 +132,9 @@ export function describeError(error: unknown, recordLabel = 'record'): string {
     case 'PRECONDITION_REQUIRED':
       return 'The page did not send the record version. Reload the page and try again.';
     case 'ESTABLISHED_IDENTITY_IMMUTABLE':
-      return `Identity fields that already have a value can't be changed or cleared because ${listOf(
+      return `This ${recordLabel}'s identity can't be filled in, changed or cleared here because ${listOf(
         stringList(details['establishedBy']).map(establishedText),
-      )}. A correction workflow is not available yet.`;
+      )}. Correcting or completing an established identity needs a separate workflow that isn't available yet.`;
     case 'REFERENCED_RECORD_CANNOT_DELETE':
       return `This ${recordLabel} can't be deleted because ${listOf(
         stringList(details['blockers']).map(blockerText),

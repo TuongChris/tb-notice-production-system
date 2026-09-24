@@ -275,7 +275,7 @@ describe('AGENCY', () => {
     expect(JSON.stringify(createdEvent)).not.toContain('private operator note');
   });
 
-  it('identity is locked once ACTIVE: set identity fields cannot change or clear; label, contact and empty identity fields can', async () => {
+  it('identity is locked once ACTIVE: identity fields cannot be set, changed or cleared; label and contact stay editable', async () => {
     const agency = await createAgency({
       legalName: 'SYNTHETIC Legal Name Ltd',
       registrationNumber: 'SYN-001',
@@ -303,6 +303,8 @@ describe('AGENCY', () => {
       { legalName: 'SYNTHETIC Other Entity Ltd' },
       { legalName: null },
       { registrationNumber: 'SYN-999' },
+      // R5: an identity field that is still empty cannot be filled in either.
+      { jurisdictionCountry: 'VN' },
     ]) {
       const refused = await client.write(
         'patchAgency',
@@ -320,7 +322,7 @@ describe('AGENCY', () => {
     expect((await getAgency(agency.data.id)).data.legalName).toBe(
       'SYNTHETIC Legal Name Ltd (corrected)',
     );
-    // Same-entity label/contact corrections and completing an empty identity field are allowed.
+    // Same-entity label and contact corrections are allowed.
     const edited = await ok<Agency>(
       await client.write(
         'patchAgency',
@@ -329,14 +331,14 @@ describe('AGENCY', () => {
         {
           displayName: 'SYNTHETIC Agency (renamed label)',
           verificationEmail: 'verify@example.invalid',
-          jurisdictionCountry: 'VN',
         },
         { ifMatch: active.etag },
       ),
     );
     expect(edited.data).toMatchObject({
       displayName: 'SYNTHETIC Agency (renamed label)',
-      jurisdictionCountry: 'VN',
+      verificationEmail: 'verify@example.invalid',
+      jurisdictionCountry: null,
       legalName: 'SYNTHETIC Legal Name Ltd (corrected)',
     });
     // Returning to DRAFT without references or binding un-establishes it (decision D3).
@@ -820,6 +822,9 @@ describe('LEGAL SUBJECT', () => {
       { legalName: 'SYNTHETIC Entity B LLC' },
       { registrationNumber: 'SYN-B-2' },
       { registrationAuthority: null },
+      // R5: empty identity fields cannot be filled in once the subject is established.
+      { legalForm: 'SYNTHETIC joint stock company' },
+      { jurisdictionCountry: 'VN' },
     ]) {
       const refused = await client.write(
         'patchLegalSubject',
@@ -841,7 +846,7 @@ describe('LEGAL SUBJECT', () => {
         'patchLegalSubject',
         'PATCH',
         `/legal-subjects/${subject.data.id}`,
-        { contactEmail: 'legal@example.invalid', jurisdictionCountry: 'VN' },
+        { contactEmail: 'legal@example.invalid' },
         { ifMatch: current.etag },
       ),
     );
@@ -849,7 +854,8 @@ describe('LEGAL SUBJECT', () => {
       legalName: 'SYNTHETIC Entity A LLC',
       registrationNumber: 'SYN-A-1',
       contactEmail: 'legal@example.invalid',
-      jurisdictionCountry: 'VN',
+      legalForm: null,
+      jurisdictionCountry: null,
     });
   });
 
@@ -922,6 +928,238 @@ describe('LEGAL SUBJECT', () => {
       details: { blockers: ['REFERENCED_BY:owner_subjects.legal_subject_id'] },
     });
   });
+});
+
+describe('IDENTITY LOCK (R5): an empty identity field of an established record is locked too', () => {
+  /** Makes a record established one way; returns the reason the server must report. */
+  interface Establisher {
+    readonly reason: string;
+    readonly establish: (id: string, etag: string) => Promise<void>;
+  }
+
+  async function bindCanonically(table: 'agency' | 'legalSubject', id: string): Promise<void> {
+    // The canonical-binding operations are deferred (D2), so the binding is a test fixture: a
+    // synthetic source referenced directly in tb_notice_test.
+    const source = await insertSource(prisma, client.session.userId);
+    const data = {
+      canonicalCode: `SYN-CANONICAL-${id.slice(0, 8)}`,
+      canonicalSourceId: source,
+      bindingState: 'SOURCE_REFERENCED' as const,
+    };
+    if (table === 'agency') await prisma.agency.update({ where: { id }, data });
+    else await prisma.legalSubject.update({ where: { id }, data });
+  }
+
+  const agencyEstablishers: readonly Establisher[] = [
+    {
+      reason: 'ACTIVE',
+      establish: async (id, etag) => {
+        await ok<Agency>(
+          await client.write(
+            'setAgencyState',
+            'POST',
+            `/agencies/${id}/state`,
+            { state: 'ACTIVE', reason: 'synthetic activation' },
+            { ifMatch: etag },
+          ),
+        );
+      },
+    },
+    {
+      reason: 'REFERENCED_BY:signers.agency_id',
+      establish: async (id) => {
+        await createSigner(id);
+      },
+    },
+    { reason: 'CANONICAL_BINDING', establish: (id) => bindCanonically('agency', id) },
+    {
+      reason: 'SNAPSHOT_REFERENCE:source_references',
+      establish: async (id) => {
+        await insertSource(prisma, client.session.userId, { scopeBindings: { agencyIds: [id] } });
+      },
+    },
+  ];
+
+  const subjectEstablishers: readonly Establisher[] = [
+    {
+      reason: 'ACTIVE',
+      establish: async (id, etag) => {
+        await ok<LegalSubject>(
+          await client.write(
+            'setLegalSubjectState',
+            'POST',
+            `/legal-subjects/${id}/state`,
+            { state: 'ACTIVE', reason: 'synthetic activation' },
+            { ifMatch: etag },
+          ),
+        );
+      },
+    },
+    {
+      reason: 'REFERENCED_BY:owner_subjects.legal_subject_id',
+      establish: async (id) => {
+        await link(await createOwner(), id);
+      },
+    },
+    { reason: 'CANONICAL_BINDING', establish: (id) => bindCanonically('legalSubject', id) },
+    {
+      reason: 'SNAPSHOT_REFERENCE:source_references',
+      establish: async (id) => {
+        await insertSource(prisma, client.session.userId, {
+          scopeBindings: { legalSubjectIds: [id] },
+        });
+      },
+    },
+  ];
+
+  it('a DRAFT, unreferenced, unbound Agency or LegalSubject may fill initially empty identity fields', async () => {
+    const agency = await createAgency();
+    expect(agency.data).toMatchObject({ legalName: null, registrationNumber: null });
+    const agencyFill = {
+      legalName: 'SYNTHETIC Filled Agency Ltd',
+      organizationType: 'SYNTHETIC limited liability company',
+      jurisdictionCountry: 'VN',
+      registrationAuthority: 'SYNTHETIC Registry',
+      registrationNumber: 'SYN-FILL-A1',
+    };
+    const filledAgency = await ok<Agency>(
+      await client.write('patchAgency', 'PATCH', `/agencies/${agency.data.id}`, agencyFill, {
+        ifMatch: agency.etag,
+      }),
+    );
+    expect(filledAgency.data).toMatchObject({ ...agencyFill, recordState: 'DRAFT', rowVersion: 2 });
+
+    const subject = await createSubject();
+    const subjectFill = {
+      legalForm: 'SYNTHETIC joint stock company',
+      jurisdictionCountry: 'VN',
+      registrationAuthority: 'SYNTHETIC Registry',
+      registrationNumber: 'SYN-FILL-S1',
+    };
+    const filledSubject = await ok<LegalSubject>(
+      await client.write(
+        'patchLegalSubject',
+        'PATCH',
+        `/legal-subjects/${subject.data.id}`,
+        subjectFill,
+        { ifMatch: subject.etag },
+      ),
+    );
+    expect(filledSubject.data).toMatchObject({
+      ...subjectFill,
+      recordState: 'DRAFT',
+      rowVersion: 2,
+    });
+  });
+
+  for (const { reason, establish } of agencyEstablishers) {
+    it(`Agency established by ${reason}: an empty identity field cannot be filled; nothing is written; contact stays editable`, async () => {
+      const agency = await createAgency({ legalName: 'SYNTHETIC Established Agency Ltd' });
+      await establish(agency.data.id, agency.etag);
+      const before = await getAgency(agency.data.id);
+      expect(before.data.registrationNumber).toBeNull();
+      const auditBefore = (await auditRows(agency.data.id)).length;
+      const keysBefore = await prisma.idempotencyRecord.count();
+
+      for (const change of [
+        { registrationNumber: 'SYN-FILL-X1' },
+        { organizationType: 'SYNTHETIC limited liability company', phone: '+84 28 0000 0001' },
+      ]) {
+        const refused = await client.write(
+          'patchAgency',
+          'PATCH',
+          `/agencies/${agency.data.id}`,
+          change,
+          { ifMatch: before.etag },
+        );
+        expect(refused.status, JSON.stringify(change)).toBe(409);
+        expect(errorOf(refused)).toMatchObject({
+          code: 'ESTABLISHED_IDENTITY_IMMUTABLE',
+          details: {
+            fields: Object.keys(change).filter((field) => field !== 'phone'),
+            establishedBy: [reason],
+          },
+        });
+      }
+      // The refusal changed nothing: same record, same version and ETag, no audit event, and no
+      // idempotency record kept for the refused requests.
+      const after = await getAgency(agency.data.id);
+      expect(after.etag).toBe(before.etag);
+      expect(after.data).toEqual(before.data);
+      expect(await auditRows(agency.data.id)).toHaveLength(auditBefore);
+      expect(await prisma.idempotencyRecord.count()).toBe(keysBefore);
+
+      const contact = await ok<Agency>(
+        await client.write(
+          'patchAgency',
+          'PATCH',
+          `/agencies/${agency.data.id}`,
+          { phone: '+84 28 0000 0002', copyrightEmail: 'copyright@example.invalid' },
+          { ifMatch: before.etag },
+        ),
+      );
+      expect(contact.data).toMatchObject({
+        phone: '+84 28 0000 0002',
+        copyrightEmail: 'copyright@example.invalid',
+        registrationNumber: null,
+        organizationType: null,
+        rowVersion: before.data.rowVersion + 1,
+      });
+    });
+  }
+
+  for (const { reason, establish } of subjectEstablishers) {
+    it(`LegalSubject established by ${reason}: an empty identity field cannot be filled; nothing is written; contact stays editable`, async () => {
+      const subject = await createSubject({ legalName: 'SYNTHETIC Established Subject LLC' });
+      await establish(subject.data.id, subject.etag);
+      const before = await getSubject(subject.data.id);
+      expect(before.data.legalForm).toBeNull();
+      const auditBefore = (await auditRows(subject.data.id)).length;
+      const keysBefore = await prisma.idempotencyRecord.count();
+
+      for (const change of [
+        { legalForm: 'SYNTHETIC joint stock company' },
+        { registrationNumber: 'SYN-FILL-X2', contactEmail: 'subject@example.invalid' },
+      ]) {
+        const refused = await client.write(
+          'patchLegalSubject',
+          'PATCH',
+          `/legal-subjects/${subject.data.id}`,
+          change,
+          { ifMatch: before.etag },
+        );
+        expect(refused.status, JSON.stringify(change)).toBe(409);
+        expect(errorOf(refused)).toMatchObject({
+          code: 'ESTABLISHED_IDENTITY_IMMUTABLE',
+          details: {
+            fields: Object.keys(change).filter((field) => field !== 'contactEmail'),
+            establishedBy: [reason],
+          },
+        });
+      }
+      const after = await getSubject(subject.data.id);
+      expect(after.etag).toBe(before.etag);
+      expect(after.data).toEqual(before.data);
+      expect(await auditRows(subject.data.id)).toHaveLength(auditBefore);
+      expect(await prisma.idempotencyRecord.count()).toBe(keysBefore);
+
+      const contact = await ok<LegalSubject>(
+        await client.write(
+          'patchLegalSubject',
+          'PATCH',
+          `/legal-subjects/${subject.data.id}`,
+          { contactEmail: 'subject@example.invalid' },
+          { ifMatch: before.etag },
+        ),
+      );
+      expect(contact.data).toMatchObject({
+        contactEmail: 'subject@example.invalid',
+        legalForm: null,
+        registrationNumber: null,
+        rowVersion: before.data.rowVersion + 1,
+      });
+    });
+  }
 });
 
 describe('OWNER SUBJECT', () => {
@@ -1330,6 +1568,15 @@ describe('SIGNER', () => {
       );
     const available = await ok<Signer>(await setState('AVAILABLE', signer.etag));
     expect(available.data.operationalState).toBe('AVAILABLE');
+    // AVAILABLE is administrative (R5 interpretation C): no coverage, eligibility or authority.
+    for (const table of [
+      'mandates',
+      'mandate_coverages',
+      'coverage_signers',
+      'case_authority_selections',
+    ]) {
+      expect(await countRows(prisma, table), table).toBe(0);
+    }
     expect(code(await setState('AVAILABLE', available.etag))).toBe('RECORD_STATE_CONFLICT');
     const archived = await ok<Signer>(
       await client.write(

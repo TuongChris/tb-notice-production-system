@@ -34,6 +34,24 @@ const json = (status: number, body: unknown, headers: Record<string, string> = {
 const failure = (status: number, code: string, details: Record<string, unknown> = {}) =>
   json(status, { error: { code, message: `synthetic ${code}`, details, requestId: 'r' } });
 
+/** Identity-defining fields the server locks once a record is established (decision D3, R5). */
+const IDENTITY_FIELDS: Partial<Record<Kind, readonly string[]>> = {
+  Agency: [
+    'legalName',
+    'organizationType',
+    'jurisdictionCountry',
+    'registrationAuthority',
+    'registrationNumber',
+  ],
+  LegalSubject: [
+    'legalName',
+    'legalForm',
+    'jurisdictionCountry',
+    'registrationAuthority',
+    'registrationNumber',
+  ],
+};
+
 const COLLECTIONS: Record<string, Kind> = {
   agencies: 'Agency',
   owners: 'Owner',
@@ -54,6 +72,8 @@ class FakeDirectory {
   };
   /** Records the server refuses to delete, with their blockers. */
   readonly deleteBlockers = new Map<string, string[]>();
+  /** Records the server knows to be established (e.g. referenced), with the reasons. */
+  readonly established = new Map<string, string[]>();
   pageSize: number | null = null;
   failNextCsrf = false;
   sessionGone = false;
@@ -248,6 +268,16 @@ class FakeDirectory {
       }
       const invalid = this.invalidEmails(request);
       if (invalid) return invalid;
+      const reasons = this.established.get(row.id);
+      const identity = (IDENTITY_FIELDS[kind] ?? []).filter(
+        (field) => field in request && request[field] !== row[field],
+      );
+      if (reasons && identity.length > 0) {
+        return failure(409, 'ESTABLISHED_IDENTITY_IMMUTABLE', {
+          fields: identity,
+          establishedBy: reasons,
+        });
+      }
       return change(request);
     }
     if (action === 'archive')
@@ -892,6 +922,26 @@ describe('P2 directory UI', () => {
     );
   });
 
+  it('the signer state dialog states that no state carries authority', async () => {
+    const api = new FakeDirectory();
+    const agency = api.seed('Agency', { displayName: 'SYNTHETIC Agency for state' });
+    const signer = api.seed('Signer', {
+      agencyId: agency.id,
+      fullLegalName: 'SYNTHETIC Signer State',
+    });
+    await render(api, `/directory/signers/${signer.id}`);
+    await waitFor(
+      () => all('button').some((button) => button.textContent === 'Change operational state'),
+      'state action',
+    );
+    await click(byText('button', 'Change operational state'));
+    await waitFor(() => q('dialog[open]') !== null, 'state dialog');
+    const dialog = q('dialog[open]');
+    expect(dialog?.textContent).toContain(
+      'No state gives mandate coverage, eligibility, G7 clearance, signature authority or the right to adopt a notice.',
+    );
+  });
+
   it('a legal subject’s type is chosen once and shown as fixed when editing', async () => {
     const api = new FakeDirectory();
     await render(api, '/directory/legal-subjects/new');
@@ -916,7 +966,7 @@ describe('P2 directory UI', () => {
     expect(pageText()).toContain('Fixed: a different kind of party needs its own record.');
   });
 
-  it('locks set identity values of an active agency in the form and never sends them', async () => {
+  it('locks every identity field of an active agency, empty ones included, and still saves contact changes', async () => {
     const api = new FakeDirectory();
     const agency = api.seed('Agency', {
       displayName: 'SYNTHETIC Active',
@@ -925,15 +975,66 @@ describe('P2 directory UI', () => {
     });
     await render(api, `/directory/agencies/${agency.id}/edit`);
     await waitFor(() => q('#agency-legalName') !== null, 'form');
-    const legalName = q('#agency-legalName') as HTMLInputElement;
-    expect(legalName.readOnly).toBe(true);
+    for (const name of IDENTITY_FIELDS.Agency ?? []) {
+      expect((q(`#agency-${name}`) as HTMLInputElement).readOnly, name).toBe(true);
+    }
     expect(pageText()).toContain('Locked: this agency is established');
-    // An empty identity field can still be completed.
-    expect((q('#agency-registrationNumber') as HTMLInputElement).readOnly).toBe(false);
-    await type('#agency-registrationNumber', 'SYN-REG-1');
+    await type('#agency-phone', '+84 28 0000 0003');
     await submit(q('form.record-form'));
     await waitFor(() => q('[data-testid="agency-detail"]') !== null, 'saved');
-    expect(api.writes()[0]?.body).toEqual({ registrationNumber: 'SYN-REG-1' });
+    expect(api.writes().map((request) => request.body)).toEqual([{ phone: '+84 28 0000 0003' }]);
+  });
+
+  it('a draft agency the server reports as established: the fill is refused, every identity field locks, contact still saves', async () => {
+    const api = new FakeDirectory();
+    const agency = api.seed('Agency', {
+      displayName: 'SYNTHETIC Referenced',
+      legalName: 'SYNTHETIC Referenced Ltd',
+    });
+    api.established.set(agency.id, ['REFERENCED_BY:signers.agency_id']);
+    await render(api, `/directory/agencies/${agency.id}/edit`);
+    await waitFor(() => q('#agency-registrationNumber') !== null, 'form');
+    // Nothing on the page shows the signer reference, so the form starts editable.
+    expect((q('#agency-registrationNumber') as HTMLInputElement).readOnly).toBe(false);
+    await type('#agency-registrationNumber', 'SYN-REG-9');
+    await type('#agency-phone', '+84 28 0000 0004');
+    await submit(q('form.record-form'));
+    await until(
+      "This agency's identity can't be filled in, changed or cleared here because signers belong to it.",
+    );
+    for (const name of IDENTITY_FIELDS.Agency ?? []) {
+      expect((q(`#agency-${name}`) as HTMLInputElement).readOnly, name).toBe(true);
+    }
+    expect((q('#agency-registrationNumber') as HTMLInputElement).value).toBe('');
+    expect((q('#agency-legalName') as HTMLInputElement).value).toBe('SYNTHETIC Referenced Ltd');
+    expect((q('#agency-phone') as HTMLInputElement).value).toBe('+84 28 0000 0004');
+    await submit(q('form.record-form'));
+    await waitFor(() => q('[data-testid="agency-detail"]') !== null, 'saved');
+    expect(api.writes().map((request) => request.body)).toEqual([
+      { registrationNumber: 'SYN-REG-9', phone: '+84 28 0000 0004' },
+      { phone: '+84 28 0000 0004' },
+    ]);
+    expect(api.rows.Agency.get(agency.id)?.['registrationNumber']).toBeNull();
+  });
+
+  it('locks every identity field of an active legal subject, empty ones included', async () => {
+    const api = new FakeDirectory();
+    const subject = api.seed('LegalSubject', {
+      legalName: 'SYNTHETIC Active Subject LLC',
+      recordState: 'ACTIVE',
+    });
+    await render(api, `/directory/legal-subjects/${subject.id}/edit`);
+    await waitFor(() => q('#subject-legalName') !== null, 'form');
+    for (const name of IDENTITY_FIELDS.LegalSubject ?? []) {
+      expect((q(`#subject-${name}`) as HTMLInputElement).readOnly, name).toBe(true);
+    }
+    expect(pageText()).toContain('Locked: this subject is established');
+    await type('#subject-contactEmail', 'subject@example.invalid');
+    await submit(q('form.record-form'));
+    await waitFor(() => q('[data-testid="legal-subject-detail"]') !== null, 'saved');
+    expect(api.writes().map((request) => request.body)).toEqual([
+      { contactEmail: 'subject@example.invalid' },
+    ]);
   });
 
   it('keeps the application boundary visible: the directory never offers sign, send or login actions', async () => {

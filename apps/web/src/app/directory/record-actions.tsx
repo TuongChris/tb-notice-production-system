@@ -337,8 +337,8 @@ export function SignerActions<
         title="Change operational state"
         description={
           <p>
-            Operational state records availability only. It does not make the signer eligible for
-            any authority: that needs mandate coverage, which is not part of this phase.
+            Operational state is an administrative note only. No state gives mandate coverage,
+            eligibility, G7 clearance, signature authority or the right to adopt a notice.
           </p>
         }
         confirmLabel="Change state"

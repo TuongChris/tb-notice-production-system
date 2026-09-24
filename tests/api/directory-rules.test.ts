@@ -1,7 +1,7 @@
 // P2 directory service rules that need no database: request parsing against the active contract,
 // fieldAttributions checks, change detection and audit redaction, lifecycle transitions, LIKE
 // escaping, and a guard that the reference/snapshot inventories match the reviewed migration.
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { ApiError } from '../../apps/api/src/infrastructure/http/api-error.js';
 import { containsPattern } from '../../apps/api/src/infrastructure/write/pagination.js';
@@ -276,6 +276,32 @@ describe('search patterns', () => {
   it('escapes the escape character and LIKE wildcards', () => {
     expect(containsPattern('a%b_c!d')).toBe('%a!%b!_c!!d%');
     expect(containsPattern('plain')).toBe('%plain%');
+  });
+});
+
+describe('accent-insensitive matching is for search only (R5 interpretation E)', () => {
+  // utf8mb4_0900_ai_ci folds case and accents. It may serve discovery (`q` substring search) but
+  // never identity equality, canonical matching, duplicate detection or unique keys, which keep
+  // the binary collation of the reviewed migration (ADR-0001).
+  const sourceRoot = new URL('../../apps/api/src/', import.meta.url);
+
+  it('every case/accent-insensitive collation in the API source is a LIKE search on a `q` pattern', () => {
+    const files = readdirSync(sourceRoot, { recursive: true, encoding: 'utf8' }).filter((file) =>
+      file.endsWith('.ts'),
+    );
+    const uses: string[] = [];
+    for (const file of files) {
+      const lines = readFileSync(new URL(file, sourceRoot), 'utf8').split('\n');
+      for (const [index, line] of lines.entries()) {
+        if (!/_ci\b/i.test(line)) continue;
+        uses.push(`${file}:${index + 1}`);
+        expect(line, `${file}:${index + 1}`).toMatch(
+          /COLLATE utf8mb4_0900_ai_ci LIKE \$\{containsPattern\(q\)\} ESCAPE '!'/,
+        );
+      }
+    }
+    // P2: listAgencies 2, listOwners 2, listLegalSubjects 3, listOwnerSubjects 2, listSigners 2.
+    expect(uses.length).toBeGreaterThanOrEqual(11);
   });
 });
 

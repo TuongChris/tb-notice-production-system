@@ -1,8 +1,9 @@
 // Signer — a person in one Agency's capacity (DOMAIN_MODEL_v1 §7). A Signer is not an application
-// User, a directory record creates no G7 and signs nothing, and AVAILABLE is operational
-// availability only: eligibility for an authority comes from CoverageSigner scope, which is not
-// part of P2. agencyId is fixed at creation (PatchSigner has no agencyId; AC-006). Identity and
-// delegation sources are optional pointers to existing sources of the same agency; none is invented.
+// User, a directory record creates no G7 and signs nothing. Operational state is administrative
+// only (R5 interpretation C): no state implies mandate coverage, eligibility, G7, signature
+// authority or notice adoption; eligibility comes from CoverageSigner scope, which is not part of
+// P2. agencyId is fixed at creation (PatchSigner has no agencyId; AC-006). Identity and delegation
+// sources are optional pointers to existing sources of the same agency; none is invented.
 //
 // Lifecycle: operationalState DRAFT | AVAILABLE | PAUSED | ENDED is changed only by the state
 // command (any other state, with a reason); archive/restore is an orthogonal administrative flag

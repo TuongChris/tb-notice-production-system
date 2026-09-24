@@ -143,7 +143,7 @@ export const apiErrors = {
     new ApiError(
       409,
       'ESTABLISHED_IDENTITY_IMMUTABLE',
-      'Identity fields of an established record cannot be changed or cleared by a generic update.',
+      'Identity fields of an established record cannot be set, changed or cleared by a generic update.',
       { fields, establishedBy },
     ),
   referencedRecordCannotDelete: (blockers: readonly string[]) =>

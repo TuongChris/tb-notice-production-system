@@ -68,8 +68,10 @@ const JSON_FIELDS = ['postalAddress', 'fieldAttributions'];
 
 /**
  * Identity-defining fields: the legal entity the record stands for ("a different legal entity needs
- * a different Agency record", DOMAIN_MODEL_v1 §4). displayName and contact data are same-entity
- * corrections and stay editable.
+ * a different Agency record", DOMAIN_MODEL_v1 §4). Once the Agency is established, generic PATCH
+ * cannot set, change or clear any of them, including one that is still empty (R5): a later
+ * correction or supplement needs a dedicated workflow with source, provenance and audit.
+ * displayName and contact data are same-entity corrections and stay editable.
  */
 export const AGENCY_IDENTITY_FIELDS = [
   'legalName',
@@ -155,9 +157,7 @@ export class AgenciesService {
         const current = await this.lock(context, id);
         assertNotArchived(current.recordState, 'patch');
         const changed = changedFields(current, body);
-        const identity = AGENCY_IDENTITY_FIELDS.filter(
-          (field) => changed.includes(field) && current[field] !== null,
-        );
+        const identity = AGENCY_IDENTITY_FIELDS.filter((field) => changed.includes(field));
         if (identity.length > 0) {
           const reasons = await establishedBy(context.tx, ENTITY, current);
           if (reasons.length > 0) throw apiErrors.establishedIdentityImmutable(identity, reasons);

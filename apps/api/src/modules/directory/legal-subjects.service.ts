@@ -66,8 +66,9 @@ const JSON_FIELDS = ['aliases', 'postalAddress', 'fieldAttributions'];
 
 /**
  * Identity-defining fields of the exact party (subjectType is immutable by contract). Once the
- * subject is established, a set value is never changed or cleared by generic PATCH (AC-005); a
- * documented correction needs the later identity-resolution workflow.
+ * subject is established, generic PATCH cannot set, change or clear any of them, including one
+ * that is still empty (AC-005, R5); a documented correction or supplement needs the later
+ * identity-resolution workflow with source, provenance and audit.
  */
 export const LEGAL_SUBJECT_IDENTITY_FIELDS = [
   'legalName',
@@ -158,9 +159,7 @@ export class LegalSubjectsService {
         const current = await this.lock(context, id);
         assertNotArchived(current.recordState, 'patch');
         const changed = changedFields(current, body);
-        const identity = LEGAL_SUBJECT_IDENTITY_FIELDS.filter(
-          (field) => changed.includes(field) && current[field] !== null,
-        );
+        const identity = LEGAL_SUBJECT_IDENTITY_FIELDS.filter((field) => changed.includes(field));
         if (identity.length > 0) {
           const reasons = await establishedBy(context.tx, ENTITY, current);
           if (reasons.length > 0) throw apiErrors.establishedIdentityImmutable(identity, reasons);

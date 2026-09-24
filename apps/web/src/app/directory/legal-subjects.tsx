@@ -1,6 +1,6 @@
 // LegalSubject pages: the exact individual, legal entity or other party. The subject type is set
 // once at creation and never converted; once the subject is established (active, canonically bound
-// or referenced), identity values that are already set can't be changed here.
+// or referenced), its identity fields can't be filled in, changed or cleared here.
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import type { CreateLegalSubject, LegalSubject, PatchLegalSubject } from '@tb/contracts';
@@ -34,7 +34,7 @@ import {
   REVIEW_STATE_LABEL,
   SUBJECT_TYPE_LABEL,
 } from './format.js';
-import { lockedFields, useDirectoryApi, useLoad } from './hooks.js';
+import { isEstablishedRefusal, useDirectoryApi, useLoad } from './hooks.js';
 import { DirectoryList } from './list.js';
 import { RecordStateActions } from './record-actions.js';
 import { useRecordPage, useSubmission, type FlashState } from './record-page.js';
@@ -280,24 +280,24 @@ function LegalSubjectForm({
     attributionRows(initial?.fieldAttributions),
   );
   const [clientErrors, setClientErrors] = useState<Record<string, string>>({});
-  const [lockedByServer, setLockedByServer] = useState<string[]>([]);
+  const [establishedByServer, setEstablishedByServer] = useState(false);
   const [nothingToSave, setNothingToSave] = useState(false);
   const submission = useSubmission();
   const issues = issuesOf(submission.error);
   const errorFor = (path: string) =>
     clientErrors[path] ?? issues.find((issue) => issue.path === path)?.message;
-  const establishedLocally =
-    initial !== null &&
-    (initial.recordState === 'ACTIVE' ||
-      initial.canonicalCode !== null ||
-      initial.bindingState !== 'LOCAL_ONLY');
-  const lockNote = (name: TextKey): string | null => {
-    if (!IDENTITY_KEYS.has(name) || initial === null || initial[name] === null) return null;
-    if (lockedByServer.includes(name) || establishedLocally) {
-      return 'Locked: this subject is established (active, canonically bound or linked). Set identity values can’t be changed or cleared here.';
-    }
-    return null;
-  };
+  // Every identity field of an established subject is locked, empty ones included; a link or
+  // other reference is only learned from the server's refusal.
+  const established =
+    establishedByServer ||
+    (initial !== null &&
+      (initial.recordState === 'ACTIVE' ||
+        initial.canonicalCode !== null ||
+        initial.bindingState !== 'LOCAL_ONLY'));
+  const lockNote = (name: TextKey): string | null =>
+    initial !== null && established && IDENTITY_KEYS.has(name)
+      ? 'Locked: this subject is established (active, canonically bound or referenced by another record). Its identity can’t be filled in, changed or cleared here.'
+      : null;
   const changed = () => setNothingToSave(false);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -356,15 +356,13 @@ function LegalSubjectForm({
       });
       return;
     }
-    const refused = lockedFields(outcome.error);
-    if (refused.length > 0) {
-      setLockedByServer((current) => [...new Set([...current, ...refused])]);
+    // The server found the subject established: lock every identity field and restore its value.
+    if (isEstablishedRefusal(outcome.error)) {
+      setEstablishedByServer(true);
       setValues((current) => ({
         ...current,
         ...Object.fromEntries(
-          refused
-            .filter((name): name is TextKey => IDENTITY_KEYS.has(name))
-            .map((name) => [name, text(initial[name])]),
+          [...IDENTITY_KEYS].map((name) => [name, text(initial[name as TextKey])]),
         ),
       }));
     }
