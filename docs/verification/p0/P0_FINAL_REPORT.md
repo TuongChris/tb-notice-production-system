@@ -12,6 +12,8 @@ Mission TB-P0-LOCAL-BOOTSTRAP. Recorded 2026-09-23 on the first PC after P0-E (r
 | **P0_SECOND_PC** | **NOT_RUN** | Pending operator run of `docs/architecture/SECOND_PC_REPRODUCTION_RUNBOOK_v1.md` on the `P0_REPRODUCTION_BASELINE` commit |
 | **P0_OVERALL** | **NOT_COMPLETE** | Second-PC reproduction outstanding (P0-26, P0-27) |
 
+> **Addendum 2026-09-24 — development topology (ADR-0003).** The operator made the home PC (the first PC above) the primary development workstation and deferred the second-PC reproduction. Current statuses: `P0_SECOND_PC = DEFERRED_BY_OPERATOR`, `P0_TWO_PC_ACCEPTANCE = NOT_COMPLETED`, `P0_SINGLE_PC_BASELINE = VERIFIED`. `P0_OVERALL` stays NOT_COMPLETE against the original two-PC acceptance contract. The table above is kept as recorded on 2026-09-23. The runbook is unchanged and remains valid for any future workstation. Current state: `docs/CURRENT_STATE.md`.
+
 `P0_REPRODUCTION_BASELINE` is the documentation-only commit that records the Windows-browser checkpoint, designated once its branch CI run succeeds. Its SHA is reported with the checkpoint (a commit cannot contain its own SHA); `feature/p1-auth-shell` branches from this commit, the second-PC reproduction checks it out, and `bootstrap/p0-local` takes no P1 application code.
 
 `EXTERNAL_LEGAL_ACTIONS=0` · `REAL_CASE_MUTATIONS=0` · `G7_CREATED=0` · `DEPLOYMENTS=0` · `REAL_TB_DATA_IN_GIT=0`.

@@ -1,0 +1,39 @@
+# P2 R5 remediation negative controls — 2026-09-24T03:58:00+00:00
+# Each control re-opens one hole, runs the responsible suite (must FAIL), restores the file and
+# verifies it byte-identical by SHA-256; the failing tests are listed. Synthetic data only.
+
+NC25 PASS Agency: empty identity fields of an established record fillable again (pre-R5 rule)
+     file apps/api/src/modules/directory/agencies.service.ts; suite exit 1 (24s); Tests  5 failed | 64 passed (69)
+     failing: AGENCY > identity is locked once ACTIVE: identity fields cannot be set, changed or cleared; label and contact stay editable
+     failing: IDENTITY LOCK (R5): an empty identity field of an established record is locked too > Agency established by ACTIVE: an empty identity field cannot be filled; nothing is written; contact stays editable
+     failing: IDENTITY LOCK (R5): an empty identity field of an established record is locked too > Agency established by CANONICAL_BINDING: an empty identity field cannot be filled; nothing is written; contact stays editable
+     failing: IDENTITY LOCK (R5): an empty identity field of an established record is locked too > Agency established by REFERENCED_BY:signers.agency_id: an empty identity field cannot be filled; nothing is written; contact stays editable
+     failing: IDENTITY LOCK (R5): an empty identity field of an established record is locked too > Agency established by SNAPSHOT_REFERENCE:source_references: an empty identity field cannot be filled; nothing is written; contact stays editable
+     restored sha256 2b70fc49b44ad536d37c1e5768d39e292693feee80ca464d53bb337493b556e9 (identical=True)
+NC26 PASS LegalSubject: empty identity fields of an established record fillable again (pre-R5 rule)
+     file apps/api/src/modules/directory/legal-subjects.service.ts; suite exit 1 (24s); Tests  5 failed | 64 passed (69)
+     failing: IDENTITY LOCK (R5): an empty identity field of an established record is locked too > LegalSubject established by ACTIVE: an empty identity field cannot be filled; nothing is written; contact stays editable
+     failing: IDENTITY LOCK (R5): an empty identity field of an established record is locked too > LegalSubject established by CANONICAL_BINDING: an empty identity field cannot be filled; nothing is written; contact stays editable
+     failing: IDENTITY LOCK (R5): an empty identity field of an established record is locked too > LegalSubject established by REFERENCED_BY:owner_subjects.legal_subject_id: an empty identity field cannot be filled; nothing is written; contact stays editable
+     failing: IDENTITY LOCK (R5): an empty identity field of an established record is locked too > LegalSubject established by SNAPSHOT_REFERENCE:source_references: an empty identity field cannot be filled; nothing is written; contact stays editable
+     failing: LEGAL SUBJECT > AC-005: an established (linked) subject cannot be turned into another legal entity by PATCH
+     restored sha256 2d3953023dee0ecd787144c69479e3bfe30d7f65c0951d7d7400733fb42bb3f4 (identical=True)
+NC27 PASS Agency form: empty identity fields of an established agency editable again
+     file apps/web/src/app/directory/agencies.tsx; suite exit 1 (2s); Tests  2 failed | 20 passed (22)
+     failing: P2 directory UI > a draft agency the server reports as established: the fill is refused, every identity field locks, contact still saves
+     failing: P2 directory UI > locks every identity field of an active agency, empty ones included, and still saves contact changes
+     restored sha256 e4185ca0ba4ba7bc8b5578ad9fbba89b73580ab1dc54832d7a6a0056b70df5db (identical=True)
+NC28 PASS LegalSubject form: empty identity fields of an established subject editable again
+     file apps/web/src/app/directory/legal-subjects.tsx; suite exit 1 (2s); Tests  1 failed | 21 passed (22)
+     failing: P2 directory UI > locks every identity field of an active legal subject, empty ones included
+     restored sha256 4d7bd025f8deaef36634b6c7f3fccc9cbbe70533eb13be80a1ea4f2c81c74b71 (identical=True)
+NC29 PASS Agency form: a server refusal (established by reference) does not lock the identity fields
+     file apps/web/src/app/directory/agencies.tsx; suite exit 1 (1s); Tests  1 failed | 21 passed (22)
+     failing: P2 directory UI > a draft agency the server reports as established: the fill is refused, every identity field locks, contact still saves
+     restored sha256 e4185ca0ba4ba7bc8b5578ad9fbba89b73580ab1dc54832d7a6a0056b70df5db (identical=True)
+NC30 PASS Accent-insensitive collation used for an equality match (interpretation E guard)
+     file apps/api/src/modules/directory/agencies.service.ts; suite exit 1 (1s); Tests  1 failed | 14 passed (15)
+     failing: accent-insensitive matching is for search only (R5 interpretation E) > every case/accent-insensitive collation in the API source is a LIKE search on a `q` pattern
+     restored sha256 2b70fc49b44ad536d37c1e5768d39e292693feee80ca464d53bb337493b556e9 (identical=True)
+
+RESULT ALL CONTROLS FAILED THEIR TARGETED TESTS AS EXPECTED; ALL FILES RESTORED

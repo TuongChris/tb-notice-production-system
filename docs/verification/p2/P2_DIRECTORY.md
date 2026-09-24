@@ -1,16 +1,18 @@
 # P2 — Directory (first PC)
 
-Mission TB_P2_DIRECTORY_TO_R5 on `feature/p2-directory`, branched from the accepted P1.1 head `8fe96aea5a30bb01fa24c987e30689f4e6532164` after review gate R4.1 was accepted (2026-09-24). Recorded 2026-09-24 (UTC) on the first PC. Stops at review gate R5; no Route, Mandate, Case, SourceReference authoring, correspondence, prompt, candidate, readiness, G1–G7, signing, sending or external action was started.
+Mission TB_P2_DIRECTORY_TO_R5 on `feature/p2-directory`, branched from the accepted P1.1 head `8fe96aea5a30bb01fa24c987e30689f4e6532164` after review gate R4.1 was accepted (2026-09-24). Recorded 2026-09-24 (UTC) on the first PC. Stopped at review gate R5; no Route, Mandate, Case, SourceReference authoring, correspondence, prompt, candidate, readiness, G1–G7, signing, sending or external action was started. **R5 result (operator, 2026-09-24): PASS_WITH_ONE_REMEDIATION** — the remediation and the closeout are recorded in §15; sections 1–14 are the record as submitted at R5, annotated where R5 changed a decision.
 
 ## Status by scope (not collapsed)
 
 | Scope | Status | Basis |
 |---|---|---|
-| **P2_FIRST_PC** | **PASS** | All automated checks in §11 executed on the first PC and passed |
-| **P2_CI** | **PASS** for code commit `cbfd640` (run 35948987435, both jobs success); the run of this documentation commit is reported at R5 | A commit cannot record its own run. CI covers `yarn test`, `yarn test:db`, `smoke:local`, `smoke:auth` and the compiled `smoke:directory` round trip (`evidence/p2-ci-run-35948987435.txt`) |
-| **P2_BROWSER (Playwright MCP)** | **PASS** (14/14, supplemental) | Isolated test browser against the compiled API on the disposable `tb_notice_test` (`evidence/p2-playwright-mcp-verification.txt`) |
+| **P2_FIRST_PC** | **PASS** | All automated checks in §11 executed on the first PC and passed; repeated after the R5 remediation (§15) |
+| **P2_CI** | **PASS** for `cbfd640` (run 35948987435), `a885b96` (run 35950151963) and the remediation `4b67fff` (run 35953912083), both jobs success each time; the closeout documentation run is reported with the closeout | A commit cannot record its own run. CI covers `yarn test`, `yarn test:db`, `smoke:local`, `smoke:auth` and the compiled `smoke:directory` round trip (`evidence/p2-ci-run-35948987435.txt`) |
+| **P2_BROWSER (Playwright MCP)** | **PASS** (14/14 at R5, supplemental) + the identity-lock scenarios re-run after the remediation (5/5) | Isolated test browser against the compiled API on the disposable `tb_notice_test` (`evidence/p2-playwright-mcp-verification.txt`, `evidence/p2-playwright-mcp-r5-identity-lock.txt`) |
+| **R5 review** | **PASS_WITH_ONE_REMEDIATION** (operator, 2026-09-24) | Interpretations A–E accepted; the empty-identity-field interpretation overridden (§12, §15) |
+| **R5 remediation** | **IMPLEMENTED and verified** | §15; operator confirmation of the closeout pending |
 | **P1_WINDOWS_BROWSER** | **NOT_RUN** (not reported) | Unchanged |
-| **P0_SECOND_PC** / **P0_OVERALL** | **NOT_RUN** / **NOT_COMPLETE** (unchanged) | — |
+| **P0_SECOND_PC** / **P0_TWO_PC_ACCEPTANCE** / **P0_SINGLE_PC_BASELINE** / **P0_OVERALL** | **DEFERRED_BY_OPERATOR** / **NOT_COMPLETED** / **VERIFIED** / **NOT_COMPLETE** against the original two-PC contract | ADR-0003 (2026-09-24) |
 
 `EXTERNAL_LEGAL_ACTIONS=0` · `REAL_CASE_MUTATIONS=0` · `G7_CREATED=0` · `DEPLOYMENTS=0` · `REAL_TB_DATA_IN_GIT=0` · `REAL_ACCOUNTS_CREATED_BY_ENGINEER=0` · `RECORDS_WRITTEN_TO_OPERATOR_DB=0` · `SCHEMA_CHANGES=0` · `NEW_DEPENDENCIES=0`.
 
@@ -71,7 +73,7 @@ The implemented routes use the contract's own schemas at the edge: request bodie
 |---|---|
 | D1 OwnerSubject included | All four OwnerSubject operations. One unique `(ownerId, legalSubjectId)` row; Owner is never collapsed into LegalSubject and nothing is inferred from names |
 | D2 SourceReference dependency | `bindCanonical*` not routed. Optional source ids (fieldAttributions, Signer identity/delegation, OwnerSubject `sourceId`) must name an existing SourceReference; none is ever created. The UI offers no way to attach one and shows canonical binding as unavailable with its reason. Tests insert synthetic SourceReference fixtures directly into `tb_notice_test` |
-| D3 Established identity | Agency / LegalSubject are established when `recordState = ACTIVE`, when canonically bound (`canonicalCode`, `canonicalSourceId` or `bindingState ≠ LOCAL_ONLY`), or when another persisted record references them (every FK of the reviewed migration, plus JSON snapshot/scope columns). Evaluated under the row lock; no column. Identity-defining fields: Agency `legalName`, `organizationType`, `jurisdictionCountry`, `registrationAuthority`, `registrationNumber`; LegalSubject `legalName`, `legalForm`, `jurisdictionCountry`, `registrationAuthority`, `registrationNumber` (`subjectType` is not in PatchLegalSubject at all). Once established, a set value cannot be changed or cleared by PATCH (409 `ESTABLISHED_IDENTITY_IMMUTABLE`, with the fields and the reasons); see §12 for the empty-field interpretation |
+| D3 Established identity | Agency / LegalSubject are established when `recordState = ACTIVE`, when canonically bound (`canonicalCode`, `canonicalSourceId` or `bindingState ≠ LOCAL_ONLY`), or when another persisted record references them (every FK of the reviewed migration, plus JSON snapshot/scope columns). Evaluated under the row lock; no column. Identity-defining fields: Agency `legalName`, `organizationType`, `jurisdictionCountry`, `registrationAuthority`, `registrationNumber`; LegalSubject `legalName`, `legalForm`, `jurisdictionCountry`, `registrationAuthority`, `registrationNumber` (`subjectType` is not in PatchLegalSubject at all). Once established, a set value cannot be changed or cleared by PATCH (409 `ESTABLISHED_IDENTITY_IMMUTABLE`, with the fields and the reasons). **R5: an empty (null) identity field is locked too** — see §15 |
 | D4 fieldAttributions | Wire shape by the contract; `field` must be an attributable data field of that entity (identity/contact/links; not notes, lifecycle or binding fields); every source id must exist (422 `REFERENCE_NOT_FOUND`); for the agency-owned Agency the source must belong to that agency or name it in `scopeBindings.agencyIds` (422 `CROSS_AGENCY_REFERENCE` / `SOURCE_SCOPE_UNRESOLVED`); `DOCUMENT_REVIEWED` needs ≥ 1 source (422 `FIELD_ATTRIBUTION_INVALID`); provenance stored exactly as sent (MISSING and CONFLICT stay); no source required otherwise |
 | D5 Hard delete | Only when the record is DRAFT (Signer: operational state DRAFT and not archived), has no canonical binding, no FK reference and no JSON snapshot/scope reference; otherwise 409 `REFERENCED_RECORD_CANNOT_DELETE` with `details.blockers` (e.g. `NOT_DRAFT`, `ARCHIVED`, `CANONICAL_BINDING`, `REFERENCED_BY:signers.agency_id`, `SNAPSHOT_REFERENCE:source_references`) |
 | D6 UI | Protected Directory pages (§8) |
@@ -138,7 +140,7 @@ React pages under the existing authenticated shell (React 19, React Router 8, pl
 
 Changed P1 tests (counts unchanged): the route inventory test now asserts the four P1 routes plus only directory routes (the exact directory inventory is in the P2 suite). Its 404 probe list used `POST /api/v1/signers` as an example of a forbidden signing route; that path is now the contracted `createSigner`, so the probes name `POST /signers/{id}/sign` and `POST /candidates/{id}/send` instead (both still 404). The shell test expects Directory as the one reachable business module. `tests/db/auth-support.ts` lets a test replace the audit writer (used for AC-056).
 
-Totals on the first PC (2026-09-24 sweep) and in CI run 35948987435: `yarn test` **1035** tests in 26 files (P1.1: 982 in 22, so +53 in the 4 new files above); `yarn test:db` **138** tests in 5 files (P1.1: 78 in 4, so +60 in `directory-http.test.ts`). P2 adds 113 tests; no earlier test was removed. Per-file counts were confirmed with `vitest list`. All tests use synthetic data: the DB suites run on `tb_notice_test`, which `db:verify test --expect-empty` shows empty afterwards.
+Counts as submitted at R5 (the closeout adds 13 tests, §15). Totals on the first PC (2026-09-24 sweep) and in CI run 35948987435: `yarn test` **1035** tests in 26 files (P1.1: 982 in 22, so +53 in the 4 new files above); `yarn test:db` **138** tests in 5 files (P1.1: 78 in 4, so +60 in `directory-http.test.ts`). P2 adds 113 tests; no earlier test was removed. Per-file counts were confirmed with `vitest list`. All tests use synthetic data: the DB suites run on `tb_notice_test`, which `db:verify test --expect-empty` shows empty afterwards.
 
 ## 10. Negative controls
 
@@ -171,7 +173,7 @@ Each control disables exactly one protection in the source, runs the suite respo
 | NC23 | Web CSRF retry uses a new Idempotency-Key | `apps/web/src/app/directory/hooks.tsx` | `tests/web/directory.test.tsx` | 1 of 19 failed | yes |
 | NC24 | Reference inventory guard (a directory FK missing from DIRECT_REFERENCES) | `apps/api/src/modules/directory/records.ts` | `tests/api/directory-rules.test.ts` | 1 of 14 failed | yes |
 
-**Result: 24/24 controls failed their suite as expected; all files restored** (`git status` afterwards showed no source change). Server-side behaviour that the UI cannot enforce (idempotency, identity lock, dependency checks) is controlled against the HTTP suite; the web controls (NC22, NC23) show that the UI tests detect a client that stops sending `If-Match` or retries a CSRF refresh under a new key.
+The R5 closeout adds NC25–NC30 (§15). **Result at R5: 24/24 controls failed their suite as expected; all files restored** (`git status` afterwards showed no source change). Server-side behaviour that the UI cannot enforce (idempotency, identity lock, dependency checks) is controlled against the HTTP suite; the web controls (NC22, NC23) show that the UI tests detect a client that stops sending `If-Match` or retries a CSRF refresh under a new key.
 
 ## 11. First-PC regression sweep
 
@@ -199,33 +201,111 @@ Supplementary read-only checks: `db:status` test and dev up to date; both Prisma
 
 Unlike the P1.1 sweep, `smoke:local` and `dev:verify-shutdown` ran locally: ports 3000/5173 were free. Nothing was written to `tb_notice_dev`; the authenticated compiled round trip (`smoke:directory`) runs in CI only (§14).
 
-## 12. Interpretations for R5 review
+## 12. Interpretations for R5 review (with the R5 decisions)
 
-| Topic | Decision taken | Why |
-|---|---|---|
-| Empty identity field of an established record | Can be completed once; a set value cannot be changed or cleared | D3 forbids *changing* identity; the domain model lets legal details "remain absent during onboarding" and forbids forcing fabrication. Blocking completion would force guessing before activation or linking |
-| Agency `displayName` | Not identity-defining | "Same-entity contact/name corrections are audited; a different legal entity needs a different Agency record" — the legal entity is the legal fields |
-| Restore target state | DRAFT (Agency/Owner/LegalSubject) | No previous state is stored; restoring never re-activates or revives anything by itself |
-| Archived records | Read-only (PATCH/state 409) until restored | Archive preserves history; edits need an explicit restore |
-| Signer archive vs operational state | Independent; restore leaves the operational state | Contract has both `operationalState` and archive fields |
-| Signer state transitions | Any other state with a reason; same state 409 | The contract enumerates the states without transition rules; no rule was invented |
-| Same-state / no-op commands | State commands: 409; PATCH without changes: 200 without write | A command asserts a transition; a PATCH describes a target state |
-| Status codes | Body schema/business validation 422; query 400; unknown/invalid path id 404; reference not found 422; state/identity/duplicate/delete conflicts 409 | API_CONTRACT §5 status table and each operation's declared statuses |
-| Source scope for agency-less sources | Accepted for an Agency/Signer only when `scopeBindings.agencyIds` names that agency | INVARIANTS §3 "no global access from null agency"; Owner/LegalSubject/OwnerSubject have no agency, so only existence is checked (scope review is Source-phase work) |
-| Owner version on link | Incremented | The contract precondition target of `linkOwnerSubject` is the Owner; its ETag then reflects the association set |
-| Search semantics | Case- and accent-insensitive literal substring | The contract only declares `q`; Vietnamese names need accent-insensitive search |
-| Unknown query parameters | 400 | Strict input like bodies; prevents silently unfiltered lists |
-| Unpaired UTF-16 surrogates | 422 | utf8mb4 cannot store them exactly; storing a replacement would silently change data |
+| Topic | Decision taken | Why | R5 decision (operator, 2026-09-24) |
+|---|---|---|---|
+| Empty identity field of an established record | Can be completed once; a set value cannot be changed or cleared | D3 forbids *changing* identity; the domain model lets legal details "remain absent during onboarding" and forbids forcing fabrication. Blocking completion would force guessing before activation or linking | **OVERRIDDEN** — every identity field of an established record is locked, empty ones included; remediated (§15) |
+| Agency `displayName` | Not identity-defining | "Same-entity contact/name corrections are audited; a different legal entity needs a different Agency record" — the legal entity is the legal fields | Not separately ruled on (P2 accepted with one remediation) |
+| Restore target state | DRAFT (Agency/Owner/LegalSubject) | No previous state is stored; restoring never re-activates or revives anything by itself | **ACCEPTED** (A) |
+| Archived records | Read-only (PATCH/state 409) until restored | Archive preserves history; edits need an explicit restore | **ACCEPTED** (B): read-only except the explicit restore |
+| Signer archive vs operational state | Independent; restore leaves the operational state | Contract has both `operationalState` and archive fields | Not separately ruled on; consistent with C |
+| Signer state transitions | Any other state with a reason; same state 409 | The contract enumerates the states without transition rules; no rule was invented | **ACCEPTED** (C): the state is administrative only and implies no coverage, eligibility, G7, signature authority or notice adoption |
+| Same-state / no-op commands | State commands: 409; PATCH without changes: 200 without write | A command asserts a transition; a PATCH describes a target state | Not separately ruled on |
+| Status codes | Body schema/business validation 422; query 400; unknown/invalid path id 404; reference not found 422; state/identity/duplicate/delete conflicts 409 | API_CONTRACT §5 status table and each operation's declared statuses | Not separately ruled on |
+| Source scope for agency-less sources | Accepted for an Agency/Signer only when `scopeBindings.agencyIds` names that agency | INVARIANTS §3 "no global access from null agency"; Owner/LegalSubject/OwnerSubject have no agency, so only existence is checked (scope review is Source-phase work) | **ACCEPTED** (D) |
+| Owner version on link | Incremented | The contract precondition target of `linkOwnerSubject` is the Owner; its ETag then reflects the association set | Not separately ruled on |
+| Search semantics | Case- and accent-insensitive literal substring | The contract only declares `q`; Vietnamese names need accent-insensitive search | **ACCEPTED** (E) for discovery only; never identity equality, canonical matching, duplicate determination, unique keys or entity equivalence (guard test, §15) |
+| Unknown query parameters | 400 | Strict input like bodies; prevents silently unfiltered lists | Not separately ruled on |
+| Unpaired UTF-16 surrogates | 422 | utf8mb4 cannot store them exactly; storing a replacement would silently change data | Not separately ruled on |
 
 ## 13. Database changes
 
-**None.** No migration was created or applied; `20260923103912_initial_schema` (sha256 `b54c36fd…6515`) remains the only migration; `db:verify` passes on test (empty) and dev. The existing schema was sufficient for every implemented rule.
+**None** (also none for the R5 remediation). No migration was created or applied; `20260923103912_initial_schema` (sha256 `b54c36fd…6515`) remains the only migration; `db:verify` passes on test (empty) and dev. The existing schema was sufficient for every implemented rule.
 
 ## 14. Limitations
 
-- Canonical binding and source attachment wait for the Source phase; fieldAttributions with `DOCUMENT_REVIEWED` can therefore not be recorded through the product yet.
+- Canonical binding and source attachment wait for the Source phase (P3A); fieldAttributions with `DOCUMENT_REVIEWED` can therefore not be recorded through the product yet.
+- Since R5, an established record's identity cannot be corrected or completed at all through the product; that needs a future dedicated workflow with source, provenance and audit, which was not invented.
 - The UI cannot see every reference that blocks a delete (routes, cases, snapshots are later phases); the server decides and the UI explains its refusal.
 - LegalSubject pages cannot list their owners (the contract has no such operation); links are managed from each owner.
 - Expired idempotency records and cursors are not purged or revoked (retention DEFERRED); rotating `TB_SESSION_SECRET` invalidates cursors and sessions.
 - The compiled authenticated round trip (`smoke:directory`) runs only in CI: no account or record may be created in the operator's `tb_notice_dev`. On the first PC the compiled directory API was exercised through `yarn ui:sandbox` on `tb_notice_test` (Playwright checks and the same round trip).
 - The headless browser used Linux fallback fonts; the Windows faces of the design (Bahnschrift, Segoe UI) were not rendered in this verification.
+
+## 15. R5 closeout (2026-09-24, home PC)
+
+**R5 result (operator): PASS_WITH_ONE_REMEDIATION.** P2 is accepted subject to one correction. Interpretations A–E are accepted as recorded in §12. The empty-identity-field interpretation is overridden. Mission: TB_R5_CLOSEOUT_AND_SINGLE_PC_DEVELOPMENT_BASELINE. The development topology decided with it is ADR-0003.
+
+### 15.1 Remediation (commit `4b67fff`)
+
+- **Rule.** Once an Agency or LegalSubject is established, generic PATCH refuses any change to any identity-defining field, whether its current value is populated, null or empty. "Established" means ACTIVE, canonically bound, or referenced by another persisted business record; it is still derived under the row lock and has no column. The refusal is 409 `ESTABLISHED_IDENTITY_IMMUTABLE`, with `details.fields` (the identity fields the request would change) and `details.establishedBy` (the reasons). The whole request is refused, so a mixed identity + contact PATCH writes nothing. Label and contact fields stay editable. Repeating a field's current value is not a change, so it is not refused.
+- **API.** `agencies.service.ts` and `legal-subjects.service.ts` no longer exempt fields whose current value is null. The error message now reads "cannot be set, changed or cleared".
+- **UI.** The agency and legal-subject edit forms lock every identity field (read-only, with the reason) as soon as the page knows the record is established (active or canonically bound). When only the server knows (a reference), its refusal locks every identity field, restores their values and explains why; other changes can be saved again.
+- **No workflow invented.** Correcting or supplementing an established identity is left to a future dedicated workflow.
+- **Interpretation C.** The Signer state dialog and service comment state that no state implies mandate coverage, eligibility, G7, signature authority or notice adoption. A test shows that AVAILABLE creates no mandate, coverage, coverage-signer or authority-selection row.
+- **Interpretation E.** A guard test scans the whole API source: every case/accent-insensitive collation must be a `LIKE` search on the `q` pattern. Duplicate detection (ids), unique keys (binary collation) and identity comparison (exact values) never use it.
+- **No change elsewhere.** No migration, no wire-contract change (`contracts:check` OK), no dependency change.
+
+### 15.2 Tests added (13)
+
+| Suite | Added | Covers |
+|---|---|---|
+| `tests/db/directory-http.test.ts` | +9 (60 → 69) | A draft, unreferenced Agency and LegalSubject fill empty identity fields. For each establishment reason — ACTIVE, referenced (a Signer / an owner link), canonically bound (a synthetic source set directly in `tb_notice_test`, since binding operations are deferred), scope-referenced (`scopeBindings`) — an Agency (4 tests) and a LegalSubject (4 tests) refuse filling an empty identity field, alone or mixed with a contact change. Afterwards the record, version and ETag are unchanged, there is no new audit event and no idempotency record is kept; a contact change then succeeds with version +1. Updated: the ACTIVE-agency test also refuses filling an empty field; AC-005 also refuses empty `legalForm`/`jurisdictionCountry`; the Signer state test asserts AVAILABLE creates no authority rows |
+| `tests/web/directory.test.tsx` | +3 (19 → 22) | ACTIVE agency: every identity field locked, empty ones included, and a contact change sent alone (rewritten test). Referenced draft agency: the server refusal locks and restores all identity fields, and the contact change still saves. ACTIVE legal subject: every identity field locked. Signer state dialog wording (C) |
+| `tests/api/directory-rules.test.ts` | +1 (14 → 15) | Accent-insensitive collation only in `LIKE` search (E) |
+
+Totals: `yarn test` 1039 in 26 files (R5: 1035); `yarn test:db` 147 in 5 files (R5: 138).
+
+### 15.3 Negative controls NC25–NC30 (`evidence/p2-negative-controls-r5.txt`)
+
+Same method as §10, and this run also records the failing tests. The restored files' SHA-256 values equal the committed `4b67fff` versions.
+
+| # | Hole re-opened | Suite | Result (only the targeted tests failed) |
+|---|---|---|---|
+| NC25 | Agency: empty identity fields of an established record fillable again (the pre-R5 rule) | directory-http | 5 of 69 failed: the ACTIVE-lock test and the four Agency establishment cases |
+| NC26 | LegalSubject: the same | directory-http | 5 of 69 failed: the four LegalSubject cases and AC-005 |
+| NC27 | Agency form: empty identity fields of an established agency editable again | web directory | 2 of 22 failed: the ACTIVE-lock and server-refusal tests |
+| NC28 | LegalSubject form: the same | web directory | 1 of 22 failed: the ACTIVE legal subject test |
+| NC29 | Agency form: a server refusal does not lock the fields | web directory | 1 of 22 failed: the server-refusal test |
+| NC30 | Accent-insensitive collation used for an equality match | directory-rules | 1 of 15 failed: the E guard |
+
+**6/6 controls failed their targeted tests; all files restored byte-identical.**
+
+### 15.4 Playwright re-run of the affected scenarios (`evidence/p2-playwright-mcp-r5-identity-lock.txt`)
+
+Same isolated test browser, compiled API on the disposable `tb_notice_test` (`yarn ui:sandbox` on the `4b67fff` tree), synthetic data, cleaned up afterwards (`db:verify test --expect-empty` PASS). Five scenarios, all PASS:
+
+- R1: a draft, unreferenced agency fills an empty registration number.
+- R2: an ACTIVE agency locks all five identity fields, including three empty ones; a phone change is sent alone (screenshot 08).
+- R3: a draft agency with a signer gets the real 409 when a field is filled; all identity fields lock and revert; the phone change saves and the refused request did not bump the version (screenshot 09).
+- R4: the same refusal and lock on a legal subject linked to an owner.
+- R5: the Signer state dialog shows the interpretation-C wording.
+
+The other R5 browser checks do not depend on the identity lock.
+
+### 15.5 Closeout regression sweep (`evidence/p2-closeout-sweep.txt`)
+
+2026-09-24T04:07–04:09Z on the home PC, tree = `4b67fff` plus uncommitted documentation. All exit 0:
+
+- `reference:check`, then `reference:helper-tests` (27/27) and `contracts:check`
+- `install --immutable`, `typecheck`, `lint`, `format:check`
+- `test` 1039/1039 and `test:db` 147/147
+- `db:verify test --expect-empty` (0 rows) and `db:verify dev` (metadata PASS)
+- `build`, `smoke:local` (23 checks) and `dev:verify-shutdown` (4/4)
+- `reference:check` again at the end
+
+The read-only checks also pass: `db:status` up to date on test and dev, and both Prisma drift diffs are empty.
+
+### 15.6 CI
+
+The remediation `4b67fff` passed in run 35953912083: both jobs success; `yarn test` 1039, `yarn test:db` 147, `smoke:local` 23 checks, `smoke:auth`, `smoke:directory` 14 checks and `dev:verify-shutdown` 4/4 (`evidence/p2-ci-run-35953912083.txt`). The closeout documentation commit's run is reported with the closeout; a commit cannot record its own run.
+
+### 15.7 Notes for the operator
+
+- **Interpretation B in detail.** An archived record itself accepts only restore. An owner–subject association whose Owner or LegalSubject is archived can still be paused or unlinked: the association is its own record, and the archived party does not change. New links and relinks to an archived party are refused. This is unchanged since R5.
+- **Cosmetic.** When a record is established, the same lock note repeats under each of the five identity fields. It is accurate and accessible; one note for the fieldset would read more quietly. It is not changed in this closeout.
+- **Next phases** (recorded in `docs/CURRENT_STATE.md`, not started):
+  - **P3A** — Sources, canonical bindings and Route; gate R6.
+  - **P3B** — representation authority; gate R7; not automatic after R6.
+  - Cases come later.
