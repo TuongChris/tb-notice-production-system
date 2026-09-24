@@ -1000,6 +1000,134 @@ table.records {
   margin: 0.2rem 0 0;
 }
 
+/* One notice for a whole locked section (the fields point to it with aria-describedby). */
+.lock-notice {
+  margin: 0 0 0.6rem;
+  padding: 0.4rem 0.65rem;
+  border-left: 3px solid var(--caution);
+  background: var(--caution-soft);
+  color: var(--caution);
+  font-size: 0.88rem;
+}
+
+.stamps {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.list-filter {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.list-filter select,
+.list-filter input {
+  font-weight: 400;
+}
+
+/* Route path: the agency, the platform it acts on, and the exact owner–subject pair, read left to
+   right like a registry extract. It shows a relationship, never authority. */
+.route-path {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) minmax(0, 1fr);
+  margin: 0 0 1rem;
+  border: 1px solid var(--rule-strong);
+  background: var(--sunken);
+}
+
+.route-node {
+  display: grid;
+  gap: 0.15rem;
+  align-content: start;
+  min-width: 0;
+  padding: 0.6rem 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.route-node + .route-node {
+  border-left: 1px dashed var(--rule-strong);
+}
+
+.route-node-kind {
+  color: var(--ink-3);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.route-edge {
+  display: flex;
+  align-items: center;
+  padding: 0 0.3rem;
+  background: linear-gradient(var(--rule-strong), var(--rule-strong)) center / 100% 1px no-repeat;
+}
+
+.route-edge span {
+  padding: 0.12rem 0.5rem;
+  background: var(--sheet);
+  border: 1px solid var(--accent);
+  border-radius: 2px;
+  color: var(--accent);
+  font-family: var(--font-record);
+  font-weight: 600;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+/* Source picker and lists */
+.inline-search {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.inline-search input {
+  flex: 1 1 14rem;
+}
+
+.source-choice {
+  max-height: 18rem;
+  overflow-y: auto;
+}
+
+.choice-text {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.choice-title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.choice-meta {
+  color: var(--ink-3);
+  font-size: 0.84rem;
+}
+
+.checkbox-list .plain-list {
+  max-height: 14rem;
+  overflow-y: auto;
+}
+
+.revision-list {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0;
+  padding-left: 1.5rem;
+}
+
+code.hash {
+  overflow-wrap: anywhere;
+  font-size: 0.85rem;
+}
+
 @media (max-width: 48rem) {
   .shell-body {
     grid-template-columns: 1fr;
@@ -1031,6 +1159,22 @@ table.records {
 
   .record-name {
     font-size: 1.6rem;
+  }
+
+  .route-path {
+    grid-template-columns: 1fr;
+  }
+
+  .route-node + .route-node {
+    border-left: 0;
+    border-top: 1px dashed var(--rule-strong);
+  }
+
+  .route-edge {
+    justify-content: flex-start;
+    padding: 0.35rem 0.85rem;
+    background: none;
+    border-top: 1px dashed var(--rule-strong);
   }
 }
 

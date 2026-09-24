@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import type { OwnerSubject } from '@tb/contracts';
+import { RoutesOfLink } from '../representation/routes.js';
 import { Absent, Time } from './agencies.js';
 import { LINK_STATE_LABEL, LINK_STATE_TONE, SUBJECT_TYPE_LABEL } from './format.js';
 import { useDirectoryApi, useIntentKey, useLoad, useWrite } from './hooks.js';
@@ -184,6 +185,7 @@ function OwnerSubjectDetail({ id }: { id: string }) {
         onCancel={() => setTarget(null)}
         onConfirm={(reason) => void confirm(reason)}
       />
+      <RoutesOfLink link={link} />
     </article>
   );
 }

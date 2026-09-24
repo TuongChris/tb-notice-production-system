@@ -11,8 +11,14 @@ export function HomePage() {
       <p>
         The <Link to="/directory">directory</Link> holds agencies, owners, legal subjects, the links
         between owners and legal subjects, and signers. Directory records are administrative: they
-        grant no authority and make nothing ready to send. Representation, case and production
-        features are not implemented yet.
+        grant no authority and make nothing ready to send.
+      </p>
+      <p>
+        <Link to="/sources">Sources</Link> records pointers to documents kept elsewhere, usually in
+        Google Drive; a source record is not the evidence and proves nothing by existing.{' '}
+        <Link to="/representation">Representation</Link> holds routes — operational paths from an
+        agency to an owner’s legal subject — which grant no authority. Mandates, cases and
+        production are not implemented yet.
       </p>
       <dl>
         <dt>Session</dt>

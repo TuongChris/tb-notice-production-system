@@ -32,6 +32,7 @@ import {
   SIGNER_STATE_LABEL,
   SIGNER_STATE_TONE,
 } from './format.js';
+import { CanonicalBindingSection } from './canonical-binding.js';
 import { isEstablishedRefusal, useDirectoryApi, useLoad } from './hooks.js';
 import { DirectoryList } from './list.js';
 import { RecordStateActions } from './record-actions.js';
@@ -97,6 +98,8 @@ const ALL_TEXT: readonly TextSpec[] = [
   { name: 'notes', label: 'Notes', multiline: true },
 ];
 const IDENTITY_KEYS = new Set<string>(IDENTITY.map((spec) => spec.name));
+/** The one notice every locked identity field of the form points to. */
+const IDENTITY_LOCK_ID = 'agency-identity-locked';
 
 /** Fields that attributions may describe (the contract's attributable Agency data). */
 const ATTRIBUTABLE = [
@@ -278,6 +281,15 @@ function AgencyDetail({ id }: { id: string }) {
           )}
         />
       </Section>
+      <CanonicalBindingSection
+        noun="agency"
+        record={record}
+        archived={agency.recordState === 'ARCHIVED'}
+        target={{ kind: 'Agency', agencyId: agency.id }}
+        bind={(body, ifMatch, auth) => api.agencies.bindCanonical(agency.id, body, ifMatch, auth)}
+        onBound={page.update}
+        onConflict={page.raiseConflict}
+      />
       <AttributionsTable attributions={agency.fieldAttributions} labels={ATTRIBUTABLE} />
       <Section title="Notes">
         {agency.notes ? <p className="prose">{agency.notes}</p> : <Absent />}
@@ -479,10 +491,8 @@ function AgencyForm({
       (initial.recordState === 'ACTIVE' ||
         initial.canonicalCode !== null ||
         initial.bindingState !== 'LOCAL_ONLY'));
-  const lockNote = (name: TextKey): string | null =>
-    initial !== null && established && IDENTITY_KEYS.has(name)
-      ? 'Locked: this agency is established (active, canonically bound or referenced by another record). Its legal identity can’t be filled in, changed or cleared here.'
-      : null;
+  const isLocked = (name: TextKey): boolean =>
+    initial !== null && established && IDENTITY_KEYS.has(name);
 
   function setValue(name: TextKey, value: string) {
     setValues((current) => ({ ...current, [name]: value }));
@@ -515,7 +525,7 @@ function AgencyForm({
       return;
     }
     const body: Record<string, unknown> = {
-      ...patchTexts(ALL_TEXT, values, initial, (name) => lockNote(name) !== null),
+      ...patchTexts(ALL_TEXT, values, initial, isLocked),
     };
     const nextAddress = addressValue(address);
     if (!sameJson(nextAddress, addressValue(addressText(initial.postalAddress)))) {
@@ -558,7 +568,7 @@ function AgencyForm({
       hint={spec.hint}
       value={values[spec.name]}
       error={errorFor(spec.name)}
-      locked={lockNote(spec.name)}
+      lockedBy={isLocked(spec.name) ? IDENTITY_LOCK_ID : null}
       onChange={(value) => setValue(spec.name, value)}
     />
   );
@@ -617,6 +627,12 @@ function AgencyForm({
             can’t be filled in, changed or cleared here; a different legal entity needs its own
             agency record.
           </p>
+          {initial !== null && established && (
+            <p id={IDENTITY_LOCK_ID} className="lock-notice">
+              Locked: this agency is established (active, canonically bound or referenced by another
+              record). Its legal identity can’t be filled in, changed or cleared here.
+            </p>
+          )}
           <div className="field-grid">{IDENTITY.map(field)}</div>
         </fieldset>
         <fieldset className="fieldset">

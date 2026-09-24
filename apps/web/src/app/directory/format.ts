@@ -40,6 +40,26 @@ export const PROVENANCE_LABEL = {
   MISSING: 'Missing',
   CONFLICT: 'Conflict',
 } as const;
+export const SOURCE_ROLE_LABEL = {
+  CANONICAL_RECORD: 'Canonical record',
+  PRIMARY_CORRESPONDENCE: 'Primary correspondence',
+  OPERATOR_INPUT: 'Operator input',
+  DERIVED_DRAFT: 'Derived draft',
+  EXTERNAL_REFERENCE: 'External reference',
+  POLICY_REFERENCE: 'Policy reference',
+} as const;
+/** Access is a point-in-time observation, never an evergreen guarantee. */
+export const ACCESS_STATE_LABEL = {
+  NOT_CHECKED: 'Access not checked',
+  ACCESSIBLE_AT_CHECK: 'Accessible when checked',
+  UNAVAILABLE_AT_CHECK: 'Unavailable when checked',
+} as const;
+export const HASH_TARGET_LABEL = {
+  RAW_FILE: 'raw file bytes',
+  EXTRACTED_TEXT: 'extracted text',
+  OTHER: 'other stated content',
+} as const;
+export const PLATFORM_LABEL = { YOUTUBE: 'YouTube' } as const;
 
 export type Tone = 'draft' | 'active' | 'archived' | 'paused' | 'ended';
 
@@ -86,6 +106,23 @@ const BLOCKER_TEXT: Record<string, string> = {
   'REFERENCED_BY:coverage_signers.signer_id': 'mandate coverage names it',
   'REFERENCED_BY:case_authority_selections.signer_id': 'a case selected it',
   'REFERENCED_BY:routes.owner_subject_id': 'routes use it',
+  'REFERENCED_BY:cases.route_id': 'cases use it',
+  'REFERENCED_BY:case_authority_selections.route_id': 'a case selected it',
+  'REFERENCED_BY:mandate_coverages.route_id': 'mandate coverage uses it',
+};
+
+/** Why a source's recorded scope does not include a record (SOURCE_SCOPE_UNRESOLVED reasons). */
+export const SOURCE_SCOPE_REASON_TEXT: Record<string, string> = {
+  CASE_SCOPED_SOURCE: 'the source is scoped to a case, and cases do not exist yet',
+  NOT_SCOPED_TO_AGENCY: 'the source is neither this agency’s own nor shared with this agency',
+  AGENCY_OWNED_SOURCE:
+    'the source belongs to one agency, but this record is shared by all agencies',
+  AGENCY_RESTRICTED_SOURCE:
+    'the source is shared only with particular agencies, but this record is shared by all agencies',
+  NOT_SCOPED_TO_SUBJECT: 'the source’s scope does not name this legal subject',
+  SCOPED_TO_OTHER_SUBJECT: 'the source is scoped to a different legal subject',
+  SUBJECT_SPECIFIC_SOURCE:
+    'the source is about particular legal subjects, not this owner namespace',
 };
 
 function blockerText(blocker: string): string {
@@ -144,17 +181,54 @@ export function describeError(error: unknown, recordLabel = 'record'): string {
       if (record === 'LegalSubject') return 'The legal subject is archived. Restore it first.';
       if (record === 'Owner') return 'The owner is archived. Restore it first.';
       if (record === 'Agency') return 'The agency is archived. Restore it first.';
+      if (record === 'OwnerSubject') {
+        return 'The owner–subject link is not linked, so no route can use it. Relink it first.';
+      }
+      if (record === 'Signer') {
+        return 'That signer is archived or ended, so it cannot be a default signer.';
+      }
       return `This action isn't available in the ${recordLabel}'s current state. Reload to see its latest state.`;
     }
     case 'DUPLICATE_OWNER_SUBJECT':
       return 'This owner is already linked to that legal subject. Change the existing link instead.';
     case 'DEPENDENT_ROUTES_LINKED':
-      return 'Routes still use this link, so it cannot be unlinked yet. Route management is not available in this phase.';
+      return 'Linked or paused routes still use this link. Pause or unlink those routes first.';
     case 'REFERENCE_NOT_FOUND':
       return 'A referenced record no longer exists. Reload and choose again.';
     case 'CROSS_AGENCY_REFERENCE':
-    case 'SOURCE_SCOPE_UNRESOLVED':
-      return 'A source reference does not belong to this agency.';
+      return details['field'] === 'defaultSignerId'
+        ? 'That signer belongs to another agency. A route’s default signer must act for the route’s agency.'
+        : 'That source belongs to another agency, so it cannot support this record.';
+    case 'SOURCE_SCOPE_UNRESOLVED': {
+      const reason = typeof details['reason'] === 'string' ? details['reason'] : '';
+      return `That source cannot support this ${recordLabel}: ${
+        SOURCE_SCOPE_REASON_TEXT[reason] ?? 'its recorded scope does not include this record'
+      }.`;
+    }
+    case 'CROSS_OWNER_REFERENCE':
+      return 'That source is already recorded as another owner’s material, so it cannot be used for this owner.';
+    case 'SOURCE_NOT_CURRENT':
+      return 'That source has a newer revision. Choose the current revision.';
+    case 'SOURCE_ROLE_NOT_VERIFICATION':
+      return 'A canonical binding needs a source recorded as a canonical record.';
+    case 'BINDING_CORRECTION_REQUIRES_RECONCILIATION':
+      return `This ${recordLabel} already has a canonical binding. Changing it needs a reconciliation workflow that isn't available yet.`;
+    case 'DUPLICATE_CANONICAL_CODE':
+      return 'Another record of this kind already has that canonical code. Check the code in the source.';
+    case 'DUPLICATE_ROUTE':
+      return 'A route for this agency, association and platform already exists. Open that route instead.';
+    case 'REVISION_NOT_HEAD':
+      return 'A newer revision of this source exists. Only the current revision can be revised.';
+    case 'REVISION_SCOPE_CHANGE':
+      return 'A revision keeps the source’s agency and scope. A different scope needs a new source record.';
+    case 'CASE_SCOPE_UNAVAILABLE':
+      return 'Case scope cannot be recorded before cases exist.';
+    case 'CONTENT_HASH_INCOMPLETE':
+      return 'Enter both the SHA-256 value and what it was computed from, or neither.';
+    case 'REVIEW_UNATTRIBUTED':
+      return '“Document reviewed” is recorded only with the name of the person who reviewed the document.';
+    case 'PREFERRED_COVERAGE_UNAVAILABLE':
+      return 'A preferred coverage can be set only once mandate coverage exists, which is not available yet.';
     case 'IDEMPOTENCY_IN_PROGRESS':
       return 'The same change is still being processed. Wait a moment and try again.';
     case 'IDEMPOTENCY_CONFLICT':

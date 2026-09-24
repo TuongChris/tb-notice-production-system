@@ -1,13 +1,16 @@
-// Typed access to the contracted directory operations (TB-SCHEMA-API-v1). Types come from
-// @tb/contracts; the server validates everything again. Canonical-binding operations are not
-// offered: they need a SourceReference that cannot be recorded before the Source phase.
+// Typed access to the contracted directory, source and route operations (TB-SCHEMA-API-v1). Types
+// come from @tb/contracts; the server validates everything again. SourceReferences are immutable:
+// they carry no ETag and change only through a new revision.
 import type {
   Agency,
   ArchiveRequest,
+  CanonicalBindingRequest,
   CreateAgency,
   CreateLegalSubject,
   CreateOwner,
+  CreateRoute,
   CreateSigner,
+  CreateSource,
   LegalSubject,
   LinkOwnerSubject,
   LinkStateRequest,
@@ -16,10 +19,15 @@ import type {
   PatchAgency,
   PatchLegalSubject,
   PatchOwner,
+  PatchRoute,
   PatchSigner,
   RecordStateRequest,
+  ReviseSource,
+  Route,
   Signer,
   SignerStateRequest,
+  SourceReference,
+  SourceReferenceSummary,
 } from '@tb/contracts';
 import { ApiError, type ApiClient, type ApiResult } from './client.js';
 
@@ -33,7 +41,7 @@ export interface ListQuery {
   readonly q?: string;
   readonly cursor?: string;
   readonly limit?: number;
-  /** listSigners only. */
+  /** listSigners, listSources and listRoutes. */
   readonly agencyId?: string;
 }
 
@@ -97,11 +105,21 @@ function directoryRecord<T, Create, Patch, State>(api: ApiClient, base: string) 
     remove: async (id: string, ifMatch: string, auth: WriteAuth) => {
       await api.request<void>('DELETE', `${base}/${id}`, write(auth, ifMatch));
     },
+    /** Records the source that holds the record's canonical code (identity reference only). */
+    bindCanonical: (id: string, body: CanonicalBindingRequest, ifMatch: string, auth: WriteAuth) =>
+      versioned(
+        api.request<T>('POST', `${base}/${id}/canonical-bindings`, {
+          body,
+          ...write(auth, ifMatch),
+        }),
+      ),
   };
 }
 
 export function createDirectoryApi(api: ApiClient) {
   return {
+    sources: createSourcesApi(api),
+    routes: createRoutesApi(api),
     agencies: directoryRecord<Agency, CreateAgency, PatchAgency, RecordStateRequest>(
       api,
       '/api/v1/agencies',
@@ -154,3 +172,87 @@ export function createDirectoryApi(api: ApiClient) {
 }
 
 export type DirectoryApi = ReturnType<typeof createDirectoryApi>;
+
+function writeHeaders(auth: WriteAuth, ifMatch?: string) {
+  return {
+    csrfToken: auth.csrfToken,
+    idempotencyKey: auth.idempotencyKey,
+    ...(ifMatch === undefined ? {} : { ifMatch }),
+  };
+}
+
+/** SourceReference registry: immutable capture metadata, revised through new revisions. */
+export function createSourcesApi(api: ApiClient) {
+  return {
+    list: async (query: ListQuery = {}) =>
+      (
+        await api.request<Page<SourceReferenceSummary>>(
+          'GET',
+          `/api/v1/sources${queryString(query)}`,
+        )
+      ).data,
+    get: async (id: string) =>
+      (await api.request<SourceReference>('GET', `/api/v1/sources/${id}`)).data,
+    create: async (body: CreateSource, auth: WriteAuth) =>
+      (
+        await api.request<SourceReference>('POST', '/api/v1/sources', {
+          body,
+          ...writeHeaders(auth),
+        })
+      ).data,
+    revise: async (id: string, body: ReviseSource, auth: WriteAuth) =>
+      (
+        await api.request<SourceReference>('POST', `/api/v1/sources/${id}/revisions`, {
+          body,
+          ...writeHeaders(auth),
+        })
+      ).data,
+  };
+}
+
+/** Routes: the operational path Agency + OwnerSubject + Platform (no authority). */
+export function createRoutesApi(api: ApiClient) {
+  const base = '/api/v1/routes';
+  return {
+    list: async (query: ListQuery = {}) =>
+      (await api.request<Page<Route>>('GET', `${base}${queryString(query)}`)).data,
+    get: (id: string) => versioned(api.request<Route>('GET', `${base}/${id}`)),
+    create: (body: CreateRoute, auth: WriteAuth) =>
+      versioned(api.request<Route>('POST', base, { body, ...writeHeaders(auth) })),
+    patch: (id: string, body: PatchRoute, ifMatch: string, auth: WriteAuth) =>
+      versioned(
+        api.request<Route>('PATCH', `${base}/${id}`, { body, ...writeHeaders(auth, ifMatch) }),
+      ),
+    archive: (id: string, body: ArchiveRequest, ifMatch: string, auth: WriteAuth) =>
+      versioned(
+        api.request<Route>('POST', `${base}/${id}/archive`, {
+          body,
+          ...writeHeaders(auth, ifMatch),
+        }),
+      ),
+    restore: (id: string, body: ArchiveRequest, ifMatch: string, auth: WriteAuth) =>
+      versioned(
+        api.request<Route>('POST', `${base}/${id}/restore`, {
+          body,
+          ...writeHeaders(auth, ifMatch),
+        }),
+      ),
+    setLinkState: (id: string, body: LinkStateRequest, ifMatch: string, auth: WriteAuth) =>
+      versioned(
+        api.request<Route>('POST', `${base}/${id}/link-state`, {
+          body,
+          ...writeHeaders(auth, ifMatch),
+        }),
+      ),
+    bindCanonical: (id: string, body: CanonicalBindingRequest, ifMatch: string, auth: WriteAuth) =>
+      versioned(
+        api.request<Route>('POST', `${base}/${id}/canonical-bindings`, {
+          body,
+          ...writeHeaders(auth, ifMatch),
+        }),
+      ),
+    remove: async (id: string, ifMatch: string, auth: WriteAuth) => {
+      await api.request<void>('DELETE', `${base}/${id}`, writeHeaders(auth, ifMatch));
+    },
+  };
+}

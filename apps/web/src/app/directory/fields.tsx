@@ -13,12 +13,21 @@ interface CommonProps {
   readonly required?: boolean;
   /** Why the field is read-only, shown next to it. */
   readonly locked?: string | null;
+  /**
+   * The field is read-only for the reason given in one notice shared by a whole section (the id of
+   * that notice): the reason is announced with the field but shown only once.
+   */
+  readonly lockedBy?: string | null;
 }
 
-function describedBy(id: string, parts: { hint: boolean; locked: boolean; error: boolean }) {
+function describedBy(
+  id: string,
+  parts: { hint: boolean; locked: boolean; lockedBy: string | null; error: boolean },
+) {
   const ids = [
     parts.hint ? `${id}-hint` : null,
     parts.locked ? `${id}-locked` : null,
+    parts.lockedBy,
     parts.error ? `${id}-error` : null,
   ].filter((value): value is string => value !== null);
   return ids.length === 0 ? undefined : ids.join(' ');
@@ -31,10 +40,13 @@ function FieldFrame({
   hint,
   required,
   locked,
+  lockedBy,
   children,
 }: CommonProps & { children: ReactNode }) {
   return (
-    <div className={`field${error ? ' field-invalid' : ''}${locked ? ' field-locked' : ''}`}>
+    <div
+      className={`field${error ? ' field-invalid' : ''}${locked || lockedBy ? ' field-locked' : ''}`}
+    >
       <label htmlFor={id}>
         {label}
         {required && <span className="required"> (required)</span>}
@@ -78,16 +90,18 @@ export function TextField(
     error,
     hint,
     locked,
+    lockedBy,
   } = props;
   const shared = {
     id,
     name: id,
     value,
-    readOnly: Boolean(locked),
+    readOnly: Boolean(locked || lockedBy),
     'aria-invalid': error ? true : undefined,
     'aria-describedby': describedBy(id, {
       hint: Boolean(hint),
       locked: Boolean(locked),
+      lockedBy: lockedBy ?? null,
       error: Boolean(error),
     }),
   } as const;
@@ -116,18 +130,19 @@ export function SelectField(
     readonly placeholder?: string;
   },
 ) {
-  const { id, value, onChange, options, placeholder, error, hint, locked } = props;
+  const { id, value, onChange, options, placeholder, error, hint, locked, lockedBy } = props;
   return (
     <FieldFrame {...props}>
       <select
         id={id}
         name={id}
         value={value}
-        disabled={Boolean(locked)}
+        disabled={Boolean(locked || lockedBy)}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy(id, {
           hint: Boolean(hint),
           locked: Boolean(locked),
+          lockedBy: lockedBy ?? null,
           error: Boolean(error),
         })}
         onChange={(event) => onChange(event.target.value)}
@@ -361,7 +376,7 @@ export interface AttributionRow {
   readonly scopeText: string;
   readonly asOf: string;
   readonly limitations: string;
-  /** Existing source references are kept; new ones cannot be attached before the Source phase. */
+  /** Existing source references are kept; this page does not attach new ones. */
   readonly sourceIds: readonly string[];
 }
 
@@ -409,8 +424,8 @@ export function AttributionsField({
       <legend>Field attributions</legend>
       <p className="hint">
         Where a value comes from. Provenance is stored exactly as chosen and is never upgraded.
-        “Document reviewed” needs a source reference; source references can only be attached once
-        the Source phase exists, so it cannot be chosen yet.
+        “Document reviewed” needs a source reference, and this page does not attach sources to
+        attributions, so it cannot be chosen here.
       </p>
       {rows.length === 0 && <p className="absent">No attributions recorded.</p>}
       {rows.map((row, index) => (

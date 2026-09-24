@@ -1,5 +1,6 @@
 // yarn ui:sandbox --password-file <path> — a disposable local UI sandbox for manual or browser-
-// automation checks of the Directory pages (P2) WITHOUT touching tb_notice_dev.
+// automation checks of the Directory, Sources and Routes pages (P2, P3A) WITHOUT touching
+// tb_notice_dev.
 //
 //  1. Guards: the target is the allowlisted disposable tb_notice_test schema (tooling account,
 //     loopback port 3307, never tb_notice_dev); every table the sandbox can write must be empty
@@ -25,17 +26,34 @@ import { driverConfig, loadRootEnv, resolveTarget } from '../db/lib/targets.mjs'
 const API_PORT = 3000;
 const WEB_PORT = 5173;
 const SANDBOX_EMAIL = 'p2-ui-sandbox@example.invalid';
-/** Every table the running app can write, in foreign-key deletion order. */
+/**
+ * Every table the running app can write (P2 directory, P3A sources and routes), in foreign-key
+ * deletion order. Source references and the records that point at them reference each other
+ * (canonical bindings, revision chains), so those pointers are cleared first (see cleanup).
+ */
 const TABLES = [
   'idempotency_records',
   'audit_events',
+  'routes',
   'owner_subjects',
   'signers',
   'legal_subjects',
   'owners',
+  'source_references',
   'agencies',
   'auth_sessions',
   'users',
+] as const;
+
+/** Source pointers cleared before deleting rows (canonical bindings, citations, revision chains). */
+const SOURCE_POINTERS = [
+  'UPDATE `agencies` SET `canonical_source_id` = NULL',
+  'UPDATE `owners` SET `canonical_source_id` = NULL',
+  'UPDATE `legal_subjects` SET `canonical_source_id` = NULL',
+  'UPDATE `signers` SET `canonical_source_id` = NULL, `identity_source_id` = NULL, `delegation_source_id` = NULL',
+  'UPDATE `routes` SET `canonical_source_id` = NULL',
+  'UPDATE `owner_subjects` SET `source_id` = NULL',
+  'UPDATE `source_references` SET `supersedes_source_id` = NULL',
 ] as const;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -83,7 +101,7 @@ async function assertEmpty(prisma: SandboxPrisma, when: string): Promise<void> {
   if (session?.db !== 'tb_notice_test')
     throw new Error(`connected to ${session?.db}, not tb_notice_test`);
   const nonEmpty: string[] = [];
-  for (const table of [...TABLES, 'source_references', 'routes']) {
+  for (const table of TABLES) {
     const count = await countRows(prisma, table);
     if (count !== 0) nonEmpty.push(`${table}=${count}`);
   }
@@ -93,6 +111,7 @@ async function assertEmpty(prisma: SandboxPrisma, when: string): Promise<void> {
 }
 
 async function cleanup(prisma: SandboxPrisma): Promise<void> {
+  for (const statement of SOURCE_POINTERS) await prisma.$executeRawUnsafe(statement);
   for (const table of TABLES) await prisma.$executeRawUnsafe(`DELETE FROM \`${table}\``);
 }
 

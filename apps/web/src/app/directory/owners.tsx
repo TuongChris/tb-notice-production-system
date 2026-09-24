@@ -6,6 +6,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 import type { CreateOwner, LegalSubject, Owner, OwnerSubject, PatchOwner } from '@tb/contracts';
 import { ApiError } from '../api/client.js';
 import { etagOf, type Versioned } from '../api/directory.js';
+import { CanonicalBindingSection } from './canonical-binding.js';
 import { Absent, RecordFacts, Time } from './agencies.js';
 import {
   channelRows,
@@ -276,6 +277,15 @@ function OwnerDetail({ id }: { id: string }) {
           ]}
         />
       </Section>
+      <CanonicalBindingSection
+        noun="owner namespace"
+        record={record}
+        archived={owner.recordState === 'ARCHIVED'}
+        target={{ kind: 'Owner' }}
+        bind={(body, ifMatch, auth) => api.owners.bindCanonical(owner.id, body, ifMatch, auth)}
+        onBound={page.update}
+        onConflict={page.raiseConflict}
+      />
       <Section title="Notes">
         {owner.notes ? <p className="prose">{owner.notes}</p> : <Absent />}
       </Section>
@@ -655,7 +665,7 @@ function LinkSubjectForm({
           onChange={(event) => setLabel(event.target.value)}
         />
       </div>
-      <p className="hint">Source references can’t be attached until the Source phase.</p>
+      <p className="hint">This page records the relationship only; it does not attach a source.</p>
       {submission.error !== null && (
         <div role="alert" className="notice notice-error">
           <p>{describeError(submission.error, 'link')}</p>

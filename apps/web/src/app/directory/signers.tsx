@@ -5,6 +5,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import type { Agency, CreateSigner, PatchSigner, Signer } from '@tb/contracts';
 import type { Versioned } from '../api/directory.js';
+import { CanonicalBindingSection, isBound } from './canonical-binding.js';
 import { Absent, RecordFacts, Time } from './agencies.js';
 import {
   createTexts,
@@ -59,8 +60,7 @@ const labelOf = (path: string): string => {
 const BOUNDARY =
   'A person acting for one agency. Not a login; signs nothing; eligibility comes only from mandate coverage, which is not part of this phase.';
 
-const SOURCES_UNAVAILABLE =
-  'Identity and delegation source references can’t be attached until the Source phase.';
+const SOURCES_UNAVAILABLE = 'This page does not attach identity or delegation sources.';
 
 /** All agencies for pickers and name lookups (the directory is small; at most 100 are shown). */
 function useAgencies() {
@@ -254,6 +254,15 @@ function SignerDetail({ id }: { id: string }) {
           <p className="hint">{SOURCES_UNAVAILABLE}</p>
         </Section>
       </div>
+      <CanonicalBindingSection
+        noun="signer"
+        record={record}
+        archived={signer.archivedAt !== null}
+        target={{ kind: 'Agency', agencyId: signer.agencyId }}
+        bind={(body, ifMatch, auth) => api.signers.bindCanonical(signer.id, body, ifMatch, auth)}
+        onBound={page.update}
+        onConflict={page.raiseConflict}
+      />
       <Section title="Notes">
         {signer.notes ? <p className="prose">{signer.notes}</p> : <Absent />}
       </Section>
@@ -298,6 +307,7 @@ function SignerForm({
   const errorFor = (path: string) =>
     clientErrors[path] ?? issues.find((issue) => issue.path === path)?.message;
   const agencyItems: Agency[] = agencies.status === 'ready' ? agencies.value.items : [];
+  const bound = initial !== null && isBound(initial);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -326,7 +336,7 @@ function SignerForm({
       }
       return;
     }
-    const body = patchTexts(TEXTS, values, initial);
+    const body = patchTexts(TEXTS, values, initial, (name) => name === 'fullLegalName' && bound);
     if (Object.keys(body).length === 0) {
       setNothingToSave(true);
       return;
@@ -350,6 +360,11 @@ function SignerForm({
       multiline={spec.multiline ?? false}
       hint={spec.hint}
       required={spec.name === 'fullLegalName'}
+      locked={
+        spec.name === 'fullLegalName' && bound
+          ? 'Locked: this signer has a canonical binding, so the bound name can’t be changed here.'
+          : null
+      }
       value={values[spec.name]}
       error={errorFor(spec.name)}
       onChange={(value) => {

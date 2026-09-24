@@ -5,6 +5,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import type { CreateLegalSubject, LegalSubject, PatchLegalSubject } from '@tb/contracts';
 import type { Versioned } from '../api/directory.js';
+import { CanonicalBindingSection } from './canonical-binding.js';
 import { Absent, AttributionsTable, formatAddress, RecordFacts, Time } from './agencies.js';
 import {
   addressText,
@@ -74,6 +75,8 @@ const TEXTS: readonly TextSpec<TextKey>[] = [
   { name: 'notes', label: 'Notes', multiline: true },
 ];
 const IDENTITY_KEYS = new Set<string>(['legalName', ...IDENTITY.map((spec) => spec.name)]);
+/** The one notice every locked identity field of the form points to. */
+const IDENTITY_LOCK_ID = 'subject-identity-locked';
 
 const ATTRIBUTABLE = [
   { name: 'subjectType', label: 'Subject type' },
@@ -232,6 +235,17 @@ function LegalSubjectDetail({ id }: { id: string }) {
           />
         </Section>
       </div>
+      <CanonicalBindingSection
+        noun="legal subject"
+        record={record}
+        archived={subject.recordState === 'ARCHIVED'}
+        target={{ kind: 'LegalSubject', legalSubjectId: subject.id }}
+        bind={(body, ifMatch, auth) =>
+          api.legalSubjects.bindCanonical(subject.id, body, ifMatch, auth)
+        }
+        onBound={page.update}
+        onConflict={page.raiseConflict}
+      />
       <AttributionsTable attributions={subject.fieldAttributions} labels={ATTRIBUTABLE} />
       <Section title="Owners">
         <p className="hint">
@@ -294,10 +308,8 @@ function LegalSubjectForm({
       (initial.recordState === 'ACTIVE' ||
         initial.canonicalCode !== null ||
         initial.bindingState !== 'LOCAL_ONLY'));
-  const lockNote = (name: TextKey): string | null =>
-    initial !== null && established && IDENTITY_KEYS.has(name)
-      ? 'Locked: this subject is established (active, canonically bound or referenced by another record). Its identity can’t be filled in, changed or cleared here.'
-      : null;
+  const isLocked = (name: TextKey): boolean =>
+    initial !== null && established && IDENTITY_KEYS.has(name);
   const changed = () => setNothingToSave(false);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -333,7 +345,7 @@ function LegalSubjectForm({
       return;
     }
     const body: Record<string, unknown> = {
-      ...patchTexts(TEXTS, values, initial, (name) => lockNote(name) !== null),
+      ...patchTexts(TEXTS, values, initial, isLocked),
     };
     if (!sameJson(aliasList, initial.aliases ?? []))
       body['aliases'] = aliasList.length === 0 ? null : aliasList;
@@ -379,7 +391,7 @@ function LegalSubjectForm({
       required={spec.name === 'legalName'}
       value={values[spec.name]}
       error={errorFor(spec.name)}
-      locked={lockNote(spec.name)}
+      lockedBy={isLocked(spec.name) ? IDENTITY_LOCK_ID : null}
       onChange={(value) => {
         setValues((current) => ({ ...current, [spec.name]: value }));
         changed();
@@ -425,6 +437,12 @@ function LegalSubjectForm({
       <form noValidate onSubmit={(event) => void onSubmit(event)} className="record-form">
         <fieldset className="fieldset">
           <legend>Legal identity</legend>
+          {initial !== null && established && (
+            <p id={IDENTITY_LOCK_ID} className="lock-notice">
+              Locked: this subject is established (active, canonically bound or referenced by
+              another record). Its identity can’t be filled in, changed or cleared here.
+            </p>
+          )}
           {initial === null ? (
             <SelectField
               id="subject-subjectType"

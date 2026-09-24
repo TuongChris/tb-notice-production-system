@@ -1,6 +1,6 @@
 // Lifecycle actions of a directory record: explicit state change, archive/restore and deletion of
 // an unused draft, each confirmed in a dialog, sent with the record's ETag and one Idempotency-Key
-// per intent. The copy says what each action does NOT do (grant authority, revive authority).
+// per intent. Canonical binding has its own section (canonical-binding.tsx). The copy says what each action does NOT do (grant authority, revive authority).
 // A 412 closes the dialog and hands over to the page's version-conflict notice.
 import { useState, type ReactNode } from 'react';
 import { ApiError } from '../api/client.js';
@@ -10,12 +10,9 @@ import { SelectField } from './fields.js';
 import { useIntentKey, useWrite } from './hooks.js';
 import { ConfirmDialog, ReasonDialog, UnavailableAction } from './ui.js';
 
-type Operation = 'state' | 'archive' | 'restore' | 'delete';
+export type Operation = 'state' | 'archive' | 'restore' | 'delete' | 'link-state';
 
-export const CANONICAL_BINDING_UNAVAILABLE =
-  'A canonical code must cite a source reference. Source references can’t be recorded until the Source phase, so binding is not available yet.';
-
-interface ActionApi<T> {
+export interface ActionApi<T> {
   archive(
     id: string,
     body: { reason: string },
@@ -31,7 +28,14 @@ interface ActionApi<T> {
   remove(id: string, ifMatch: string, auth: WriteAuth): Promise<void>;
 }
 
-function useRecordOperation(record: Versioned<{ readonly id: string }>, onConflict: () => void) {
+/**
+ * One confirmed operation on a record: its dialog, pending and error state, and one Idempotency-Key
+ * per intent. A 412 closes the dialog and raises the page's version-conflict notice.
+ */
+export function useRecordOperation(
+  record: Versioned<{ readonly id: string }>,
+  onConflict: () => void,
+) {
   const write = useWrite();
   const intent = useIntentKey();
   const [open, setOpen] = useState<Operation | null>(null);
@@ -150,7 +154,6 @@ export function RecordStateActions<
         ) : (
           <UnavailableAction label="Delete draft" reason={deleteBlocker} />
         ))}
-      <UnavailableAction label="Bind canonical code" reason={CANONICAL_BINDING_UNAVAILABLE} />
 
       <ReasonDialog
         open={operation.open === 'state'}
@@ -330,7 +333,6 @@ export function SignerActions<
           Delete draft
         </button>
       )}
-      <UnavailableAction label="Bind canonical code" reason={CANONICAL_BINDING_UNAVAILABLE} />
 
       <ReasonDialog
         open={operation.open === 'state'}
