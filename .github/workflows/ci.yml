@@ -19,6 +19,12 @@
 # stale freeze, unsupported review, cross-agency preference), leaving synthetic records in the
 # disposable CI tb_notice_dev only (it refuses to run outside CI). Nothing in it is authority,
 # readiness, a signature or an external action.
+# P4A: smoke:local also checks the compiled case routes and that later case phases stay unrouted;
+# smoke:p4a runs a compiled Case → route binding → case source link and link states → canonical
+# case id → authority selection (pinned for evaluation; not G1) → workflow → archive/restore →
+# unused-case deletion flow with expected refusals (cross-agency route, another case's source, the
+# application User as signer, stale ETag, archived case), leaving synthetic records in the
+# disposable CI tb_notice_dev only (it refuses to run outside CI). No external action.
 name: CI
 
 on:
@@ -161,6 +167,8 @@ jobs:
         run: yarn smoke:p3a --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"
       - name: P3B compiled mandate → version → coverage → signer → freeze → preference → event (yarn smoke:p3b, synthetic)
         run: yarn smoke:p3b --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"
+      - name: P4A compiled case → route binding → case source → canonical id → authority selection (yarn smoke:p4a, synthetic)
+        run: yarn smoke:p4a --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"
       - name: P1.1 recovery commands (synthetic account; P0 actor untouched)
         run: |
           E=p1-ci-admin@example.invalid
