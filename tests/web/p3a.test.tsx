@@ -517,6 +517,24 @@ describe('P3A routes UI', () => {
     );
   });
 
+  it('an agency filter without matches says so and offers the full list, for routes and sources', async () => {
+    const api = new FakeDirectory();
+    const { agency, other, link } = graph(api);
+    api.seed('Route', { agencyId: agency.id, ownerSubjectId: link.id });
+    await render(api, `/representation/routes?agencyId=${other.id}`);
+    await until('No routes for this agency.');
+    expect(pageText()).not.toContain('No routes yet.');
+    await click(byText('button', 'Show all agencies'));
+    await waitFor(() => all('table.records tbody tr').length === 1, 'all routes');
+    await unmount();
+    api.seedSource({ title: 'SYNTHETIC own source', agencyId: agency.id });
+    await render(api, `/sources?agencyId=${other.id}`);
+    await until('No sources belong to this agency or are shared with it.');
+    expect(pageText()).not.toContain('No sources recorded yet.');
+    await click(byText('button', 'Show all sources'));
+    await waitFor(() => all('table.records tbody tr').length === 1, 'all sources');
+  });
+
   it('the Representation section offers routes and shows mandates as not available', async () => {
     const api = new FakeDirectory();
     await render(api, '/representation');

@@ -57,6 +57,12 @@ export function SourceListPage() {
   const agencyId = params.get('agencyId') ?? '';
   const [agencies] = useLoad('sources:agency-filter', () => api.agencies.list({ limit: 100 }));
   const agencyItems = agencies.status === 'ready' ? agencies.value.items : [];
+  function setAgency(value: string) {
+    const next = new URLSearchParams(params);
+    if (value === '') next.delete('agencyId');
+    else next.set('agencyId', value);
+    setParams(next);
+  }
   return (
     <DirectoryList<SourceReferenceSummary>
       title="Sources"
@@ -69,15 +75,7 @@ export function SourceListPage() {
       filters={
         <label className="list-filter">
           Agency
-          <select
-            value={agencyId}
-            onChange={(event) => {
-              const next = new URLSearchParams(params);
-              if (event.target.value === '') next.delete('agencyId');
-              else next.set('agencyId', event.target.value);
-              setParams(next);
-            }}
-          >
+          <select value={agencyId} onChange={(event) => setAgency(event.target.value)}>
             <option value="">All sources</option>
             {agencyItems.map((agency) => (
               <option key={agency.id} value={agency.id}>
@@ -89,9 +87,18 @@ export function SourceListPage() {
       }
       load={(query) => api.sources.list({ ...query, ...(agencyId ? { agencyId } : {}) })}
       emptyText={
-        <p>
-          No sources recorded yet. <Link to="/sources/new">Record the first source</Link>.
-        </p>
+        agencyId ? (
+          <p>
+            No sources belong to this agency or are shared with it.{' '}
+            <button type="button" className="button-link" onClick={() => setAgency('')}>
+              Show all sources
+            </button>
+          </p>
+        ) : (
+          <p>
+            No sources recorded yet. <Link to="/sources/new">Record the first source</Link>.
+          </p>
+        )
       }
       columns={[
         {

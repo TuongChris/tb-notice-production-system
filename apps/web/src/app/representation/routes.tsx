@@ -53,6 +53,12 @@ export function RouteListPage() {
   const agencyId = params.get('agencyId') ?? '';
   const [agencies] = useLoad('routes:agency-filter', () => api.agencies.list({ limit: 100 }));
   const agencyItems = agencies.status === 'ready' ? agencies.value.items : [];
+  function setAgency(value: string) {
+    const next = new URLSearchParams(params);
+    if (value === '') next.delete('agencyId');
+    else next.set('agencyId', value);
+    setParams(next);
+  }
   return (
     <DirectoryList<Route>
       title="Routes"
@@ -65,15 +71,7 @@ export function RouteListPage() {
       filters={
         <label className="list-filter">
           Agency
-          <select
-            value={agencyId}
-            onChange={(event) => {
-              const next = new URLSearchParams(params);
-              if (event.target.value === '') next.delete('agencyId');
-              else next.set('agencyId', event.target.value);
-              setParams(next);
-            }}
-          >
+          <select value={agencyId} onChange={(event) => setAgency(event.target.value)}>
             <option value="">All agencies</option>
             {agencyItems.map((agency) => (
               <option key={agency.id} value={agency.id}>
@@ -85,9 +83,18 @@ export function RouteListPage() {
       }
       load={(query) => api.routes.list({ ...query, ...(agencyId ? { agencyId } : {}) })}
       emptyText={
-        <p>
-          No routes yet. <Link to="/representation/routes/new">Create the first route</Link>.
-        </p>
+        agencyId ? (
+          <p>
+            No routes for this agency.{' '}
+            <button type="button" className="button-link" onClick={() => setAgency('')}>
+              Show all agencies
+            </button>
+          </p>
+        ) : (
+          <p>
+            No routes yet. <Link to="/representation/routes/new">Create the first route</Link>.
+          </p>
+        )
       }
       columns={[
         {
