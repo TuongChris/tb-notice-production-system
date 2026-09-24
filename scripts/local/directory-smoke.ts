@@ -11,7 +11,8 @@
 //   login → create (201, ETag v1) → exact replay with the same Idempotency-Key (same result, no
 //   second record) → GET (same ETag) → PATCH without If-Match (428) → PATCH with a stale ETag (412)
 //   → PATCH with the current ETag (200, v2) → search → archive (v3) → restore (v4, DRAFT) → delete
-//   (204) → GET (404) → deferred canonical binding (404, not routed) → logout.
+//   (204) → GET (404) → canonical binding of the deleted agency (404: routed since P3A, the
+//   record is gone) → logout. The P3A binding flow itself is smoke:p3a.
 import { spawn, type ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
@@ -249,7 +250,7 @@ async function main(): Promise<void> {
   );
   await call('GET /agencies/{id} after delete', 'GET', `/agencies/${agency.id}`, 404, null);
   await call(
-    'POST /agencies/{id}/canonical-bindings (deferred)',
+    'POST /agencies/{id}/canonical-bindings on the deleted agency',
     'POST',
     `/agencies/${agency.id}/canonical-bindings`,
     404,

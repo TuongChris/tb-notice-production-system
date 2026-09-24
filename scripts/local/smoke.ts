@@ -12,10 +12,10 @@
 //     for a synthetic unknown account → generic 403 (runs Argon2id in the compiled process), logout
 //     without a session → 401, proxied session check → 401 without CORS headers. Every response is
 //     a valid contract OperationError with Cache-Control: no-store.
-//  6. P2 directory boundary of the compiled API, read-only: every directory collection is routed and
-//     session-protected (no cookie → 401), an unsafe directory write without Origin → 403 before any
-//     handler, and the deferred canonical-binding operations are not routed (404). The web bundle
-//     contains the Directory pages.
+//  6. Business boundary of the compiled API, read-only: every directory (P2), source and route
+//     (P3A) collection is routed and session-protected (no cookie → 401, also through the web
+//     proxy), unsafe writes without Origin → 403 before any handler, canonical bindings are
+//     session-protected, and mandate operations (P3B) are not routed (404).
 //  7. Terminate both processes (SIGTERM, bounded wait, SIGKILL fallback) and verify ports 3000 and
 //     5173 are released. Any failure exits non-zero.
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
@@ -291,10 +291,10 @@ async function main(): Promise<void> {
   await checkHealth(`http://localhost:${WEB_PORT}/api/v1/health`, 'web proxy /api/v1/health');
   await checkWeb();
   await checkAuthBoundary();
-  await checkDirectoryBoundary();
+  await checkBusinessBoundary();
 }
 
-async function checkDirectoryBoundary(): Promise<void> {
+async function checkBusinessBoundary(): Promise<void> {
   const { OperationErrorSchema } = await import('../../packages/contracts/dist/index.js');
   const origin = (process.env['TB_ALLOWED_WEB_ORIGINS'] ?? '').split(',')[0]?.trim() ?? '';
   const api = `http://localhost:${API_PORT}/api/v1`;
@@ -327,15 +327,46 @@ async function checkDirectoryBoundary(): Promise<void> {
       'ORIGIN_REJECTED',
     ],
     [
-      'POST /agencies/{id}/canonical-bindings (deferred, not routed)',
+      'POST /agencies/{id}/canonical-bindings without a session',
       `${api}/agencies/${id}/canonical-bindings`,
       { method: 'POST', headers: { ...json, Origin: origin }, body: '{}' },
-      404,
-      'NOT_FOUND',
+      401,
+      'SESSION_REQUIRED',
+    ],
+    // P3A: sources and routes are session-protected like the directory.
+    ['GET /sources without a session', `${api}/sources`, {}, 401, 'SESSION_REQUIRED'],
+    [
+      'POST /sources/{id}/revisions without a session',
+      `${api}/sources/${id}/revisions`,
+      { method: 'POST', headers: { ...json, Origin: origin }, body: '{}' },
+      401,
+      'SESSION_REQUIRED',
     ],
     [
-      'POST /signers/{id}/canonical-bindings (deferred, not routed)',
-      `${api}/signers/${id}/canonical-bindings`,
+      'GET /routes through the web proxy without a session',
+      `http://localhost:${WEB_PORT}/api/v1/routes`,
+      {},
+      401,
+      'SESSION_REQUIRED',
+    ],
+    [
+      'POST /routes without Origin',
+      `${api}/routes`,
+      { method: 'POST', headers: json, body: '{}' },
+      403,
+      'ORIGIN_REJECTED',
+    ],
+    [
+      'POST /routes/{id}/canonical-bindings without a session',
+      `${api}/routes/${id}/canonical-bindings`,
+      { method: 'POST', headers: { ...json, Origin: origin }, body: '{}' },
+      401,
+      'SESSION_REQUIRED',
+    ],
+    // P3B (mandates) is not part of this phase: not routed at all.
+    [
+      'POST /mandates (P3B, not routed)',
+      `${api}/mandates`,
       { method: 'POST', headers: { ...json, Origin: origin }, body: '{}' },
       404,
       'NOT_FOUND',
@@ -353,7 +384,7 @@ async function checkDirectoryBoundary(): Promise<void> {
       fail(`${label}: expected ${status} ${code}, got ${response.status} ${JSON.stringify(body)}`);
     }
     if (response.headers.get('cache-control') !== 'no-store') fail(`${label}: missing no-store`);
-    pass(`directory boundary: ${label} → ${status} ${code}, no-store`);
+    pass(`business boundary: ${label} → ${status} ${code}, no-store`);
   }
 }
 

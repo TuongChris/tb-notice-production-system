@@ -50,6 +50,7 @@
     "smoke:local": "node scripts/local/smoke.ts",
     "smoke:auth": "node scripts/local/auth-smoke.ts",
     "smoke:directory": "node scripts/local/directory-smoke.ts",
+    "smoke:p3a": "node scripts/local/p3a-smoke.ts",
     "ui:sandbox": "node scripts/local/ui-sandbox.ts"
   },
   "devDependencies": {

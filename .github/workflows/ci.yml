@@ -9,6 +9,10 @@
 # P2: yarn test / test:db cover the directory; smoke:local checks the compiled directory routes
 # and smoke:directory runs a compiled round trip that creates and deletes one synthetic Agency in
 # the disposable CI tb_notice_dev (it refuses to run outside CI).
+# P3A: smoke:local also checks the compiled source and route routes; smoke:p3a runs a compiled
+# source → canonical binding → OwnerSubject → Route → route binding flow with one expected
+# cross-agency refusal, leaving synthetic records in the disposable CI tb_notice_dev only
+# (it refuses to run outside CI). No Drive, mail or other external action.
 name: CI
 
 on:
@@ -147,6 +151,8 @@ jobs:
         run: yarn smoke:auth --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"
       - name: P2 compiled directory round trip (yarn smoke:directory, synthetic Agency created and deleted)
         run: yarn smoke:directory --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"
+      - name: P3A compiled source → canonical binding → route round trip (yarn smoke:p3a, synthetic)
+        run: yarn smoke:p3a --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"
       - name: P1.1 recovery commands (synthetic account; P0 actor untouched)
         run: |
           E=p1-ci-admin@example.invalid
