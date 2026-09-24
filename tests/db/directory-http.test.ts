@@ -1458,6 +1458,95 @@ describe('OWNER SUBJECT', () => {
     });
   });
 
+  it.each(['Owner', 'LegalSubject'] as const)(
+    'R5 closeout rule, archived %s: no new link, no relink from PAUSED or UNLINKED; PAUSE and UNLINK stay allowed; rows are kept',
+    async (archived) => {
+      // Two associations share the party that gets archived: one is paused, the other unlinked.
+      const owners = [await createOwner(), await createOwner()];
+      const subjects = [await createSubject(), await createSubject()];
+      const pairs: Array<[Created<Owner>, string]> =
+        archived === 'Owner'
+          ? [
+              [owners[0]!, subjects[0]!.data.id],
+              [owners[0]!, subjects[1]!.data.id],
+            ]
+          : [
+              [owners[0]!, subjects[0]!.data.id],
+              [owners[1]!, subjects[0]!.data.id],
+            ];
+      const associations: Array<Created<OwnerSubject>> = [];
+      for (const [owner, subjectId] of pairs) {
+        associations.push(await link(await getOwner(owner.data.id), subjectId));
+      }
+      const [paused, unlinked] = associations as [Created<OwnerSubject>, Created<OwnerSubject>];
+      const partyId = archived === 'Owner' ? owners[0]!.data.id : subjects[0]!.data.id;
+      const party = archived === 'Owner' ? await getOwner(partyId) : await getSubject(partyId);
+      const archivedParty = await ok<Owner | LegalSubject>(
+        await client.write(
+          archived === 'Owner' ? 'archiveOwner' : 'archiveLegalSubject',
+          'POST',
+          `/${archived === 'Owner' ? 'owners' : 'legal-subjects'}/${partyId}/archive`,
+          { reason: 'synthetic' },
+          { ifMatch: party.etag },
+        ),
+      );
+      const conflict = {
+        code: 'RECORD_STATE_CONFLICT',
+        details: { record: archived, state: 'ARCHIVED' },
+      };
+
+      // A new link to or from the archived party is refused.
+      const newLink =
+        archived === 'Owner'
+          ? await client.write(
+              'linkOwnerSubject',
+              'POST',
+              `/owners/${partyId}/subjects`,
+              { legalSubjectId: (await createSubject()).data.id },
+              { ifMatch: archivedParty.etag },
+            )
+          : await (async () => {
+              const other = await createOwner();
+              return client.write(
+                'linkOwnerSubject',
+                'POST',
+                `/owners/${other.data.id}/subjects`,
+                { legalSubjectId: partyId },
+                { ifMatch: other.etag },
+              );
+            })();
+      expect(errorOf(newLink)).toMatchObject(conflict);
+
+      // PAUSE and UNLINK reduce or close the relationship: allowed.
+      const setLinkState = (association: Created<OwnerSubject>, state: string) =>
+        client.write(
+          'setOwnerSubjectLinkState',
+          'POST',
+          `/owner-subjects/${association.data.id}/link-state`,
+          { state, reason: 'synthetic' },
+          { ifMatch: association.etag },
+        );
+      const pausedNow = await ok<OwnerSubject>(await setLinkState(paused, 'PAUSED'));
+      const unlinkedNow = await ok<OwnerSubject>(await setLinkState(unlinked, 'UNLINKED'));
+      expect(unlinkedNow.data.unlinkedAt).not.toBeNull();
+
+      // Relinking either one would reactivate the archived party: refused, nothing written.
+      for (const association of [pausedNow, unlinkedNow]) {
+        expect(errorOf(await setLinkState(association, 'LINKED'))).toMatchObject(conflict);
+      }
+      const rows = await prisma.ownerSubject.findMany({
+        where: { id: { in: [paused.data.id, unlinked.data.id] } },
+      });
+      const kept = new Map(rows.map((row) => [row.id, [row.linkState, row.rowVersion]]));
+      expect(kept.get(paused.data.id)).toEqual(['PAUSED', pausedNow.data.rowVersion]);
+      expect(kept.get(unlinked.data.id)).toEqual(['UNLINKED', unlinkedNow.data.rowVersion]);
+      // The archived party itself is untouched by the link-state changes.
+      const partyNow = archived === 'Owner' ? await getOwner(partyId) : await getSubject(partyId);
+      expect(partyNow.etag).toBe(archivedParty.etag);
+      expect(partyNow.data.recordState).toBe('ARCHIVED');
+    },
+  );
+
   it('listOwnerSubjects is scoped to one Owner, searches label or subject name, and 404s an unknown Owner', async () => {
     const owner = await createOwner();
     const otherOwner = await createOwner();

@@ -8,7 +8,7 @@
 // it is not evidence, and nothing in this suite is real case, owner or authority data.
 import { randomUUID } from 'node:crypto';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import type { PrismaClient } from '../../apps/api/generated/prisma/client.js';
+import { Prisma, type PrismaClient } from '../../apps/api/generated/prisma/client.js';
 import type {
   Agency,
   LegalSubject,
@@ -292,6 +292,9 @@ describe('SOURCES — capture metadata, not evidence', () => {
       [{ fetchNow: true }, 422, 'VALIDATION_FAILED'],
       [{ canonicalUrl: 'ftp://example.invalid/x' }, 422, 'VALIDATION_FAILED'],
       [{ reportedProvenance: 'OPERATOR_CONFIRMED' }, 422, 'VALIDATION_FAILED'],
+      [{ scopeText: '' }, 422, 'VALIDATION_FAILED'],
+      [{ title: 'x'.repeat(501) }, 422, 'VALIDATION_FAILED'],
+      [{ contentSha256: 'A'.repeat(64), hashTarget: 'RAW_FILE' }, 422, 'VALIDATION_FAILED'],
       [
         { scopeBindings: { caseIds: [randomUUID()] } },
         422,
@@ -536,6 +539,80 @@ describe('SOURCE REVISIONS — append-only chains', () => {
     const staleKey = newKey();
     expect((await reviseSource(head.id, { title: 'R3' }, staleKey)).status).toBe(409);
     expect((await reviseSource(first.id, { title: 'R3' }, staleKey)).status).toBe(201);
+  });
+
+  it('in progress: a running claim is 409 IDEMPOTENCY_IN_PROGRESS for create and bind and writes nothing; an abandoned claim runs once', async () => {
+    // A first request whose claim is committed but not completed: run it, undo its effect and turn
+    // its record back into a fresh IN_PROGRESS claim.
+    const inFlight = async (key: string, undo: () => Promise<unknown>) => {
+      const record = await prisma.idempotencyRecord.findFirstOrThrow({
+        where: { idempotencyKey: key },
+      });
+      await undo();
+      await prisma.idempotencyRecord.update({
+        where: { id: record.id },
+        data: {
+          state: 'IN_PROGRESS',
+          responseStatus: null,
+          responseJson: Prisma.DbNull,
+          createdAt: new Date(t.clock.ms),
+        },
+      });
+      return record.id;
+    };
+    const body = { ...SOURCE_BASE, title: 'SYNTHETIC in-flight source' };
+    const sourceKey = newKey();
+    const first = immutable<SourceReference>(
+      await client.write('createSource', 'POST', '/sources', body, { key: sourceKey }),
+      201,
+    );
+    const claim = await inFlight(sourceKey, () =>
+      prisma.sourceReference.delete({ where: { id: first.id } }),
+    );
+    const busy = await client.write('createSource', 'POST', '/sources', body, { key: sourceKey });
+    expect([busy.status, code(busy), busy.headers['retry-after']]).toEqual([
+      409,
+      'IDEMPOTENCY_IN_PROGRESS',
+      '1',
+    ]);
+    expect(await countRows(prisma, 'source_references')).toBe(0);
+    // 61 s later the claim counts as abandoned: the same intent executes exactly once.
+    await prisma.idempotencyRecord.update({
+      where: { id: claim },
+      data: { createdAt: new Date(t.clock.ms - 61_000) },
+    });
+    const resumed = immutable<SourceReference>(
+      await client.write('createSource', 'POST', '/sources', body, { key: sourceKey }),
+      201,
+    );
+    expect(resumed.id).not.toBe(first.id);
+    expect(await countRows(prisma, 'source_references')).toBe(1);
+
+    const agency = await createAgency();
+    const source = await createSource({ agencyId: agency.data.id });
+    const bindKey = newKey();
+    const bindBody = { canonicalCode: 'SYN-IN-FLIGHT', sourceId: source.id };
+    const path = `/agencies/${agency.data.id}`;
+    versioned<Agency>(await bind('bindCanonicalAgency', path, agency.etag, bindBody, bindKey), 200);
+    await inFlight(bindKey, () =>
+      prisma.agency.update({
+        where: { id: agency.data.id },
+        data: {
+          canonicalCode: null,
+          canonicalSourceId: null,
+          bindingState: 'LOCAL_ONLY',
+          rowVersion: 1,
+        },
+      }),
+    );
+    const busyBind = await bind('bindCanonicalAgency', path, agency.etag, bindBody, bindKey);
+    expect([busyBind.status, code(busyBind)]).toEqual([409, 'IDEMPOTENCY_IN_PROGRESS']);
+    expect((await getAgency(agency.data.id)).data).toMatchObject({
+      canonicalCode: null,
+      canonicalSourceId: null,
+      bindingState: 'LOCAL_ONLY',
+      rowVersion: 1,
+    });
   });
 
   it('a failing audit insert rolls back create and revise: no row, no event, no idempotency record', async () => {
@@ -1865,6 +1942,49 @@ describe('ROUTES — a relationship record, not authority', () => {
     expect((await list('')).sort()).toEqual([routeX.data.id, routeY.data.id].sort());
     const missing = await client.get('getRoute', `/routes/${randomUUID()}`);
     expect([missing.status, code(missing)]).toEqual([404, 'NOT_FOUND']);
+  });
+
+  it('route cursor pages cover every route once; tampered or re-filtered cursors are 400', async () => {
+    const { agency, owner } = await graph('Pages');
+    const ids: string[] = [];
+    for (let index = 0; index < 5; index += 1) {
+      const subject = await createSubject({ legalName: `SYNTHETIC Page Subject ${index} LLC` });
+      const association = await link(owner.data.id, subject.data.id);
+      const route = await createRoute({
+        agencyId: agency.data.id,
+        ownerSubjectId: association.data.id,
+      });
+      ids.push(route.data.id);
+    }
+    const filter = `agencyId=${agency.data.id}`;
+    const seen: string[] = [];
+    let cursor: string | null = null;
+    let lastCursor = '';
+    do {
+      const path: string =
+        cursor === null
+          ? `/routes?limit=2&${filter}`
+          : `/routes?limit=2&${filter}&cursor=${encodeURIComponent(cursor)}`;
+      const page = versioned0(await client.get('listRoutes', path)) as {
+        items: Route[];
+        nextCursor: string | null;
+      };
+      seen.push(...page.items.map((route) => route.id));
+      cursor = page.nextCursor;
+      if (cursor !== null) lastCursor = cursor;
+    } while (cursor !== null);
+    expect(seen).toHaveLength(5);
+    expect(new Set(seen)).toEqual(new Set(ids));
+    const tampered = await client.get(
+      'listRoutes',
+      `/routes?${filter}&cursor=${encodeURIComponent(`${lastCursor.slice(0, -2)}xx`)}`,
+    );
+    expect([tampered.status, code(tampered)]).toEqual([400, 'INVALID_CURSOR']);
+    const refiltered = await client.get(
+      'listRoutes',
+      `/routes?cursor=${encodeURIComponent(lastCursor)}`,
+    );
+    expect([refiltered.status, code(refiltered)]).toEqual([400, 'INVALID_CURSOR']);
   });
 
   it('a failing audit insert rolls back route create, patch, link state and delete', async () => {
