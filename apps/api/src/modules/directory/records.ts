@@ -1,12 +1,14 @@
-// Row locks and dependency checks of directory, representation and authority records.
+// Row locks and dependency checks of directory, representation, authority and case records.
 //
-// Lock order (INVARIANTS §5 "parent identities/versions sorted by stable type+ID … then children";
-// "Mandate children always lock MandateVersion before the child"):
+// Lock order (INVARIANTS §5 "parent identities/versions sorted by stable type+ID before cases sorted
+// by ID, then children"; "Mandate children always lock MandateVersion before the child; case
+// children lock CaseRecord before the child"):
 //   1. the directory and route identities in the alphabetical order of their entity type — Agency,
 //      LegalSubject, Owner, OwnerSubject, Route, Signer;
 //   2. the authority aggregate parent before child — Mandate, MandateVersion, MandateCoverage,
 //      CoverageSigner (P3B);
-//   3. SourceReference last.
+//   3. CaseRecord, then its children — CaseSource, CaseAuthoritySelection (P4A);
+//   4. SourceReference last.
 // Rows of one type are locked in id order, and a transaction never locks a type that comes before
 // one it already holds. Immutable columns (a version's mandate, a coverage's version and route, a
 // route's agency and association) may be read before locking to find what to lock.
@@ -30,9 +32,12 @@ export type RecordEntity =
   | 'Mandate'
   | 'MandateVersion'
   | 'MandateCoverage'
-  | 'CoverageSigner';
+  | 'CoverageSigner'
+  | 'CaseRecord'
+  | 'CaseSource'
+  | 'CaseAuthoritySelection';
 
-/** Table of every lockable record type (directory, representation and authority records). */
+/** Table of every lockable record type (directory, representation, authority and case records). */
 export const DIRECTORY_TABLES: Readonly<Record<RecordEntity, string>> = {
   Agency: 'agencies',
   LegalSubject: 'legal_subjects',
@@ -44,6 +49,9 @@ export const DIRECTORY_TABLES: Readonly<Record<RecordEntity, string>> = {
   MandateVersion: 'mandate_versions',
   MandateCoverage: 'mandate_coverages',
   CoverageSigner: 'coverage_signers',
+  CaseRecord: 'cases',
+  CaseSource: 'case_sources',
+  CaseAuthoritySelection: 'case_authority_selections',
 };
 
 export interface ColumnReference {
@@ -93,6 +101,26 @@ export const DIRECT_REFERENCES: Readonly<Record<RecordEntity, readonly ColumnRef
     { table: 'routes', column: 'preferred_coverage_id' },
   ],
   CoverageSigner: [],
+  CaseRecord: [
+    { table: 'case_authority_selections', column: 'case_id' },
+    { table: 'case_facts', column: 'case_id' },
+    { table: 'case_sources', column: 'case_id' },
+    { table: 'case_works', column: 'case_id' },
+    { table: 'correspondence_bindings', column: 'case_id' },
+    { table: 'notice_candidates', column: 'case_id' },
+    { table: 'prompt_snapshots', column: 'case_id' },
+    { table: 'reported_items', column: 'case_id' },
+    { table: 'use_mappings', column: 'case_id' },
+  ],
+  CaseSource: [
+    { table: 'assessment_sources', column: 'case_source_id' },
+    { table: 'fact_sources', column: 'case_source_id' },
+  ],
+  CaseAuthoritySelection: [
+    { table: 'case_authority_coverages', column: 'selection_id' },
+    { table: 'cases', column: 'current_authority_selection_id' },
+    { table: 'prompt_snapshots', column: 'authority_selection_id' },
+  ],
 };
 
 /**

@@ -171,19 +171,15 @@ export const apiErrors = {
     ),
 
   // Sources, canonical bindings and routes (P3A).
-  crossOwnerReference: (field: string, ownerId: string) =>
+  crossOwnerReference: (field: string, ownerId: string, subject: 'source' | 'route' = 'source') =>
     new ApiError(
       422,
       'CROSS_OWNER_REFERENCE',
-      "The referenced source is already recorded as another owner's material.",
+      {
+        source: "The referenced source is already recorded as another owner's material.",
+        route: "The route belongs to another owner than the case's owner hint.",
+      }[subject],
       { field, ownerId },
-    ),
-  caseScopeUnavailable: (field: string) =>
-    new ApiError(
-      422,
-      'CASE_SCOPE_UNAVAILABLE',
-      'Case scope cannot be recorded before the Case phase exists.',
-      { field },
     ),
   contentHashIncomplete: (field: string) =>
     new ApiError(
@@ -227,11 +223,19 @@ export const apiErrors = {
       'A canonical binding needs a source recorded as a canonical record.',
       { field, sourceRole },
     ),
-  bindingCorrectionRequiresReconciliation: (current: Readonly<Record<string, unknown>>) =>
+  bindingCorrectionRequiresReconciliation: (
+    current: Readonly<Record<string, unknown>>,
+    binding: 'canonical' | 'route' = 'canonical',
+  ) =>
     new ApiError(
       409,
       'BINDING_CORRECTION_REQUIRES_RECONCILIATION',
-      'The record already has a canonical binding; changing it needs a reconciliation workflow.',
+      {
+        canonical:
+          'The record already has a canonical binding; changing it needs a reconciliation workflow.',
+        route:
+          'The case already has history on its bound route; changing the route needs a reconciliation workflow.',
+      }[binding],
       current,
     ),
   duplicateCanonicalCode: (recordId: string | null) =>
@@ -319,5 +323,22 @@ export const apiErrors = {
       'EVENT_ALREADY_SUPERSEDED',
       'The referenced authority event already has a successor; an event history does not fork.',
       successorId === null ? {} : { successorId },
+    ),
+
+  // Case core and case authority selection (P4A). CROSS_CASE_REFERENCE is a frozen stable code
+  // (API_CONTRACT_v1 §5); DUPLICATE_CASE_SOURCE is an operation-specific code (R6 interpretation 10).
+  crossCaseReference: (field: string) =>
+    new ApiError(
+      422,
+      'CROSS_CASE_REFERENCE',
+      'The referenced source is scoped to another case, so it cannot support this case.',
+      { field },
+    ),
+  duplicateCaseSource: (caseSourceId: string | null) =>
+    new ApiError(
+      409,
+      'DUPLICATE_CASE_SOURCE',
+      'This source is already linked to this case in this role. Change the existing link instead.',
+      caseSourceId === null ? {} : { caseSourceId },
     ),
 } as const;

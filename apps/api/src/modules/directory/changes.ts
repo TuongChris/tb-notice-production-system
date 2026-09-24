@@ -10,7 +10,9 @@
 // directory or source record. The authority records' free text (P3B) is treated the same way: a
 // mandate's description, a version's change reason and validity notes, a coverage's scope texts,
 // an authority event's scope text, interpretation and raw effective text may quote the authority
-// document, so the audit trail keeps only their length.
+// document, so the audit trail keeps only their length. The case records' free text (P4A) — a case
+// source's scope note, a selection's note and each selected coverage's application scope — may
+// quote case material and is redacted the same way.
 import { codePointLength } from '@tb/contracts';
 import { Prisma } from '../../../generated/prisma/client.js';
 import { canonicalJson } from '../../infrastructure/write/request-digest.js';
@@ -30,6 +32,9 @@ const REDACTED_FIELDS = new Set([
   'conditions',
   'interpretation',
   'rawEffectiveText',
+  'scopeNote',
+  'selectionNote',
+  'applicationScope',
 ]);
 
 function comparable(value: unknown): unknown {

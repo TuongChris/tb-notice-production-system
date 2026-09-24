@@ -14,11 +14,10 @@
 //                         does not say which bytes it covers)            → 422 CONTENT_HASH_INCOMPLETE
 //   DOCUMENT_REVIEWED     an attributable report of an actual review: it needs reviewedByLabel
 //                         (reviewedAt may stay null when unknown)         → 422 REVIEW_UNATTRIBUTED
-//   case scope            no Case exists before the Case phase           → 422 CASE_SCOPE_UNAVAILABLE
 //   agency                the owning agency exists (422) and is not archived (409)
-//   scopeBindings         named agencies and subjects exist (422) and are not archived (409); an
-//                         agency's own source is not shared with another agency
-//                                                                         → 422 CROSS_AGENCY_REFERENCE
+//   scopeBindings         named agencies, subjects and (P4A) cases exist (422) and are not archived
+//                         (409); an agency's own source is not shared with another agency or scoped
+//                         to another agency's case                        → 422 CROSS_AGENCY_REFERENCE
 import type { CreateSource, ReviseSource } from '@tb/contracts';
 import { codePointLength } from '@tb/contracts';
 import type { Prisma, SourceReference } from '../../../generated/prisma/client.js';
@@ -63,7 +62,6 @@ export function captureProblem(body: SourceCapture): ApiError | null {
   const unstorable = storabilityProblem(body, [], CAPTURE_INSTANT_FIELDS);
   if (unstorable) return unstorable;
   const scope = scopeBindingsOf(body.scopeBindings ?? null);
-  if (scope.caseIds.length > 0) return apiErrors.caseScopeUnavailable('scopeBindings.caseIds');
   const hash = body.contentSha256 ?? null;
   const target = body.hashTarget ?? null;
   if ((hash === null) !== (target === null)) {
@@ -86,9 +84,10 @@ export function captureProblem(body: SourceCapture): ApiError | null {
 }
 
 /**
- * The owning agency and every agency / subject named in scopeBindings exist and are not archived.
- * Rows are share-locked in the lock order (agencies, then legal subjects, each in id order) so none
- * can be archived or deleted while the source that names them is written.
+ * The owning agency and every agency / subject / case named in scopeBindings exist and are not
+ * archived, and an agency's own source names only that agency's cases. Rows are share-locked in the
+ * lock order (agencies, then legal subjects, then cases, each in id order) so none can be archived
+ * or deleted while the source that names them is written.
  */
 export async function assertScopeRecords(
   tx: Prisma.TransactionClient,
@@ -131,6 +130,33 @@ export async function assertScopeRecords(
       operation,
       field: agencyFields.get(archived.id) ?? subjectFields.get(archived.id),
     });
+  }
+  const caseFields = new Map<string, string>();
+  scope.caseIds.forEach((id, index) => {
+    if (!caseFields.has(id)) caseFields.set(id, `scopeBindings.caseIds.${index}`);
+  });
+  for (const id of [...caseFields.keys()].sort()) {
+    if (!(await lockForShare(tx, 'CaseRecord', id))) {
+      throw apiErrors.referenceNotFound(caseFields.get(id) ?? 'scopeBindings');
+    }
+  }
+  const cases = await tx.caseRecord.findMany({
+    where: { id: { in: [...caseFields.keys()] } },
+    select: { id: true, agencyId: true, archivedAt: true },
+  });
+  for (const row of [...cases].sort((a, b) => a.id.localeCompare(b.id))) {
+    const field = caseFields.get(row.id) ?? 'scopeBindings';
+    if (row.archivedAt !== null) {
+      throw apiErrors.recordStateConflict({
+        record: 'CaseRecord',
+        archived: true,
+        operation,
+        field,
+      });
+    }
+    if (body.agencyId && row.agencyId !== body.agencyId) {
+      throw apiErrors.crossAgencyReference(field, 'scope');
+    }
   }
 }
 

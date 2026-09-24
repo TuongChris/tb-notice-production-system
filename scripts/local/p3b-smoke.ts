@@ -14,8 +14,8 @@
 //   and a freeze with the pre-freeze ETag is 412 → Route preferredCoverageId (an operational
 //   default) → AuthorityEvent scoped to the coverage, exactly as reported → expected refusals:
 //   DOCUMENT_REVIEWED on an unreviewed source (422 REVIEW_UNSUPPORTED) and another agency's route
-//   preferring this coverage (422 CROSS_AGENCY_REFERENCE) → lists → provenance unchanged → Case
-//   operations (a later phase) are not routed (404) → logout. Nothing here is authority, a G1–G7
+//   preferring this coverage (422 CROSS_AGENCY_REFERENCE) → lists → provenance unchanged → later
+//   case phases (reported items) are not routed (404) → logout. Nothing here is authority, a G1–G7
 //   decision, readiness, a signature or an external action.
 import { spawn, type ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
@@ -475,7 +475,16 @@ async function main(): Promise<void> {
     fail('no P3B record may upgrade a source provenance');
   }
   pass('the source provenance is unchanged by version, coverage, freeze and event');
-  await call('POST /cases (Case phase, not routed)', 'POST', '/cases', 404, null, { body: {} });
+  await call(
+    'POST /cases/{caseId}/reported-items (later phase, not routed)',
+    'POST',
+    `/cases/${randomUUID()}/reported-items`,
+    404,
+    null,
+    {
+      body: {},
+    },
+  );
 
   const logout = await fetch(`${API}/auth/logout`, {
     method: 'POST',

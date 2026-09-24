@@ -2,8 +2,8 @@
 // configureApp pipeline runs in-process (auth-support.ts); every request goes through the global
 // guard with a real synthetic session, CSRF token and allowlisted Origin. All data is synthetic,
 // the suite refuses to start unless the tables it touches are empty, and every test deletes what it
-// created (foreign-key order; the agencies ⇄ source_references and routes ⇄ mandate_coverages
-// cycles and the self-references are broken first).
+// created (foreign-key order; the agencies ⇄ source_references, routes ⇄ mandate_coverages and
+// cases ⇄ case_authority_selections cycles and the self-references are broken first).
 import { randomUUID } from 'node:crypto';
 import { expect } from 'vitest';
 import type { PrismaClient } from '../../apps/api/generated/prisma/client.js';
@@ -23,7 +23,10 @@ import {
 export const DIRECTORY_SUITE_TABLES = [
   'idempotency_records',
   'audit_events',
-  // Synthetic case rows appear only as fixtures that reference a route (a delete blocker test).
+  // P4A case records (children before the case).
+  'case_authority_coverages',
+  'case_authority_selections',
+  'case_sources',
   'cases',
   // P3B authority records (children before parents).
   'authority_events',
@@ -55,6 +58,9 @@ export async function assertSuiteTablesEmpty(prisma: PrismaClient): Promise<void
 
 /** Deletes every row of the suite's tables, in foreign-key order. */
 export async function cleanSuiteTables(prisma: PrismaClient): Promise<void> {
+  await prisma.$executeRawUnsafe(
+    'UPDATE `cases` SET `current_authority_selection_id` = NULL, `packet_source_id` = NULL, `canonical_binding_source_id` = NULL',
+  );
   await prisma.$executeRawUnsafe('UPDATE `agencies` SET `canonical_source_id` = NULL');
   await prisma.$executeRawUnsafe('UPDATE `owners` SET `canonical_source_id` = NULL');
   await prisma.$executeRawUnsafe('UPDATE `legal_subjects` SET `canonical_source_id` = NULL');
@@ -203,7 +209,7 @@ export async function countRows(prisma: PrismaClient, table: string): Promise<nu
 
 /**
  * A synthetic SourceReference inserted directly: P2 fixtures, and shapes the API refuses to create
- * (for example a case-scoped source before the Case phase).
+ * (for example a source scoped to a case that does not exist).
  */
 export async function insertSource(
   prisma: PrismaClient,
