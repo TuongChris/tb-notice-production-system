@@ -2,7 +2,8 @@
 // configureApp pipeline runs in-process (auth-support.ts); every request goes through the global
 // guard with a real synthetic session, CSRF token and allowlisted Origin. All data is synthetic,
 // the suite refuses to start unless the tables it touches are empty, and every test deletes what it
-// created (foreign-key order; the agencies ⇄ source_references cycle is broken first).
+// created (foreign-key order; the agencies ⇄ source_references and routes ⇄ mandate_coverages
+// cycles and the self-references are broken first).
 import { randomUUID } from 'node:crypto';
 import { expect } from 'vitest';
 import type { PrismaClient } from '../../apps/api/generated/prisma/client.js';
@@ -24,6 +25,12 @@ export const DIRECTORY_SUITE_TABLES = [
   'audit_events',
   // Synthetic case rows appear only as fixtures that reference a route (a delete blocker test).
   'cases',
+  // P3B authority records (children before parents).
+  'authority_events',
+  'coverage_signers',
+  'mandate_coverages',
+  'mandate_versions',
+  'mandates',
   'routes',
   'owner_subjects',
   'signers',
@@ -54,7 +61,13 @@ export async function cleanSuiteTables(prisma: PrismaClient): Promise<void> {
   await prisma.$executeRawUnsafe(
     'UPDATE `signers` SET `canonical_source_id` = NULL, `identity_source_id` = NULL, `delegation_source_id` = NULL',
   );
-  await prisma.$executeRawUnsafe('UPDATE `routes` SET `canonical_source_id` = NULL');
+  await prisma.$executeRawUnsafe(
+    'UPDATE `routes` SET `canonical_source_id` = NULL, `preferred_coverage_id` = NULL',
+  );
+  await prisma.$executeRawUnsafe('UPDATE `authority_events` SET `supersedes_event_id` = NULL');
+  await prisma.$executeRawUnsafe('UPDATE `mandate_coverages` SET `predecessor_coverage_id` = NULL');
+  await prisma.$executeRawUnsafe('UPDATE `mandate_versions` SET `predecessor_id` = NULL');
+  await prisma.$executeRawUnsafe('UPDATE `mandates` SET `canonical_source_id` = NULL');
   await prisma.$executeRawUnsafe('UPDATE `owner_subjects` SET `source_id` = NULL');
   await prisma.$executeRawUnsafe('UPDATE `source_references` SET `supersedes_source_id` = NULL');
   for (const table of DIRECTORY_SUITE_TABLES) {

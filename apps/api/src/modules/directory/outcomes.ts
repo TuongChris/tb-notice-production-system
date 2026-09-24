@@ -21,13 +21,20 @@ export function created(
   };
 }
 
-/** 200 with the changed entity (its ETag is sent). */
-export function updated(type: string, entity: WireEntity): WriteOutcome {
+/**
+ * 200 with the changed entity (its ETag is sent). `extra` names other roots whose version the
+ * change also moved (e.g. the parent MandateVersion of an edited coverage).
+ */
+export function updated(
+  type: string,
+  entity: WireEntity,
+  extra: AffectedResource[] = [],
+): WriteOutcome {
   return {
     status: 200,
     resource: { type, id: entity.id },
     data: entity,
-    affected: [affected(type, entity)],
+    affected: [...extra, affected(type, entity)],
   };
 }
 
@@ -36,7 +43,11 @@ export function unchanged(type: string, entity: WireEntity): WriteOutcome {
   return { status: 200, resource: { type, id: entity.id }, data: entity, affected: [] };
 }
 
-/** 204 after deleting an unused draft. */
-export function deleted(type: string, id: string): WriteOutcome {
-  return { status: 204, resource: { type, id }, affected: [{ type, id, rowVersion: null }] };
+/** 204 after deleting an unused draft (`extra`: other roots whose version moved). */
+export function deleted(type: string, id: string, extra: AffectedResource[] = []): WriteOutcome {
+  return {
+    status: 204,
+    resource: { type, id },
+    affected: [...extra, { type, id, rowVersion: null }],
+  };
 }

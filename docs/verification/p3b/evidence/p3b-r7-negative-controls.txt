@@ -1,0 +1,213 @@
+# R7 remediation — negative controls (home PC, 2026-09-24 UTC). RESULT: 8/8 PASS (run 2, final, on commit ee31fa3).
+#
+# Method (same as the P3A/P3B controls): each control disables one protection with one exact source mutation, runs
+# every listed responsible suite (each must FAIL), restores the file(s) and verifies them byte-identical by SHA-256;
+# after every control that ran a DB suite, `db:verify test --expect-empty` confirms tb_notice_test is empty again.
+# Unit suites: vitest (yarn test config). DB suites: scripts/db/run-db-tests.mjs (the guarded yarn test:db runner) on
+# tb_notice_test only. Synthetic data only; tb_notice_dev is never used. Harness and raw JSON reports stay outside Git.
+# Required by the mission: removal of leap-second rejection (R7-NC01), silent microsecond truncation (R7-NC02), removal
+# of the DB year-bound validation (R7-NC03). R7-NC04–R7-NC08 cover the other root-cause paths: the unchecked P3A
+# capture, the string write path, the V8 write path of P3B, and the complete pre-remediation code of both.
+# Some failures surface as "TypeError: … reading 'code'": the suites' outcome() helper reads the error code of a
+# success body — still a failed test.
+# During run 2 only CLAUDE.md (documentation) was edited; code and tests were those of ee31fa3 throughout.
+#
+# Run 1 (12:49Z, the same code before commit) found one gap: R7-NC01 failed because only 2 of its 5 suites detected it
+# (see the appendix). A leap second written as local 23:59:60 rolls into the next day, which the calendar check also
+# refuses, so only an offset-written leap second (local 15:59:60 or 00:59:60) exposes the removed check. Offset-written
+# leap seconds were added to tests/api/storability.test.ts, tests/api/source-rules.test.ts, tests/db/p3a-http.test.ts
+# and tests/db/p3b-http.test.ts before the commit; the unchanged P3B unit guard (tests/api/authority-rules.test.ts, only
+# "…23:59:60Z") is not a responsible suite for R7-NC01. Run 1's R7-NC02–R7-NC08 all passed; run 2 repeats every control.
+
+# R7 remediation negative controls (run 2, final) — 2026-09-24T12:59:36.323Z — head ee31fa38bf398a56be0bf703409128cb0d6ef5b2 (clean tree)
+# Each control disables one protection, runs every listed responsible suite (each must FAIL),
+# restores the file(s) and verifies them byte-identical by SHA-256. Synthetic data only:
+# tb_notice_test (DB suites; emptiness verified after every DB control). tb_notice_dev is never used.
+
+## Baseline (unmutated; every suite must pass)
+BASELINE UNIT storability PASS tests/api/storability.test.ts; exit 0 (1s); Tests  0 failed | 47 passed (47)
+BASELINE UNIT source-rules PASS tests/api/source-rules.test.ts; exit 0 (1s); Tests  0 failed | 37 passed (37)
+BASELINE UNIT authority-rules PASS tests/api/authority-rules.test.ts; exit 0 (1s); Tests  0 failed | 38 passed (38)
+BASELINE DB p3a-http PASS tests/db/p3a-http.test.ts; exit 0 (20s); Tests  0 failed | 45 passed (45)
+BASELINE DB p3b-http PASS tests/db/p3b-http.test.ts; exit 0 (46s); Tests  0 failed | 62 passed (62)
+tb_notice_test empty after the baseline: true ([verify] PASS: metadata matches the reviewed inventory.)
+
+## Controls
+R7-NC01 PASS leap-second rejection removed: second 60 accepted (and silently rolled into the next minute)
+     file apps/api/src/infrastructure/write/storability.ts
+     suite UNIT storability (tests/api/storability.test.ts): exit 1 (1s); Tests  2 failed | 45 passed (47)
+       failed: storableInstant — the exact instant a DATETIME(3) column stores and reads back > leap second written with an offset: "2016-12-31T15:59:60-08:00" is refused, never altered
+         → AssertionError: expected 2017-01-01T00:00:00.000Z to be null
+       failed: storableInstant — the exact instant a DATETIME(3) column stores and reads back > leap second just after midnight in its offset: "2017-01-01T00:59:60+01:00" is refused, never altered
+         → AssertionError: expected 2017-01-01T00:00:00.000Z to be null
+     suite UNIT source-rules (tests/api/source-rules.test.ts): exit 1 (1s); Tests  1 failed | 36 passed (37)
+       failed: captureProblem — request-only capture checks > refuses observedAt / reviewedAt values the database cannot store exactly, first and per field
+         → AssertionError: expected undefined to be 'VALIDATION_FAILED' // Object.is equality
+     suite DB p3a-http (tests/db/p3a-http.test.ts): exit 1 (20s); Tests  1 failed | 44 passed (45)
+       failed: SOURCE INSTANTS — stored as exactly the instant supplied, or refused before any write (R7) > create and revise refuse every instant the column cannot store exactly: 422, never 500, nothing written
+         → AssertionError: observedAt "2016-12-31T15:59:60-08:00": {"data":{"id":"74ff35b7-1888-48cd-817a-0556e286bfe4","agencyId":null,"sourceGroupId":"6d96648c-b858-4747-a19e-a612458ada39","revision":1,"supersedesSourceId":null,"title":"SYNTHETIC ca
+     suite DB p3b-http (tests/db/p3b-http.test.ts): exit 1 (46s); Tests  1 failed | 61 passed (62)
+       failed: AUTHORITY EVENTS — append-only history, exactly as reported; not proof by existence > effectiveAt follows the shared storability rule (R7): the exact instant is stored; a shifted year or the last half-second of 9999 is refused
+         → TypeError: Cannot read properties of undefined (reading 'code')
+     restored apps/api/src/infrastructure/write/storability.ts sha256 ef3b76e13fa2d21dee3802a06a30368c7a65320636e9f7690390e43cdee8c801 (before ef3b76e13fa2…, identical=true)
+     tb_notice_test empty after the control: true ([verify] PASS: metadata matches the reviewed inventory.)
+R7-NC02 PASS silent microsecond truncation: digits after the milliseconds no longer refused (cut to .sss)
+     file apps/api/src/infrastructure/write/storability.ts
+     suite UNIT storability (tests/api/storability.test.ts): exit 1 (1s); Tests  5 failed | 42 passed (47)
+       failed: storableInstant — the exact instant a DATETIME(3) column stores and reads back > microseconds: "2025-06-30T10:15:00.123456Z" is refused, never altered
+         → AssertionError: expected 2025-06-30T10:15:00.123Z to be null
+       failed: storableInstant — the exact instant a DATETIME(3) column stores and reads back > a fourth fraction digit: "2025-06-30T10:15:00.1234Z" is refused, never altered
+         → AssertionError: expected 2025-06-30T10:15:00.123Z to be null
+       failed: storableInstant — the exact instant a DATETIME(3) column stores and reads back > sub-millisecond digits that would round up: "2025-06-30T10:15:00.123999Z" is refused, never altered
+         → AssertionError: expected 2025-06-30T10:15:00.123Z to be null
+       failed: storableInstant — the exact instant a DATETIME(3) column stores and reads back > only a sub-millisecond digit: "2025-06-30T10:15:00.0005Z" is refused, never altered
+         → AssertionError: expected 2025-06-30T10:15:00.000Z to be null
+       failed: storabilityProblem — values the database cannot store exactly are refused, never altered > reports every unstorable field, dates first, in the order given
+         → AssertionError: expected [ 'effectiveOn', 'observedAt' ] to deeply equal [ 'effectiveOn', 'observedAt', …(1) ]
+     suite UNIT source-rules (tests/api/source-rules.test.ts): exit 1 (1s); Tests  1 failed | 36 passed (37)
+       failed: captureProblem — request-only capture checks > refuses observedAt / reviewedAt values the database cannot store exactly, first and per field
+         → AssertionError: expected [ 'observedAt' ] to deeply equal [ 'observedAt', 'reviewedAt' ]
+     suite UNIT authority-rules (tests/api/authority-rules.test.ts): exit 1 (1s); Tests  1 failed | 37 passed (38)
+       failed: storabilityProblem — values the database cannot store exactly are refused, never altered > instant 2025-06-30T10:15:00.1234Z → VALIDATION_FAILED
+         → AssertionError: expected null to be 'VALIDATION_FAILED' // Object.is equality
+     suite DB p3a-http (tests/db/p3a-http.test.ts): exit 1 (20s); Tests  1 failed | 44 passed (45)
+       failed: SOURCE INSTANTS — stored as exactly the instant supplied, or refused before any write (R7) > create and revise refuse every instant the column cannot store exactly: 422, never 500, nothing written
+         → AssertionError: observedAt "2025-06-30T10:15:00.123456Z": {"data":{"id":"74a05de6-784e-4f35-87e7-9313f8359226","agencyId":null,"sourceGroupId":"7307793e-e77e-4c3f-b87b-368fbf82cdfd","revision":1,"supersedesSourceId":null,"title":"SYNTHETIC 
+     suite DB p3b-http (tests/db/p3b-http.test.ts): exit 1 (46s); Tests  1 failed | 61 passed (62)
+       failed: AUTHORITY EVENTS — append-only history, exactly as reported; not proof by existence > refuses unknown fields, a missing source, unstorable instants and unsupported provenance vocabulary
+         → TypeError: Cannot read properties of undefined (reading 'code')
+     restored apps/api/src/infrastructure/write/storability.ts sha256 ef3b76e13fa2d21dee3802a06a30368c7a65320636e9f7690390e43cdee8c801 (before ef3b76e13fa2…, identical=true)
+     tb_notice_test empty after the control: true ([verify] PASS: metadata matches the reviewed inventory.)
+R7-NC03 PASS DB year-bound validation removed: any UTC year 0000–10000 accepted
+     file apps/api/src/infrastructure/write/storability.ts
+     suite UNIT storability (tests/api/storability.test.ts): exit 1 (1s); Tests  9 failed | 38 passed (47)
+       failed: storableInstant — the exact instant a DATETIME(3) column stores and reads back > year 0999: "0999-06-30T10:00:00Z" is refused, never altered
+         → AssertionError: expected 0999-06-30T10:00:00.000Z to be null
+       failed: storableInstant — the exact instant a DATETIME(3) column stores and reads back > last millisecond of year 0999: "0999-12-31T23:59:59.999Z" is refused, never altered
+         → AssertionError: expected 0999-12-31T23:59:59.999Z to be null
+       failed: storableInstant — the exact instant a DATETIME(3) column stores and reads back > local year 1000 that is year 0999 in UTC: "1000-01-01T00:30:00+01:00" is refused, never altered
+         → AssertionError: expected 0999-12-31T23:30:00.000Z to be null
+       failed: storableInstant — the exact instant a DATETIME(3) column stores and reads back > year 0000: "0000-01-01T00:00:00Z" is refused, never altered
+         → AssertionError: expected 0000-01-01T00:00:00.000Z to be null
+       failed: storableInstant — the exact instant a DATETIME(3) column stores and reads back > year 0050 with a space separator (V8’s legacy parser reads 1950): "0050-06-30 10:00:00Z" is refused, never altered
+         → AssertionError: expected 0050-06-30T10:00:00.000Z to be null
+       failed: storableInstant — the exact instant a DATETIME(3) column stores and reads back > past MySQL’s supported range (…23:59:59.499999): "9999-12-31T23:59:59.500Z" is refused, never altered
+         → AssertionError: expected 9999-12-31T23:59:59.500Z to be null
+       failed: storableInstant — the exact instant a DATETIME(3) column stores and reads back > last millisecond of year 9999: "9999-12-31T23:59:59.999Z" is refused, never altered
+         → AssertionError: expected 9999-12-31T23:59:59.999Z to be null
+       failed: storableInstant — the exact instant a DATETIME(3) column stores and reads back > year 10000 in UTC through an offset: "9999-12-31T23:59:59-01:00" is refused, never altered
+         → AssertionError: expected +010000-01-01T00:59:59.000Z to be null
+       failed: storableInstant — the exact instant a DATETIME(3) column stores and reads back > agrees with the ECMAScript date-time string parser wherever that parser is specified
+         → AssertionError: 0999-01-01T00:00:00Z: expected -30641760000000 to be null // Object.is equality
+     suite UNIT source-rules (tests/api/source-rules.test.ts): exit 1 (1s); Tests  1 failed | 36 passed (37)
+       failed: captureProblem — request-only capture checks > refuses observedAt / reviewedAt values the database cannot store exactly, first and per field
+         → AssertionError: expected undefined to be 'VALIDATION_FAILED' // Object.is equality
+     suite UNIT authority-rules (tests/api/authority-rules.test.ts): exit 1 (1s); Tests  2 failed | 36 passed (38)
+       failed: storabilityProblem — values the database cannot store exactly are refused, never altered > instant 0999-12-31T23:59:59Z → VALIDATION_FAILED
+         → AssertionError: expected null to be 'VALIDATION_FAILED' // Object.is equality
+       failed: storabilityProblem — values the database cannot store exactly are refused, never altered > instant 9999-12-31T23:59:59.000-01:00 → VALIDATION_FAILED
+         → AssertionError: expected null to be 'VALIDATION_FAILED' // Object.is equality
+     suite DB p3a-http (tests/db/p3a-http.test.ts): exit 1 (20s); Tests  1 failed | 44 passed (45)
+       failed: SOURCE INSTANTS — stored as exactly the instant supplied, or refused before any write (R7) > create and revise refuse every instant the column cannot store exactly: 422, never 500, nothing written
+         → AssertionError: observedAt "0999-06-30T10:00:00Z": {"data":{"id":"8a8d0535-2692-4022-aff7-fcb15b134bd6","agencyId":null,"sourceGroupId":"f36d6643-332b-4faa-9934-baea79ef64b0","revision":1,"supersedesSourceId":null,"title":"SYNTHETIC canonic
+     suite DB p3b-http (tests/db/p3b-http.test.ts): exit 1 (46s); Tests  2 failed | 60 passed (62)
+       failed: AUTHORITY EVENTS — append-only history, exactly as reported; not proof by existence > refuses unknown fields, a missing source, unstorable instants and unsupported provenance vocabulary
+         → AssertionError: {"sourceId":"bc9f9b18-875c-4518-b116-945709620445","effectiveAt":"9999-12-31T23:59:59.000-01:00"}: expected [ 500, 'INTERNAL_ERROR' ] to deeply equal [ 422, 'VALIDATION_FAILED' ]
+       failed: AUTHORITY EVENTS — append-only history, exactly as reported; not proof by existence > effectiveAt follows the shared storability rule (R7): the exact instant is stored; a shifted year or the last half-second of 9999 is refused
+         → TypeError: Cannot read properties of undefined (reading 'code')
+     restored apps/api/src/infrastructure/write/storability.ts sha256 ef3b76e13fa2d21dee3802a06a30368c7a65320636e9f7690390e43cdee8c801 (before ef3b76e13fa2…, identical=true)
+     tb_notice_test empty after the control: true ([verify] PASS: metadata matches the reviewed inventory.)
+R7-NC04 PASS source capture no longer checks storability (the P3A gap): observedAt / reviewedAt unchecked
+     file apps/api/src/modules/sources/source-rules.ts
+     suite UNIT source-rules (tests/api/source-rules.test.ts): exit 1 (1s); Tests  1 failed | 36 passed (37)
+       failed: captureProblem — request-only capture checks > refuses observedAt / reviewedAt values the database cannot store exactly, first and per field
+         → AssertionError: expected undefined to be 'VALIDATION_FAILED' // Object.is equality
+     suite DB p3a-http (tests/db/p3a-http.test.ts): exit 1 (20s); Tests  2 failed | 43 passed (45)
+       failed: SOURCE INSTANTS — stored as exactly the instant supplied, or refused before any write (R7) > create and revise refuse every instant the column cannot store exactly: 422, never 500, nothing written
+         → AssertionError: observedAt "2016-12-31T23:59:60Z": {"error":{"code":"INTERNAL_ERROR","message":"The server could not complete the request.","details":{},"requestId":"b7c915f8-afab-4e63-9367-6b90e8bd234c"}}: expected 500 to be 422 // Object.
+       failed: SOURCE INSTANTS — stored as exactly the instant supplied, or refused before any write (R7) > a refused instant keeps no idempotency result: the same key then runs the corrected request once
+         → AssertionError: expected [ 500, 'INTERNAL_ERROR' ] to deeply equal [ 422, 'VALIDATION_FAILED' ]
+     restored apps/api/src/modules/sources/source-rules.ts sha256 bba88bb60a83a9ff1969f3863598273d5acf0a96374e7021e215b7dd71652e0b (before bba88bb60a83…, identical=true)
+     tb_notice_test empty after the control: true ([verify] PASS: metadata matches the reviewed inventory.)
+R7-NC05 PASS source write path passes the request string to Prisma instead of the exact instant
+     file apps/api/src/modules/sources/sources.service.ts
+     suite DB p3a-http (tests/db/p3a-http.test.ts): exit 1 (19s); Tests  2 failed | 43 passed (45)
+       failed: SOURCE INSTANTS — stored as exactly the instant supplied, or refused before any write (R7) > create: every spelling the format admits is stored and read back as exactly its instant
+         → AssertionError: {"error":{"code":"INTERNAL_ERROR","message":"The server could not complete the request.","details":{},"requestId":"09e58365-a39f-43a5-b9a5-1fa6d212cbff"}}: expected 500 to be 201 // Object.is equality
+       failed: SOURCE INSTANTS — stored as exactly the instant supplied, or refused before any write (R7) > revise: each revision stores exactly its own instants; earlier revisions stay unchanged
+         → AssertionError: {"error":{"code":"INTERNAL_ERROR","message":"The server could not complete the request.","details":{},"requestId":"2f89ba95-17b1-4421-af48-e6820c73210d"}}: expected 500 to be 201 // Object.is equality
+     restored apps/api/src/modules/sources/sources.service.ts sha256 64e75d9b2670525b61d95e0ed7cf6b215793e216a07768cf77916c8f4a78476c (before 64e75d9b2670…, identical=true)
+     tb_notice_test empty after the control: true ([verify] PASS: metadata matches the reviewed inventory.)
+R7-NC06 PASS authority event write path converts effectiveAt with V8’s Date parser again
+     file apps/api/src/modules/representation/authority-events.service.ts
+     suite DB p3b-http (tests/db/p3b-http.test.ts): exit 1 (46s); Tests  1 failed | 61 passed (62)
+       failed: AUTHORITY EVENTS — append-only history, exactly as reported; not proof by existence > effectiveAt follows the shared storability rule (R7): the exact instant is stored; a shifted year or the last half-second of 9999 is refused
+         → AssertionError: {"error":{"code":"INTERNAL_ERROR","message":"The server could not complete the request.","details":{},"requestId":"aabf265f-b74d-4527-8a01-c879a00a90fb"}}: expected 500 to be 201 // Object.is equality
+     restored apps/api/src/modules/representation/authority-events.service.ts sha256 278bd7afa9f881f2134bdba5566882ee249f53a8518b73cc7c5afaca1e671f98 (before 278bd7afa9f8…, identical=true)
+     tb_notice_test empty after the control: true ([verify] PASS: metadata matches the reviewed inventory.)
+R7-NC07 PASS pre-remediation P3A capture path restored (source-rules.ts and sources.service.ts of 8e513f0)
+     file apps/api/src/modules/sources/source-rules.ts
+     file apps/api/src/modules/sources/sources.service.ts
+     suite UNIT source-rules (tests/api/source-rules.test.ts): exit 1 (1s); Tests  1 failed | 36 passed (37)
+       failed: captureProblem — request-only capture checks > refuses observedAt / reviewedAt values the database cannot store exactly, first and per field
+         → AssertionError: expected undefined to be 'VALIDATION_FAILED' // Object.is equality
+     suite DB p3a-http (tests/db/p3a-http.test.ts): exit 1 (20s); Tests  4 failed | 41 passed (45)
+       failed: SOURCE INSTANTS — stored as exactly the instant supplied, or refused before any write (R7) > create: every spelling the format admits is stored and read back as exactly its instant
+         → AssertionError: {"error":{"code":"INTERNAL_ERROR","message":"The server could not complete the request.","details":{},"requestId":"5f8b63ad-a95d-4cea-8ac8-cf3d75af3b3f"}}: expected 500 to be 201 // Object.is equality
+       failed: SOURCE INSTANTS — stored as exactly the instant supplied, or refused before any write (R7) > revise: each revision stores exactly its own instants; earlier revisions stay unchanged
+         → AssertionError: {"error":{"code":"INTERNAL_ERROR","message":"The server could not complete the request.","details":{},"requestId":"8f88b622-c9a6-4804-bfb1-4503486166e0"}}: expected 500 to be 201 // Object.is equality
+       failed: SOURCE INSTANTS — stored as exactly the instant supplied, or refused before any write (R7) > create and revise refuse every instant the column cannot store exactly: 422, never 500, nothing written
+         → AssertionError: observedAt "2016-12-31T23:59:60Z": {"error":{"code":"INTERNAL_ERROR","message":"The server could not complete the request.","details":{},"requestId":"d81b5b00-eedb-4ab6-92ca-10c0dda46350"}}: expected 500 to be 422 // Object.
+       failed: SOURCE INSTANTS — stored as exactly the instant supplied, or refused before any write (R7) > a refused instant keeps no idempotency result: the same key then runs the corrected request once
+         → AssertionError: expected [ 500, 'INTERNAL_ERROR' ] to deeply equal [ 422, 'VALIDATION_FAILED' ]
+     restored apps/api/src/modules/sources/source-rules.ts sha256 bba88bb60a83a9ff1969f3863598273d5acf0a96374e7021e215b7dd71652e0b (before bba88bb60a83…, identical=true)
+     restored apps/api/src/modules/sources/sources.service.ts sha256 64e75d9b2670525b61d95e0ed7cf6b215793e216a07768cf77916c8f4a78476c (before 64e75d9b2670…, identical=true)
+     tb_notice_test empty after the control: true ([verify] PASS: metadata matches the reviewed inventory.)
+R7-NC08 PASS pre-remediation P3B rule as the shared rule (V8 Date parsing, fraction length > 3, UTC date 1000–9999)
+     file apps/api/src/infrastructure/write/storability.ts
+     suite UNIT storability (tests/api/storability.test.ts): exit 1 (1s); Tests  8 failed | 39 passed (47)
+       failed: storableInstant — the exact instant a DATETIME(3) column stores and reads back > zeros after the milliseconds: "2025-06-30T10:15:00.123000Z" is stored as 2025-06-30T10:15:00.123Z
+         → AssertionError: expected undefined to be '2025-06-30T10:15:00.123Z' // Object.is equality
+       failed: storableInstant — the exact instant a DATETIME(3) column stores and reads back > offset ±HH: "2025-06-30T15:15:00+05" is stored as 2025-06-30T10:15:00.000Z
+         → AssertionError: expected undefined to be '2025-06-30T10:15:00.000Z' // Object.is equality
+       failed: storableInstant — the exact instant a DATETIME(3) column stores and reads back > year 0050 with a space separator (V8’s legacy parser reads 1950): "0050-06-30 10:00:00Z" is refused, never altered
+         → AssertionError: expected 1950-06-30T10:00:00.000Z to be null
+       failed: storableInstant — the exact instant a DATETIME(3) column stores and reads back > past MySQL’s supported range (…23:59:59.499999): "9999-12-31T23:59:59.500Z" is refused, never altered
+         → AssertionError: expected 9999-12-31T23:59:59.500Z to be null
+       failed: storableInstant — the exact instant a DATETIME(3) column stores and reads back > last millisecond of year 9999: "9999-12-31T23:59:59.999Z" is refused, never altered
+         → AssertionError: expected 9999-12-31T23:59:59.999Z to be null
+       failed: storableInstant — the exact instant a DATETIME(3) column stores and reads back > values outside the contract format are never storable
+         → AssertionError: "2025-06-30T10:15:00": expected 2025-06-30T03:15:00.000Z to be null
+       failed: storableInstant — the exact instant a DATETIME(3) column stores and reads back > agrees with the ECMAScript date-time string parser wherever that parser is specified
+         → AssertionError: 9999-12-31T23:59:59.500Z: expected 253402300799500 to be null // Object.is equality
+       failed: storableInstant — the exact instant a DATETIME(3) column stores and reads back > every spelling the format admits names the same instant as the canonical spelling
+         → AssertionError: "1000-12-31T00:00:00+00": expected null to be -30578774400000 // Object.is equality
+     suite DB p3a-http (tests/db/p3a-http.test.ts): exit 1 (20s); Tests  3 failed | 42 passed (45)
+       failed: SOURCE INSTANTS — stored as exactly the instant supplied, or refused before any write (R7) > create: every spelling the format admits is stored and read back as exactly its instant
+         → AssertionError: {"error":{"code":"VALIDATION_FAILED","message":"The request body does not match the contract.","details":{"issues":[{"path":"observedAt","message":"Must be a real instant (no leap second) with at most millisecond precision, 
+       failed: SOURCE INSTANTS — stored as exactly the instant supplied, or refused before any write (R7) > revise: each revision stores exactly its own instants; earlier revisions stay unchanged
+         → AssertionError: {"error":{"code":"VALIDATION_FAILED","message":"The request body does not match the contract.","details":{"issues":[{"path":"observedAt","message":"Must be a real instant (no leap second) with at most millisecond precision, 
+       failed: SOURCE INSTANTS — stored as exactly the instant supplied, or refused before any write (R7) > create and revise refuse every instant the column cannot store exactly: 422, never 500, nothing written
+         → AssertionError: observedAt "0050-06-30 10:00:00Z": {"data":{"id":"08f6d4f3-ba1e-48d8-872e-c1ae9206b8dc","agencyId":null,"sourceGroupId":"f86aac4e-8f53-4245-9993-d059398c8c25","revision":1,"supersedesSourceId":null,"title":"SYNTHETIC canonic
+     suite DB p3b-http (tests/db/p3b-http.test.ts): exit 1 (46s); Tests  1 failed | 61 passed (62)
+       failed: AUTHORITY EVENTS — append-only history, exactly as reported; not proof by existence > effectiveAt follows the shared storability rule (R7): the exact instant is stored; a shifted year or the last half-second of 9999 is refused
+         → AssertionError: {"error":{"code":"VALIDATION_FAILED","message":"The request body does not match the contract.","details":{"issues":[{"path":"effectiveAt","message":"Must be a real instant (no leap second) with at most millisecond precision,
+     restored apps/api/src/infrastructure/write/storability.ts sha256 ef3b76e13fa2d21dee3802a06a30368c7a65320636e9f7690390e43cdee8c801 (before ef3b76e13fa2…, identical=true)
+     tb_notice_test empty after the control: true ([verify] PASS: metadata matches the reviewed inventory.)
+
+RESULT ALL PASS
+
+## Appendix — run 1, R7-NC01 (the gap it exposed; superseded by run 2)
+R7-NC01 FAIL leap-second rejection removed: second 60 accepted (and silently rolled into the next minute)
+     file apps/api/src/infrastructure/write/storability.ts
+     suite UNIT storability (tests/api/storability.test.ts): exit 1 (1s); Tests  1 failed | 45 passed (46)
+       failed: storableInstant — the exact instant a DATETIME(3) column stores and reads back > leap second written with an offset: "2016-12-31T15:59:60-08:00" is refused, never altered
+         → AssertionError: expected 2017-01-01T00:00:00.000Z to be null
+     suite UNIT source-rules (tests/api/source-rules.test.ts): exit 0 (1s); Tests  0 failed | 37 passed (37)
+     suite UNIT authority-rules (tests/api/authority-rules.test.ts): exit 0 (1s); Tests  0 failed | 38 passed (38)
+     suite DB p3a-http (tests/db/p3a-http.test.ts): exit 1 (20s); Tests  1 failed | 44 passed (45)
+       failed: SOURCE INSTANTS — stored as exactly the instant supplied, or refused before any write (R7) > create and revise refuse every instant the column cannot store exactly: 422, never 500, nothing written
+         → TypeError: Cannot read properties of undefined (reading 'code')
+     suite DB p3b-http (tests/db/p3b-http.test.ts): exit 0 (46s); Tests  0 failed | 62 passed (62)
+     restored apps/api/src/infrastructure/write/storability.ts sha256 ef3b76e13fa2d21dee3802a06a30368c7a65320636e9f7690390e43cdee8c801 (before ef3b76e13fa2…, identical=true)
+     tb_notice_test empty after the control: true ([verify] PASS: metadata matches the reviewed inventory.)

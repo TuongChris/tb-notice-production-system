@@ -248,11 +248,76 @@ export const apiErrors = {
       'A route for this agency, association and platform already exists. Use that route.',
       routeId === null ? {} : { routeId },
     ),
-  preferredCoverageUnavailable: (field: string) =>
+
+  // Representation authority (P3B). FROZEN_VERSION and AUTHORITY_SCOPE_UNRESOLVED are frozen stable
+  // codes (API_CONTRACT_v1 §5); the others are operation-specific codes in the free-string `code`
+  // field with the contracted statuses (R6 interpretation 10).
+  frozenVersion: (details: Readonly<Record<string, unknown>>) =>
+    new ApiError(
+      409,
+      'FROZEN_VERSION',
+      'The mandate version is frozen: it and its coverages and signers can no longer change. Record a successor version or an authority event instead.',
+      details,
+    ),
+  versionNotFrozen: (field: string, versionId: string) =>
+    new ApiError(
+      409,
+      'VERSION_NOT_FROZEN',
+      'The referenced mandate version is still a draft; only a frozen version can be used here.',
+      { field, versionId },
+    ),
+  versionSuccessorExists: (field: string, successorId: string) =>
+    new ApiError(
+      409,
+      'VERSION_SUCCESSOR_EXISTS',
+      'The predecessor version already has a successor; a version chain does not fork.',
+      { field, successorId },
+    ),
+  authorityScopeUnresolved: (field: string, reason: string) =>
     new ApiError(
       422,
-      'PREFERRED_COVERAGE_UNAVAILABLE',
-      'A preferred coverage can be set only once mandate coverage exists (not available yet).',
+      'AUTHORITY_SCOPE_UNRESOLVED',
+      'The referenced authority record belongs to another mandate, route or scope.',
+      { field, reason },
+    ),
+  dateRangeInvalid: (fields: readonly string[], details: Readonly<Record<string, unknown>> = {}) =>
+    new ApiError(422, 'DATE_RANGE_INVALID', 'A start date is after its end date.', {
+      fields,
+      ...details,
+    }),
+  documentStateUnsupported: (field: string) =>
+    new ApiError(
+      422,
+      'DOCUMENT_STATE_UNSUPPORTED',
+      'A document state describes a document: cite the primary source it describes.',
       { field },
+    ),
+  reviewUnsupported: (field: string, reason: string) =>
+    new ApiError(
+      422,
+      'REVIEW_UNSUPPORTED',
+      'A review is recorded only when a cited source records who reviewed the document (DOCUMENT_REVIEWED with its reviewer).',
+      { field, reason },
+    ),
+  duplicateCoverage: (coverageId: string | null) =>
+    new ApiError(
+      409,
+      'DUPLICATE_COVERAGE',
+      'This version already has a coverage with this label for this route.',
+      coverageId === null ? {} : { coverageId },
+    ),
+  duplicateCoverageSigner: (coverageSignerId: string | null) =>
+    new ApiError(
+      409,
+      'DUPLICATE_COVERAGE_SIGNER',
+      'This signer is already recorded under this coverage in this capacity.',
+      coverageSignerId === null ? {} : { coverageSignerId },
+    ),
+  eventAlreadySuperseded: (successorId: string | null) =>
+    new ApiError(
+      409,
+      'EVENT_ALREADY_SUPERSEDED',
+      'The referenced authority event already has a successor; an event history does not fork.',
+      successorId === null ? {} : { successorId },
     ),
 } as const;

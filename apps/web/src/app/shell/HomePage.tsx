@@ -17,8 +17,10 @@ export function HomePage() {
         <Link to="/sources">Sources</Link> records pointers to documents kept elsewhere, usually in
         Google Drive; a source record is not the evidence and proves nothing by existing.{' '}
         <Link to="/representation">Representation</Link> holds routes — operational paths from an
-        agency to an owner’s legal subject — which grant no authority. Mandates, cases and
-        production are not implemented yet.
+        agency to an owner’s legal subject — and mandates with their versions, coverage, coverage
+        signers and authority events. These record what cited sources are reported to support: none
+        of them is authority by existing, a G1–G7 decision or a signature. Cases and production are
+        not implemented yet.
       </p>
       <dl>
         <dt>Session</dt>

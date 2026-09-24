@@ -10,7 +10,9 @@ import { HealthModule } from './modules/health/health.module.js';
 
 // P1: health + local authentication (login/session/logout) behind a secure-by-default global guard.
 // P2: the Directory (Agency, Owner, LegalSubject, OwnerSubject, Signer) behind the same guard.
-// No Route/Mandate/Case, production, signing or sending endpoints.
+// P3A: SourceReference registry, canonical bindings and Route. P3B: Mandate, MandateVersion,
+// MandateCoverage, CoverageSigner and AuthorityEvent. No Case, production, readiness, signing or
+// sending endpoints.
 @Module({
   imports: [
     DatabaseModule,

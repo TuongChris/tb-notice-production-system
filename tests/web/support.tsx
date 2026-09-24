@@ -1,7 +1,10 @@
 // Shared UI test support: a synthetic in-memory API (fake fetch) that enforces the same request
 // contract as the server — session CSRF token, one Idempotency-Key per write, the exact If-Match
 // ETag of the precondition target (428 missing, 412 stale) — plus rendering and interaction
-// helpers. All data is synthetic.
+// helpers. The representation-authority records (P3B) follow the server's main rules: the parent
+// ETag as precondition of a child create, FROZEN_VERSION for any change under a frozen version,
+// version numbers max+1, append-only events and a frozen coverage of the same route as a route's
+// preferred coverage. All data is synthetic.
 import { act, StrictMode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter } from 'react-router';
@@ -11,7 +14,17 @@ import { App } from '../../apps/web/src/app/App.js';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-export type Kind = 'Agency' | 'Owner' | 'LegalSubject' | 'Signer' | 'OwnerSubject' | 'Route';
+export type Kind =
+  | 'Agency'
+  | 'Owner'
+  | 'LegalSubject'
+  | 'Signer'
+  | 'OwnerSubject'
+  | 'Route'
+  | 'Mandate'
+  | 'MandateVersion'
+  | 'MandateCoverage'
+  | 'CoverageSigner';
 export type Row = Record<string, unknown> & { id: string; rowVersion: number };
 
 export interface RecordedRequest {
@@ -55,7 +68,18 @@ const COLLECTIONS: Record<string, Kind> = {
   'legal-subjects': 'LegalSubject',
   signers: 'Signer',
   routes: 'Route',
+  mandates: 'Mandate',
 };
+
+/** Fields the authority children do not have (they carry no binding, notes or archive flag). */
+const NOT_ON_CHILDREN = [
+  'canonicalCode',
+  'canonicalSourceId',
+  'bindingState',
+  'notes',
+  'archivedAt',
+  'archiveReason',
+];
 
 /** Fields of a SourceReferenceSummary (list DTO). */
 const SUMMARY_FIELDS = [
@@ -87,7 +111,13 @@ export class FakeDirectory {
     Signer: new Map(),
     OwnerSubject: new Map(),
     Route: new Map(),
+    Mandate: new Map(),
+    MandateVersion: new Map(),
+    MandateCoverage: new Map(),
+    CoverageSigner: new Map(),
   };
+  /** Append-only authority events (no ETag, no row version), in recording order. */
+  readonly events: Array<Record<string, unknown> & { id: string }> = [];
   /** Immutable SourceReference revisions (no ETag, no row version). */
   readonly sources = new Map<string, Record<string, unknown> & { id: string }>();
   /** Canonical-binding refusals the server would give for a record id (e.g. owner material). */
@@ -200,19 +230,67 @@ export class FakeDirectory {
         unlinkedAt: null,
         stateReason: null,
       },
+      Mandate: {
+        agencyId: '',
+        label: 'x',
+        externalReference: null,
+        description: null,
+      },
+      MandateVersion: {
+        mandateId: '',
+        agencyId: '',
+        version: 1,
+        versionState: 'DRAFT',
+        changeKind: 'NEW_AUTHORIZATION',
+        predecessorId: null,
+        primarySourceId: null,
+        additionalSourceRefs: null,
+        documentState: 'UNKNOWN',
+        sourceReviewState: 'UNREVIEWED',
+        signedDatesRaw: null,
+        validityModel: 'UNKNOWN',
+        effectiveOn: null,
+        expiresOn: null,
+        validityNotes: null,
+        frozenAt: null,
+        changeReason: 'x',
+      },
+      MandateCoverage: {
+        mandateVersionId: '',
+        routeId: '',
+        agencyId: '',
+        coverageLabel: 'x',
+        coveredWorksScope: null,
+        territorialScope: null,
+        actionScope: null,
+        exclusions: null,
+        conditions: null,
+        exclusivity: 'UNKNOWN',
+        effectiveOn: null,
+        expiresOn: null,
+        basisSourceId: null,
+        predecessorCoverageId: null,
+      },
+      CoverageSigner: {
+        coverageId: '',
+        agencyId: '',
+        signerId: '',
+        capacity: 'x',
+        actionScope: null,
+        sourceId: null,
+        effectiveOn: null,
+        endsOn: null,
+        limitations: null,
+      },
     };
     const row = { ...base, ...defaults[kind], ...fields } as Row;
-    if (kind === 'OwnerSubject') {
-      for (const key of [
-        'canonicalCode',
-        'canonicalSourceId',
-        'bindingState',
-        'notes',
-        'archivedAt',
-        'archiveReason',
-      ]) {
-        delete row[key];
-      }
+    if (
+      kind === 'OwnerSubject' ||
+      kind === 'MandateVersion' ||
+      kind === 'MandateCoverage' ||
+      kind === 'CoverageSigner'
+    ) {
+      for (const key of NOT_ON_CHILDREN) delete row[key];
     }
     this.rows[kind].set(id, row);
     return row;
@@ -250,6 +328,30 @@ export class FakeDirectory {
       ...fields,
     };
     this.sources.set(id, row);
+    return row;
+  }
+
+  /** A synthetic append-only authority event of a mandate. */
+  seedEvent(fields: Record<string, unknown>): Record<string, unknown> & { id: string } {
+    const row = {
+      id: this.id(),
+      mandateId: '',
+      agencyId: '',
+      coverageId: null,
+      eventType: 'CURRENTNESS_RECORDED',
+      sourceId: '',
+      provenance: 'OPERATOR_REPORTED',
+      effectiveOn: null,
+      effectiveAt: null,
+      rawEffectiveText: null,
+      scopeText: 'Synthetic scope',
+      supersedesEventId: null,
+      interpretation: 'Synthetic reading',
+      createdAt: NOW,
+      createdById: USER_ID,
+      ...fields,
+    };
+    this.events.push(row);
     return row;
   }
 
@@ -303,6 +405,18 @@ export class FakeDirectory {
     const parts = url.pathname.replace('/api/v1/', '').split('/');
     const [collection, id, action] = parts;
     if (collection === 'sources') return this.sourceRequest(method, id, action, url, body);
+    if (collection === 'mandates' && id && (action === 'versions' || action === 'events')) {
+      return this.mandateChildren(method, id, action, url, headers, body);
+    }
+    if (collection === 'mandate-versions' && id) {
+      return this.versionRequest(method, id, action, url, headers, body);
+    }
+    if (collection === 'coverages' && id) {
+      return this.coverageRequest(method, id, action, url, headers, body);
+    }
+    if (collection === 'coverage-signers' && id) {
+      return this.coverageSignerRequest(method, id, headers);
+    }
     if (collection === 'owner-subjects' && id)
       return this.ownerSubject(method, id, action, headers, body);
     if (collection === 'owners' && id && action === 'subjects') {
@@ -340,6 +454,10 @@ export class FakeDirectory {
       }
       const invalid = this.invalidEmails(request);
       if (invalid) return invalid;
+      if (kind === 'Route' && typeof request['preferredCoverageId'] === 'string') {
+        const refused = this.preferredCoverageRefusal(row, request['preferredCoverageId']);
+        if (refused) return refused;
+      }
       const reasons = this.established.get(row.id);
       const identity = (IDENTITY_FIELDS[kind] ?? []).filter(
         (field) => field in request && request[field] !== row[field],
@@ -352,7 +470,7 @@ export class FakeDirectory {
       }
       return change(request);
     }
-    const flagOnly = kind === 'Signer' || kind === 'Route';
+    const flagOnly = kind === 'Signer' || kind === 'Route' || kind === 'Mandate';
     if (action === 'archive')
       return change({
         ...(flagOnly ? {} : { recordState: 'ARCHIVED' }),
@@ -607,6 +725,337 @@ export class FakeDirectory {
 
   writes(): RecordedRequest[] {
     return this.requests.filter((request) => request.method !== 'GET');
+  }
+
+  // Representation authority (P3B) -------------------------------------------------------------
+
+  private page(items: Row[] | Array<Record<string, unknown>>): Response {
+    return json(200, {
+      data: { items, nextCursor: null },
+      meta: { requestId: 'r', affectedResources: [] },
+    });
+  }
+
+  private reply(status: number, kind: Kind, row: Row): Response {
+    return json(
+      status,
+      { data: row, meta: { requestId: 'r', affectedResources: [] } },
+      { ETag: this.etag(kind, row) },
+    );
+  }
+
+  private bump(kind: Kind, id: string): void {
+    const row = this.rows[kind].get(id);
+    if (row) Object.assign(row, { rowVersion: row.rowVersion + 1, updatedAt: NOW });
+  }
+
+  private versionOf(coverage: Row): Row | undefined {
+    return this.rows.MandateVersion.get(String(coverage['mandateVersionId']));
+  }
+
+  private frozen(version: Row | undefined): Response | null {
+    return version?.['versionState'] === 'FROZEN'
+      ? failure(409, 'FROZEN_VERSION', { versionId: version.id })
+      : null;
+  }
+
+  private archivedMandate(mandateId: unknown): Response | null {
+    return this.rows.Mandate.get(String(mandateId))?.['archivedAt']
+      ? failure(409, 'RECORD_STATE_CONFLICT', { record: 'Mandate', archived: true })
+      : null;
+  }
+
+  private preferredCoverageRefusal(route: Row, coverageId: string): Response | null {
+    const field = 'preferredCoverageId';
+    const coverage = this.rows.MandateCoverage.get(coverageId);
+    if (!coverage) return failure(422, 'REFERENCE_NOT_FOUND', { field });
+    if (coverage['agencyId'] !== route['agencyId']) {
+      return failure(422, 'CROSS_AGENCY_REFERENCE', { field });
+    }
+    if (coverage['routeId'] !== route.id) {
+      return failure(422, 'AUTHORITY_SCOPE_UNRESOLVED', { field, reason: 'OTHER_ROUTE' });
+    }
+    const version = this.versionOf(coverage);
+    if (version?.['versionState'] !== 'FROZEN') {
+      return failure(409, 'VERSION_NOT_FROZEN', { field, versionId: version?.id });
+    }
+    return this.archivedMandate(version['mandateId']);
+  }
+
+  private mandateChildren(
+    method: string,
+    mandateId: string,
+    action: 'versions' | 'events',
+    url: URL,
+    headers: Record<string, string>,
+    body: unknown,
+  ): Response {
+    const mandate = this.rows.Mandate.get(mandateId);
+    if (!mandate) return failure(404, 'NOT_FOUND');
+    const q = url.searchParams.get('q');
+    if (method === 'GET') {
+      if (action === 'versions') {
+        return this.page(
+          [...this.rows.MandateVersion.values()]
+            .filter((row) => row['mandateId'] === mandateId)
+            .filter((row) => !q || row.id === q || row['predecessorId'] === q)
+            .reverse(),
+        );
+      }
+      return this.page(
+        this.events
+          .filter((row) => row['mandateId'] === mandateId)
+          .filter(
+            (row) =>
+              !q ||
+              row.id === q ||
+              row['coverageId'] === q ||
+              row['sourceId'] === q ||
+              row['supersedesEventId'] === q ||
+              row['eventType'] === q,
+          )
+          .reverse(),
+      );
+    }
+    const precondition = this.precondition('Mandate', mandate, headers);
+    if (precondition) return precondition;
+    const archived = this.archivedMandate(mandateId);
+    if (archived) return archived;
+    const request = body as Record<string, unknown>;
+    if (action === 'versions') {
+      const siblings = [...this.rows.MandateVersion.values()].filter(
+        (row) => row['mandateId'] === mandateId,
+      );
+      const predecessorId = request['predecessorId'];
+      if (typeof predecessorId === 'string') {
+        const predecessor = this.rows.MandateVersion.get(predecessorId);
+        if (!predecessor) return failure(422, 'REFERENCE_NOT_FOUND', { field: 'predecessorId' });
+        if (predecessor['versionState'] !== 'FROZEN') {
+          return failure(409, 'VERSION_NOT_FROZEN', { field: 'predecessorId' });
+        }
+        const successor = siblings.find((row) => row['predecessorId'] === predecessorId);
+        if (successor) {
+          return failure(409, 'VERSION_SUCCESSOR_EXISTS', {
+            field: 'predecessorId',
+            successorId: successor.id,
+          });
+        }
+      }
+      const documentState = request['documentState'];
+      if (
+        (documentState === 'DRAFT' || documentState === 'SIGNED_APPEARING') &&
+        !request['primarySourceId']
+      ) {
+        return failure(422, 'DOCUMENT_STATE_UNSUPPORTED', { field: 'documentState' });
+      }
+      if (
+        typeof request['effectiveOn'] === 'string' &&
+        typeof request['expiresOn'] === 'string' &&
+        request['effectiveOn'] > request['expiresOn']
+      ) {
+        return failure(422, 'DATE_RANGE_INVALID', { fields: ['effectiveOn', 'expiresOn'] });
+      }
+      const version = Math.max(0, ...siblings.map((row) => Number(row['version']))) + 1;
+      const row = this.seed('MandateVersion', {
+        ...request,
+        mandateId,
+        agencyId: mandate['agencyId'],
+        version,
+      });
+      this.bump('Mandate', mandateId);
+      return this.reply(201, 'MandateVersion', row);
+    }
+    const coverageId = request['coverageId'];
+    if (typeof coverageId === 'string') {
+      const coverage = this.rows.MandateCoverage.get(coverageId);
+      if (!coverage) return failure(422, 'REFERENCE_NOT_FOUND', { field: 'coverageId' });
+      const version = this.versionOf(coverage);
+      if (version?.['mandateId'] !== mandateId) {
+        return failure(422, 'AUTHORITY_SCOPE_UNRESOLVED', {
+          field: 'coverageId',
+          reason: 'OTHER_MANDATE',
+        });
+      }
+      if (version['versionState'] !== 'FROZEN') {
+        return failure(409, 'VERSION_NOT_FROZEN', { field: 'coverageId', versionId: version.id });
+      }
+    }
+    const source = this.sources.get(String(request['sourceId']));
+    if (!source) return failure(422, 'REFERENCE_NOT_FOUND', { field: 'sourceId' });
+    if (
+      request['provenance'] === 'DOCUMENT_REVIEWED' &&
+      source['reportedProvenance'] !== 'DOCUMENT_REVIEWED'
+    ) {
+      return failure(422, 'REVIEW_UNSUPPORTED', {
+        field: 'provenance',
+        reason: 'SOURCE_NOT_REVIEWED',
+      });
+    }
+    const supersedes = request['supersedesEventId'];
+    if (typeof supersedes === 'string') {
+      const successor = this.events.find((row) => row['supersedesEventId'] === supersedes);
+      if (successor) return failure(409, 'EVENT_ALREADY_SUPERSEDED', { successorId: successor.id });
+    }
+    const event = this.seedEvent({
+      coverageId: null,
+      ...request,
+      mandateId,
+      agencyId: mandate['agencyId'],
+    });
+    this.bump('Mandate', mandateId);
+    return json(201, { data: event, meta: { requestId: 'r', affectedResources: [] } });
+  }
+
+  private versionRequest(
+    method: string,
+    id: string,
+    action: string | undefined,
+    url: URL,
+    headers: Record<string, string>,
+    body: unknown,
+  ): Response {
+    const version = this.rows.MandateVersion.get(id);
+    if (!version) return failure(404, 'NOT_FOUND');
+    if (method === 'GET' && action === undefined) return this.reply(200, 'MandateVersion', version);
+    if (method === 'GET' && action === 'coverages') {
+      const q = url.searchParams.get('q');
+      return this.page(
+        [...this.rows.MandateCoverage.values()]
+          .filter((row) => row['mandateVersionId'] === id)
+          .filter((row) => !q || row.id === q || row['routeId'] === q)
+          .reverse(),
+      );
+    }
+    const precondition = this.precondition('MandateVersion', version, headers);
+    if (precondition) return precondition;
+    const archived = this.archivedMandate(version['mandateId']);
+    if (archived) return archived;
+    const frozen = this.frozen(version);
+    if (frozen) return frozen;
+    const request = body as Record<string, unknown>;
+    if (method === 'PATCH' && action === undefined) {
+      Object.assign(version, request, { rowVersion: version.rowVersion + 1, updatedAt: NOW });
+      return this.reply(200, 'MandateVersion', version);
+    }
+    if (method === 'POST' && action === 'freeze') {
+      Object.assign(version, {
+        versionState: 'FROZEN',
+        frozenAt: NOW,
+        rowVersion: version.rowVersion + 1,
+        updatedAt: NOW,
+      });
+      return this.reply(200, 'MandateVersion', version);
+    }
+    if (method === 'POST' && action === 'coverages') {
+      const route = this.rows.Route.get(String(request['routeId']));
+      if (!route) return failure(422, 'REFERENCE_NOT_FOUND', { field: 'routeId' });
+      if (route['agencyId'] !== version['agencyId']) {
+        return failure(422, 'CROSS_AGENCY_REFERENCE', { field: 'routeId' });
+      }
+      const duplicate = [...this.rows.MandateCoverage.values()].find(
+        (row) =>
+          row['mandateVersionId'] === id &&
+          row['routeId'] === route.id &&
+          row['coverageLabel'] === request['coverageLabel'],
+      );
+      if (duplicate) return failure(409, 'DUPLICATE_COVERAGE', { coverageId: duplicate.id });
+      const row = this.seed('MandateCoverage', {
+        ...request,
+        mandateVersionId: id,
+        agencyId: version['agencyId'],
+      });
+      this.bump('MandateVersion', id);
+      return this.reply(201, 'MandateCoverage', row);
+    }
+    return failure(404, 'NOT_FOUND');
+  }
+
+  private coverageRequest(
+    method: string,
+    id: string,
+    action: string | undefined,
+    url: URL,
+    headers: Record<string, string>,
+    body: unknown,
+  ): Response {
+    const coverage = this.rows.MandateCoverage.get(id);
+    if (!coverage) return failure(404, 'NOT_FOUND');
+    if (method === 'GET' && action === undefined) {
+      return this.reply(200, 'MandateCoverage', coverage);
+    }
+    if (method === 'GET' && action === 'signers') {
+      void url;
+      return this.page(
+        [...this.rows.CoverageSigner.values()].filter((row) => row['coverageId'] === id),
+      );
+    }
+    const precondition = this.precondition('MandateCoverage', coverage, headers);
+    if (precondition) return precondition;
+    const version = this.versionOf(coverage);
+    const archived = this.archivedMandate(version?.['mandateId']);
+    if (archived) return archived;
+    const frozen = this.frozen(version);
+    if (frozen) return frozen;
+    const request = body as Record<string, unknown>;
+    if (method === 'PATCH' && action === undefined) {
+      Object.assign(coverage, request, { rowVersion: coverage.rowVersion + 1, updatedAt: NOW });
+      this.bump('MandateVersion', String(coverage['mandateVersionId']));
+      return this.reply(200, 'MandateCoverage', coverage);
+    }
+    if (method === 'POST' && action === 'signers') {
+      const signer = this.rows.Signer.get(String(request['signerId']));
+      if (!signer) return failure(422, 'REFERENCE_NOT_FOUND', { field: 'signerId' });
+      if (signer['agencyId'] !== coverage['agencyId']) {
+        return failure(422, 'CROSS_AGENCY_REFERENCE', { field: 'signerId' });
+      }
+      if (signer['archivedAt'] || signer['operationalState'] === 'ENDED') {
+        return failure(409, 'RECORD_STATE_CONFLICT', {
+          record: 'Signer',
+          operation: 'createCoverageSigner',
+          field: 'signerId',
+        });
+      }
+      const duplicate = [...this.rows.CoverageSigner.values()].find(
+        (row) =>
+          row['coverageId'] === id &&
+          row['signerId'] === signer.id &&
+          row['capacity'] === request['capacity'],
+      );
+      if (duplicate) {
+        return failure(409, 'DUPLICATE_COVERAGE_SIGNER', { coverageSignerId: duplicate.id });
+      }
+      const row = this.seed('CoverageSigner', {
+        ...request,
+        coverageId: id,
+        agencyId: coverage['agencyId'],
+      });
+      this.bump('MandateCoverage', id);
+      this.bump('MandateVersion', String(coverage['mandateVersionId']));
+      return this.reply(201, 'CoverageSigner', row);
+    }
+    return failure(404, 'NOT_FOUND');
+  }
+
+  private coverageSignerRequest(
+    method: string,
+    id: string,
+    headers: Record<string, string>,
+  ): Response {
+    const association = this.rows.CoverageSigner.get(id);
+    if (!association) return failure(404, 'NOT_FOUND');
+    if (method === 'GET') return this.reply(200, 'CoverageSigner', association);
+    const precondition = this.precondition('CoverageSigner', association, headers);
+    if (precondition) return precondition;
+    const coverage = this.rows.MandateCoverage.get(String(association['coverageId']));
+    const frozen = coverage ? this.frozen(this.versionOf(coverage)) : null;
+    if (frozen) return frozen;
+    if (method !== 'DELETE') return failure(404, 'NOT_FOUND');
+    this.rows.CoverageSigner.delete(id);
+    if (coverage) {
+      this.bump('MandateCoverage', coverage.id);
+      this.bump('MandateVersion', String(coverage['mandateVersionId']));
+    }
+    return new Response(null, { status: 204 });
   }
 }
 

@@ -1,0 +1,230 @@
+# GitHub Actions run 35990960584 (workflow CI, push) — branch feature/p3b-representation-authority, P3B code head (UI fixes from the browser pass).
+# commit 04b852863705da8115c7d165eb852768afe3c976. Created 2026-09-24T11:05:08Z, completed 2026-09-24T11:09:20Z. Conclusion: success.
+# Jobs: "Database, seed and smoke (MySQL 8.4.11)" success (11:05:10Z–11:09:20Z); "Non-DB checks (cold install)" success (11:05:11Z–11:07:36Z)
+# https://github.com/TuongChris/tb-notice-production-system/actions/runs/35990960584 — no pull request exists for this branch (not merged).
+# Earlier P3B run: 35980464772 (push, f79aa0a, the API + smoke:p3b commits) success.
+# Verified with `gh run view`. Evidence lines extracted from `gh run view --log` (step echoes, environment blocks,
+# ANSI codes and timestamps removed; format "job | step | output line"). Synthetic CI data only; smoke:p3b writes only
+# into the disposable CI tb_notice_dev. No Drive write, mail, deployment or other external action.
+
+db | Toolchain | node v24.21.0, yarn 4.18.0, Docker version 28.0.4, build b8034c0, Docker Compose version v2.38.2
+db | yarn install --immutable | ➤ YN0000: · Done with warnings in 17s 228ms
+db | Migrate tb_notice_test (committed migration) and verify metadata | [verify] tables 33/33 (InnoDB 33, utf8mb4_0900_bin 33); columns 541/541 (character columns with binary collation 391)
+db | Migrate tb_notice_test (committed migration) and verify metadata | [verify] foreign keys 125/125 RESTRICT/RESTRICT (composite 27); CHECK constraints 30/30 semantically matching and ENFORCED=YES
+db | Migrate tb_notice_test (committed migration) and verify metadata | [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+db | Migrate tb_notice_test (committed migration) and verify metadata | [verify] domain rows total: 0
+db | Migrate tb_notice_test (committed migration) and verify metadata | [verify] PASS: metadata matches the reviewed inventory.
+db | Database structural tests (tb_notice_test) | Test Files  7 passed (7)
+db | Database structural tests (tb_notice_test) | Tests  251 passed (251)
+db | Replay into tb_notice_replay; second deploy must be a no-op | No pending migrations to apply.
+db | Replay into tb_notice_replay; second deploy must be a no-op | [verify] tables 33/33 (InnoDB 33, utf8mb4_0900_bin 33); columns 541/541 (character columns with binary collation 391)
+db | Replay into tb_notice_replay; second deploy must be a no-op | [verify] foreign keys 125/125 RESTRICT/RESTRICT (composite 27); CHECK constraints 30/30 semantically matching and ENFORCED=YES
+db | Replay into tb_notice_replay; second deploy must be a no-op | [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+db | Replay into tb_notice_replay; second deploy must be a no-op | [verify] domain rows total: 0
+db | Replay into tb_notice_replay; second deploy must be a no-op | [verify] PASS: metadata matches the reviewed inventory.
+db | Migrate tb_notice_dev and verify metadata | [verify] tables 33/33 (InnoDB 33, utf8mb4_0900_bin 33); columns 541/541 (character columns with binary collation 391)
+db | Migrate tb_notice_dev and verify metadata | [verify] foreign keys 125/125 RESTRICT/RESTRICT (composite 27); CHECK constraints 30/30 semantically matching and ENFORCED=YES
+db | Migrate tb_notice_dev and verify metadata | [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+db | Migrate tb_notice_dev and verify metadata | [verify] domain rows total: 0
+db | Migrate tb_notice_dev and verify metadata | [verify] PASS: metadata matches the reviewed inventory.
+db | Synthetic seed twice (idempotent, canonical digest equals first PC) | [db:seed] target tb_migrate@127.0.0.1:3307/tb_notice_dev
+db | Synthetic seed twice (idempotent, canonical digest equals first PC) | [db:seed] synthetic actor 00000000-0000-4000-8000-00000000a0c7: inserted
+db | Synthetic seed twice (idempotent, canonical digest equals first PC) | [db:seed] rows=1 enabled=0 password_hash=!P0-SYNTHETIC-DISABLED-ACTOR-NO-CREDENTIAL
+db | Synthetic seed twice (idempotent, canonical digest equals first PC) | [db:seed] canonical digest 0ee26dc3ee5f3a1030fb78a6cadaf4dabef1f5a296b58163248584e1e0bfb775 (identical on every PC)
+db | Synthetic seed twice (idempotent, canonical digest equals first PC) | [db:seed] created_at 2026-09-24 11:07:58.723 (local insert time; unchanged by re-runs)
+db | Synthetic seed twice (idempotent, canonical digest equals first PC) | [db:seed] target tb_migrate@127.0.0.1:3307/tb_notice_dev
+db | Synthetic seed twice (idempotent, canonical digest equals first PC) | [db:seed] synthetic actor 00000000-0000-4000-8000-00000000a0c7: unchanged (already canonical)
+db | Synthetic seed twice (idempotent, canonical digest equals first PC) | [db:seed] rows=1 enabled=0 password_hash=!P0-SYNTHETIC-DISABLED-ACTOR-NO-CREDENTIAL
+db | Synthetic seed twice (idempotent, canonical digest equals first PC) | [db:seed] canonical digest 0ee26dc3ee5f3a1030fb78a6cadaf4dabef1f5a296b58163248584e1e0bfb775 (identical on every PC)
+db | Synthetic seed twice (idempotent, canonical digest equals first PC) | [db:seed] created_at 2026-09-24 11:07:58.723 (local insert time; unchanged by re-runs)
+db | Synthetic seed twice (idempotent, canonical digest equals first PC) | [verify] tables 33/33 (InnoDB 33, utf8mb4_0900_bin 33); columns 541/541 (character columns with binary collation 391)
+db | Synthetic seed twice (idempotent, canonical digest equals first PC) | [verify] foreign keys 125/125 RESTRICT/RESTRICT (composite 27); CHECK constraints 30/30 semantically matching and ENFORCED=YES
+db | Synthetic seed twice (idempotent, canonical digest equals first PC) | [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+db | Synthetic seed twice (idempotent, canonical digest equals first PC) | [verify] domain rows total: 1
+db | Synthetic seed twice (idempotent, canonical digest equals first PC) | [verify] PASS: metadata matches the reviewed inventory.
+db | Prisma drift compatibility (read-only diffs) | -- This is an empty migration.
+db | Prisma drift compatibility (read-only diffs) | -- This is an empty migration.
+db | yarn smoke:local | [smoke] PASS MySQL compose service is healthy
+db | yarn smoke:local | [smoke] PASS database reachable as tb_dev@% on tb_notice_dev (MySQL 8.4.11)
+db | yarn smoke:local | ✓ built in 178ms
+db | yarn smoke:local | [smoke] PASS Prisma client, contracts, API and web built (yarn build)
+db | yarn smoke:local | [smoke] PASS api listening on 127.0.0.1:3000
+db | yarn smoke:local | [smoke] PASS web listening on 127.0.0.1:5173
+db | yarn smoke:local | [smoke] PASS API /api/v1/health: 200, no-store, valid GetHealthResponse, status ok
+db | yarn smoke:local | [smoke] PASS web proxy /api/v1/health: 200, no-store, valid GetHealthResponse, status ok
+db | yarn smoke:local | [smoke] PASS web shell served on http://localhost:5173/ with bundle /assets/index-DCw373VZ.js
+db | yarn smoke:local | [smoke] PASS auth boundary: GET /auth/session without a cookie → 401 SESSION_REQUIRED, no-store, no CORS
+db | yarn smoke:local | [smoke] PASS auth boundary: POST /auth/login without Origin → 403 ORIGIN_REJECTED, no-store, no CORS
+db | yarn smoke:local | [smoke] PASS auth boundary: POST /auth/login for a synthetic unknown account → 403 INVALID_CREDENTIALS, no-store, no CORS
+db | yarn smoke:local | [smoke] PASS auth boundary: POST /auth/logout without a session → 401 SESSION_REQUIRED, no-store, no CORS
+db | yarn smoke:local | [smoke] PASS auth boundary: GET /auth/session through the web proxy → 401 SESSION_REQUIRED, no-store, no CORS
+db | yarn smoke:local | [smoke] PASS business boundary: GET /agencies without a session → 401 SESSION_REQUIRED, no-store
+db | yarn smoke:local | [smoke] PASS business boundary: GET /owners without a session → 401 SESSION_REQUIRED, no-store
+db | yarn smoke:local | [smoke] PASS business boundary: GET /legal-subjects without a session → 401 SESSION_REQUIRED, no-store
+db | yarn smoke:local | [smoke] PASS business boundary: GET /signers without a session → 401 SESSION_REQUIRED, no-store
+db | yarn smoke:local | [smoke] PASS business boundary: GET /owners/{ownerId}/subjects without a session → 401 SESSION_REQUIRED, no-store
+db | yarn smoke:local | [smoke] PASS business boundary: GET /owner-subjects/{id} through the web proxy without a session → 401 SESSION_REQUIRED, no-store
+db | yarn smoke:local | [smoke] PASS business boundary: POST /agencies without Origin → 403 ORIGIN_REJECTED, no-store
+db | yarn smoke:local | [smoke] PASS business boundary: POST /agencies/{id}/canonical-bindings without a session → 401 SESSION_REQUIRED, no-store
+db | yarn smoke:local | [smoke] PASS business boundary: GET /sources without a session → 401 SESSION_REQUIRED, no-store
+db | yarn smoke:local | [smoke] PASS business boundary: POST /sources/{id}/revisions without a session → 401 SESSION_REQUIRED, no-store
+db | yarn smoke:local | [smoke] PASS business boundary: GET /routes through the web proxy without a session → 401 SESSION_REQUIRED, no-store
+db | yarn smoke:local | [smoke] PASS business boundary: POST /routes without Origin → 403 ORIGIN_REJECTED, no-store
+db | yarn smoke:local | [smoke] PASS business boundary: POST /routes/{id}/canonical-bindings without a session → 401 SESSION_REQUIRED, no-store
+db | yarn smoke:local | [smoke] PASS business boundary: GET /mandates without a session → 401 SESSION_REQUIRED, no-store
+db | yarn smoke:local | [smoke] PASS business boundary: POST /mandates/{id}/versions without a session → 401 SESSION_REQUIRED, no-store
+db | yarn smoke:local | [smoke] PASS business boundary: POST /mandate-versions/{id}/freeze without Origin → 403 ORIGIN_REJECTED, no-store
+db | yarn smoke:local | [smoke] PASS business boundary: GET /coverages/{id}/signers through the web proxy without a session → 401 SESSION_REQUIRED, no-store
+db | yarn smoke:local | [smoke] PASS business boundary: GET /mandates/{id}/events without a session → 401 SESSION_REQUIRED, no-store
+db | yarn smoke:local | [smoke] PASS business boundary: POST /cases (Case phase, not routed) → 404 NOT_FOUND, no-store
+db | yarn smoke:local | [smoke] PASS processes stopped; ports 3000 and 5173 released
+db | yarn smoke:local | [smoke] PASS (33 checks)
+db | P1 admin bootstrap (yarn admin:create, synthetic account, duplicate refused) | [admin:create] guard: tb_dev@127.0.0.1:3307/tb_notice_dev (local runtime account)
+db | P1 admin bootstrap (yarn admin:create, synthetic account, duplicate refused) | [admin:create] target tb_dev@127.0.0.1:3307/tb_notice_dev (password not shown)
+db | P1 admin bootstrap (yarn admin:create, synthetic account, duplicate refused) | [admin:create] created enabled application user 4efd6630-2070-433f-b4d5-b17b18203922
+db | P1 admin bootstrap (yarn admin:create, synthetic account, duplicate refused) | [admin:create]   email:        p1-ci-admin@example.invalid
+db | P1 admin bootstrap (yarn admin:create, synthetic account, duplicate refused) | [admin:create]   display name: P1 CI synthetic admin (disposable)
+db | P1 admin bootstrap (yarn admin:create, synthetic account, duplicate refused) | [admin:create]   password:     Argon2id hash stored; the password itself was not stored or printed
+db | P1 admin bootstrap (yarn admin:create, synthetic account, duplicate refused) | [admin:create] Application login state only: no Signer, authority or business record was changed, and this confers no legal authority.
+db | P1 compiled login round trip (yarn smoke:auth) | [smoke:auth] PASS login → 200 LoginResponse, tb_session_dev HttpOnly SameSite=Strict Path=/, no Domain/Secure
+db | P1 compiled login round trip (yarn smoke:auth) | [smoke:auth] PASS GET /auth/session → 200 with the same session-bound CSRF token, no-store
+db | P1 compiled login round trip (yarn smoke:auth) | [smoke:auth] PASS POST /auth/logout with X-CSRF-Token → 204 and cookie cleared
+db | P1 compiled login round trip (yarn smoke:auth) | [smoke:auth] PASS old cookie after logout → 401
+db | P1 compiled login round trip (yarn smoke:auth) | [smoke:auth] PASS (4 checks)
+db | P2 compiled directory round trip (yarn smoke:directory, synthetic Agency created and deleted) | [smoke:directory] PASS login → 200 with a session cookie and CSRF token
+db | P2 compiled directory round trip (yarn smoke:directory, synthetic Agency created and deleted) | [smoke:directory] PASS POST /agencies → 201
+db | P2 compiled directory round trip (yarn smoke:directory, synthetic Agency created and deleted) | [smoke:directory] PASS POST /agencies (exact replay, same key) → 201
+db | P2 compiled directory round trip (yarn smoke:directory, synthetic Agency created and deleted) | [smoke:directory] PASS GET /agencies/{id} → 200
+db | P2 compiled directory round trip (yarn smoke:directory, synthetic Agency created and deleted) | [smoke:directory] PASS PATCH without If-Match → 428
+db | P2 compiled directory round trip (yarn smoke:directory, synthetic Agency created and deleted) | [smoke:directory] PASS PATCH with a stale If-Match → 412
+db | P2 compiled directory round trip (yarn smoke:directory, synthetic Agency created and deleted) | [smoke:directory] PASS PATCH with the current If-Match → 200
+db | P2 compiled directory round trip (yarn smoke:directory, synthetic Agency created and deleted) | [smoke:directory] PASS GET /agencies?q= → 200
+db | P2 compiled directory round trip (yarn smoke:directory, synthetic Agency created and deleted) | [smoke:directory] PASS POST /agencies/{id}/archive → 200
+db | P2 compiled directory round trip (yarn smoke:directory, synthetic Agency created and deleted) | [smoke:directory] PASS POST /agencies/{id}/restore → 200
+db | P2 compiled directory round trip (yarn smoke:directory, synthetic Agency created and deleted) | [smoke:directory] PASS DELETE /agencies/{id} (unused draft) → 204
+db | P2 compiled directory round trip (yarn smoke:directory, synthetic Agency created and deleted) | [smoke:directory] PASS GET /agencies/{id} after delete → 404
+db | P2 compiled directory round trip (yarn smoke:directory, synthetic Agency created and deleted) | [smoke:directory] PASS POST /agencies/{id}/canonical-bindings on the deleted agency → 404
+db | P2 compiled directory round trip (yarn smoke:directory, synthetic Agency created and deleted) | [smoke:directory] PASS logout → 204
+db | P2 compiled directory round trip (yarn smoke:directory, synthetic Agency created and deleted) | [smoke:directory] PASS (14 checks)
+db | P3A compiled source → canonical binding → route round trip (yarn smoke:p3a, synthetic) | [smoke:p3a] PASS login → 200 with a session cookie and CSRF token
+db | P3A compiled source → canonical binding → route round trip (yarn smoke:p3a, synthetic) | [smoke:p3a] PASS POST /agencies → 201
+db | P3A compiled source → canonical binding → route round trip (yarn smoke:p3a, synthetic) | [smoke:p3a] PASS POST /sources (agency canonical record) → 201
+db | P3A compiled source → canonical binding → route round trip (yarn smoke:p3a, synthetic) | [smoke:p3a] PASS bind Agency → 200
+db | P3A compiled source → canonical binding → route round trip (yarn smoke:p3a, synthetic) | [smoke:p3a] PASS POST /owners → 201
+db | P3A compiled source → canonical binding → route round trip (yarn smoke:p3a, synthetic) | [smoke:p3a] PASS POST /legal-subjects → 201
+db | P3A compiled source → canonical binding → route round trip (yarn smoke:p3a, synthetic) | [smoke:p3a] PASS POST /owners/{id}/subjects (link) → 201
+db | P3A compiled source → canonical binding → route round trip (yarn smoke:p3a, synthetic) | [smoke:p3a] PASS POST /sources (scoped to the subject) → 201
+db | P3A compiled source → canonical binding → route round trip (yarn smoke:p3a, synthetic) | [smoke:p3a] PASS bind LegalSubject → 200
+db | P3A compiled source → canonical binding → route round trip (yarn smoke:p3a, synthetic) | [smoke:p3a] PASS GET /owners/{id} → 200
+db | P3A compiled source → canonical binding → route round trip (yarn smoke:p3a, synthetic) | [smoke:p3a] PASS POST /sources (public, owner namespace) → 201
+db | P3A compiled source → canonical binding → route round trip (yarn smoke:p3a, synthetic) | [smoke:p3a] PASS bind Owner → 200
+db | P3A compiled source → canonical binding → route round trip (yarn smoke:p3a, synthetic) | [smoke:p3a] PASS POST /routes → 201
+db | P3A compiled source → canonical binding → route round trip (yarn smoke:p3a, synthetic) | [smoke:p3a] PASS POST /sources (route record) → 201
+db | P3A compiled source → canonical binding → route round trip (yarn smoke:p3a, synthetic) | [smoke:p3a] PASS bind Route → 200
+db | P3A compiled source → canonical binding → route round trip (yarn smoke:p3a, synthetic) | [smoke:p3a] PASS POST /sources/{id}/revisions → 201
+db | P3A compiled source → canonical binding → route round trip (yarn smoke:p3a, synthetic) | [smoke:p3a] PASS GET /routes/{id} → 200
+db | P3A compiled source → canonical binding → route round trip (yarn smoke:p3a, synthetic) | [smoke:p3a] PASS the route keeps pointing at revision 1 after the source was revised
+db | P3A compiled source → canonical binding → route round trip (yarn smoke:p3a, synthetic) | [smoke:p3a] PASS POST /agencies (second agency) → 201
+db | P3A compiled source → canonical binding → route round trip (yarn smoke:p3a, synthetic) | [smoke:p3a] PASS bind Agency B with Agency A’s source (expected refusal) → 422
+db | P3A compiled source → canonical binding → route round trip (yarn smoke:p3a, synthetic) | [smoke:p3a] PASS GET /sources?agencyId= → 200
+db | P3A compiled source → canonical binding → route round trip (yarn smoke:p3a, synthetic) | [smoke:p3a] PASS GET /routes?q=<link id> → 200
+db | P3A compiled source → canonical binding → route round trip (yarn smoke:p3a, synthetic) | [smoke:p3a] PASS POST /cases (Case phase, not routed) → 404
+db | P3A compiled source → canonical binding → route round trip (yarn smoke:p3a, synthetic) | [smoke:p3a] PASS logout → 204
+db | P3A compiled source → canonical binding → route round trip (yarn smoke:p3a, synthetic) | [smoke:p3a] PASS (24 checks)
+db | P3B compiled mandate → version → coverage → signer → freeze → preference → event (yarn smoke:p3b, synthetic) | [smoke:p3b] PASS login → 200 with a session cookie and CSRF token
+db | P3B compiled mandate → version → coverage → signer → freeze → preference → event (yarn smoke:p3b, synthetic) | [smoke:p3b] PASS POST /agencies → 201
+db | P3B compiled mandate → version → coverage → signer → freeze → preference → event (yarn smoke:p3b, synthetic) | [smoke:p3b] PASS POST /sources (agency agreement record) → 201
+db | P3B compiled mandate → version → coverage → signer → freeze → preference → event (yarn smoke:p3b, synthetic) | [smoke:p3b] PASS POST /owners → 201
+db | P3B compiled mandate → version → coverage → signer → freeze → preference → event (yarn smoke:p3b, synthetic) | [smoke:p3b] PASS POST /legal-subjects → 201
+db | P3B compiled mandate → version → coverage → signer → freeze → preference → event (yarn smoke:p3b, synthetic) | [smoke:p3b] PASS POST /owners/{id}/subjects (link) → 201
+db | P3B compiled mandate → version → coverage → signer → freeze → preference → event (yarn smoke:p3b, synthetic) | [smoke:p3b] PASS POST /routes → 201
+db | P3B compiled mandate → version → coverage → signer → freeze → preference → event (yarn smoke:p3b, synthetic) | [smoke:p3b] PASS POST /signers → 201
+db | P3B compiled mandate → version → coverage → signer → freeze → preference → event (yarn smoke:p3b, synthetic) | [smoke:p3b] PASS POST /mandates → 201
+db | P3B compiled mandate → version → coverage → signer → freeze → preference → event (yarn smoke:p3b, synthetic) | [smoke:p3b] PASS POST /mandates/{id}/versions → 201
+db | P3B compiled mandate → version → coverage → signer → freeze → preference → event (yarn smoke:p3b, synthetic) | [smoke:p3b] PASS POST /mandate-versions/{id}/coverages → 201
+db | P3B compiled mandate → version → coverage → signer → freeze → preference → event (yarn smoke:p3b, synthetic) | [smoke:p3b] PASS POST /coverages/{id}/signers → 201
+db | P3B compiled mandate → version → coverage → signer → freeze → preference → event (yarn smoke:p3b, synthetic) | [smoke:p3b] PASS GET /mandate-versions/{id} → 200
+db | P3B compiled mandate → version → coverage → signer → freeze → preference → event (yarn smoke:p3b, synthetic) | [smoke:p3b] PASS POST /mandate-versions/{id}/freeze → 200
+db | P3B compiled mandate → version → coverage → signer → freeze → preference → event (yarn smoke:p3b, synthetic) | [smoke:p3b] PASS POST coverage on the frozen version (expected refusal) → 409
+db | P3B compiled mandate → version → coverage → signer → freeze → preference → event (yarn smoke:p3b, synthetic) | [smoke:p3b] PASS freeze with the pre-freeze ETag (expected refusal) → 412
+db | P3B compiled mandate → version → coverage → signer → freeze → preference → event (yarn smoke:p3b, synthetic) | [smoke:p3b] PASS PATCH /routes/{id} preferredCoverageId → 200
+db | P3B compiled mandate → version → coverage → signer → freeze → preference → event (yarn smoke:p3b, synthetic) | [smoke:p3b] PASS GET /mandates/{id} → 200
+db | P3B compiled mandate → version → coverage → signer → freeze → preference → event (yarn smoke:p3b, synthetic) | [smoke:p3b] PASS POST /mandates/{id}/events → 201
+db | P3B compiled mandate → version → coverage → signer → freeze → preference → event (yarn smoke:p3b, synthetic) | [smoke:p3b] PASS GET /mandates/{id} (after the event) → 200
+db | P3B compiled mandate → version → coverage → signer → freeze → preference → event (yarn smoke:p3b, synthetic) | [smoke:p3b] PASS DOCUMENT_REVIEWED event on an unreviewed source (expected refusal) → 422
+db | P3B compiled mandate → version → coverage → signer → freeze → preference → event (yarn smoke:p3b, synthetic) | [smoke:p3b] PASS POST /agencies (second agency) → 201
+db | P3B compiled mandate → version → coverage → signer → freeze → preference → event (yarn smoke:p3b, synthetic) | [smoke:p3b] PASS POST /legal-subjects (second subject) → 201
+db | P3B compiled mandate → version → coverage → signer → freeze → preference → event (yarn smoke:p3b, synthetic) | [smoke:p3b] PASS GET /owners/{id} → 200
+db | P3B compiled mandate → version → coverage → signer → freeze → preference → event (yarn smoke:p3b, synthetic) | [smoke:p3b] PASS POST /owners/{id}/subjects (second link) → 201
+db | P3B compiled mandate → version → coverage → signer → freeze → preference → event (yarn smoke:p3b, synthetic) | [smoke:p3b] PASS POST /routes (second agency) → 201
+db | P3B compiled mandate → version → coverage → signer → freeze → preference → event (yarn smoke:p3b, synthetic) | [smoke:p3b] PASS second agency route prefers the first agency coverage (expected refusal) → 422
+db | P3B compiled mandate → version → coverage → signer → freeze → preference → event (yarn smoke:p3b, synthetic) | [smoke:p3b] PASS GET /mandates?agencyId= → 200
+db | P3B compiled mandate → version → coverage → signer → freeze → preference → event (yarn smoke:p3b, synthetic) | [smoke:p3b] PASS GET /mandates/{id}/versions → 200
+db | P3B compiled mandate → version → coverage → signer → freeze → preference → event (yarn smoke:p3b, synthetic) | [smoke:p3b] PASS GET /mandate-versions/{id}/coverages → 200
+db | P3B compiled mandate → version → coverage → signer → freeze → preference → event (yarn smoke:p3b, synthetic) | [smoke:p3b] PASS GET /coverages/{id}/signers → 200
+db | P3B compiled mandate → version → coverage → signer → freeze → preference → event (yarn smoke:p3b, synthetic) | [smoke:p3b] PASS GET /mandates/{id}/events → 200
+db | P3B compiled mandate → version → coverage → signer → freeze → preference → event (yarn smoke:p3b, synthetic) | [smoke:p3b] PASS GET /sources/{id} → 200
+db | P3B compiled mandate → version → coverage → signer → freeze → preference → event (yarn smoke:p3b, synthetic) | [smoke:p3b] PASS the source provenance is unchanged by version, coverage, freeze and event
+db | P3B compiled mandate → version → coverage → signer → freeze → preference → event (yarn smoke:p3b, synthetic) | [smoke:p3b] PASS POST /cases (Case phase, not routed) → 404
+db | P3B compiled mandate → version → coverage → signer → freeze → preference → event (yarn smoke:p3b, synthetic) | [smoke:p3b] PASS logout → 204
+db | P3B compiled mandate → version → coverage → signer → freeze → preference → event (yarn smoke:p3b, synthetic) | [smoke:p3b] PASS (36 checks)
+db | P1.1 recovery commands (synthetic account; P0 actor untouched) | [admin:revoke-sessions] guard: tb_dev@127.0.0.1:3307/tb_notice_dev (local runtime account)
+db | P1.1 recovery commands (synthetic account; P0 actor untouched) | [admin:revoke-sessions] target tb_dev@127.0.0.1:3307/tb_notice_dev (password not shown)
+db | P1.1 recovery commands (synthetic account; P0 actor untouched) | [admin:revoke-sessions] 0 active session(s) revoked for application user 4efd6630-2070-433f-b4d5-b17b18203922 (p1-ci-admin@example.invalid); session epoch 1 → 2 (every earlier session is unusable).
+db | P1.1 recovery commands (synthetic account; P0 actor untouched) | [admin:revoke-sessions] Application login state only: no Signer, authority or business record was changed, and this confers no legal authority.
+db | P1.1 recovery commands (synthetic account; P0 actor untouched) | [admin:disable] guard: tb_dev@127.0.0.1:3307/tb_notice_dev (local runtime account)
+db | P1.1 recovery commands (synthetic account; P0 actor untouched) | [admin:disable] target tb_dev@127.0.0.1:3307/tb_notice_dev (password not shown)
+db | P1.1 recovery commands (synthetic account; P0 actor untouched) | [admin:disable] disabled application user 4efd6630-2070-433f-b4d5-b17b18203922 (p1-ci-admin@example.invalid); session epoch 2 → 3; 0 active session(s) revoked. The user row is kept.
+db | P1.1 recovery commands (synthetic account; P0 actor untouched) | [admin:disable] Application login state only: no Signer, authority or business record was changed, and this confers no legal authority.
+db | P1.1 recovery commands (synthetic account; P0 actor untouched) | [smoke:auth] PASS login rejected → generic 403 INVALID_CREDENTIALS, no session cookie
+db | P1.1 recovery commands (synthetic account; P0 actor untouched) | [smoke:auth] PASS (1 checks)
+db | P1.1 recovery commands (synthetic account; P0 actor untouched) | [admin:disable] guard: tb_dev@127.0.0.1:3307/tb_notice_dev (local runtime account)
+db | P1.1 recovery commands (synthetic account; P0 actor untouched) | [admin:disable] target tb_dev@127.0.0.1:3307/tb_notice_dev (password not shown)
+db | P1.1 recovery commands (synthetic account; P0 actor untouched) | [admin:disable] application user 4efd6630-2070-433f-b4d5-b17b18203922 (p1-ci-admin@example.invalid) is already disabled; nothing changed.
+db | P1.1 recovery commands (synthetic account; P0 actor untouched) | [admin:disable] Application login state only: no Signer, authority or business record was changed, and this confers no legal authority.
+db | P1.1 recovery commands (synthetic account; P0 actor untouched) | [admin:enable] guard: tb_dev@127.0.0.1:3307/tb_notice_dev (local runtime account)
+db | P1.1 recovery commands (synthetic account; P0 actor untouched) | [admin:enable] target tb_dev@127.0.0.1:3307/tb_notice_dev (password not shown)
+db | P1.1 recovery commands (synthetic account; P0 actor untouched) | [admin:enable] enabled application user 4efd6630-2070-433f-b4d5-b17b18203922 (p1-ci-admin@example.invalid); session epoch 3 → 4 (sessions from before stay unusable); 0 active session(s) revoked.
+db | P1.1 recovery commands (synthetic account; P0 actor untouched) | [admin:enable] Application login state only: no Signer, authority or business record was changed, and this confers no legal authority.
+db | P1.1 recovery commands (synthetic account; P0 actor untouched) | [smoke:auth] PASS login → 200 LoginResponse, tb_session_dev HttpOnly SameSite=Strict Path=/, no Domain/Secure
+db | P1.1 recovery commands (synthetic account; P0 actor untouched) | [smoke:auth] PASS GET /auth/session → 200 with the same session-bound CSRF token, no-store
+db | P1.1 recovery commands (synthetic account; P0 actor untouched) | [smoke:auth] PASS POST /auth/logout with X-CSRF-Token → 204 and cookie cleared
+db | P1.1 recovery commands (synthetic account; P0 actor untouched) | [smoke:auth] PASS old cookie after logout → 401
+db | P1.1 recovery commands (synthetic account; P0 actor untouched) | [smoke:auth] PASS (4 checks)
+db | P1.1 recovery commands (synthetic account; P0 actor untouched) | [admin:password] guard: tb_dev@127.0.0.1:3307/tb_notice_dev (local runtime account)
+db | P1.1 recovery commands (synthetic account; P0 actor untouched) | [admin:password] target tb_dev@127.0.0.1:3307/tb_notice_dev (password not shown)
+db | P1.1 recovery commands (synthetic account; P0 actor untouched) | [admin:password] password replaced for application user 4efd6630-2070-433f-b4d5-b17b18203922 (p1-ci-admin@example.invalid); session epoch 4 → 5; 0 active session(s) revoked.
+db | P1.1 recovery commands (synthetic account; P0 actor untouched) | [admin:password] The account stays enabled; the new password was not stored or printed.
+db | P1.1 recovery commands (synthetic account; P0 actor untouched) | [admin:password] Application login state only: no Signer, authority or business record was changed, and this confers no legal authority.
+db | P1.1 recovery commands (synthetic account; P0 actor untouched) | [smoke:auth] PASS login rejected → generic 403 INVALID_CREDENTIALS, no session cookie
+db | P1.1 recovery commands (synthetic account; P0 actor untouched) | [smoke:auth] PASS (1 checks)
+db | P1.1 recovery commands (synthetic account; P0 actor untouched) | [smoke:auth] PASS login → 200 LoginResponse, tb_session_dev HttpOnly SameSite=Strict Path=/, no Domain/Secure
+db | P1.1 recovery commands (synthetic account; P0 actor untouched) | [smoke:auth] PASS GET /auth/session → 200 with the same session-bound CSRF token, no-store
+db | P1.1 recovery commands (synthetic account; P0 actor untouched) | [smoke:auth] PASS POST /auth/logout with X-CSRF-Token → 204 and cookie cleared
+db | P1.1 recovery commands (synthetic account; P0 actor untouched) | [smoke:auth] PASS old cookie after logout → 401
+db | P1.1 recovery commands (synthetic account; P0 actor untouched) | [smoke:auth] PASS (4 checks)
+db | P1.1 recovery commands (synthetic account; P0 actor untouched) | [db:seed] target tb_migrate@127.0.0.1:3307/tb_notice_dev
+db | P1.1 recovery commands (synthetic account; P0 actor untouched) | [db:seed] synthetic actor 00000000-0000-4000-8000-00000000a0c7: unchanged (already canonical)
+db | P1.1 recovery commands (synthetic account; P0 actor untouched) | [db:seed] rows=1 enabled=0 password_hash=!P0-SYNTHETIC-DISABLED-ACTOR-NO-CREDENTIAL
+db | P1.1 recovery commands (synthetic account; P0 actor untouched) | [db:seed] canonical digest 0ee26dc3ee5f3a1030fb78a6cadaf4dabef1f5a296b58163248584e1e0bfb775 (identical on every PC)
+db | P1.1 recovery commands (synthetic account; P0 actor untouched) | [db:seed] created_at 2026-09-24 11:07:58.723 (local insert time; unchanged by re-runs)
+db | yarn dev clean shutdown (terminal Ctrl+C, top-only SIGINT/SIGTERM) | [verify-dev] /opt/hostedtoolcache/node/24.21.0/x64/bin/node /home/runner/work/tb-notice-production-system/tb-notice-production-system/scripts/local/dev.ts [terminal-ctrl-c]: started=true exit=0 in 611ms portsReleased=true leftovers=0 → PASS
+db | yarn dev clean shutdown (terminal Ctrl+C, top-only SIGINT/SIGTERM) | [verify-dev] /opt/hostedtoolcache/node/24.21.0/x64/bin/node /home/runner/work/tb-notice-production-system/tb-notice-production-system/scripts/local/dev.ts [top-sigint]: started=true exit=0 in 610ms portsReleased=true leftovers=0 → PASS
+db | yarn dev clean shutdown (terminal Ctrl+C, top-only SIGINT/SIGTERM) | [verify-dev] /opt/hostedtoolcache/node/24.21.0/x64/bin/node /home/runner/work/tb-notice-production-system/tb-notice-production-system/scripts/local/dev.ts [top-sigterm]: started=true exit=0 in 610ms portsReleased=true leftovers=0 → PASS
+db | yarn dev clean shutdown (terminal Ctrl+C, top-only SIGINT/SIGTERM) | [verify-dev] yarn dev [terminal-ctrl-c]: started=true exit=0 in 610ms portsReleased=true leftovers=0 → PASS
+db | yarn dev clean shutdown (terminal Ctrl+C, top-only SIGINT/SIGTERM) | [verify-dev] PASS (4/4 scenarios)
+db | Frozen references and working tree unchanged by the run | [reference:check] OK — frozen references intact.
+non-db | Toolchain | node v24.21.0, yarn 4.18.0, git version 2.55.0
+non-db | Cold-install evidence (Yarn cache before install) | cache folder /home/runner/.yarn/berry/cache: absent (cold)
+non-db | yarn install --immutable | ➤ YN0000: · Done with warnings in 13s 721ms
+non-db | Run yarn reference:check | [reference:check] OK — frozen references intact.
+non-db | Run yarn reference:helper-tests | # tests 27
+non-db | Run yarn reference:helper-tests | # pass 27
+non-db | Run yarn reference:helper-tests | # fail 0
+non-db | Run yarn contracts:check | [contracts:check] OK — 3 generated outputs match the active source.
+non-db | Run yarn lint | Found 0 warnings and 0 errors.
+non-db | Run yarn format:check | All matched files use Prettier code style!
+non-db | Run yarn test | Test Files  30 passed (30)
+non-db | Run yarn test | Tests  1148 passed (1148)
+non-db | Run yarn build | ✓ built in 347ms
+non-db | Frozen references and working tree unchanged by the run | [reference:check] OK — frozen references intact.

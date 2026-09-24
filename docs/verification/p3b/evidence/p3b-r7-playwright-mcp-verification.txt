@@ -1,0 +1,57 @@
+# R7 remediation — targeted Playwright MCP browser re-check (home PC, 2026-09-24 UTC, 13:12Z–13:16Z)
+#
+# Supplemental evidence. The repository suites (yarn test, yarn test:db), the negative controls and CI stay
+# authoritative. The UI code is unchanged by the remediation; this re-check covers only the scenarios whose
+# behaviour changed through the shared rule: the source form's instants (the only refusal the form can produce is a
+# year outside the range — its datetime-local input sends whole minutes via toISOString) and the P3B event form's
+# free-text "Effective at". It also exercises the COMPILED API (the DB suites import the TypeScript sources).
+#
+# Environment
+#   Browser:   Playwright MCP isolated test browser (chrome-headless-shell, Linux, WSL): config "isolated": true,
+#              saveSession false, network limited to localhost / 127.0.0.1; browser time zone Asia/Bangkok (UTC+7).
+#              No personal browser profile, no external account or site.
+#   App:       `yarn ui:sandbox` on commit ee31fa3 (only CLAUDE.md edited, uncommitted): it ran `yarn build`, then the
+#              COMPILED AppModule on 127.0.0.1:3000 with Prisma on the disposable tb_notice_test (never tb_notice_dev)
+#              and `vite preview` of the built web app on 127.0.0.1:5173. dist/src/infrastructure/write/storability.js
+#              present (built 13:12:14Z); the compiled source-rules, sources.service and authority-events.service
+#              reference storabilityProblem / toDbInstant.
+#   Account:   the synthetic sandbox user p2-ui-sandbox@example.invalid; password generated at start, written only
+#              to a mode-600 file outside the repository, deleted afterwards.
+#   Data:      synthetic only, created in the browser: "SYNTHETIC Agency Rho (R7 instant check)", its source
+#              "SYNTHETIC Rho representation letter (not evidence)" and the mandate "SYNTHETIC Rho representation (R7
+#              instant check)". "Forced" checks were sent with fetch() from the same signed-in page (same session
+#              cookie, CSRF token and Origin) to prove server refusals of values the UI never sends.
+#   Cleanup:   sandbox stopped with SIGINT → "[ui:sandbox] sandbox rows deleted; tb_notice_test is empty again";
+#              then `yarn db:verify test --expect-empty` → PASS (domain rows total: 0). Ports 3000/5173 released.
+#              Password file deleted. `git status`: only the three screenshots below were added.
+#
+# Result: 7/7 PASS.
+
+R7-B1 PASS source form, "Observed at" 0999-06-30 10:00 (datetime-local) → "Nothing was saved. Fix this field: Observed at:
+       Must be a real instant (no leap second) with at most millisecond precision, between 1000-01-01T00:00:00.000Z and
+       9999-12-31T23:59:59.499Z" (alert focused, link to #source-observedAt, typed values kept); GET /sources → 0 items.
+       Screenshot screenshots/p3b-r7-01-source-observed-0999-refused.png
+R7-B2 PASS same form corrected to 2025-06-30 17:15 local → "Source recorded."; GET /sources/{id} observedAt
+       2025-06-30T10:15:00.000Z = exactly new Date('2025-06-30T17:15').toISOString() in the browser (UTC+7).
+R7-B3 PASS forced POST /sources on the compiled API: observedAt 2016-12-31T23:59:60Z, reviewedAt 2016-12-31T15:59:60-08:00,
+       observedAt …10:15:00.123456Z, observedAt 0999-06-30T10:00:00Z, reviewedAt 9999-12-31T23:59:59.500Z, observedAt
+       9999-12-31T23:59:59-01:00 → each 422 VALIDATION_FAILED naming exactly that field (before R7: 500 / cut / stored);
+       observedAt 2025-06-30T15:45:00+0530 with reviewedAt …10:15:00.123000Z → 201, 2025-06-30T10:15:00.000Z and
+       2025-06-30T10:15:00.123Z (before R7: 500); observedAt 9999-12-31T23:59:59.499Z with reviewedAt 1000-01-01T00:00:00Z
+       → 201, both stored exactly. Sources afterwards: 3 (the form's and the two accepted) — the refusals wrote nothing.
+R7-B4 PASS forced POST /sources/{id}/revisions: observedAt 2016-12-31T23:59:60Z, reviewedAt …123456Z, observedAt
+       9999-12-31T23:59:59-01:00 → each 422 VALIDATION_FAILED (field named); then observedAt '2025-06-30 10:15:00Z'
+       (space separator) → 201 revision 2, 2025-06-30T10:15:00.000Z — the refused requests created no revision.
+R7-B5 PASS event form, "Effective at" 2016-12-31T15:59:60-08:00 → the field is marked invalid with the same message; no
+       event recorded. Screenshot screenshots/p3b-r7-02-event-effective-at-leap-second-refused.png
+R7-B6 PASS event form, "Effective at" '0050-06-30 10:00:00Z' (before R7: accepted and stored as 1950-06-30) → refused the
+       same way; GET /mandates/{id}/events → 0 events after B5 and B6.
+R7-B7 PASS event form, "Effective at" 2025-06-30T15:15:00+05 (before R7: 422) → "Authority event recorded."; the event has
+       effectiveAt 2025-06-30T10:15:00.000Z, effectiveOn null (nothing inferred) and its own recording time; the timeline
+       shows "At Jun 30, 2025, 5:15 PM GMT+7" (datetime 2025-06-30T10:15:00.000Z) separately from "Recorded Sep 24, 2026".
+       Forced POST /mandates/{id}/events with effectiveAt 9999-12-31T23:59:59.999Z and the current If-Match → 422
+       VALIDATION_FAILED (effectiveAt); Mandate rowVersion 2 → 2; events 1.
+       Screenshot screenshots/p3b-r7-03-event-offset-hh-recorded.png
+
+Console: 1 × 401 (the session probe before sign-in) and 13 × 422 — exactly the 13 intended refusals (7 source creates,
+3 revisions, 3 events). No 500, no script error.

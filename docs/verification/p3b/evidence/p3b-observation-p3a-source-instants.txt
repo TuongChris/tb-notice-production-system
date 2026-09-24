@@ -1,0 +1,19 @@
+# Observation (P3A, reported at R7; NOT changed by P3B) — SourceReference instants the database cannot store
+# 2026-09-24 ~11:20Z, home PC, `yarn ui:sandbox` on the tree of 04b8528 (compiled API, disposable tb_notice_test,
+# synthetic user and data; rows deleted when the sandbox stopped; `db:verify test --expect-empty` PASS afterwards).
+#
+# The contract's `date-time` format (RFC 3339) admits a leap second (23:59:60), sub-millisecond fractions and years
+# 0000–0999. P3B refuses such values for its own fields (authority-rules.ts storabilityProblem → 422
+# VALIDATION_FAILED: "the stored value must equal the accepted value"). P3A's source capture does not:
+
+POST /sources observedAt '2026-06-30T23:59:60Z' (leap second)                      → 500 INTERNAL_ERROR
+POST /sources reviewedAt '2026-06-30T23:59:60Z' (DOCUMENT_REVIEWED, with reviewer) → 500 INTERNAL_ERROR
+POST /sources observedAt '2026-06-30T10:00:00.123456Z' (microseconds)              → 201, stored '2026-06-30T10:00:00.123Z' (silently truncated)
+POST /sources observedAt '0999-06-30T10:00:00Z' (outside MySQL's supported DATETIME range 1000–9999) → 201, stored as given
+POST /sources observedAt '2026-06-30T10:00:00.123Z' (control)                      → 201, stored as given
+POST /mandates/{id}/events effectiveAt '2026-06-30T23:59:60Z' (P3B, comparison)     → 422 VALIDATION_FAILED {path effectiveAt}
+
+Nothing was persisted by the 500 responses (the write executor released the claim; the sandbox emptied cleanly).
+Proposed remediation for the operator's decision (not implemented — outside the P3B mission): apply the same
+storability check to `observedAt` / `reviewedAt` in `captureProblem` (P3A source-rules.ts), refusing such values with
+422 VALIDATION_FAILED before any write, with P3A tests and a negative control.

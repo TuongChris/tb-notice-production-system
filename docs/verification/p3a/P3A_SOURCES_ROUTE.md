@@ -1,6 +1,6 @@
 # P3A — Sources, canonical bindings and Route (home PC)
 
-Mission TB_P3A_SOURCES_CANONICAL_BINDINGS_AND_ROUTE_TO_R6 on `feature/p3a-sources-route`, branched from the R5 closeout head `31db581` after R5 was closed (P2 = VERIFIED_COMPLETE_FOR_CURRENT_SCOPE). Recorded 2026-09-24 (UTC) on the home PC, the primary development workstation (ADR-0003). The mission stops at review gate **R6**. P3B (Mandate, MandateVersion, MandateCoverage, CoverageSigner, AuthorityEvent), Cases and every later phase were **not started**. No correspondence, prompt, NoticeCandidate, ValidationRun workflow, assessment, readiness, G1–G7, signing, sending, Drive write or other external action exists.
+Mission TB_P3A_SOURCES_CANONICAL_BINDINGS_AND_ROUTE_TO_R6 on `feature/p3a-sources-route`, branched from the R5 closeout head `31db581` after R5 was closed (P2 = VERIFIED_COMPLETE_FOR_CURRENT_SCOPE). Recorded 2026-09-24 (UTC) on the home PC, the primary development workstation (ADR-0003). The mission stops at review gate **R6**. P3B (Mandate, MandateVersion, MandateCoverage, CoverageSigner, AuthorityEvent), Cases and every later phase were **not started**. No correspondence, prompt, NoticeCandidate, ValidationRun workflow, assessment, readiness, G1–G7, signing, sending, Drive write or other external action exists. **R6 result (operator, 2026-09-24): PASS** — P3A is VERIFIED_COMPLETE and MERGED_TO_MAIN; the closeout is §19. Sections 1–18 are the record as submitted at R6; every interpretation in §16 was accepted.
 
 ## Status by scope (not collapsed)
 
@@ -10,7 +10,7 @@ Mission TB_P3A_SOURCES_CANONICAL_BINDINGS_AND_ROUTE_TO_R6 on `feature/p3a-source
 | **P3A_CI** | **PASS** for the code head `85c2839` (push run 35966162924, both jobs success; the pull_request run 35966165567 of PR #1 also success), `9481bd0` (35963513064) and `73fa223` (35962967984). The first two P3A commits `afeb012` / `0c289be` failed CI (35959934247, 35961207473) on the stale P2 expectation in `smoke:local`, fixed in `73fa223` | CI covers `yarn test`, `yarn test:db`, `smoke:local` (28 checks), `smoke:auth`, `smoke:directory` and the new compiled `smoke:p3a` flow (24 checks, `evidence/p3a-ci-run-35966162924.txt`). A commit cannot record its own run; the documentation commit's run is reported with R6 |
 | **P3A_BROWSER (Playwright MCP)** | **PASS** 21/21 (supplemental), one copy defect found and fixed | Isolated test browser against the compiled API on the disposable `tb_notice_test` (`evidence/p3a-playwright-mcp-verification.txt`, §11) |
 | **P3A_NEGATIVE_CONTROLS** | **PASS** 28/28 | Every disabled protection made its responsible suites fail; all files restored byte-identically (`evidence/p3a-negative-controls.txt`, §12) |
-| **R6 review** | **PENDING** (operator) | This record |
+| **R6 review** | **PASS** (operator, 2026-09-24) | §19; submitted as PENDING |
 | **P1_WINDOWS_BROWSER** | **NOT_RUN** (not reported) | Unchanged |
 | **P0_SECOND_PC** / **P0_TWO_PC_ACCEPTANCE** / **P0_SINGLE_PC_BASELINE** / **P0_OVERALL** | **DEFERRED_BY_OPERATOR** / **NOT_COMPLETED** / **VERIFIED** / **NOT_COMPLETE** against the original two-PC contract | ADR-0003; unchanged by P3A |
 
@@ -286,3 +286,48 @@ Totals (home PC, 2026-09-24, and CI run 35966162924): `yarn test` **1093** in 28
 ## 18. Proposed P3B scope (for R7; not started)
 
 Representation authority only, each needing its own approved mission: **Mandate**, **MandateVersion** (with its revision/predecessor model and document capture through SourceReference), **MandateCoverage** (scope of a version over routes/agency/owner context; afterwards `Route.preferredCoverageId` can be validated), **CoverageSigner** (signers under a coverage), **AuthorityEvent** (auditable authority history), the contracted operations for these five entities, the UI they need, and the P3A binding/applicability rules extended to their sources. Excluded from P3B: Cases and everything case-specific, correspondence, prompts, NoticeCandidate, ValidationRun, assessments, readiness, G1–G7, signing, sending and any external action.
+
+## 19. R6 closeout (2026-09-24, home PC)
+
+**R6 result (operator): PASS.** P3A — Sources, canonical bindings and Routes — is accepted: `P3A = VERIFIED_COMPLETE`, `P3A = MERGED_TO_MAIN`. Mission: TB_R6_POST_MERGE_CLOSEOUT_AND_P3B_BRANCH.
+
+### 19.1 Merge reconciliation (verified with `git` and authenticated `gh`, not assumed)
+
+| Item | Observed value |
+|---|---|
+| `P3A_ACCEPTED_HEAD` | `c1b8d22cc748d1b0be10be0ecf4a5f464d2c396e` |
+| Pull request | #1 `feature/p3a-sources-route` → `main`, state MERGED, merged 2026-09-24T07:10:08Z by the repository owner; `headRefOid` = `c1b8d22` (nothing was added after the accepted head) |
+| `P3A_MERGE_METHOD` | **merge commit** (GitHub "Create a merge commit"): `adea2bc` has two parents, `1d4103d` (previous `main`) and `c1b8d22`; message "Merge pull request #1 from TuongChris/feature/p3a-sources-route"; committed by GitHub. Not squash, not rebase |
+| `P3A_MERGED_MAIN_HEAD` | `adea2bc5b7ab5ed4cbc9fb309055b6f930d64cce` |
+| Ancestry / content | `git merge-base --is-ancestor c1b8d22 origin/main` → exit 0. The previous `main` `1d4103d` is itself an ancestor of `c1b8d22`, so the merge introduced nothing else: the trees of `adea2bc` and `c1b8d22` are identical (`eeee33d26f4b4be0d3f4abc38392a174073cf3ef`; `git diff c1b8d22 adea2bc` empty) |
+| `main` CI after the merge | The workflow runs on every push. Push run **35968171532** on `adea2bc` — **success**, both jobs (https://github.com/TuongChris/tb-notice-production-system/actions/runs/35968171532): `yarn test` 1093, `yarn test:db` 190, `smoke:local` 28 checks, `smoke:directory` 14, `smoke:p3a` 24 including the expected cross-agency refusal, seed canonical, `dev:verify-shutdown` 4/4, frozen references and working tree unchanged. Both check runs on `adea2bc` are `completed / success` |
+| Accepted head CI | `c1b8d22`: push run 35966993063 success; pull_request run 35966987256 success |
+
+### 19.2 Historical failed checks
+
+The CI runs of the first two P3A commits failed and stay failed: `afeb012` (run 35959934247) and `0c289be` (run 35961207473). Cause: `smoke:local` still expected the canonical-binding routes to be absent (P2 decision D2), but P3A had routed them. `73fa223` corrected the smoke expectations, and every later commit passed. At R6 the operator accepted these failures as historical evidence. No commit was amended, rebased, rewritten or force-pushed to make them green, and no earlier evidence was edited.
+
+### 19.3 R6 interpretations accepted (operator)
+
+1. A canonical binding requires a current `CANONICAL_RECORD` SourceReference.
+2. A canonical binding cannot be replaced through the current workflow; correcting it needs a future reconciliation workflow.
+3. A source revision keeps its owning Agency and its scope.
+4. A default Signer cannot be ENDED.
+5. Route restore and relink are refused while a participating party is archived.
+6. A canonically bound Signer's full legal name is identity-locked.
+7. Owner source scope stays conservatively enforced against reuse of another Owner's material until a more explicit owner-scope model exists.
+8. The source-aware P2 field-attribution and link validation stays active.
+9. Creating an Agency-owned SourceReference counts as a persisted reference and therefore establishes (and locks) that Agency under D3.
+10. New operation-specific error codes are permitted only inside the existing free-string error `code` field and must keep the contracted HTTP statuses and response shapes.
+
+No contract change is authorized by this acceptance.
+
+### 19.4 DOCUMENT_REVIEWED — permanent rule
+
+A SourceReference row does not itself establish DOCUMENT_REVIEWED. DOCUMENT_REVIEWED means an actual human review of the document occurred, and the system may record that provenance only from an explicit, supported, human-entered fact representing that real review. A reviewer name, a URL, a source row, a hash or a canonical binding never by itself upgrades provenance to DOCUMENT_REVIEWED. Defaults remain non-upgrading.
+
+As implemented and verified: provenance is stored only from the explicit `reportedProvenance` field (default OPERATOR_REPORTED); DOCUMENT_REVIEWED additionally requires a reviewer label, which is necessary but never sufficient. Tests show that a URL and provider file id leave the default in place (§13), that binding leaves the source, including its provenance, unchanged (§5), and negative controls NC08/NC09 catch an auto-upgrade or an unattributed review. There is no dedicated test that a reviewer label or hash supplied without the explicit field keeps the default; that is a candidate for the next mission, not a known defect.
+
+### 19.5 Next
+
+`feature/p3b-representation-authority` was created from the exact `main` head `adea2bc` and pushed with upstream; at creation it pointed at `adea2bc`, the worktree was clean, `reference:check` reported the frozen references intact and `contracts:check` passed. It carries this closeout documentation only. P3B (§18) is not implemented: no Mandate, MandateVersion, MandateCoverage, CoverageSigner, AuthorityEvent or Case code and no migration exist. Implementation needs its own explicit mission (gate R7).

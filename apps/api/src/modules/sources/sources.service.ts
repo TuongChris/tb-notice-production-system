@@ -38,6 +38,7 @@ import {
   toPage,
 } from '../../infrastructure/write/pagination.js';
 import { contractOperation, type QueryValues } from '../../infrastructure/write/request-parsing.js';
+import { toDbInstant } from '../../infrastructure/write/storability.js';
 import {
   WriteExecutor,
   type WriteReply,
@@ -49,6 +50,7 @@ import { lockForShare } from '../directory/records.js';
 import {
   assertScopeRecords,
   CAPTURE_FIELDS,
+  CAPTURE_INSTANT_FIELDS,
   CAPTURE_JSON_FIELDS,
   captureProblem,
   sameScopeBindings,
@@ -217,5 +219,11 @@ export class SourcesService {
 }
 
 function captureData(body: SourceCapture): Record<string, unknown> {
-  return writeData(body, CAPTURE_FIELDS, CAPTURE_JSON_FIELDS);
+  const data = writeData(body, CAPTURE_FIELDS, CAPTURE_JSON_FIELDS);
+  // The exact instant captureProblem accepted, never the request string (storability.ts).
+  for (const field of CAPTURE_INSTANT_FIELDS) {
+    const value = body[field];
+    if (typeof value === 'string') data[field] = toDbInstant(value);
+  }
+  return data;
 }

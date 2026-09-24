@@ -1,6 +1,13 @@
-// Which SourceReference may support which record (P3A). One rule set for every place a write cites
-// a source: field attributions, Signer identity/delegation sources, the OwnerSubject link source and
-// the canonical bindings of Agency, Owner, LegalSubject, Signer and Route.
+// Which SourceReference may support which record (P3A, extended in P3B). One rule set for every
+// place a write cites a source: field attributions, Signer identity/delegation sources, the
+// OwnerSubject link source, the canonical bindings of Agency, Owner, LegalSubject, Signer, Route and
+// Mandate, and the representation-authority citations (P3B):
+//   mandate context (target Agency = the mandate's agency): a MandateVersion's primary source,
+//     additional sources and signed-date sources, and a whole-mandate AuthorityEvent's source —
+//     the mandate belongs to one agency and is not restricted to one owner;
+//   route context (target Route = the coverage's route: agency + owner + legal subject): a
+//     MandateCoverage's basis source, a CoverageSigner's source and a coverage-scoped
+//     AuthorityEvent's source.
 //
 // A SourceReference is a pointer with capture metadata, not evidence, permission or authority. Its
 // applicability comes only from its recorded scope (INVARIANTS §3: "A source is authorized for this
@@ -21,8 +28,13 @@
 //     Owner: a subject-scoped source is subject material, not the Owner namespace's.
 //   owner dimension (checked in the database, see assertSourcesUsable)
 //     A source already recorded as one Owner's material — that Owner's canonical source, the source
-//     of one of its OwnerSubject links, or the canonical source of a Route through one of its links —
-//     is not used for another Owner's records (CROSS_OWNER_REFERENCE).
+//     of one of its OwnerSubject links, the canonical source of a Route through one of its links, or
+//     (P3B) a source cited in that Owner's authority chain at the route level: the basis of a
+//     coverage of such a Route, the source of a signer recorded under such a coverage or of an
+//     authority event scoped to such a coverage — is not used for another Owner's records
+//     (CROSS_OWNER_REFERENCE; R6 interpretation 7, enforced conservatively until an explicit
+//     owner-scope model exists). Mandate-context citations are agency material and are neither
+//     owner material nor owner-checked.
 //   case dimension
 //     Case scope does not exist before the Case phase: a case-scoped source applies to nothing here.
 import { Prisma } from '../../../generated/prisma/client.js';
@@ -143,8 +155,9 @@ function ownerOf(target: SourceTarget): string | null {
 
 /**
  * The first Owner other than `ownerId` for which the source is already recorded as material: its
- * canonical source, the source of one of its OwnerSubject links, or the canonical source of a Route
- * through one of its links. Null when there is none.
+ * canonical source, the source of one of its OwnerSubject links, the canonical source of a Route
+ * through one of its links, or a route-level authority citation for such a Route (a coverage basis,
+ * a coverage signer's source, a coverage-scoped authority event's source). Null when there is none.
  */
 export async function otherOwnerUsing(
   tx: Prisma.TransactionClient,
@@ -161,11 +174,28 @@ export async function otherOwnerUsing(
     select: { ownerId: true },
   });
   if (link) return link.ownerId;
+  const otherOwnerRoute = { ownerSubject: { ownerId: { not: ownerId } } };
+  const ownerOfRoute = { select: { ownerSubject: { select: { ownerId: true } } } };
   const route = await tx.route.findFirst({
-    where: { canonicalSourceId: sourceId, ownerSubject: { ownerId: { not: ownerId } } },
+    where: { canonicalSourceId: sourceId, ...otherOwnerRoute },
     select: { ownerSubject: { select: { ownerId: true } } },
   });
-  return route ? route.ownerSubject.ownerId : null;
+  if (route) return route.ownerSubject.ownerId;
+  const coverage = await tx.mandateCoverage.findFirst({
+    where: { basisSourceId: sourceId, route: otherOwnerRoute },
+    select: { route: ownerOfRoute },
+  });
+  if (coverage) return coverage.route.ownerSubject.ownerId;
+  const signer = await tx.coverageSigner.findFirst({
+    where: { sourceId, coverage: { route: otherOwnerRoute } },
+    select: { coverage: { select: { route: ownerOfRoute } } },
+  });
+  if (signer) return signer.coverage.route.ownerSubject.ownerId;
+  const event = await tx.authorityEvent.findFirst({
+    where: { sourceId, coverage: { route: otherOwnerRoute } },
+    select: { coverage: { select: { route: ownerOfRoute } } },
+  });
+  return event?.coverage ? event.coverage.route.ownerSubject.ownerId : null;
 }
 
 export interface UsableSource {
@@ -227,4 +257,19 @@ export async function assertSourcesUsable(
 /** Distinct source ids of a set of uses (for AuditEvent.sourceIds). */
 export function sourceIdsOf(uses: readonly SourceUse[]): string[] {
   return [...new Set(uses.map((use) => use.sourceId))];
+}
+
+/**
+ * Locks every source a write cites FOR UPDATE in one pass in id order, before a write that checks
+ * several sets of sources against different targets (e.g. a freeze: the version's sources in the
+ * agency context and each coverage's sources in its route context). The later per-target checks
+ * lock the same rows again, which is a no-op, so the lock order stays one sorted pass.
+ */
+export async function lockSourcesForUpdate(
+  tx: Prisma.TransactionClient,
+  sourceIds: readonly string[],
+): Promise<void> {
+  for (const id of [...new Set(sourceIds)].sort()) {
+    await tx.$queryRaw(Prisma.sql`SELECT id FROM source_references WHERE id = ${id} FOR UPDATE`);
+  }
 }

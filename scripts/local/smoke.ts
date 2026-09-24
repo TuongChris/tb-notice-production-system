@@ -13,9 +13,10 @@
 //     without a session → 401, proxied session check → 401 without CORS headers. Every response is
 //     a valid contract OperationError with Cache-Control: no-store.
 //  6. Business boundary of the compiled API, read-only: every directory (P2), source and route
-//     (P3A) collection is routed and session-protected (no cookie → 401, also through the web
-//     proxy), unsafe writes without Origin → 403 before any handler, canonical bindings are
-//     session-protected, and mandate operations (P3B) are not routed (404).
+//     (P3A) and representation-authority (P3B) collection is routed and session-protected (no
+//     cookie → 401, also through the web proxy), unsafe writes without Origin → 403 before any
+//     handler, canonical bindings and freezes are session-protected, and Case operations (a later
+//     phase) are not routed (404).
 //  7. Terminate both processes (SIGTERM, bounded wait, SIGKILL fallback) and verify ports 3000 and
 //     5173 are released. Any failure exits non-zero.
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
@@ -363,10 +364,40 @@ async function checkBusinessBoundary(): Promise<void> {
       401,
       'SESSION_REQUIRED',
     ],
-    // P3B (mandates) is not part of this phase: not routed at all.
+    // P3B: mandates, versions, coverages and coverage signers are session-protected too.
+    ['GET /mandates without a session', `${api}/mandates`, {}, 401, 'SESSION_REQUIRED'],
     [
-      'POST /mandates (P3B, not routed)',
-      `${api}/mandates`,
+      'POST /mandates/{id}/versions without a session',
+      `${api}/mandates/${id}/versions`,
+      { method: 'POST', headers: { ...json, Origin: origin }, body: '{}' },
+      401,
+      'SESSION_REQUIRED',
+    ],
+    [
+      'POST /mandate-versions/{id}/freeze without Origin',
+      `${api}/mandate-versions/${id}/freeze`,
+      { method: 'POST', headers: json, body: '{}' },
+      403,
+      'ORIGIN_REJECTED',
+    ],
+    [
+      'GET /coverages/{id}/signers through the web proxy without a session',
+      `http://localhost:${WEB_PORT}/api/v1/coverages/${id}/signers`,
+      {},
+      401,
+      'SESSION_REQUIRED',
+    ],
+    [
+      'GET /mandates/{id}/events without a session',
+      `${api}/mandates/${id}/events`,
+      {},
+      401,
+      'SESSION_REQUIRED',
+    ],
+    // Cases are a later phase: not routed at all.
+    [
+      'POST /cases (Case phase, not routed)',
+      `${api}/cases`,
       { method: 'POST', headers: { ...json, Origin: origin }, body: '{}' },
       404,
       'NOT_FOUND',

@@ -402,7 +402,11 @@ describe('P3A routes UI', () => {
     expect(path?.textContent).toContain('SYNTHETIC Agency');
     expect(path?.textContent).toContain('YouTube');
     expect(path?.textContent).toContain('SYNTHETIC Brand');
-    expect(pageText()).toContain('A preferred coverage needs mandate coverage');
+    // P3B: a new route has no preferred coverage; the default is explained, never adjudicated.
+    expect(pageText()).toContain('No preferred coverage');
+    expect(pageText()).toContain(
+      'Preferred coverage is an operational default. Case authority is determined later.',
+    );
     expect(stampTexts().join(' ')).not.toMatch(AUTHORITY_WORDS);
   });
 
@@ -535,13 +539,14 @@ describe('P3A routes UI', () => {
     await waitFor(() => all('table.records tbody tr').length === 1, 'all sources');
   });
 
-  it('the Representation section offers routes and shows mandates as not available', async () => {
+  it('the Representation section offers routes and (since P3B) mandates', async () => {
     const api = new FakeDirectory();
     await render(api, '/representation');
     await until('No routes yet.');
-    const unavailable = q('[data-testid="unavailable-subsection"]');
-    expect(unavailable?.textContent).toContain('Mandates');
-    expect(unavailable?.getAttribute('aria-disabled')).toBe('true');
-    expect(unavailable?.querySelector('a')).toBeNull();
+    expect(q('[data-testid="unavailable-subsection"]')).toBeNull();
+    const nav = q('nav[aria-label="Representation"]');
+    expect(
+      [...(nav?.querySelectorAll('a') ?? [])].map((link) => link.getAttribute('href')),
+    ).toEqual(['/representation/routes', '/representation/mandates']);
   });
 });

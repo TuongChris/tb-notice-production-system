@@ -635,6 +635,176 @@ describe('SOURCE REVISIONS — append-only chains', () => {
   });
 });
 
+// observedAt / reviewedAt are DATETIME(3) columns (UTC). The contract format admits values such a
+// column cannot hold exactly; each value is stored as exactly its instant or refused before any
+// write (R7 remediation; the shared rule is infrastructure/write/storability.ts).
+
+/** [wire value, the instant stored and returned] — every spelling the format admits. */
+const STORABLE_INSTANTS: Array<[string, string]> = [
+  ['2025-06-30T10:15:00Z', '2025-06-30T10:15:00.000Z'],
+  ['2025-06-30T10:15:00.123Z', '2025-06-30T10:15:00.123Z'],
+  ['2025-06-30T10:15:00.5Z', '2025-06-30T10:15:00.500Z'],
+  ['2025-06-30T10:15:00.123000Z', '2025-06-30T10:15:00.123Z'],
+  ['2025-06-30T17:15:00.123+07:00', '2025-06-30T10:15:00.123Z'],
+  ['2025-06-30T15:45:00+0530', '2025-06-30T10:15:00.000Z'],
+  ['2025-06-30T15:15:00+05', '2025-06-30T10:15:00.000Z'],
+  ['2025-06-30T03:15:00-07:00', '2025-06-30T10:15:00.000Z'],
+  ['2025-06-30t10:15:00z', '2025-06-30T10:15:00.000Z'],
+  ['2025-06-30 10:15:00Z', '2025-06-30T10:15:00.000Z'],
+  ['2025-06-30\t10:15:00Z', '2025-06-30T10:15:00.000Z'],
+  ['2025-06-30　10:15:00Z', '2025-06-30T10:15:00.000Z'],
+  ['1000-01-01T00:00:00Z', '1000-01-01T00:00:00.000Z'],
+  ['0999-12-31T23:30:00-01:00', '1000-01-01T00:30:00.000Z'],
+  ['9999-12-31T23:59:59.499Z', '9999-12-31T23:59:59.499Z'],
+  ['9999-12-31T23:59:59Z', '9999-12-31T23:59:59.000Z'],
+];
+
+/** Wire values the column cannot store and read back exactly (before R7: a 500, cut or shifted). */
+const UNSTORABLE_INSTANTS = [
+  '2016-12-31T23:59:60Z',
+  '2016-12-31T23:59:60.500Z',
+  '2016-12-31T15:59:60-08:00',
+  '2017-01-01T00:59:60+01:00',
+  '2025-06-30T24:59:30+01:00',
+  '2025-06-30T10:15:00.123456Z',
+  '2025-06-30T10:15:00.1239Z',
+  '0999-06-30T10:00:00Z',
+  '0999-12-31T23:59:59.999Z',
+  '1000-01-01T00:30:00+01:00',
+  '0000-01-01T00:00:00Z',
+  '0050-06-30 10:00:00Z',
+  '9999-12-31T23:59:59.500Z',
+  '9999-12-31T23:59:59.999Z',
+  '9999-12-31T23:59:59-01:00',
+];
+
+/** The text MySQL itself holds in a source's instant columns (not Prisma's read path). */
+async function storedInstants(id: string): Promise<Array<string | null>> {
+  const [row] = await prisma.$queryRaw<Array<{ observed: string | null; reviewed: string | null }>>(
+    Prisma.sql`SELECT CAST(observed_at AS CHAR) AS observed, CAST(reviewed_at AS CHAR) AS reviewed
+      FROM source_references WHERE id = ${id}`,
+  );
+  return [row?.observed ?? null, row?.reviewed ?? null];
+}
+
+/** '2025-06-30T10:15:00.123Z' → '2025-06-30 10:15:00.123', the column's UTC text. */
+const columnText = (instant: string) => instant.replace('T', ' ').replace('Z', '');
+
+describe('SOURCE INSTANTS — stored as exactly the instant supplied, or refused before any write (R7)', () => {
+  it('create: every spelling the format admits is stored and read back as exactly its instant', async () => {
+    for (const [value, instant] of STORABLE_INSTANTS) {
+      const label = JSON.stringify(value);
+      const source = await createSource({ observedAt: value, reviewedAt: value });
+      expect([source.observedAt, source.reviewedAt], label).toEqual([instant, instant]);
+      expect(await storedInstants(source.id), label).toEqual([
+        columnText(instant),
+        columnText(instant),
+      ]);
+      const read = await getSource(source.id);
+      expect([read.observedAt, read.reviewedAt], label).toEqual([instant, instant]);
+      const [event] = await auditRows(source.id);
+      expect(event?.afterRedacted, label).toMatchObject({
+        observedAt: instant,
+        reviewedAt: instant,
+      });
+    }
+    expect(await countRows(prisma, 'source_references')).toBe(STORABLE_INSTANTS.length);
+  });
+
+  it('revise: each revision stores exactly its own instants; earlier revisions stay unchanged', async () => {
+    const first = await createSource({ observedAt: '2025-06-30T10:15:00Z' });
+    let head = first;
+    for (const [value, instant] of [
+      ['0999-12-31T23:30:00-01:00', '1000-01-01T00:30:00.000Z'],
+      ['9999-12-31T23:59:59.499Z', '9999-12-31T23:59:59.499Z'],
+      ['2025-06-30T15:15:00+05', '2025-06-30T10:15:00.000Z'],
+      ['2025-06-30T10:15:00.123000Z', '2025-06-30T10:15:00.123Z'],
+    ] as const) {
+      const label = JSON.stringify(value);
+      const revised = immutable<SourceReference>(
+        await reviseSource(head.id, { observedAt: value, reviewedAt: value }),
+        201,
+      );
+      expect([revised.revision, revised.observedAt, revised.reviewedAt], label).toEqual([
+        head.revision + 1,
+        instant,
+        instant,
+      ]);
+      expect(await storedInstants(revised.id), label).toEqual([
+        columnText(instant),
+        columnText(instant),
+      ]);
+      head = revised;
+    }
+    expect(await getSource(first.id)).toEqual(first);
+    expect(await storedInstants(first.id)).toEqual(['2025-06-30 10:15:00.000', null]);
+  });
+
+  it('create and revise refuse every instant the column cannot store exactly: 422, never 500, nothing written', async () => {
+    const head = await createSource({ observedAt: '2025-06-30T10:15:00Z' });
+    const before = {
+      sources: await countRows(prisma, 'source_references'),
+      audit: await countRows(prisma, 'audit_events'),
+      idempotency: await countRows(prisma, 'idempotency_records'),
+    };
+    for (const value of UNSTORABLE_INSTANTS) {
+      for (const field of ['observedAt', 'reviewedAt']) {
+        const label = `${field} ${JSON.stringify(value)}`;
+        const create = await client.write('createSource', 'POST', '/sources', {
+          ...SOURCE_BASE,
+          [field]: value,
+        });
+        const revise = await reviseSource(head.id, { [field]: value });
+        for (const result of [create, revise]) {
+          expect(result.status, `${label}: ${result.text}`).toBe(422);
+          expect(errorOf(result), label).toEqual({
+            code: 'VALIDATION_FAILED',
+            message: expect.any(String),
+            details: {
+              issues: [{ path: field, message: expect.stringContaining('real instant') }],
+            },
+            requestId: expect.any(String),
+          });
+        }
+      }
+    }
+    // Both fields at once are both named; the same request is refused the same way every time.
+    const both = { observedAt: '2016-12-31T23:59:60Z', reviewedAt: '0999-06-30T10:00:00Z' };
+    const first = await reviseSource(head.id, both);
+    const again = await reviseSource(head.id, both);
+    expect(errorOf(first).details).toEqual(errorOf(again).details);
+    expect(
+      (errorOf(first).details['issues'] as Array<{ path: string }>).map((issue) => issue.path),
+    ).toEqual(['observedAt', 'reviewedAt']);
+    expect(await countRows(prisma, 'source_references')).toBe(before.sources);
+    expect(await countRows(prisma, 'audit_events')).toBe(before.audit);
+    expect(await countRows(prisma, 'idempotency_records')).toBe(before.idempotency);
+    expect(await storedInstants(head.id)).toEqual(['2025-06-30 10:15:00.000', null]);
+    // The head is untouched and still the head.
+    expect(immutable<SourceReference>(await reviseSource(head.id, {}), 201).revision).toBe(2);
+  });
+
+  it('a refused instant keeps no idempotency result: the same key then runs the corrected request once', async () => {
+    const key = newKey();
+    const body = { ...SOURCE_BASE, observedAt: '2016-12-31T23:59:60Z' };
+    const refused = await client.write('createSource', 'POST', '/sources', body, { key });
+    expect([refused.status, code(refused)]).toEqual([422, 'VALIDATION_FAILED']);
+    expect(await prisma.idempotencyRecord.count({ where: { idempotencyKey: key } })).toBe(0);
+    const corrected = { ...body, observedAt: '2016-12-31T23:59:59Z' };
+    const accepted = immutable<SourceReference>(
+      await client.write('createSource', 'POST', '/sources', corrected, { key }),
+      201,
+    );
+    expect(accepted.observedAt).toBe('2016-12-31T23:59:59.000Z');
+    const replay = immutable<SourceReference>(
+      await client.write('createSource', 'POST', '/sources', corrected, { key }),
+      201,
+    );
+    expect(replay).toEqual(accepted);
+    expect(await countRows(prisma, 'source_references')).toBe(1);
+  });
+});
+
 describe('SOURCE LIST — current heads, summaries, scoped filters, signed cursors', () => {
   it('lists current revisions as summaries; `q` finds title words accent-insensitively or a chain by id', async () => {
     const first = await createSource({ title: 'SYNTHETIC Hợp tác đầu tiên' });
@@ -1444,7 +1614,9 @@ describe('ROUTES — a relationship record, not authority', () => {
       [{ ...base, defaultSignerId: otherSigner.data.id }, 422, 'CROSS_AGENCY_REFERENCE'],
       [{ ...base, defaultSignerId: endedSigner.data.id }, 409, 'RECORD_STATE_CONFLICT'],
       [{ ...base, defaultSignerId: randomUUID() }, 422, 'REFERENCE_NOT_FOUND'],
-      [{ ...base, preferredCoverageId: randomUUID() }, 422, 'PREFERRED_COVERAGE_UNAVAILABLE'],
+      // P3A refused every preferred coverage (PREFERRED_COVERAGE_UNAVAILABLE); P3B validates it
+      // against MandateCoverage, so an unknown id is now a missing reference (p3b-http.test.ts).
+      [{ ...base, preferredCoverageId: randomUUID() }, 422, 'REFERENCE_NOT_FOUND'],
       [{ ...base, platform: 'TIKTOK' }, 422, 'VALIDATION_FAILED'],
       [{ ...base, linkState: 'LINKED' }, 422, 'VALIDATION_FAILED'],
     ];
@@ -1586,7 +1758,9 @@ describe('ROUTES — a relationship record, not authority', () => {
       { preferredCoverageId: randomUUID() },
       { ifMatch: patched.etag },
     );
-    expect([coverage.status, code(coverage)]).toEqual([422, 'PREFERRED_COVERAGE_UNAVAILABLE']);
+    // Since P3B an unknown coverage is a missing reference (was PREFERRED_COVERAGE_UNAVAILABLE).
+    expect([coverage.status, code(coverage)]).toEqual([422, 'REFERENCE_NOT_FOUND']);
+    expect(errorOf(coverage).details).toMatchObject({ field: 'preferredCoverageId' });
     const empty = await client.write(
       'patchRoute',
       'PATCH',

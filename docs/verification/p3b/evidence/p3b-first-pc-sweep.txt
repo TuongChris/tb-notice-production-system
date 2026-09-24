@@ -1,0 +1,31 @@
+P3B verification sweep (mission §40) — 2026-09-24T11:02:38Z–11:06:17Z — home PC (the first PC) — feature/p3b-representation-authority @ 04b8528 (only the uncommitted documentation/evidence changes in the tree: CLAUDE.md, docs/CURRENT_STATE.md, docs/verification/p3b/); node v24.21.0, yarn 4.18.0
+(each line: command, exit code, key output lines; full logs kept outside Git)
+reference:check                              exit=0 | [reference:check] OK — frozen references intact.
+reference:helper-tests                       exit=0 | [reference:helper-tests] frozen helper tests: pass 27, fail 0; exit 0
+contracts:check                              exit=0 | [contracts:check] OK — 3 generated outputs match the active source.
+install --immutable                          exit=0 | ➤ YN0000: · Done with warnings in 0s 690ms
+typecheck                                    exit=0 |
+lint                                         exit=0 |
+format:check                                 exit=0 | All matched files use Prettier code style!
+test                                         exit=0 | Test Files  30 passed (30) Tests  1148 passed (1148)
+test:db                                      exit=0 | [guard] test:db target: tb_migrate@127.0.0.1:3307/tb_notice_test Test Files  7 passed (7) Tests  251 passed (251)
+db:verify test --expect-empty                exit=0 | [verify] domain rows total: 0 [verify] PASS: metadata matches the reviewed inventory.
+db:verify dev                                exit=0 | [verify] domain rows total: 5 [verify] PASS: metadata matches the reviewed inventory.
+db:status test                               exit=0 | 1 migration found in prisma/migrations Database schema is up to date!
+db:status dev                                exit=0 | 1 migration found in prisma/migrations Database schema is up to date!
+db:drift:diff-migrations                     exit=0 | -- This is an empty migration.
+db:drift:diff-datasource dev                 exit=0 | -- This is an empty migration.
+build                                        exit=0 | ✓ built in 185ms
+smoke:local                                  exit=0 | [smoke] PASS (33 checks) — incl. 19 business-boundary checks: P2 directory, P3A source/route and P3B mandate/version/coverage-signer/event collections 401 without a session (also through the web proxy), unsafe writes without Origin 403 (incl. POST /mandate-versions/{id}/freeze), canonical bindings 401 without a session, POST /cases (Case phase) 404
+dev:verify-shutdown                          exit=0 | [verify-dev] PASS (4/4 scenarios)
+reference:check (after)                      exit=0 | [reference:check] OK — frozen references intact.
+
+db:verify metadata on both targets: tables 33/33 (InnoDB 33, utf8mb4_0900_bin 33); columns 541/541; primary keys 33/33; unique keys 50/50; indexes 34/34; foreign keys 125/125 RESTRICT/RESTRICT (composite 27); CHECK constraints 30/30 ENFORCED=YES; applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515 (the only one).
+
+Supplementary checks:
+no schema/contract/dependency change         exit=0 | git diff c8da59f..HEAD: apps/api/prisma, packages/**, docs/reference/**, yarn.lock, .yarnrc.yml, .nvmrc unchanged (0 files); package.json adds only the script smoke:p3b
+working tree after the sweep                 exit=0 | only the uncommitted documentation/evidence changes; no generated or stray file (no .vitest folder)
+per-file counts (JSON reporter, output kept outside the repository, 11:09Z; tb_notice_test verified empty afterwards) | test:db 251 = admin-create 5, admin-recovery 14, auth-http 37, directory-http 71, p3a-http 41, p3b-http 61, structural 22; yarn test 1148 in 30 files incl. api/authority-rules 38, web/p3b 17, api/source-rules 36, web/p3a 18, web/directory 22, web/app 10, api/directory-rules 15, api/write-executor 7, api/write-primitives 13, contracts/inventory-openapi 439, contracts/runtime-parity 317 (0 failed)
+
+smoke:local and dev:verify-shutdown ran locally (ports 3000/5173 free; no operator `yarn dev` running). db:verify dev reported 5 domain rows, as at R5 and R6 (metadata and a row count only; no row content read); nothing was written to tb_notice_dev — every P3B test, the sandbox runs, the browser checks and the negative controls use tb_notice_test, and smoke:p3b / smoke:p3a / smoke:directory refuse to run unless CI=true.
+Counts: yarn test 1148 in 30 files (P3A at R6: 1093 in 28; +38 tests/api/authority-rules.test.ts, +17 tests/web/p3b.test.tsx); yarn test:db 251 in 7 files (P3A at R6: 190 in 6; +61 tests/db/p3b-http.test.ts). No earlier test was removed; P2/P3A tests were re-scoped for P3B (routed inventory 53 → 76 operations, two more unrouted action paths, an unknown preferredCoverageId now 422 REFERENCE_NOT_FOUND, the route page's preferred-coverage text and the Representation navigation).

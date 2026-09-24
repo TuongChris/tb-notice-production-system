@@ -1,6 +1,7 @@
 // Signer pages. A signer record describes a person acting in one agency's capacity. It is not an
-// application login, it signs nothing, and being AVAILABLE does not make the person eligible for
-// any authority (that needs mandate coverage, a later phase). The agency is fixed at creation.
+// application login, it signs nothing, and neither being AVAILABLE nor being recorded under a
+// mandate coverage makes the person eligible for any notice (that is decided later, per case).
+// The agency is fixed at creation.
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import type { Agency, CreateSigner, PatchSigner, Signer } from '@tb/contracts';
@@ -58,7 +59,7 @@ const labelOf = (path: string): string => {
 };
 
 const BOUNDARY =
-  'A person acting for one agency. Not a login; signs nothing; eligibility comes only from mandate coverage, which is not part of this phase.';
+  'A person acting for one agency. Not a login; signs nothing. Neither a state nor being recorded under a mandate coverage makes the person eligible for any notice.';
 
 const SOURCES_UNAVAILABLE = 'This page does not attach identity or delegation sources.';
 

@@ -1,8 +1,9 @@
 import { NavLink, Outlet } from 'react-router';
 
 /**
- * The Representation section. Routes are available; mandates, versions, coverage and authority
- * events belong to the next phase and are listed only for orientation.
+ * The Representation section: routes (operational paths) and mandates with their versions,
+ * coverage, coverage signers and authority events. None of these records is authority by existing,
+ * a G1–G7 decision, readiness or a signature.
  */
 export function RepresentationLayout() {
   return (
@@ -12,8 +13,8 @@ export function RepresentationLayout() {
           <li>
             <NavLink to="/representation/routes">Routes</NavLink>
           </li>
-          <li aria-disabled="true" className="unavailable" data-testid="unavailable-subsection">
-            Mandates <span className="badge">Not available yet</span>
+          <li>
+            <NavLink to="/representation/mandates">Mandates</NavLink>
           </li>
         </ul>
       </nav>

@@ -27,6 +27,19 @@ import {
   SignerListPage,
 } from './directory/signers.js';
 import { LoginPage } from './pages/LoginPage.js';
+import {
+  CoverageDetailPage,
+  EditCoveragePage,
+  NewCoveragePage,
+  NewCoverageSignerPage,
+} from './representation/coverages.js';
+import { NewAuthorityEventPage } from './representation/events.js';
+import {
+  EditMandatePage,
+  MandateDetailPage,
+  MandateListPage,
+  NewMandatePage,
+} from './representation/mandates.js';
 import { RepresentationLayout } from './representation/RepresentationLayout.js';
 import {
   EditRoutePage,
@@ -34,6 +47,7 @@ import {
   RouteDetailPage,
   RouteListPage,
 } from './representation/routes.js';
+import { EditVersionPage, NewVersionPage, VersionDetailPage } from './representation/versions.js';
 import { SessionCheck } from './pages/SessionCheck.js';
 import { AppShell } from './shell/AppShell.js';
 import { HomePage } from './shell/HomePage.js';
@@ -44,7 +58,10 @@ import {
   SourceListPage,
 } from './sources/sources.js';
 
-/** Web app: Login, session check, the protected shell, the Directory, Sources and Routes pages. */
+/**
+ * Web app: Login, session check, the protected shell, the Directory, Sources and the Representation
+ * pages (routes, mandates, versions, coverage, coverage signers and authority events).
+ */
 export function App({ api }: { api: ApiClient }) {
   const directory = useMemo(() => createDirectoryApi(api), [api]);
   return (
@@ -86,6 +103,18 @@ export function App({ api }: { api: ApiClient }) {
                   <Route path="routes/new" element={<NewRoutePage />} />
                   <Route path="routes/:id" element={<RouteDetailPage />} />
                   <Route path="routes/:id/edit" element={<EditRoutePage />} />
+                  <Route path="mandates" element={<MandateListPage />} />
+                  <Route path="mandates/new" element={<NewMandatePage />} />
+                  <Route path="mandates/:id" element={<MandateDetailPage />} />
+                  <Route path="mandates/:id/edit" element={<EditMandatePage />} />
+                  <Route path="mandates/:id/versions/new" element={<NewVersionPage />} />
+                  <Route path="mandates/:id/events/new" element={<NewAuthorityEventPage />} />
+                  <Route path="versions/:id" element={<VersionDetailPage />} />
+                  <Route path="versions/:id/edit" element={<EditVersionPage />} />
+                  <Route path="versions/:id/coverages/new" element={<NewCoveragePage />} />
+                  <Route path="coverages/:id" element={<CoverageDetailPage />} />
+                  <Route path="coverages/:id/edit" element={<EditCoveragePage />} />
+                  <Route path="coverages/:id/signers/new" element={<NewCoverageSignerPage />} />
                 </Route>
               </Route>
             </Route>
