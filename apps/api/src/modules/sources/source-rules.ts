@@ -6,6 +6,10 @@
 //
 //   stored as supplied    every contract field; omitted accessState / reportedProvenance take the
 //                         schema defaults NOT_CHECKED / OPERATOR_REPORTED (nothing is upgraded)
+//   instants              observedAt and reviewedAt only when their DATETIME(3) column reads back
+//                         the same instant: no leap second, no digit after the milliseconds, UTC
+//                         1000-01-01 … 9999-12-31T23:59:59.499Z (infrastructure/write/storability.ts)
+//                                                                         → 422 VALIDATION_FAILED
 //   content hash          contentSha256 and hashTarget come together (a hash without its target
 //                         does not say which bytes it covers)            → 422 CONTENT_HASH_INCOMPLETE
 //   DOCUMENT_REVIEWED     an attributable report of an actual review: it needs reviewedByLabel
@@ -19,6 +23,7 @@ import type { CreateSource, ReviseSource } from '@tb/contracts';
 import { codePointLength } from '@tb/contracts';
 import type { Prisma, SourceReference } from '../../../generated/prisma/client.js';
 import { apiErrors, type ApiError } from '../../infrastructure/http/api-error.js';
+import { storabilityProblem } from '../../infrastructure/write/storability.js';
 import { auditFields } from '../directory/changes.js';
 import { lockForShare } from '../directory/records.js';
 import { scopeBindingsOf } from './source-scope.js';
@@ -50,8 +55,13 @@ export const CAPTURE_FIELDS = [
 
 export const CAPTURE_JSON_FIELDS = ['scopeBindings'];
 
+/** Capture instants (DATETIME(3) columns), written as the exact instant storability.ts accepted. */
+export const CAPTURE_INSTANT_FIELDS = ['observedAt', 'reviewedAt'] as const;
+
 /** The request-only checks (no database), run before an idempotency claim is taken. */
 export function captureProblem(body: SourceCapture): ApiError | null {
+  const unstorable = storabilityProblem(body, [], CAPTURE_INSTANT_FIELDS);
+  if (unstorable) return unstorable;
   const scope = scopeBindingsOf(body.scopeBindings ?? null);
   if (scope.caseIds.length > 0) return apiErrors.caseScopeUnavailable('scopeBindings.caseIds');
   const hash = body.contentSha256 ?? null;

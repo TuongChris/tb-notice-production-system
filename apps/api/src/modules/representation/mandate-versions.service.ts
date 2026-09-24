@@ -48,6 +48,7 @@ import {
   toPage,
 } from '../../infrastructure/write/pagination.js';
 import { contractOperation, type QueryValues } from '../../infrastructure/write/request-parsing.js';
+import { storabilityProblem } from '../../infrastructure/write/storability.js';
 import {
   WriteExecutor,
   type WriteContext,
@@ -77,7 +78,6 @@ import {
   authorityAuditFields,
   authorityWriteData,
   dateRangeProblem,
-  storabilityProblem,
   versionReviewProblem,
   versionSourceUses,
   versionTermsProblem,

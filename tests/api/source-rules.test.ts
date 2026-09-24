@@ -175,6 +175,32 @@ describe('captureProblem — request-only capture checks', () => {
     expect(problem?.code).toBe(errorCode);
     expect(problem?.details).toMatchObject({ field });
   });
+
+  it('refuses observedAt / reviewedAt values the database cannot store exactly, first and per field', () => {
+    const paths = (extra: Partial<CreateSource>) => {
+      const problem = captureProblem(capture(extra));
+      expect(problem?.code).toBe('VALIDATION_FAILED');
+      return (problem?.details['issues'] as Array<{ path: string }>).map((issue) => issue.path);
+    };
+    expect(
+      paths({ observedAt: '2016-12-31T23:59:60Z', reviewedAt: '2025-06-30T10:15:00.123456Z' }),
+    ).toEqual(['observedAt', 'reviewedAt']);
+    expect(paths({ observedAt: '0999-06-30T10:00:00Z' })).toEqual(['observedAt']);
+    expect(paths({ reviewedAt: '9999-12-31T23:59:59.500Z' })).toEqual(['reviewedAt']);
+    // A leap second written with an offset (local 15:59:60) is refused like …23:59:60Z.
+    expect(paths({ reviewedAt: '2016-12-31T15:59:60-08:00' })).toEqual(['reviewedAt']);
+    // Deterministic: an unstorable instant is reported before any other capture rule.
+    expect(paths({ observedAt: '2016-12-31T23:59:60Z', contentSha256: 'a'.repeat(64) })).toEqual([
+      'observedAt',
+    ]);
+    // Exactly storable values, whatever spelling the format admits, and nulls pass.
+    expect(
+      captureProblem(
+        capture({ observedAt: '2025-06-30T15:45:00+0530', reviewedAt: '9999-12-31T23:59:59.499Z' }),
+      ),
+    ).toBeNull();
+    expect(captureProblem(capture({ observedAt: null, reviewedAt: null }))).toBeNull();
+  });
 });
 
 describe('sameScopeBindings — a revision keeps its scope', () => {

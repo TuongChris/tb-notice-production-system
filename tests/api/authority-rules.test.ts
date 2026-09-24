@@ -1,15 +1,16 @@
-// P3B pure authority rules (authority-rules.ts): date order and storability, the claims a version may
-// make about its documents, the sources a version cites, and the redacted audit values. Database
-// behaviour of the same rules is covered over HTTP in tests/db/p3b-http.test.ts.
+// P3B pure authority rules (authority-rules.ts): date order and storability (the shared rule in
+// infrastructure/write/storability.ts, with its full boundaries in storability.test.ts), the claims a
+// version may make about its documents, the sources a version cites, and the redacted audit values.
+// Database behaviour of the same rules is covered over HTTP in tests/db/p3b-http.test.ts.
 import { describe, expect, it } from 'vitest';
 import { Prisma } from '../../apps/api/generated/prisma/client.js';
+import { storabilityProblem } from '../../apps/api/src/infrastructure/write/storability.js';
 import {
   authorityAuditFields,
   authorityAuditValue,
   authorityWriteData,
   dateRangeProblem,
   eventReviewProblem,
-  storabilityProblem,
   toDbDate,
   versionReviewProblem,
   versionSourceUses,

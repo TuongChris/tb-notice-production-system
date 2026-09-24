@@ -42,6 +42,7 @@ import {
   toPage,
 } from '../../infrastructure/write/pagination.js';
 import { contractOperation, type QueryValues } from '../../infrastructure/write/request-parsing.js';
+import { storabilityProblem, toDbInstant } from '../../infrastructure/write/storability.js';
 import {
   WriteExecutor,
   type WriteReply,
@@ -57,12 +58,7 @@ import {
   routeContext,
   routeTarget,
 } from './authority-chain.js';
-import {
-  authorityAuditFields,
-  eventReviewProblem,
-  storabilityProblem,
-  toDbDate,
-} from './authority-rules.js';
+import { authorityAuditFields, eventReviewProblem, toDbDate } from './authority-rules.js';
 import { toAuthorityEventView } from './authority-views.js';
 
 const ENTITY = 'AuthorityEvent';
@@ -234,7 +230,7 @@ export class AuthorityEventsService {
               sourceId: body.sourceId,
               provenance: body.provenance,
               effectiveOn: body.effectiveOn ? toDbDate(body.effectiveOn) : null,
-              effectiveAt: body.effectiveAt ? new Date(body.effectiveAt) : null,
+              effectiveAt: body.effectiveAt ? toDbInstant(body.effectiveAt) : null,
               rawEffectiveText: body.rawEffectiveText ?? null,
               scopeText: body.scopeText,
               supersedesEventId: body.supersedesEventId ?? null,

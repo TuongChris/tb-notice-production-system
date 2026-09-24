@@ -42,6 +42,7 @@ import {
   toPage,
 } from '../../infrastructure/write/pagination.js';
 import { contractOperation, type QueryValues } from '../../infrastructure/write/request-parsing.js';
+import { storabilityProblem } from '../../infrastructure/write/storability.js';
 import {
   WriteExecutor,
   type WriteReply,
@@ -65,12 +66,7 @@ import {
   versionParents,
   type RouteContext,
 } from './authority-chain.js';
-import {
-  authorityAuditFields,
-  authorityWriteData,
-  dateRangeProblem,
-  storabilityProblem,
-} from './authority-rules.js';
+import { authorityAuditFields, authorityWriteData, dateRangeProblem } from './authority-rules.js';
 import { toCoverageView } from './authority-views.js';
 
 const ENTITY = 'MandateCoverage';

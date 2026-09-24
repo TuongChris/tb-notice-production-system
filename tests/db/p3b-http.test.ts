@@ -2548,6 +2548,49 @@ describe('AUTHORITY EVENTS — append-only history, exactly as reported; not pro
     expect(outcome(missing)).toEqual([404, 'NOT_FOUND']);
   });
 
+  it('effectiveAt follows the shared storability rule (R7): the exact instant is stored; a shifted year or the last half-second of 9999 is refused', async () => {
+    const w = await world();
+    for (const [value, instant] of [
+      ['2025-06-30T10:15:00.123000Z', '2025-06-30T10:15:00.123Z'],
+      ['2025-06-30T15:15:00+05', '2025-06-30T10:15:00.000Z'],
+      ['2025-06-30\t10:15:00Z', '2025-06-30T10:15:00.000Z'],
+      ['1000-01-01T00:00:00Z', '1000-01-01T00:00:00.000Z'],
+      ['9999-12-31T23:59:59.499Z', '9999-12-31T23:59:59.499Z'],
+    ] as const) {
+      const label = JSON.stringify(value);
+      const event = await recordEvent(w.mandate.data.id, {
+        eventType: 'CORRECTION',
+        sourceId: w.source.id,
+        effectiveAt: value,
+      });
+      expect(event.effectiveAt, label).toBe(instant);
+      const [row] = await prisma.$queryRaw<Array<{ at: string | null }>>(
+        Prisma.sql`SELECT CAST(effective_at AS CHAR) AS at FROM authority_events WHERE id = ${event.id}`,
+      );
+      expect(row?.at, label).toBe(instant.replace('T', ' ').replace('Z', ''));
+    }
+    const events = await countRows(prisma, 'authority_events');
+    const mandate = await getMandate(w.mandate.data.id);
+    for (const value of [
+      // A space separator made V8's legacy parser read year 0050 as 1950.
+      '0050-06-30 10:00:00Z',
+      // A leap second written with an offset (local 15:59:60).
+      '2016-12-31T15:59:60-08:00',
+      '0000-01-01T00:00:00Z',
+      '9999-12-31T23:59:59.500Z',
+      '9999-12-31T23:59:59.999Z',
+      '2025-06-30T24:59:30+01:00',
+    ]) {
+      const refused = await postEvent(w.mandate.data.id, mandate.etag, {
+        sourceId: w.source.id,
+        effectiveAt: value,
+      });
+      expect(outcome(refused), JSON.stringify(value)).toEqual([422, 'VALIDATION_FAILED']);
+    }
+    expect(await countRows(prisma, 'authority_events')).toBe(events);
+    expect((await getMandate(w.mandate.data.id)).data.rowVersion).toBe(mandate.data.rowVersion);
+  });
+
   it('coverage-scoped events need a frozen coverage of this mandate, and a source that applies to its route', async () => {
     const c = await chain();
     const other = await chain('B', { frozen: true });

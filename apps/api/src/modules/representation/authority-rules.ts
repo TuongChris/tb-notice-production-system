@@ -31,46 +31,6 @@ export function toDbDate(value: string): Date {
   return new Date(`${value}T00:00:00.000Z`);
 }
 
-/** MySQL's supported DATE / DATETIME range (the contract formats alone allow years 0000–0999). */
-const MIN_STORABLE = '1000-01-01';
-const MAX_STORABLE = '9999-12-31';
-
-/**
- * Dates and timestamps the database cannot store exactly are refused rather than altered (the stored
- * value must equal the accepted value, as for text in request-parsing.ts): a date outside the
- * supported range; a timestamp that is not a real instant (for example a leap second, which the
- * RFC 3339 format admits), has more than millisecond precision (DATETIME(3)) or falls outside the
- * range in UTC. The exact wording of a source can be kept in a raw-text field instead.
- */
-export function storabilityProblem(
-  body: Readonly<Record<string, unknown>>,
-  dateFields: readonly string[],
-  timestampFields: readonly string[] = [],
-): ApiError | null {
-  const issues: { path: string; message: string }[] = [];
-  for (const field of dateFields) {
-    const value = body[field];
-    if (typeof value === 'string' && (value < MIN_STORABLE || value > MAX_STORABLE)) {
-      issues.push({ path: field, message: 'Must be a date between 1000-01-01 and 9999-12-31' });
-    }
-  }
-  for (const field of timestampFields) {
-    const value = body[field];
-    if (typeof value !== 'string') continue;
-    const instant = new Date(value);
-    const fraction = /[.,](\d+)/.exec(value)?.[1] ?? '';
-    const utcDate = Number.isNaN(instant.getTime()) ? '' : instant.toISOString().slice(0, 10);
-    if (utcDate === '' || fraction.length > 3 || utcDate < MIN_STORABLE || utcDate > MAX_STORABLE) {
-      issues.push({
-        path: field,
-        message:
-          'Must be a real instant with at most millisecond precision between years 1000 and 9999 (keep the exact wording in the raw text field)',
-      });
-    }
-  }
-  return issues.length === 0 ? null : apiErrors.bodyValidationFailed(issues);
-}
-
 /**
  * 422 DATE_RANGE_INVALID when both dates are known and the start is after the end. Contract dates
  * are zero-padded calendar dates, so their string order is their calendar order.
