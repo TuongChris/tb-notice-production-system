@@ -1594,6 +1594,57 @@ describe('CANONICAL BINDING — an identity reference; never a review, a provena
 // ---------------------------------------------------------------------------------------------
 
 describe('CASE SOURCES — an explicit association of one source with one case; not proof', () => {
+  it('createSource names only existing, unarchived cases, and an agency’s own source only its own agency’s cases; nothing is written on refusal', async () => {
+    const w = await world();
+    const other = await world('B');
+    const own = await createCase(w.agency.data.id);
+    const foreign = await createCase(other.agency.data.id);
+    const archived = await createCase(w.agency.data.id);
+    versioned(await archiveCase(archived.data.id, archived.etag), 200);
+    const ownNow = await getCase(own.data.id);
+    const foreignNow = await getCase(foreign.data.id);
+    const sourcesBefore = await prisma.sourceReference.count();
+    const refusals: Array<[Record<string, unknown>, number, string, Record<string, unknown>]> = [
+      [
+        { agencyId: w.agency.data.id, scopeBindings: { caseIds: [foreign.data.id] } },
+        422,
+        'CROSS_AGENCY_REFERENCE',
+        { field: 'scopeBindings.caseIds.0' },
+      ],
+      [
+        { agencyId: w.agency.data.id, scopeBindings: { caseIds: [own.data.id, archived.data.id] } },
+        409,
+        'RECORD_STATE_CONFLICT',
+        { record: 'CaseRecord', archived: true, field: 'scopeBindings.caseIds.1' },
+      ],
+      [
+        { scopeBindings: { caseIds: [randomUUID()] } },
+        422,
+        'REFERENCE_NOT_FOUND',
+        { field: 'scopeBindings.caseIds.0' },
+      ],
+    ];
+    for (const [body, status, errorCode, details] of refusals) {
+      const refused = await postSource(body);
+      expect([refused.status, code(refused)], errorCode).toEqual([status, errorCode]);
+      expect(errorOf(refused).details, errorCode).toMatchObject(details);
+    }
+    expect(await prisma.sourceReference.count()).toBe(sourcesBefore);
+    // Accepted: an agency's own source naming its own case, and an agency-less source naming cases
+    // of two agencies. The scope is stored exactly as given; the cases themselves do not change.
+    const ownScoped = await createSource({
+      agencyId: w.agency.data.id,
+      scopeBindings: { caseIds: [own.data.id] },
+    });
+    expect(ownScoped.scopeBindings).toMatchObject({ caseIds: [own.data.id] });
+    const shared = await createSource({
+      scopeBindings: { caseIds: [own.data.id, foreign.data.id] },
+    });
+    expect(shared.scopeBindings).toMatchObject({ caseIds: [own.data.id, foreign.data.id] });
+    expect((await getCase(own.data.id)).data).toEqual(ownNow.data);
+    expect((await getCase(foreign.data.id)).data).toEqual(foreignNow.data);
+  });
+
   it('link: exactly as requested and pinned to the exact revision; the case context moves; the source is never changed', async () => {
     const w = await world();
     const reviewed = await createSource({
