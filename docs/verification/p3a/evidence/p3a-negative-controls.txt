@@ -1,0 +1,208 @@
+# P3A negative controls — 2026-09-24T06:19:46+00:00 — head 9481bd005c9fa36605fbf936508c269a843db996
+# Each control disables one protection, runs every listed responsible suite (each must FAIL),
+# restores the file and verifies it byte-identical by SHA-256. Synthetic data only:
+# tb_notice_test (DB suites, emptiness verified after every DB control) and the in-memory
+# web API (WEB). tb_notice_dev is never used.
+
+contracts dist (fresh build) tree sha256 b847d329b8a38f6f29d2926d4e961fbc39ffa4583d6632d86459cfe801e9b5aa
+
+## Baseline (unmutated; every suite must pass)
+BASELINE DB PASS tests/db/p3a-http.test.ts; exit 0 (19s); Tests  41 passed (41)
+BASELINE UNIT PASS tests/api/source-rules.test.ts; exit 0 (1s); Tests  36 passed (36)
+BASELINE WEB PASS tests/web/p3a.test.tsx; exit 0 (1s); Tests  17 passed (17)
+
+## Controls
+P3A-NC01 PASS source scope: an agency-owned source supports another agency (CROSS_AGENCY check removed)
+     file apps/api/src/modules/sources/source-scope.ts
+     suite DB (tests/db/p3a-http.test.ts): exit 1 (18s); Tests  3 failed | 38 passed (41)
+       failed: tests/db/p3a-http.test.ts > CANONICAL BINDINGS — identity/reference only > inapplicable sources are refused per target, and an unknown source is 422
+       failed: tests/db/p3a-http.test.ts > SCOPE / CONTAMINATION > an agency source never silently supports another agency: attributions, signer sources and bindings
+       failed: tests/db/p3a-http.test.ts > SECURITY / CONTRACT > a full synthetic tour: source → bindings → association → route → route binding, plus an expected refusal
+     suite UNIT (tests/api/source-rules.test.ts): exit 1 (1s); Tests  2 failed | 34 passed (36)
+       failed: tests/api/source-rules.test.ts > scopeProblem — the recorded-scope applicability matrix > other agency source → Agency
+       failed: tests/api/source-rules.test.ts > scopeProblem — the recorded-scope applicability matrix > other agency source → Route
+     restored sha256 a8f162efe112b02acf8ee45e4d6e60b0c9a6a2842be812dfbcb5aeff6267307d (before a8f162efe112…, identical=True)
+     tb_notice_test empty after the control: True
+P3A-NC02 PASS source scope: an agency-less source that does not name the agency supports it
+     file apps/api/src/modules/sources/source-scope.ts
+     suite DB (tests/db/p3a-http.test.ts): exit 1 (19s); Tests  1 failed | 40 passed (41)
+       failed: tests/db/p3a-http.test.ts > CANONICAL BINDINGS — identity/reference only > inapplicable sources are refused per target, and an unknown source is 422
+     suite UNIT (tests/api/source-rules.test.ts): exit 1 (1s); Tests  2 failed | 34 passed (36)
+       failed: tests/api/source-rules.test.ts > scopeProblem — the recorded-scope applicability matrix > unscoped public source → Agency
+       failed: tests/api/source-rules.test.ts > scopeProblem — the recorded-scope applicability matrix > shared with B → Agency A
+     restored sha256 a8f162efe112b02acf8ee45e4d6e60b0c9a6a2842be812dfbcb5aeff6267307d (before a8f162efe112…, identical=True)
+     tb_notice_test empty after the control: True
+P3A-NC03 PASS owner contamination: another owner's recorded material is accepted (CROSS_OWNER check removed)
+     file apps/api/src/modules/sources/source-scope.ts
+     suite DB (tests/db/p3a-http.test.ts): exit 1 (19s); Tests  1 failed | 40 passed (41)
+       failed: tests/db/p3a-http.test.ts > SCOPE / CONTAMINATION > owner material does not transfer to another owner: binding, association source and route binding
+     restored sha256 a8f162efe112b02acf8ee45e4d6e60b0c9a6a2842be812dfbcb5aeff6267307d (before a8f162efe112…, identical=True)
+     tb_notice_test empty after the control: True
+P3A-NC04 PASS case scope: a case-scoped source applies to directory records
+     file apps/api/src/modules/sources/source-scope.ts
+     suite DB (tests/db/p3a-http.test.ts): exit 1 (19s); Tests  1 failed | 40 passed (41)
+       failed: tests/db/p3a-http.test.ts > SCOPE / CONTAMINATION > case scope does not exist in P3A: a case-scoped fixture applies to no record
+     suite UNIT (tests/api/source-rules.test.ts): exit 1 (1s); Tests  3 failed | 33 passed (36)
+       failed: tests/api/source-rules.test.ts > scopeProblem — the recorded-scope applicability matrix > case-scoped → Agency
+       failed: tests/api/source-rules.test.ts > scopeProblem — the recorded-scope applicability matrix > case-scoped → Owner
+       failed: tests/api/source-rules.test.ts > scopeProblem — the recorded-scope applicability matrix > case-scoped → LegalSubject
+     restored sha256 a8f162efe112b02acf8ee45e4d6e60b0c9a6a2842be812dfbcb5aeff6267307d (before a8f162efe112…, identical=True)
+     tb_notice_test empty after the control: True
+P3A-NC05 PASS revision: an earlier revision can be revised (head check removed; unique key remains)
+     file apps/api/src/modules/sources/sources.service.ts
+     suite DB (tests/db/p3a-http.test.ts): exit 1 (19s); Tests  1 failed | 40 passed (41)
+       failed: tests/db/p3a-http.test.ts > SOURCE REVISIONS — append-only chains > only the current head can be revised: an earlier revision is 409 REVISION_NOT_HEAD with the head id
+     restored sha256 b5ba073866ccb0c3de60b188b0bb947dc51c596fd3a333d6c533224ea43898f4 (before b5ba073866cc…, identical=True)
+     tb_notice_test empty after the control: True
+P3A-NC06 PASS revision: a revision may change agency or scope bindings
+     file apps/api/src/modules/sources/sources.service.ts
+     suite DB (tests/db/p3a-http.test.ts): exit 1 (19s); Tests  1 failed | 40 passed (41)
+       failed: tests/db/p3a-http.test.ts > SOURCE REVISIONS — append-only chains > a revision keeps the agency and the scope bindings; a different scope needs a new source
+     restored sha256 b5ba073866ccb0c3de60b188b0bb947dc51c596fd3a333d6c533224ea43898f4 (before b5ba073866cc…, identical=True)
+     tb_notice_test empty after the control: True
+P3A-NC07 PASS history: the source list shows superseded revisions (current-head filter removed)
+     file apps/api/src/modules/sources/sources.service.ts
+     suite DB (tests/db/p3a-http.test.ts): exit 1 (19s); Tests  1 failed | 40 passed (41)
+       failed: tests/db/p3a-http.test.ts > SOURCE LIST — current heads, summaries, scoped filters, signed cursors > lists current revisions as summaries; `q` finds title words accent-insensitively or a chain by id
+     restored sha256 b5ba073866ccb0c3de60b188b0bb947dc51c596fd3a333d6c533224ea43898f4 (before b5ba073866cc…, identical=True)
+     tb_notice_test empty after the control: True
+P3A-NC08 PASS provenance auto-upgrade: an omitted provenance is stored as DOCUMENT_REVIEWED
+     file apps/api/src/modules/sources/sources.service.ts
+     suite DB (tests/db/p3a-http.test.ts): exit 1 (19s); Tests  1 failed | 40 passed (41)
+       failed: tests/db/p3a-http.test.ts > SOURCES — capture metadata, not evidence > create: revision 1 of a new chain, exactly the supplied metadata, defaults, no ETag
+     restored sha256 b5ba073866ccb0c3de60b188b0bb947dc51c596fd3a333d6c533224ea43898f4 (before b5ba073866cc…, identical=True)
+     tb_notice_test empty after the control: True
+P3A-NC09 PASS provenance: DOCUMENT_REVIEWED accepted without an attributable reviewer
+     file apps/api/src/modules/sources/source-rules.ts
+     suite DB (tests/db/p3a-http.test.ts): exit 1 (19s); Tests  1 failed | 40 passed (41)
+       failed: tests/db/p3a-http.test.ts > SOURCES — capture metadata, not evidence > create refuses unknown fields, case scope, incomplete hashes and unattributed review
+     suite UNIT (tests/api/source-rules.test.ts): exit 1 (1s); Tests  2 failed | 34 passed (36)
+       failed: tests/api/source-rules.test.ts > captureProblem — request-only capture checks > refuses {"reportedProvenance":"DOCUMENT_REVIEWED"}
+       failed: tests/api/source-rules.test.ts > captureProblem — request-only capture checks > refuses {"reportedProvenance":"DOCUMENT_REVIEWED","reviewedByLabel":" "}
+     restored sha256 b2ee95f7f1c7c60bbd067f21096a44bed50ecda3a56ee493f1a3d23006e65eea (before b2ee95f7f1c7…, identical=True)
+     tb_notice_test empty after the control: True
+P3A-NC10 PASS source content boundary: the excerpt text is copied into the audit record
+     file apps/api/src/modules/directory/changes.ts
+     suite DB (tests/db/p3a-http.test.ts): exit 1 (20s); Tests  1 failed | 40 passed (41)
+       failed: tests/db/p3a-http.test.ts > SOURCES — capture metadata, not evidence > audit records metadata only: scope text, excerpt and limitations are never copied
+     suite UNIT (tests/api/source-rules.test.ts): exit 1 (1s); Tests  1 failed | 35 passed (36)
+       failed: tests/api/source-rules.test.ts > sourceAuditRecord — metadata, never copied source text > redacts scope text, excerpt, limitations and the scope limitation; keeps the digest under guard-safe keys
+     restored sha256 bad6d1ecfde87a86ba4d80b47d609d9dd3ab8451f91f79749ec80f12da097142 (before bad6d1ecfde8…, identical=True)
+     tb_notice_test empty after the control: True
+P3A-NC11 PASS binding: a superseded revision can be bound (SOURCE_NOT_CURRENT removed)
+     file apps/api/src/modules/directory/canonical-binding.ts
+     suite DB (tests/db/p3a-http.test.ts): exit 1 (20s); Tests  1 failed | 40 passed (41)
+       failed: tests/db/p3a-http.test.ts > CANONICAL BINDINGS — identity/reference only > only the current revision, with the CANONICAL_RECORD role, can be bound
+     restored sha256 fb6a6fc0c4f794f41483e3eb20ed6c791f69524503748a32631a0d6699e796f6 (before fb6a6fc0c4f7…, identical=True)
+     tb_notice_test empty after the control: True
+P3A-NC12 PASS binding: a source that is not a CANONICAL_RECORD can be bound
+     file apps/api/src/modules/directory/canonical-binding.ts
+     suite DB (tests/db/p3a-http.test.ts): exit 1 (19s); Tests  1 failed | 40 passed (41)
+       failed: tests/db/p3a-http.test.ts > CANONICAL BINDINGS — identity/reference only > only the current revision, with the CANONICAL_RECORD role, can be bound
+     restored sha256 fb6a6fc0c4f794f41483e3eb20ed6c791f69524503748a32631a0d6699e796f6 (before fb6a6fc0c4f7…, identical=True)
+     tb_notice_test empty after the control: True
+P3A-NC13 PASS binding: an existing binding is silently replaced (reconciliation refusal removed)
+     file apps/api/src/modules/directory/canonical-binding.ts
+     suite DB (tests/db/p3a-http.test.ts): exit 1 (19s); Tests  1 failed | 40 passed (41)
+       failed: tests/db/p3a-http.test.ts > CANONICAL BINDINGS — identity/reference only > a binding is never replaced by another binding; codes are unique per kind; archived records are read-only
+     restored sha256 fb6a6fc0c4f794f41483e3eb20ed6c791f69524503748a32631a0d6699e796f6 (before fb6a6fc0c4f7…, identical=True)
+     tb_notice_test empty after the control: True
+P3A-NC14 PASS identity lock: a bound Agency/LegalSubject is not established (binding reason removed)
+     file apps/api/src/modules/directory/records.ts
+     suite DB (tests/db/p3a-http.test.ts): exit 1 (19s); Tests  1 failed | 40 passed (41)
+       failed: tests/db/p3a-http.test.ts > CANONICAL BINDINGS — identity/reference only > a binding establishes identity: Agency and LegalSubject identity and a Signer’s name lock; contact stays editable
+     restored sha256 88273ff242c6a7460c043283047f4e19b57b5e2042c97da9d6f74a72b3dd287d (before 88273ff242c6…, identical=True)
+     tb_notice_test empty after the control: True
+P3A-NC15 PASS identity lock: a bound Signer's full legal name can be patched
+     file apps/api/src/modules/directory/signers.service.ts
+     suite DB (tests/db/p3a-http.test.ts): exit 1 (19s); Tests  1 failed | 40 passed (41)
+       failed: tests/db/p3a-http.test.ts > CANONICAL BINDINGS — identity/reference only > a binding establishes identity: Agency and LegalSubject identity and a Signer’s name lock; contact stays editable
+     restored sha256 bc6d8a01d1ef94aa201c2cfdebaaf8aa0fb183b783da619e0b5e2f51367a1f4f (before bc6d8a01d1ef…, identical=True)
+     tb_notice_test empty after the control: True
+P3A-NC16 PASS no authority inference: binding a Signer makes it AVAILABLE
+     file apps/api/src/modules/directory/signers.service.ts
+     suite DB (tests/db/p3a-http.test.ts): exit 1 (19s); Tests  1 failed | 40 passed (41)
+       failed: tests/db/p3a-http.test.ts > CANONICAL BINDINGS — identity/reference only > each of the five targets binds its applicable current canonical source exactly; nothing else changes
+     restored sha256 bc6d8a01d1ef94aa201c2cfdebaaf8aa0fb183b783da619e0b5e2f51367a1f4f (before bc6d8a01d1ef…, identical=True)
+     tb_notice_test empty after the control: True
+P3A-NC17 PASS route same-agency integrity: a default signer of another agency is accepted (composite FK remains)
+     file apps/api/src/modules/representation/routes.service.ts
+     suite DB (tests/db/p3a-http.test.ts): exit 1 (19s); Tests  1 failed | 40 passed (41)
+       failed: tests/db/p3a-http.test.ts > ROUTES — a relationship record, not authority > create refuses missing, archived, paused, cross-agency and future-phase references
+     restored sha256 3c5745e7414cfa69b9f6465612dbb0f93f229a90ae3668f7fa111625f51b4c53 (before 3c5745e7414c…, identical=True)
+     tb_notice_test empty after the control: True
+P3A-NC18 PASS route identity immutability: PatchRoute accepts agencyId / ownerSubjectId (contract)
+     file packages/contracts/src/api/schemas/core.ts
+     suite DB+contracts (tests/db/p3a-http.test.ts): exit 1 (20s); Tests  1 failed | 40 passed (41)
+       failed: tests/db/p3a-http.test.ts > ROUTES — a relationship record, not authority > the relationship identity is immutable: PATCH cannot move a route; allowed fields change with If-Match
+     restored sha256 83b5b6c352d7618fbc8b885fbddcc0396ce6e0ec43ad4b0d7f96725216e163f2 (before 83b5b6c352d7…, identical=True)
+     contracts dist rebuilt after restore: tree sha256 b847d329b8a38f6f29d2926d4e961fbc39ffa4583d6632d86459cfe801e9b5aa (identical=True)
+     tb_notice_test empty after the control: True
+P3A-NC19 PASS route integrity: a route is created on a PAUSED/UNLINKED association
+     file apps/api/src/modules/representation/routes.service.ts
+     suite DB (tests/db/p3a-http.test.ts): exit 1 (19s); Tests  1 failed | 40 passed (41)
+       failed: tests/db/p3a-http.test.ts > ROUTES — a relationship record, not authority > create refuses missing, archived, paused, cross-agency and future-phase references
+     restored sha256 3c5745e7414cfa69b9f6465612dbb0f93f229a90ae3668f7fa111625f51b4c53 (before 3c5745e7414c…, identical=True)
+     tb_notice_test empty after the control: True
+P3A-NC20 PASS route link state: relinking while a party is archived is accepted
+     file apps/api/src/modules/representation/routes.service.ts
+     suite DB (tests/db/p3a-http.test.ts): exit 1 (19s); Tests  1 failed | 40 passed (41)
+       failed: tests/db/p3a-http.test.ts > ROUTES — a relationship record, not authority > link state: pause, unlink and relink with reasons; relink needs linked, unarchived parties; no cascade
+     restored sha256 3c5745e7414cfa69b9f6465612dbb0f93f229a90ae3668f7fa111625f51b4c53 (before 3c5745e7414c…, identical=True)
+     tb_notice_test empty after the control: True
+P3A-NC21 PASS route uniqueness: the duplicate check is removed (unique key remains as backstop)
+     file apps/api/src/modules/representation/routes.service.ts
+     suite DB (tests/db/p3a-http.test.ts): exit 1 (19s); Tests  1 failed | 40 passed (41)
+       failed: tests/db/p3a-http.test.ts > ROUTES — a relationship record, not authority > one route per agency, association and platform: a duplicate is 409 with the existing id, also concurrently
+     restored sha256 3c5745e7414cfa69b9f6465612dbb0f93f229a90ae3668f7fa111625f51b4c53 (before 3c5745e7414c…, identical=True)
+     tb_notice_test empty after the control: True
+P3A-NC22 PASS P3B boundary: a preferredCoverageId is accepted on create before MandateCoverage exists
+     file apps/api/src/modules/representation/routes.service.ts
+     suite DB (tests/db/p3a-http.test.ts): exit 1 (19s); Tests  1 failed | 40 passed (41)
+       failed: tests/db/p3a-http.test.ts > ROUTES — a relationship record, not authority > create refuses missing, archived, paused, cross-agency and future-phase references
+     restored sha256 3c5745e7414cfa69b9f6465612dbb0f93f229a90ae3668f7fa111625f51b4c53 (before 3c5745e7414c…, identical=True)
+     tb_notice_test empty after the control: True
+P3A-NC23 PASS route delete eligibility: a canonically bound route can be deleted
+     file apps/api/src/modules/representation/routes.service.ts
+     suite DB (tests/db/p3a-http.test.ts): exit 1 (19s); Tests  1 failed | 40 passed (41)
+       failed: tests/db/p3a-http.test.ts > ROUTES — a relationship record, not authority > deleteUnused: an unused route is deleted; archived, bound, referenced or snapshot-referenced routes are refused
+     restored sha256 3c5745e7414cfa69b9f6465612dbb0f93f229a90ae3668f7fa111625f51b4c53 (before 3c5745e7414c…, identical=True)
+     tb_notice_test empty after the control: True
+P3A-NC24 PASS ETag: If-Match is not compared (stale ETags accepted)
+     file apps/api/src/infrastructure/write/write-executor.ts
+     suite DB (tests/db/p3a-http.test.ts): exit 1 (19s); Tests  2 failed | 39 passed (41)
+       failed: tests/db/p3a-http.test.ts > CANONICAL BINDINGS — identity/reference only > If-Match and Idempotency-Key: 428, 412, 400, exact replay, payload conflict
+       failed: tests/db/p3a-http.test.ts > ROUTES — a relationship record, not authority > AC-055 two tabs: the second write with the old ETag is 412 and nothing is overwritten
+     restored sha256 4de1a71205252896f7427b1053df789142c878ed7bfdf01717a1064f0541d4e8 (before 4de1a7120525…, identical=True)
+     tb_notice_test empty after the control: True
+P3A-NC25 PASS idempotency: the payload digest is not compared (key reuse with another payload replays)
+     file apps/api/src/infrastructure/write/idempotency.ts
+     suite DB (tests/db/p3a-http.test.ts): exit 1 (19s); Tests  2 failed | 39 passed (41)
+       failed: tests/db/p3a-http.test.ts > SOURCE REVISIONS — append-only chains > revise idempotency: an exact replay returns the same revision; another payload is 409; a refusal keeps the key usable
+       failed: tests/db/p3a-http.test.ts > CANONICAL BINDINGS — identity/reference only > If-Match and Idempotency-Key: 428, 412, 400, exact replay, payload conflict
+     restored sha256 d0ff1c8a97a52da75ad20313d4909d24b3c47efc6ef0e2c0147934019fbc4c0e (before d0ff1c8a97a5…, identical=True)
+     tb_notice_test empty after the control: True
+P3A-NC26 PASS audit atomicity: an audit failure is swallowed (the write commits without its event)
+     file apps/api/src/infrastructure/write/write-executor.ts
+     suite DB (tests/db/p3a-http.test.ts): exit 1 (19s); Tests  3 failed | 38 passed (41)
+       failed: tests/db/p3a-http.test.ts > SOURCE REVISIONS — append-only chains > a failing audit insert rolls back create and revise: no row, no event, no idempotency record
+       failed: tests/db/p3a-http.test.ts > CANONICAL BINDINGS — identity/reference only > a failing audit insert rolls back a binding: no binding, no version change, no idempotency record
+       failed: tests/db/p3a-http.test.ts > ROUTES — a relationship record, not authority > a failing audit insert rolls back route create, patch, link state and delete
+     restored sha256 4de1a71205252896f7427b1053df789142c878ed7bfdf01717a1064f0541d4e8 (before 4de1a7120525…, identical=True)
+     tb_notice_test empty after the control: True
+P3A-NC27 PASS UI no authority inference: a linked route is labelled as authorized
+     file apps/web/src/app/directory/format.ts
+     suite WEB (tests/web/p3a.test.tsx): exit 1 (1s); Tests  1 failed | 16 passed (17)
+       failed: tests/web/p3a.test.tsx > P3A routes UI > creates a route from explicit choices only: linked links, signers of the agency, YouTube
+     restored sha256 b2255099feef35bbed2f0c8aa155a6ba84f7f74b4105d5ed0011627371b6376c (before b2255099feef…, identical=True)
+P3A-NC28 PASS UI source applicability: binding pickers offer inapplicable sources
+     file apps/web/src/app/sources/scope.ts
+     suite WEB (tests/web/p3a.test.tsx): exit 1 (1s); Tests  2 failed | 15 passed (17)
+       failed: tests/web/p3a.test.tsx > P3A canonical bindings UI > an owner is offered only shared, subject-free canonical records; an owner-material refusal is explained
+       failed: tests/web/p3a.test.tsx > P3A canonical bindings UI > a bound legal subject locks every identity field under one notice; its binding shows the source
+     restored sha256 8aad13d4393f914d16d058f971c9424579dc67348b79633a669b8645dc12cdd2 (before 8aad13d4393f…, identical=True)
+
+git status --porcelain after all controls: (empty)
+git diff --exit-code after all controls: exit 0
+
+RESULT ALL CONTROLS FAILED THEIR SUITES AS EXPECTED; ALL FILES RESTORED BYTE-IDENTICALLY

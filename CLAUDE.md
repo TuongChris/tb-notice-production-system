@@ -15,14 +15,14 @@ Read this first in every session. It summarizes binding decisions; the documents
 1. `docs/architecture/ARCHITECTURE_RESOLUTIONS_v1.md` (precedence rules), then `docs/product/PRODUCT_DEFINITION_v1.md`, `docs/domain/DOMAIN_MODEL_v1.md`, `docs/contracts/PRODUCTION_FORM_CONTRACT_v1.md`, `docs/architecture/TECHNOLOGY_ARCHITECTURE_v1.md`, `REPOSITORY_BLUEPRINT_v1.md`, `P0_BOOTSTRAP_CONTRACT_v1.md`.
 2. Decisions: `docs/decisions/ADR-0001-mysql-manual-migration-semantics.md`, `ADR-0002-zod-first-contract-authoring.md`, `ADR-0003-single-pc-development-baseline.md` (all ACCEPTED).
 3. Frozen DB/API baseline `TB-SCHEMA-API-v1.0.0`: `docs/reference/database-api-v1/…/docs/INVARIANTS.md`, `API_CONTRACT_v1.md`.
-4. State: `docs/CURRENT_STATE.md`; evidence: `docs/verification/p0/`, `docs/verification/p1/`, `docs/verification/p2/`.
+4. State: `docs/CURRENT_STATE.md`; evidence: `docs/verification/p0/`, `docs/verification/p1/`, `docs/verification/p2/`, `docs/verification/p3a/`.
 
 **Frozen trees — never edit, move, format, lint-fix or generate into:** `docs/reference/**`. Verify with `yarn reference:check`. Never run `docs/reference/…/tests/verify_contracts.py` (it writes files).
 
 ## Architecture (modular monolith)
 
 - `apps/web` (`@tb/web`): React 19 + Vite 8, `127.0.0.1:5173`, proxies `/api`.
-- `apps/api` (`@tb/api`): NestJS 12 + Express, REST `/api/v1`, `127.0.0.1:3000`. P1 exposes `GET /api/v1/health` (public) and `POST /api/v1/auth/login`, `GET /api/v1/auth/session`, `POST /api/v1/auth/logout`. P2 adds the 36 contracted directory operations (Agency, Owner, LegalSubject, OwnerSubject, Signer); the four `bindCanonical*` operations stay unrouted until SourceReference authoring exists. A global guard makes every other route session-protected by default.
+- `apps/api` (`@tb/api`): NestJS 12 + Express, REST `/api/v1`, `127.0.0.1:3000`. P1 exposes `GET /api/v1/health` (public) and `POST /api/v1/auth/login`, `GET /api/v1/auth/session`, `POST /api/v1/auth/logout`. P2 adds the 36 contracted directory operations (Agency, Owner, LegalSubject, OwnerSubject, Signer); P3A adds 17: the SourceReference registry (4), the four directory `bindCanonical*` operations and Route (9, including `bindCanonicalRoute`). Mandates (P3B) and every later operation stay unrouted. A global guard makes every other route session-protected by default.
 - `packages/contracts` (`@tb/contracts`): Zod wire schemas + operation metadata; depends on no app, Nest, React or Prisma.
 - One MySQL 8.4 container. Yarn Workspaces only. No Nx/Turborepo/Lerna, queues, Redis, GraphQL/tRPC, microservices, generic BaseCrud layers.
 
@@ -48,11 +48,21 @@ npm `prisma@latest` currently points at an 8.x release candidate — always pin 
 - Established Agency/LegalSubject (ACTIVE, canonically bound, or referenced through any FK or JSON snapshot/scope column): **every** identity-defining field is immutable through generic PATCH — populated, null or empty (R5). Correcting or supplementing an established identity needs a future dedicated workflow with source/provenance/audit; do not invent it. Hard delete only for unused, unbound DRAFT records. Archived records are read-only except the explicit restore, which returns DRAFT and revives nothing.
 - Signer operational state is administrative only: no state implies mandate coverage, eligibility, G7, signature authority or notice adoption.
 - Accent-insensitive collation (`utf8mb4_0900_ai_ci`) is only for `q` discovery search (LIKE); never for identity equality, canonical matching, duplicate determination, unique keys or legal/entity equivalence (a test scans the API source).
-- Never create a SourceReference (or any placeholder) from directory code or UI; supplied source ids must exist and, for agency-owned records, belong to that agency or name it in `scopeBindings.agencyIds`. Provenance is stored as given, never upgraded.
+- SourceReferences are created only by `createSource`/`reviseSource` (P3A); never create one (or a placeholder) from directory, route or binding code. Every cited source must exist and apply to the record (`modules/sources/source-scope.ts`, below). Provenance is stored as given, never upgraded.
 - A new FK or JSON column must be added to `DIRECT_REFERENCES` / `SNAPSHOT_JSON_COLUMNS` in `modules/directory/records.ts`; a test parses the migration and fails otherwise.
 - No generic BaseCrud: shared mechanics only (write executor, ETag, idempotency, cursor, audit writer); entity rules stay explicit per service.
-- UI: capabilities that are not available (canonical binding, source attachment, known-ineligible delete) stay visible but inert (`aria-disabled` + reason); never simulate success. No new UI dependencies without a decision.
+- UI: capabilities that are not available (source attachment for attributions, Signer sources and link sources, known-ineligible delete) stay visible but inert (`aria-disabled` + reason); never simulate success. No new UI dependencies without a decision.
 - Browser checks run only against `yarn ui:sandbox` (compiled API on `tb_notice_test`, synthetic user, full cleanup); never against `tb_notice_dev` or with a personal browser profile.
+
+## Sources, canonical bindings and routes (P3A; details `docs/verification/p3a/P3A_SOURCES_ROUTE.md`)
+
+- A SourceReference is an immutable pointer with capture metadata (no PATCH, no ETag) — not evidence, review proof, permission or authority; Drive keeps the evidence. Store exactly what was supplied: omitted `accessState`/`reportedProvenance` default to NOT_CHECKED/OPERATOR_REPORTED; never fetch the URL, compute or invent a hash (a hash needs its `hashTarget`), infer provenance or add provenance values; DOCUMENT_REVIEWED needs `reviewedByLabel`; `caseIds` are refused until Cases exist. Audit keeps metadata only (scope text, excerpt, limitations as `{redacted, codePoints}`).
+- Revisions: only the current head is revised (409 `REVISION_NOT_HEAD`); a revision keeps `agencyId` and `scopeBindings` (422 `REVISION_SCOPE_CHANGE`), never changes earlier revisions and never re-points bindings; lists show current heads only.
+- Applicability (one rule set for attributions, Signer sources, link sources and bindings): Agency, Signer and Route need their agency's own source or an agency-less source naming the agency in `scopeBindings.agencyIds`; Owner, LegalSubject and OwnerSubject need an agency-less, unrestricted source; a LegalSubject must be named, a subject-scoped source for a Route/OwnerSubject must name its subject, an Owner refuses subject-scoped sources; material recorded for one Owner never supports another (`CROSS_OWNER_REFERENCE`); case-scoped sources apply to nothing.
+- Canonical binding = identity/reference only (no ownership, authority, mandate, eligibility, G1–G7 or readiness): current revision, role CANONICAL_RECORD, applicable scope, code unique per kind (binary), archived targets refused, an existing binding is never replaced (409 `BINDING_CORRECTION_REQUIRES_RECONCILIATION`; no reconciliation workflow exists — do not invent it); DIVERGENT is never set. A bound Agency/LegalSubject is established (identity lock); a bound Signer's `fullLegalName` locks.
+- Route = Agency + OwnerSubject + YOUTUBE, not authority: explicit, existing, unarchived parties and a LINKED association; one per (agency, association, platform); PATCH cannot move it; `defaultSignerId` = a non-archived, non-ENDED Signer of the same agency; non-null `preferredCoverageId` → 422 `PREFERRED_COVERAGE_UNAVAILABLE` until P3B; LINKED needs unarchived parties and a LINKED association; archive is a separate flag and restore is refused while a party is archived; delete only unused routes.
+- OwnerSubject with an archived Owner or LegalSubject (R5 closeout rule): no new link and no relink; PAUSE and UNLINK stay allowed; the row is never deleted.
+- Never show AUTHORIZED, READY, ELIGIBLE, G1 PASS or "verified" badges for sources, bindings or routes. `smoke:p3a` writes records and runs only in CI.
 
 ## Database safety
 
@@ -87,6 +97,7 @@ npm `prisma@latest` currently points at an 8.x release candidate — always pin 
 | `yarn build` · `yarn smoke:local`                                                          | Build everything · build + run API/web, health, shell, auth bounds        |
 | `yarn smoke:auth --email <e> [--expect-rejected] < pw`                                     | Compiled login round trip (or expected rejection), CI synthetic           |
 | `yarn smoke:directory --email <e> < pw`                                                    | Compiled directory round trip; refuses unless `CI=true`                   |
+| `yarn smoke:p3a --email <e> < pw`                                                          | Compiled source → binding → route round trip; refuses unless `CI=true`    |
 | `yarn ui:sandbox --password-file <path outside repo>`                                      | Compiled API on `tb_notice_test` + built web, synthetic user              |
 | `yarn dev` · `yarn dev:verify-shutdown`                                                    | Dev servers (Ctrl+C stops both) · verify clean shutdown                   |
 
@@ -94,13 +105,13 @@ Before any commit: `yarn reference:check && yarn contracts:check && yarn typeche
 
 ## Git workflow
 
-- Branches: `bootstrap/p0-local` is the P0 branch and takes no P1 application code; P1/P1.1 are on `feature/p1-auth-shell` (accepted at R4.1, unchanged since); P2 work goes on `feature/p2-directory`, branched from the accepted P1.1 head `8fe96ae`. One active writer per branch; small, scoped commits; review `git diff --cached` before committing; never `git add .` blindly.
+- Branches: `bootstrap/p0-local` is the P0 branch and takes no P1 application code; P1/P1.1 are on `feature/p1-auth-shell` (accepted at R4.1, unchanged since); P2 work goes on `feature/p2-directory`, branched from the accepted P1.1 head `8fe96ae`; P3A is on `feature/p3a-sources-route`, branched from the R5 closeout head `31db581`. One active writer per branch; small, scoped commits; review `git diff --cached` before committing; never `git add .` blindly.
 - Development topology (ADR-0003): the home PC (the "first PC" of the records) is the primary development workstation; the second-PC reproduction is DEFERRED_BY_OPERATOR. GitHub is the source of truth for code, branches, committed migrations and CI verification. Never copy or synchronize local database volumes through Git; a workstation rebuilds its databases from committed migrations and the synthetic seed.
 - No merge to `main`, force-push, history rewrite, tags or releases without explicit operator approval.
 
 ## Phase boundaries and stop conditions
 
-- P0-A…P0-E delivered on the first (home) PC and in CI; Windows-browser check PASS (operator-reported); second-PC reproduction **DEFERRED_BY_OPERATOR** (ADR-0003): the two-PC acceptance is NOT_COMPLETED, the single-PC baseline is VERIFIED, and P0 overall stays **NOT_COMPLETE** against the original two-PC contract — never describe it otherwise. P1 (authentication + app shell) passed review gate R4 with notes; P1.1 (local recovery commands) was accepted at R4.1. P2 (Directory) passed R5 with one remediation (the identity lock), which is implemented on `feature/p2-directory`.
-- Next phases, each needing an explicit approved mission: **P3A** — SourceReference registry (4 operations), the 4 deferred canonical-binding operations and Route (9 operations), plus the UI they need; gate R6. **P3B** — Mandate, MandateVersion, MandateCoverage, CoverageSigner, AuthorityEvent; gate R7; never starts automatically after R6. Cases and all case-specific functions come later. None is started.
+- P0-A…P0-E delivered on the first (home) PC and in CI; Windows-browser check PASS (operator-reported); second-PC reproduction **DEFERRED_BY_OPERATOR** (ADR-0003): the two-PC acceptance is NOT_COMPLETED, the single-PC baseline is VERIFIED, and P0 overall stays **NOT_COMPLETE** against the original two-PC contract — never describe it otherwise. P1 (authentication + app shell) passed review gate R4 with notes; P1.1 (local recovery commands) was accepted at R4.1. P2 (Directory) passed R5 with one remediation (the identity lock), implemented on `feature/p2-directory`; R5 is closed. P3A (Sources, canonical bindings, Route) is implemented on `feature/p3a-sources-route` and waits at review gate R6.
+- Next phases, each needing an explicit approved mission: **P3B** — Mandate, MandateVersion, MandateCoverage, CoverageSigner, AuthorityEvent; gate R7; never starts automatically after R6. Cases and all case-specific functions come later. Neither is started.
 - Stop and ask on: missing credentials/permissions, a package incompatibility needing an architecture change, any domain-semantic conflict, an unsafe or unrecognized database target, or any destructive plan.
 - Forbidden substitutions: MariaDB/SQLite/Postgres servers; `db push`; Zod built-in format validators or `z.toJSONSchema` for wire contracts; hand-edited generated contracts; Python in app/CI; Yarn Classic/PnP, npm or pnpm installs; binding services to `0.0.0.0`; writable readiness/signature fields.
