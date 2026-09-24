@@ -1,12 +1,20 @@
-// Typed access to the contracted directory, source and route operations (TB-SCHEMA-API-v1). Types
-// come from @tb/contracts; the server validates everything again. SourceReferences are immutable:
-// they carry no ETag and change only through a new revision.
+// Typed access to the contracted directory, source, route and representation-authority operations
+// (TB-SCHEMA-API-v1). Types come from @tb/contracts; the server validates everything again.
+// SourceReferences and AuthorityEvents are immutable: they carry no ETag (a source changes only
+// through a new revision, an event is superseded by a later event).
 import type {
   Agency,
   ArchiveRequest,
+  AuthorityEvent,
   CanonicalBindingRequest,
+  CoverageSigner,
   CreateAgency,
+  CreateAuthorityEvent,
+  CreateCoverage,
+  CreateCoverageSigner,
   CreateLegalSubject,
+  CreateMandate,
+  CreateMandateVersion,
   CreateOwner,
   CreateRoute,
   CreateSigner,
@@ -14,10 +22,16 @@ import type {
   LegalSubject,
   LinkOwnerSubject,
   LinkStateRequest,
+  Mandate,
+  MandateCoverage,
+  MandateVersion,
   Owner,
   OwnerSubject,
   PatchAgency,
+  PatchCoverage,
   PatchLegalSubject,
+  PatchMandate,
+  PatchMandateVersion,
   PatchOwner,
   PatchRoute,
   PatchSigner,
@@ -41,7 +55,7 @@ export interface ListQuery {
   readonly q?: string;
   readonly cursor?: string;
   readonly limit?: number;
-  /** listSigners, listSources and listRoutes. */
+  /** listSigners, listSources, listRoutes and listMandates. */
   readonly agencyId?: string;
 }
 
@@ -120,6 +134,7 @@ export function createDirectoryApi(api: ApiClient) {
   return {
     sources: createSourcesApi(api),
     routes: createRoutesApi(api),
+    ...createAuthorityApi(api),
     agencies: directoryRecord<Agency, CreateAgency, PatchAgency, RecordStateRequest>(
       api,
       '/api/v1/agencies',
@@ -253,6 +268,137 @@ export function createRoutesApi(api: ApiClient) {
       ),
     remove: async (id: string, ifMatch: string, auth: WriteAuth) => {
       await api.request<void>('DELETE', `${base}/${id}`, writeHeaders(auth, ifMatch));
+    },
+  };
+}
+
+/**
+ * Representation-authority records (P3B). Each write names its contracted precondition target:
+ * a new version or event carries the Mandate's ETag, a new coverage the version's, a new coverage
+ * signer the coverage's. None of these records is authority, readiness or a signature.
+ */
+export function createAuthorityApi(api: ApiClient) {
+  const mandates = '/api/v1/mandates';
+  return {
+    mandates: {
+      ...directoryRecord<Mandate, CreateMandate, PatchMandate, never>(api, mandates),
+      /** Precondition target: the Mandate's ETag (its version set changes). */
+      createVersion: (
+        mandateId: string,
+        body: CreateMandateVersion,
+        mandateEtag: string,
+        auth: WriteAuth,
+      ) =>
+        versioned(
+          api.request<MandateVersion>('POST', `${mandates}/${mandateId}/versions`, {
+            body,
+            ...writeHeaders(auth, mandateEtag),
+          }),
+        ),
+      /** Precondition target: the Mandate's ETag (its history changes). No ETag in the reply. */
+      recordEvent: async (
+        mandateId: string,
+        body: CreateAuthorityEvent,
+        mandateEtag: string,
+        auth: WriteAuth,
+      ) =>
+        (
+          await api.request<AuthorityEvent>('POST', `${mandates}/${mandateId}/events`, {
+            body,
+            ...writeHeaders(auth, mandateEtag),
+          })
+        ).data,
+    },
+    versions: {
+      list: async (mandateId: string, query: ListQuery = {}) =>
+        (
+          await api.request<Page<MandateVersion>>(
+            'GET',
+            `${mandates}/${mandateId}/versions${queryString(query)}`,
+          )
+        ).data,
+      get: (id: string) =>
+        versioned(api.request<MandateVersion>('GET', `/api/v1/mandate-versions/${id}`)),
+      patch: (id: string, body: PatchMandateVersion, ifMatch: string, auth: WriteAuth) =>
+        versioned(
+          api.request<MandateVersion>('PATCH', `/api/v1/mandate-versions/${id}`, {
+            body,
+            ...writeHeaders(auth, ifMatch),
+          }),
+        ),
+      freeze: (id: string, body: ArchiveRequest, ifMatch: string, auth: WriteAuth) =>
+        versioned(
+          api.request<MandateVersion>('POST', `/api/v1/mandate-versions/${id}/freeze`, {
+            body,
+            ...writeHeaders(auth, ifMatch),
+          }),
+        ),
+    },
+    coverages: {
+      list: async (versionId: string, query: ListQuery = {}) =>
+        (
+          await api.request<Page<MandateCoverage>>(
+            'GET',
+            `/api/v1/mandate-versions/${versionId}/coverages${queryString(query)}`,
+          )
+        ).data,
+      get: (id: string) =>
+        versioned(api.request<MandateCoverage>('GET', `/api/v1/coverages/${id}`)),
+      /** Precondition target: the version's ETag. */
+      create: (versionId: string, body: CreateCoverage, versionEtag: string, auth: WriteAuth) =>
+        versioned(
+          api.request<MandateCoverage>('POST', `/api/v1/mandate-versions/${versionId}/coverages`, {
+            body,
+            ...writeHeaders(auth, versionEtag),
+          }),
+        ),
+      patch: (id: string, body: PatchCoverage, ifMatch: string, auth: WriteAuth) =>
+        versioned(
+          api.request<MandateCoverage>('PATCH', `/api/v1/coverages/${id}`, {
+            body,
+            ...writeHeaders(auth, ifMatch),
+          }),
+        ),
+    },
+    coverageSigners: {
+      list: async (coverageId: string, query: ListQuery = {}) =>
+        (
+          await api.request<Page<CoverageSigner>>(
+            'GET',
+            `/api/v1/coverages/${coverageId}/signers${queryString(query)}`,
+          )
+        ).data,
+      get: (id: string) =>
+        versioned(api.request<CoverageSigner>('GET', `/api/v1/coverage-signers/${id}`)),
+      /** Precondition target: the coverage's ETag. */
+      create: (
+        coverageId: string,
+        body: CreateCoverageSigner,
+        coverageEtag: string,
+        auth: WriteAuth,
+      ) =>
+        versioned(
+          api.request<CoverageSigner>('POST', `/api/v1/coverages/${coverageId}/signers`, {
+            body,
+            ...writeHeaders(auth, coverageEtag),
+          }),
+        ),
+      remove: async (id: string, ifMatch: string, auth: WriteAuth) => {
+        await api.request<void>(
+          'DELETE',
+          `/api/v1/coverage-signers/${id}`,
+          writeHeaders(auth, ifMatch),
+        );
+      },
+    },
+    events: {
+      list: async (mandateId: string, query: ListQuery = {}) =>
+        (
+          await api.request<Page<AuthorityEvent>>(
+            'GET',
+            `${mandates}/${mandateId}/events${queryString(query)}`,
+          )
+        ).data,
     },
   };
 }

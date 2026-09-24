@@ -627,6 +627,12 @@ table.records {
   color: var(--ended);
 }
 
+/* Frozen = the system record is immutable. Deliberately the neutral ink colour: it is not a green
+   "active" or "approved" state. */
+.stamp-frozen {
+  color: var(--ink-2);
+}
+
 /* Record sheets */
 
 .sheet {
@@ -1128,6 +1134,145 @@ code.hash {
   font-size: 0.85rem;
 }
 
+/* Representation authority (P3B): the recorded hierarchy mandate → version → coverage → coverage
+   signer, drawn as a ruled outline like a registry extract. It shows structure, never authority. */
+.authority-tree,
+.authority-tree ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.authority-tree > li {
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--rule);
+}
+
+.authority-tree > li:first-child {
+  border-top: 0;
+}
+
+.authority-tree ul {
+  margin: 0.35rem 0 0 0.45rem;
+  padding-left: 0.9rem;
+  border-left: 1px dashed var(--rule-strong);
+}
+
+.authority-tree ul > li + li {
+  margin-top: 0.3rem;
+}
+
+.tree-node {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.5rem;
+  align-items: baseline;
+  overflow-wrap: anywhere;
+}
+
+.tree-kind {
+  color: var(--ink-3);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.tree-meta {
+  color: var(--ink-3);
+  font-size: 0.86rem;
+}
+
+.tree-empty {
+  margin: 0.25rem 0 0 1.35rem;
+  font-size: 0.88rem;
+}
+
+/* Authority events: the recording time on the left, what the source is reported to state on the
+   right; the two are never merged into one date. */
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.timeline-item {
+  display: grid;
+  grid-template-columns: minmax(9rem, 12rem) minmax(0, 1fr);
+  gap: 0 1.2rem;
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--rule);
+}
+
+.timeline-item:first-child {
+  border-top: 0;
+}
+
+.timeline-when {
+  display: grid;
+  gap: 0.15rem;
+  align-content: start;
+  padding-right: 0.8rem;
+  border-right: 2px solid var(--rule-strong);
+  font-size: 0.9rem;
+}
+
+.timeline-label {
+  color: var(--ink-3);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.timeline-body h3 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: baseline;
+}
+
+.timeline-item:target {
+  background: var(--accent-soft);
+}
+
+.effective {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.citation {
+  overflow-wrap: anywhere;
+}
+
+.citation-pinned {
+  display: block;
+}
+
+.checkbox-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+  gap: 0.3rem 1rem;
+}
+
+.checkbox {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.signer-list > li {
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--rule);
+}
+
+.signer-list > li:first-child {
+  border-top: 0;
+}
+
+.source-select select {
+  margin-top: 0.4rem;
+  max-width: 100%;
+}
+
 @media (max-width: 48rem) {
   .shell-body {
     grid-template-columns: 1fr;
@@ -1175,6 +1320,18 @@ code.hash {
     padding: 0.35rem 0.85rem;
     background: none;
     border-top: 1px dashed var(--rule-strong);
+  }
+
+  .timeline-item {
+    grid-template-columns: 1fr;
+    gap: 0.4rem;
+  }
+
+  .timeline-when {
+    padding-right: 0;
+    padding-bottom: 0.35rem;
+    border-right: 0;
+    border-bottom: 1px dashed var(--rule-strong);
   }
 }
 

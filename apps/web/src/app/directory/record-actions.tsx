@@ -10,7 +10,7 @@ import { SelectField } from './fields.js';
 import { useIntentKey, useWrite } from './hooks.js';
 import { ConfirmDialog, ReasonDialog, UnavailableAction } from './ui.js';
 
-export type Operation = 'state' | 'archive' | 'restore' | 'delete' | 'link-state';
+export type Operation = 'state' | 'archive' | 'restore' | 'delete' | 'link-state' | 'freeze';
 
 export interface ActionApi<T> {
   archive(

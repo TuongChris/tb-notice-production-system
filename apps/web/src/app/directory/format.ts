@@ -1,5 +1,7 @@
-// Display vocabulary of the directory pages: enum labels, dates, and plain-language explanations
-// of the contract error codes (what happened and what to do next).
+// Display vocabulary of the directory, source, route and authority pages: enum labels, dates, and
+// plain-language explanations of the contract error codes (what happened and what to do next).
+// Authority vocabulary is neutral: a recorded state never reads as authorized, approved, eligible,
+// current or ready.
 import { ApiError } from '../api/client.js';
 
 export const RECORD_STATE_LABEL = {
@@ -61,7 +63,49 @@ export const HASH_TARGET_LABEL = {
 } as const;
 export const PLATFORM_LABEL = { YOUTUBE: 'YouTube' } as const;
 
-export type Tone = 'draft' | 'active' | 'archived' | 'paused' | 'ended';
+/** FROZEN = the system record is immutable; it is not approval, a signature or currentness. */
+export const VERSION_STATE_LABEL = { DRAFT: 'Draft', FROZEN: 'Frozen' } as const;
+export const CHANGE_KIND_LABEL = {
+  NEW_AUTHORIZATION: 'New authorization document',
+  AMENDMENT: 'Amendment',
+  DOCUMENT_CAPTURE: 'Document capture',
+  METADATA_CORRECTION: 'Metadata correction',
+} as const;
+export const DOCUMENT_STATE_LABEL = {
+  MISSING: 'Document missing',
+  DRAFT: 'Draft document',
+  SIGNED_APPEARING: 'Appears signed',
+  UNKNOWN: 'Unknown',
+} as const;
+export const VALIDITY_MODEL_LABEL = {
+  UNKNOWN: 'Unknown',
+  FIXED_TERM: 'Fixed term (as stated)',
+  UNTIL_TERMINATED: 'Until terminated (as stated)',
+} as const;
+export const EXCLUSIVITY_LABEL = {
+  UNKNOWN: 'Unknown',
+  EXCLUSIVE: 'Exclusive (as stated)',
+  NON_EXCLUSIVE: 'Non-exclusive (as stated)',
+} as const;
+/** Scope values as a document states them; recording one grants nothing and performs nothing. */
+export const ACTION_SCOPE_LABEL = {
+  PREPARE_NOTICE: 'Prepare notices',
+  SIGN_NOTICE: 'Sign notices',
+  SUBMIT_NOTICE: 'Submit notices',
+  SUPPLEMENT: 'Supplements',
+  CORRECTION: 'Corrections',
+  ADMINISTRATIVE_COUNTERNOTICE: 'Administrative counter-notices',
+} as const;
+export const EVENT_TYPE_LABEL = {
+  CURRENTNESS_RECORDED: 'Currentness recorded',
+  REVOCATION: 'Revocation',
+  TERMINATION: 'Termination',
+  SUPERSESSION: 'Supersession',
+  RESIGNATION: 'Resignation',
+  CORRECTION: 'Correction',
+} as const;
+
+export type Tone = 'draft' | 'active' | 'archived' | 'paused' | 'ended' | 'frozen';
 
 export const RECORD_STATE_TONE: Record<keyof typeof RECORD_STATE_LABEL, Tone> = {
   DRAFT: 'draft',
@@ -79,11 +123,23 @@ export const LINK_STATE_TONE: Record<keyof typeof LINK_STATE_LABEL, Tone> = {
   PAUSED: 'paused',
   UNLINKED: 'ended',
 };
+/** Neutral tones: "frozen" is not the green of an active record. */
+export const VERSION_STATE_TONE: Record<keyof typeof VERSION_STATE_LABEL, Tone> = {
+  DRAFT: 'draft',
+  FROZEN: 'frozen',
+};
 
 const dateTime = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 
 export function formatDateTime(iso: string | null): string {
   return iso === null ? '' : dateTime.format(new Date(iso));
+}
+
+const calendarDate = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeZone: 'UTC' });
+
+/** A recorded calendar date (YYYY-MM-DD), shown without any time-zone shift. */
+export function formatDate(value: string | null): string {
+  return value === null ? '' : calendarDate.format(new Date(`${value}T00:00:00.000Z`));
 }
 
 /** "Not recorded" for empty values, so absence is explicit rather than a blank cell. */
@@ -109,6 +165,8 @@ const BLOCKER_TEXT: Record<string, string> = {
   'REFERENCED_BY:cases.route_id': 'cases use it',
   'REFERENCED_BY:case_authority_selections.route_id': 'a case selected it',
   'REFERENCED_BY:mandate_coverages.route_id': 'mandate coverage uses it',
+  'REFERENCED_BY:mandate_versions.mandate_id': 'versions were recorded under it',
+  'REFERENCED_BY:authority_events.mandate_id': 'authority events were recorded under it',
 };
 
 /** Why a source's recorded scope does not include a record (SOURCE_SCOPE_UNRESOLVED reasons). */
@@ -181,11 +239,17 @@ export function describeError(error: unknown, recordLabel = 'record'): string {
       if (record === 'LegalSubject') return 'The legal subject is archived. Restore it first.';
       if (record === 'Owner') return 'The owner is archived. Restore it first.';
       if (record === 'Agency') return 'The agency is archived. Restore it first.';
+      if (record === 'Route') return 'The route is archived. Restore it first.';
+      if (record === 'Mandate') {
+        return 'The mandate is archived, so it and everything under it are read-only until it is restored.';
+      }
       if (record === 'OwnerSubject') {
         return 'The owner–subject link is not linked, so no route can use it. Relink it first.';
       }
       if (record === 'Signer') {
-        return 'That signer is archived or ended, so it cannot be a default signer.';
+        return details['operation'] === 'createCoverageSigner'
+          ? 'That signer is archived or ended, so it cannot be recorded under a coverage.'
+          : 'That signer is archived or ended, so it cannot be a default signer.';
       }
       return `This action isn't available in the ${recordLabel}'s current state. Reload to see its latest state.`;
     }
@@ -196,9 +260,18 @@ export function describeError(error: unknown, recordLabel = 'record'): string {
     case 'REFERENCE_NOT_FOUND':
       return 'A referenced record no longer exists. Reload and choose again.';
     case 'CROSS_AGENCY_REFERENCE':
-      return details['field'] === 'defaultSignerId'
-        ? 'That signer belongs to another agency. A route’s default signer must act for the route’s agency.'
-        : 'That source belongs to another agency, so it cannot support this record.';
+      switch (details['field']) {
+        case 'defaultSignerId':
+          return 'That signer belongs to another agency. A route’s default signer must act for the route’s agency.';
+        case 'signerId':
+          return 'That signer acts for another agency. A coverage signer must act for the coverage’s agency.';
+        case 'routeId':
+          return 'That route belongs to another agency. A coverage names a route of the mandate’s own agency.';
+        case 'preferredCoverageId':
+          return 'That coverage belongs to another agency’s mandate, so this route cannot prefer it.';
+        default:
+          return 'That source belongs to another agency, so it cannot support this record.';
+      }
     case 'SOURCE_SCOPE_UNRESOLVED': {
       const reason = typeof details['reason'] === 'string' ? details['reason'] : '';
       return `That source cannot support this ${recordLabel}: ${
@@ -227,8 +300,46 @@ export function describeError(error: unknown, recordLabel = 'record'): string {
       return 'Enter both the SHA-256 value and what it was computed from, or neither.';
     case 'REVIEW_UNATTRIBUTED':
       return '“Document reviewed” is recorded only with the name of the person who reviewed the document.';
-    case 'PREFERRED_COVERAGE_UNAVAILABLE':
-      return 'A preferred coverage can be set only once mandate coverage exists, which is not available yet.';
+    case 'FROZEN_VERSION':
+      return 'This version is frozen: it and its coverage and coverage signers can no longer change. Record a successor version instead.';
+    case 'VERSION_NOT_FROZEN':
+      switch (details['field']) {
+        case 'predecessorId':
+          return 'The chosen predecessor is still a draft. A draft is edited, not succeeded; freeze it first if it is complete.';
+        case 'coverageId':
+          return 'That coverage belongs to a draft version. Events are recorded only for coverage of a frozen version.';
+        case 'preferredCoverageId':
+          return 'That coverage belongs to a draft version. Only coverage of a frozen version can be a preferred coverage.';
+        default:
+          return 'The referenced version is still a draft; only a frozen version can be used here.';
+      }
+    case 'VERSION_SUCCESSOR_EXISTS':
+      return 'That version already has a successor. A version chain does not fork: open the successor instead.';
+    case 'AUTHORITY_SCOPE_UNRESOLVED':
+      switch (details['reason']) {
+        case 'OTHER_MANDATE':
+          return 'That record belongs to another mandate, so it cannot be used here.';
+        case 'OTHER_ROUTE':
+          return 'That coverage names another route. A route can prefer only its own coverage, and a coverage lineage stays on one route.';
+        case 'SCOPE_CHANGE':
+          return 'A superseding event keeps the scope of the event it supersedes (the whole mandate or the same coverage).';
+        default:
+          return 'The referenced authority record belongs to another mandate, route or scope.';
+      }
+    case 'DATE_RANGE_INVALID':
+      return 'A start date is after its end date. Check both dates exactly as the source states them.';
+    case 'DOCUMENT_STATE_UNSUPPORTED':
+      return '“Draft document” and “Appears signed” describe a document: choose the primary source first.';
+    case 'REVIEW_UNSUPPORTED':
+      return details['reason'] === 'SOURCE_NOT_REVIEWED'
+        ? '“Document reviewed” needs a source that records who reviewed the document.'
+        : '“Reviewed with limits” needs a cited primary or additional source that records who reviewed the document.';
+    case 'DUPLICATE_COVERAGE':
+      return 'This version already has a coverage with that label for that route.';
+    case 'DUPLICATE_COVERAGE_SIGNER':
+      return 'That signer is already recorded under this coverage in that capacity.';
+    case 'EVENT_ALREADY_SUPERSEDED':
+      return 'That event already has a successor. An event history does not fork: supersede the latest event instead.';
     case 'IDEMPOTENCY_IN_PROGRESS':
       return 'The same change is still being processed. Wait a moment and try again.';
     case 'IDEMPOTENCY_CONFLICT':

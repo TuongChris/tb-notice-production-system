@@ -85,9 +85,8 @@ describe('storabilityProblem — values the database cannot store exactly are re
       ['effectiveOn'],
       ['effectiveAt'],
     );
-    expect(
-      (problem?.details['issues'] as Array<{ path: string }>).map((issue) => issue.path),
-    ).toEqual(['effectiveOn', 'effectiveAt']);
+    const issues = (problem?.details['issues'] ?? []) as Array<{ path: string }>;
+    expect(issues.map((issue) => issue.path)).toEqual(['effectiveOn', 'effectiveAt']);
   });
 });
 

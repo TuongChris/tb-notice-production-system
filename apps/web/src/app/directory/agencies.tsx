@@ -295,6 +295,7 @@ function AgencyDetail({ id }: { id: string }) {
         {agency.notes ? <p className="prose">{agency.notes}</p> : <Absent />}
       </Section>
       <AgencySigners agency={agency} onCount={setSignerCount} />
+      <AgencyMandates agency={agency} />
       <RecordFacts record={agency} />
     </article>
   );
@@ -433,6 +434,51 @@ function AgencySigners({ agency, onCount }: { agency: Agency; onCount: (count: n
                   tone={SIGNER_STATE_TONE[signer.operationalState]}
                 />
                 {signer.archivedAt !== null && <span className="hint"> (archived)</span>}
+              </li>
+            ))}
+          </ul>
+        ))}
+    </Section>
+  );
+}
+
+/** Mandates recorded for this agency (P3B): containers of representation records, not authority. */
+function AgencyMandates({ agency }: { agency: Agency }) {
+  const api = useDirectoryApi();
+  const [state, reload] = useLoad(`agency-mandates:${agency.id}`, () =>
+    api.mandates.list({ agencyId: agency.id, limit: 100 }),
+  );
+  return (
+    <Section
+      title="Mandates of this agency"
+      actions={
+        agency.recordState !== 'ARCHIVED' ? (
+          <Link className="button" to={`/representation/mandates/new?agencyId=${agency.id}`}>
+            New mandate
+          </Link>
+        ) : undefined
+      }
+    >
+      <p className="hint">
+        A mandate records what cited sources are reported to support. It is not authority by
+        existing, a G1–G7 decision or a signature.
+      </p>
+      {state.status === 'loading' && <LoadingNotice label="Loading mandates…" />}
+      {state.status === 'error' && <ErrorNotice error={state.error} onRetry={reload} />}
+      {state.status === 'ready' &&
+        (state.value.items.length === 0 ? (
+          <p className="absent">No mandate recorded for this agency.</p>
+        ) : (
+          <ul className="plain-list">
+            {state.value.items.map((mandate) => (
+              <li key={mandate.id}>
+                <Link to={`/representation/mandates/${mandate.id}`}>{mandate.label}</Link>
+                {mandate.archivedAt !== null && (
+                  <>
+                    {' '}
+                    <StateStamp label="Archived" tone="archived" />
+                  </>
+                )}
               </li>
             ))}
           </ul>

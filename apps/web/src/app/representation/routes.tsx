@@ -1,9 +1,11 @@
-// Route pages (P3A). A route is the operational path Agency + owner–subject link + platform. It is
-// a relationship record: creating, pausing, unlinking, relinking or binding it establishes no
-// mandate, coverage, copyright ownership, representation authority or signer eligibility, and it
-// is never shown as authorized, ready or eligible. The path (agency, link, platform) never changes;
-// a different path is a different route. Nothing is inferred: the agency, owner and exact legal
-// subject link are chosen explicitly.
+// Route pages (P3A; preferred coverage P3B). A route is the operational path Agency + owner–subject
+// link + platform. It is a relationship record: creating, pausing, unlinking, relinking or binding
+// it establishes no mandate, coverage, copyright ownership, representation authority or signer
+// eligibility, and it is never shown as authorized, ready or eligible. The path (agency, link,
+// platform) never changes; a different path is a different route. Nothing is inferred: the agency,
+// owner and exact legal subject link are chosen explicitly. A preferred coverage — a frozen
+// coverage of this exact route — is an operational default only; case authority is determined
+// later.
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import type { CreateRoute, LinkStateRequest, OwnerSubject, PatchRoute, Route } from '@tb/contracts';
@@ -19,6 +21,7 @@ import {
   LINK_STATE_TONE,
   PLATFORM_LABEL,
 } from '../directory/format.js';
+import { PREFERRED_COVERAGE_MEANING } from './authority-ui.js';
 import { useDirectoryApi, useLoad } from '../directory/hooks.js';
 import { DirectoryList } from '../directory/list.js';
 import { RecordName, useLookup } from '../directory/lookup.js';
@@ -44,8 +47,8 @@ type LinkState = Route['linkState'];
 
 const BOUNDARY =
   'An operational path only: it creates no mandate, coverage, authority or signer eligibility.';
-const COVERAGE_UNAVAILABLE =
-  'A preferred coverage needs mandate coverage, which is not available yet.';
+const NEW_ROUTE_COVERAGE =
+  'A new route has no coverage yet. A preferred coverage can be chosen once a frozen coverage names this route.';
 
 export function RouteListPage() {
   const api = useDirectoryApi();
@@ -259,15 +262,16 @@ function RouteDetail({ id }: { id: string }) {
               [
                 'Preferred coverage',
                 route.preferredCoverageId === null ? (
-                  <span className="absent">{COVERAGE_UNAVAILABLE}</span>
+                  <span className="absent">No preferred coverage</span>
                 ) : (
-                  <code>{route.preferredCoverageId}</code>
+                  <RecordName kind="coverage" id={route.preferredCoverageId} />
                 ),
               ],
             ]}
           />
           <p className="hint">
-            A default signer is a suggestion for future selections only; it confers nothing.
+            A default signer is a suggestion for future selections only; it confers nothing.{' '}
+            {PREFERRED_COVERAGE_MEANING}
           </p>
         </Section>
       </div>
@@ -480,6 +484,7 @@ const LABELS: Record<string, string> = {
   agencyId: 'Agency',
   ownerSubjectId: 'Legal subject link',
   defaultSignerId: 'Default signer',
+  preferredCoverageId: 'Preferred coverage',
   casePrefixHint: 'Case prefix hint',
   notes: 'Notes',
 };
@@ -653,7 +658,7 @@ function RouteCreateForm() {
           />
           <p className="field-static">
             <span className="field-static-label">Preferred coverage</span>{' '}
-            <span className="hint">{COVERAGE_UNAVAILABLE}</span>
+            <span className="hint">{NEW_ROUTE_COVERAGE}</span>
           </p>
           <TextField
             id="route-casePrefixHint"
@@ -700,6 +705,7 @@ function RoutePatchForm({ record, onReload }: { record: Versioned<Route>; onRelo
   const submission = useSubmission();
   const route = record.data;
   const [defaultSignerId, setDefaultSignerId] = useState(route.defaultSignerId ?? '');
+  const [preferredCoverageId, setPreferredCoverageId] = useState(route.preferredCoverageId ?? '');
   const [casePrefixHint, setCasePrefixHint] = useState(textOf(route.casePrefixHint));
   const [notes, setNotes] = useState(textOf(route.notes));
   const [nothingToSave, setNothingToSave] = useState(false);
@@ -714,6 +720,36 @@ function RoutePatchForm({ record, onReload }: { record: Versioned<Route>; onRelo
   );
   const currentMissing =
     route.defaultSignerId !== null && !eligible.some((s) => s.id === route.defaultSignerId);
+  // Frozen coverage of exactly this route in unarchived mandates of the route's agency.
+  const [coverages] = useLoad(`route-edit:coverages:${route.id}`, async () => {
+    const mandates = (
+      await api.mandates.list({ agencyId: route.agencyId, limit: 100 })
+    ).items.filter((mandate) => mandate.archivedAt === null);
+    const lists = await Promise.all(
+      mandates.map(async (mandate) => {
+        const frozen = (await api.versions.list(mandate.id, { limit: 100 })).items.filter(
+          (version) => version.versionState === 'FROZEN',
+        );
+        const inner = await Promise.all(
+          frozen.map(async (version) =>
+            (await api.coverages.list(version.id, { q: route.id, limit: 100 })).items
+              .filter((coverage) => coverage.routeId === route.id)
+              .map((coverage) => ({ coverage, mandate, version: version.version })),
+          ),
+        );
+        return inner.flat();
+      }),
+    );
+    return lists.flat();
+  });
+  const coverageItems = coverages.status === 'ready' ? coverages.value : [];
+  const preferredMissing =
+    route.preferredCoverageId !== null &&
+    !coverageItems.some((item) => item.coverage.id === route.preferredCoverageId);
+  const noCoverage =
+    coverages.status === 'ready' &&
+    coverageItems.length === 0 &&
+    route.preferredCoverageId === null;
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -721,6 +757,8 @@ function RoutePatchForm({ record, onReload }: { record: Versioned<Route>; onRelo
     const body: PatchRoute = {};
     const signer = defaultSignerId === '' ? null : defaultSignerId;
     if (signer !== route.defaultSignerId) body.defaultSignerId = signer;
+    const preferred = preferredCoverageId === '' ? null : preferredCoverageId;
+    if (preferred !== route.preferredCoverageId) body.preferredCoverageId = preferred;
     const prefix = casePrefixHint.trim() === '' ? null : casePrefixHint.trim();
     if (prefix !== route.casePrefixHint) body.casePrefixHint = prefix;
     const noteValue = notes.trim() === '' ? null : notes;
@@ -805,10 +843,35 @@ function RoutePatchForm({ record, onReload }: { record: Versioned<Route>; onRelo
             error={errorFor('defaultSignerId')}
             onChange={setDefaultSignerId}
           />
-          <p className="field-static">
-            <span className="field-static-label">Preferred coverage</span>{' '}
-            <span className="hint">{COVERAGE_UNAVAILABLE}</span>
-          </p>
+          <SelectField
+            id="route-preferredCoverageId"
+            label="Preferred coverage"
+            hint={`${PREFERRED_COVERAGE_MEANING} Only frozen coverage of this exact route, in a mandate of its agency that is not archived, is offered.`}
+            locked={
+              noCoverage
+                ? 'No frozen coverage names this route yet. Record and freeze a mandate version with coverage for this route first.'
+                : null
+            }
+            value={preferredCoverageId}
+            options={[
+              { value: '', label: 'No preferred coverage' },
+              ...(preferredMissing && route.preferredCoverageId !== null
+                ? [
+                    {
+                      value: route.preferredCoverageId,
+                      label: 'Current preferred coverage (no longer offered)',
+                      disabled: true,
+                    },
+                  ]
+                : []),
+              ...coverageItems.map(({ coverage, mandate, version }) => ({
+                value: coverage.id,
+                label: `${coverage.coverageLabel} — ${mandate.label}, version ${version}`,
+              })),
+            ]}
+            error={errorFor('preferredCoverageId')}
+            onChange={setPreferredCoverageId}
+          />
           <TextField
             id="route-casePrefixHint"
             label="Case prefix hint"
