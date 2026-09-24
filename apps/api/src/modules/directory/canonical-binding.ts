@@ -1,4 +1,5 @@
-// Canonical binding (P3A): bindCanonicalAgency / Owner / LegalSubject / Signer / Route.
+// Canonical binding (P3A; Mandate in P3B): bindCanonicalAgency / Owner / LegalSubject / Signer /
+// Route / Mandate.
 //
 // A canonical binding records which SourceReference holds a record's already-established canonical
 // code ("Canonical-bind commands attach an already established source-backed code. They do not
@@ -31,7 +32,7 @@ import { assertSourcesUsable, type SourceTarget } from '../sources/source-scope.
 import { auditFields } from './changes.js';
 import { hasCanonicalBinding, type CanonicalFields } from './records.js';
 
-export type BindableEntity = 'Agency' | 'Owner' | 'LegalSubject' | 'Signer' | 'Route';
+export type BindableEntity = 'Agency' | 'Owner' | 'LegalSubject' | 'Signer' | 'Route' | 'Mandate';
 
 const AUDIT_ACTION: Readonly<Record<BindableEntity, string>> = {
   Agency: 'AGENCY_CANONICAL_BOUND',
@@ -39,6 +40,7 @@ const AUDIT_ACTION: Readonly<Record<BindableEntity, string>> = {
   LegalSubject: 'LEGAL_SUBJECT_CANONICAL_BOUND',
   Signer: 'SIGNER_CANONICAL_BOUND',
   Route: 'ROUTE_CANONICAL_BOUND',
+  Mandate: 'MANDATE_CANONICAL_BOUND',
 };
 
 const BINDING_FIELDS = ['canonicalCode', 'canonicalSourceId', 'bindingState'] as const;

@@ -1,9 +1,15 @@
-// Row locks and dependency checks of directory and representation records.
+// Row locks and dependency checks of directory, representation and authority records.
 //
-// Lock order (INVARIANTS §5 "parent identities … sorted by stable type+ID"): rows are locked in the
-// alphabetical order of their entity type — Agency, LegalSubject, Owner, OwnerSubject, Route,
-// Signer, SourceReference — rows of one type in id order, and a transaction never locks a type that
-// sorts before one it already holds.
+// Lock order (INVARIANTS §5 "parent identities/versions sorted by stable type+ID … then children";
+// "Mandate children always lock MandateVersion before the child"):
+//   1. the directory and route identities in the alphabetical order of their entity type — Agency,
+//      LegalSubject, Owner, OwnerSubject, Route, Signer;
+//   2. the authority aggregate parent before child — Mandate, MandateVersion, MandateCoverage,
+//      CoverageSigner (P3B);
+//   3. SourceReference last.
+// Rows of one type are locked in id order, and a transaction never locks a type that comes before
+// one it already holds. Immutable columns (a version's mandate, a coverage's version and route, a
+// route's agency and association) may be read before locking to find what to lock.
 //
 // Dependencies: a record is referenced when another persisted business record points at it through
 // a foreign key (the complete FK inventory of the reviewed migration, guarded by a test) or through
@@ -14,16 +20,30 @@
 // READ COMMITTED reads see every reference committed before the lock was granted.
 import { Prisma } from '../../../generated/prisma/client.js';
 
-export type DirectoryEntity =
-  'Agency' | 'LegalSubject' | 'Owner' | 'OwnerSubject' | 'Route' | 'Signer';
+export type RecordEntity =
+  | 'Agency'
+  | 'LegalSubject'
+  | 'Owner'
+  | 'OwnerSubject'
+  | 'Route'
+  | 'Signer'
+  | 'Mandate'
+  | 'MandateVersion'
+  | 'MandateCoverage'
+  | 'CoverageSigner';
 
-export const DIRECTORY_TABLES: Readonly<Record<DirectoryEntity, string>> = {
+/** Table of every lockable record type (directory, representation and authority records). */
+export const DIRECTORY_TABLES: Readonly<Record<RecordEntity, string>> = {
   Agency: 'agencies',
   LegalSubject: 'legal_subjects',
   Owner: 'owners',
   OwnerSubject: 'owner_subjects',
   Route: 'routes',
   Signer: 'signers',
+  Mandate: 'mandates',
+  MandateVersion: 'mandate_versions',
+  MandateCoverage: 'mandate_coverages',
+  CoverageSigner: 'coverage_signers',
 };
 
 export interface ColumnReference {
@@ -31,8 +51,8 @@ export interface ColumnReference {
   readonly column: string;
 }
 
-/** Every foreign key of the reviewed migration that points at a directory or route table. */
-export const DIRECT_REFERENCES: Readonly<Record<DirectoryEntity, readonly ColumnReference[]>> = {
+/** Every foreign key of the reviewed migration that points at one of the tables above. */
+export const DIRECT_REFERENCES: Readonly<Record<RecordEntity, readonly ColumnReference[]>> = {
   Agency: [
     { table: 'cases', column: 'agency_id' },
     { table: 'correspondence', column: 'agency_id' },
@@ -57,6 +77,22 @@ export const DIRECT_REFERENCES: Readonly<Record<DirectoryEntity, readonly Column
     { table: 'coverage_signers', column: 'signer_id' },
     { table: 'routes', column: 'default_signer_id' },
   ],
+  Mandate: [
+    { table: 'authority_events', column: 'mandate_id' },
+    { table: 'mandate_versions', column: 'mandate_id' },
+  ],
+  MandateVersion: [
+    { table: 'mandate_coverages', column: 'mandate_version_id' },
+    { table: 'mandate_versions', column: 'predecessor_id' },
+  ],
+  MandateCoverage: [
+    { table: 'authority_events', column: 'coverage_id' },
+    { table: 'case_authority_coverages', column: 'coverage_id' },
+    { table: 'coverage_signers', column: 'coverage_id' },
+    { table: 'mandate_coverages', column: 'predecessor_coverage_id' },
+    { table: 'routes', column: 'preferred_coverage_id' },
+  ],
+  CoverageSigner: [],
 };
 
 /**
@@ -108,7 +144,7 @@ const quote = (identifier: string) => Prisma.raw(`\`${identifier}\``);
 /** Locks the row FOR UPDATE; false when it does not exist. */
 export async function lockForUpdate(
   tx: Prisma.TransactionClient,
-  entity: DirectoryEntity,
+  entity: RecordEntity,
   id: string,
 ): Promise<boolean> {
   const rows = await tx.$queryRaw<Array<{ id: string }>>(
@@ -120,7 +156,7 @@ export async function lockForUpdate(
 /** Locks the row FOR SHARE (it may be referenced but not changed meanwhile); false when absent. */
 export async function lockForShare(
   tx: Prisma.TransactionClient,
-  entity: DirectoryEntity,
+  entity: RecordEntity,
   id: string,
 ): Promise<boolean> {
   const rows = await tx.$queryRaw<Array<{ id: string }>>(
@@ -132,7 +168,7 @@ export async function lockForShare(
 /** `table.column` labels of the foreign keys through which another record references `id`. */
 export async function directReferences(
   tx: Prisma.TransactionClient,
-  entity: DirectoryEntity,
+  entity: RecordEntity,
   id: string,
 ): Promise<string[]> {
   const found: string[] = [];
@@ -183,7 +219,7 @@ export function hasCanonicalBinding(row: CanonicalFields): boolean {
 /** Every relational and snapshot dependency of `id`, as delete blockers / establishment reasons. */
 export async function dependencyReasons(
   tx: Prisma.TransactionClient,
-  entity: DirectoryEntity,
+  entity: RecordEntity,
   id: string,
 ): Promise<string[]> {
   const reasons = (await directReferences(tx, entity, id)).map((ref) => `REFERENCED_BY:${ref}`);

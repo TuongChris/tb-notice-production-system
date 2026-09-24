@@ -7,13 +7,30 @@
 // Audit (INVARIANTS §7 "minimal field diff"): before/after carry only the changed fields plus the
 // row version. Free-text notes — and a source's scope text, excerpt and limitations, which may quote
 // the source — are redacted to their length; no credential, token or cookie data is ever part of a
-// directory or source record.
+// directory or source record. The authority records' free text (P3B) is treated the same way: a
+// mandate's description, a version's change reason and validity notes, a coverage's scope texts,
+// an authority event's scope text, interpretation and raw effective text may quote the authority
+// document, so the audit trail keeps only their length.
 import { codePointLength } from '@tb/contracts';
 import { Prisma } from '../../../generated/prisma/client.js';
 import { canonicalJson } from '../../infrastructure/write/request-digest.js';
 
 /** Free-text fields recorded in audit only as `{ redacted: true, codePoints }`. */
-const REDACTED_FIELDS = new Set(['notes', 'scopeText', 'excerpt', 'limitations']);
+const REDACTED_FIELDS = new Set([
+  'notes',
+  'scopeText',
+  'excerpt',
+  'limitations',
+  'description',
+  'changeReason',
+  'validityNotes',
+  'coveredWorksScope',
+  'territorialScope',
+  'exclusions',
+  'conditions',
+  'interpretation',
+  'rawEffectiveText',
+]);
 
 function comparable(value: unknown): unknown {
   if (value === undefined) return null;

@@ -1444,7 +1444,9 @@ describe('ROUTES — a relationship record, not authority', () => {
       [{ ...base, defaultSignerId: otherSigner.data.id }, 422, 'CROSS_AGENCY_REFERENCE'],
       [{ ...base, defaultSignerId: endedSigner.data.id }, 409, 'RECORD_STATE_CONFLICT'],
       [{ ...base, defaultSignerId: randomUUID() }, 422, 'REFERENCE_NOT_FOUND'],
-      [{ ...base, preferredCoverageId: randomUUID() }, 422, 'PREFERRED_COVERAGE_UNAVAILABLE'],
+      // P3A refused every preferred coverage (PREFERRED_COVERAGE_UNAVAILABLE); P3B validates it
+      // against MandateCoverage, so an unknown id is now a missing reference (p3b-http.test.ts).
+      [{ ...base, preferredCoverageId: randomUUID() }, 422, 'REFERENCE_NOT_FOUND'],
       [{ ...base, platform: 'TIKTOK' }, 422, 'VALIDATION_FAILED'],
       [{ ...base, linkState: 'LINKED' }, 422, 'VALIDATION_FAILED'],
     ];
@@ -1586,7 +1588,9 @@ describe('ROUTES — a relationship record, not authority', () => {
       { preferredCoverageId: randomUUID() },
       { ifMatch: patched.etag },
     );
-    expect([coverage.status, code(coverage)]).toEqual([422, 'PREFERRED_COVERAGE_UNAVAILABLE']);
+    // Since P3B an unknown coverage is a missing reference (was PREFERRED_COVERAGE_UNAVAILABLE).
+    expect([coverage.status, code(coverage)]).toEqual([422, 'REFERENCE_NOT_FOUND']);
+    expect(errorOf(coverage).details).toMatchObject({ field: 'preferredCoverageId' });
     const empty = await client.write(
       'patchRoute',
       'PATCH',

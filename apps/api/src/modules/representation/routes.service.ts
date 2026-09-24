@@ -12,8 +12,14 @@
 //               route (unknown field → 422); a different path is a different route.
 //   defaults    defaultSignerId: an existing Signer of the same agency (composite FK as backstop),
 //               not archived and not ENDED — a future selection suggestion only.
-//               preferredCoverageId needs MandateCoverage, which does not exist before P3B: any
-//               non-null value → 422 PREFERRED_COVERAGE_UNAVAILABLE (null is accepted).
+//               preferredCoverageId (P3B; INVARIANTS §3 "Route.preferredCoverageId belongs to the
+//               same Route — transactional service check"): an existing coverage (422) of the same
+//               agency (422 CROSS_AGENCY_REFERENCE) and of THIS route (422
+//               AUTHORITY_SCOPE_UNRESOLVED), in a FROZEN version (409 VERSION_NOT_FROZEN) of an
+//               unarchived Mandate (409). A new route has no coverage yet, so createRoute accepts
+//               only null. null clears it. It is an operational default only: it adjudicates no
+//               authority, passes no G1 and selects nothing for a case; recorded authority events
+//               are not interpreted here.
 //   link-state  LINKED | PAUSED | UNLINKED with a reason; same state 409. UNLINKED records
 //               unlinkedAt; relinking clears it (the audit trail keeps the history). Returning to
 //               LINKED needs the agency, owner and subject unarchived and the association LINKED —
@@ -25,7 +31,7 @@
 //               coverage reference and no JSON snapshot reference → otherwise 409 with blockers.
 //   canonical   canonical-binding.ts with the route's agency, owner and subject as source scope.
 // Lock order: Agency → LegalSubject → Owner → OwnerSubject (share) → Route (update) → Signer
-// (share) → SourceReference.
+// (share) → Mandate → MandateVersion → MandateCoverage (share) → SourceReference.
 import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import type {
@@ -142,8 +148,6 @@ export class RoutesService {
   }
 
   create(requester: WriteRequester, body: CreateRoute): Promise<WriteReply> {
-    if (body.preferredCoverageId)
-      throw apiErrors.preferredCoverageUnavailable('preferredCoverageId');
     return this.writes.execute(
       { operationId: 'createRoute', pathParams: {}, body, requester },
       async (context) => {
@@ -171,6 +175,13 @@ export class RoutesService {
         if (existing) throw apiErrors.duplicateRoute(existing.id);
         if (body.defaultSignerId) {
           await assertDefaultSigner(tx, body.defaultSignerId, body.agencyId, 'createRoute');
+        }
+        if (body.preferredCoverageId) {
+          // A coverage names an existing route, so none can belong to a route not yet created.
+          await assertPreferredCoverage(tx, body.preferredCoverageId, {
+            id: null,
+            agencyId: body.agencyId,
+          });
         }
         const id = randomUUID();
         const row = await tx.route
@@ -206,8 +217,6 @@ export class RoutesService {
   }
 
   patch(requester: WriteRequester, id: string, body: PatchRoute): Promise<WriteReply> {
-    if (body.preferredCoverageId)
-      throw apiErrors.preferredCoverageUnavailable('preferredCoverageId');
     return this.writes.execute(
       { operationId: 'patchRoute', pathParams: { id }, body, requester },
       async (context) => {
@@ -221,6 +230,9 @@ export class RoutesService {
             current.agencyId,
             'patchRoute',
           );
+        }
+        if (changed.includes('preferredCoverageId') && body.preferredCoverageId) {
+          await assertPreferredCoverage(context.tx, body.preferredCoverageId, current);
         }
         if (changed.length === 0) return unchanged(ENTITY, toRouteView(current));
         const row = await context.tx.route.update({
@@ -501,6 +513,54 @@ function assertPartiesUsable(parties: Parties, operation: string): void {
         : null;
   if (archived !== null) {
     throw apiErrors.recordStateConflict({ record: archived, state: 'ARCHIVED', operation });
+  }
+}
+
+/**
+ * A preferred coverage is a coverage of this exact route (same agency) in a FROZEN version of an
+ * unarchived Mandate. The coverage's mandate, version and coverage rows are share-locked after the
+ * route (lock order), so a concurrent archive or draft edit cannot slip in; a frozen version never
+ * changes afterwards. `route.id` is null for a route being created (no coverage can name it yet).
+ */
+async function assertPreferredCoverage(
+  tx: Prisma.TransactionClient,
+  coverageId: string,
+  route: { readonly id: string | null; readonly agencyId: string },
+): Promise<void> {
+  const field = 'preferredCoverageId';
+  const coverage = await tx.mandateCoverage.findUnique({
+    where: { id: coverageId },
+    select: {
+      routeId: true,
+      agencyId: true,
+      mandateVersionId: true,
+      version: { select: { mandateId: true } },
+    },
+  });
+  if (!coverage) throw apiErrors.referenceNotFound(field);
+  if (coverage.agencyId !== route.agencyId) throw apiErrors.crossAgencyReference(field, 'record');
+  if (coverage.routeId !== route.id) throw apiErrors.authorityScopeUnresolved(field, 'OTHER_ROUTE');
+  await lockForShare(tx, 'Mandate', coverage.version.mandateId);
+  await lockForShare(tx, 'MandateVersion', coverage.mandateVersionId);
+  await lockForShare(tx, 'MandateCoverage', coverageId);
+  const version = await tx.mandateVersion.findUniqueOrThrow({
+    where: { id: coverage.mandateVersionId },
+    select: { versionState: true },
+  });
+  if (version.versionState !== 'FROZEN') {
+    throw apiErrors.versionNotFrozen(field, coverage.mandateVersionId);
+  }
+  const mandate = await tx.mandate.findUniqueOrThrow({
+    where: { id: coverage.version.mandateId },
+    select: { archivedAt: true },
+  });
+  if (mandate.archivedAt !== null) {
+    throw apiErrors.recordStateConflict({
+      record: 'Mandate',
+      archived: true,
+      operation: 'preferredCoverage',
+      field,
+    });
   }
 }
 

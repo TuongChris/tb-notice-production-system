@@ -12,8 +12,8 @@
 //   bind the Owner → Route (Agency + link + YouTube) → a route source → bind the Route → revise the
 //   route source (the Route keeps pointing at revision 1) → expected refusal: another Agency cannot
 //   bind the first Agency's source (422 CROSS_AGENCY_REFERENCE) → list by agency and by link →
-//   mandates (P3B) are not routed (404) → logout. No mandate, coverage, case, signing or sending
-//   exists in this flow.
+//   Case operations (a later phase) are not routed (404) → logout. No mandate, coverage, case,
+//   signing or sending exists in this flow (the P3B authority flow is `yarn smoke:p3b`).
 import { spawn, type ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
@@ -373,7 +373,7 @@ async function main(): Promise<void> {
   if ((byLink.data as unknown as { items: Array<{ id: string }> }).items[0]?.id !== route.data.id) {
     fail('the route of the link is not listed');
   }
-  await call('POST /mandates (P3B, not routed)', 'POST', '/mandates', 404, null, { body: {} });
+  await call('POST /cases (Case phase, not routed)', 'POST', '/cases', 404, null, { body: {} });
 
   const logout = await fetch(`${API}/auth/logout`, {
     method: 'POST',

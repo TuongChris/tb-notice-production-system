@@ -2660,7 +2660,7 @@ describe('SECURITY / VALIDATION / CONTRACT', () => {
     expect(await countRows(prisma, 'source_references')).toBe(0);
   });
 
-  it('exposes exactly the P1 routes plus the 53 implemented directory, source and route operations', async () => {
+  it('exposes exactly the P1 routes plus the 76 implemented directory, source, route and authority operations', async () => {
     const express = t.app.getHttpAdapter().getInstance() as {
       router: { stack: Array<{ route?: { path: string; methods: Record<string, boolean> } }> };
     };
@@ -2673,10 +2673,11 @@ describe('SECURITY / VALIDATION / CONTRACT', () => {
       )
       .sort();
     // P2: the 36 directory operations; P3A: the 4 canonical bindings, 4 source and 9 route
-    // operations. Nothing of Mandate, Case, production or validation is routed.
+    // operations; P3B: the 23 Mandate-tagged operations. Nothing of Case, production or
+    // validation is routed.
     const directory = operations
       .filter((operation) =>
-        /^\/(agencies|owners|legal-subjects|signers|owner-subjects|sources|routes)(\/|$)/.test(
+        /^\/(agencies|owners|legal-subjects|signers|owner-subjects|sources|routes|mandates|mandate-versions|coverages|coverage-signers)(\/|$)/.test(
           operation.path,
         ),
       )
@@ -2684,7 +2685,10 @@ describe('SECURITY / VALIDATION / CONTRACT', () => {
         (operation) =>
           `${operation.method.toUpperCase()} /api/v1${operation.path.replace(/\{([A-Za-z]+)\}/g, ':$1')}`,
       );
-    expect(directory).toHaveLength(53);
+    expect(directory).toHaveLength(76);
+    expect(
+      operations.filter((operation) => (operation.tags as readonly string[]).includes('Mandate')),
+    ).toHaveLength(23);
     expect(routes).toEqual(
       [
         'GET /api/v1/auth/session',
