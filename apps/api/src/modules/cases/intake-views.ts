@@ -1,11 +1,12 @@
 // Contract wire views of the case intake material (P4B), exactly as stored: timestamps as ISO 8601
 // UTC strings, millisecond columns (BIGINT UNSIGNED) as decimal strings, JSON columns as stored.
 // ReportedItem, CaseWork and UseMapping are version-checked mutable records (ETag from rowVersion);
-// a CaseFact revision is append-only (no row version, no ETag).
+// a CaseFact revision and its FactSource rows are append-only (no row version, no ETag).
 import type {
   CaseFact as CaseFactWire,
   CaseFactSummary,
   CaseWork as CaseWorkWire,
+  FactSource as FactSourceWire,
   RawTimecodes,
   ReportedItem as ReportedItemWire,
   UseMapping as UseMappingWire,
@@ -13,6 +14,7 @@ import type {
 import type {
   CaseFact,
   CaseWork,
+  FactSource,
   ReportedItem,
   UseMapping,
 } from '../../../generated/prisma/client.js';
@@ -109,6 +111,22 @@ export function toCaseFactView(row: CaseFact): CaseFactWire {
     createdAt: row.createdAt.toISOString(),
     createdById: row.createdById,
   } as CaseFactWire;
+}
+
+/**
+ * One recorded support of a fact revision exactly as stored (TB-SCHEMA-API-v1.2.0): the link it
+ * names, the role and the assertion as entered. Nothing of the link's present state is added.
+ */
+export function toFactSourceView(row: FactSource): FactSourceWire {
+  return {
+    id: row.id,
+    factId: row.factId,
+    caseSourceId: row.caseSourceId,
+    supportRole: row.supportRole,
+    supportedAssertion: row.supportedAssertion,
+    createdAt: row.createdAt.toISOString(),
+    createdById: row.createdById,
+  };
 }
 
 export function toCaseFactSummary(row: CaseFact): CaseFactSummary {

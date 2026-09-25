@@ -11,14 +11,16 @@
 //   login → Agency + its own source → Owner + LegalSubject → link → Route → Case bound to the route
 //   → ReportedItem (raw URL kept; video id derived, case preserved) → CaseWork → UseMapping
 //   between them (exact millisecond strings) → case source link → CaseFact with a support →
-//   revision 2 of the fact → the historical revision 1 read back unchanged → a newer source
-//   revision re-points neither the link nor the facts → PATCH / archive / restore of the item →
-//   expected refusals: another case's item through this case (404), a mapping with another case's
-//   work (422 CROSS_CASE_REFERENCE), a non-video address (422 REPORTED_URL_UNSUPPORTED), a stale
-//   ETag (412), a revision of the old head (409 REVISION_NOT_HEAD) → no readiness, G1–G7,
-//   production or correspondence route or field exists (404 / no such keys) → logout. Nothing here
-//   is an infringement, ownership, permission or exception finding, readiness, a notice, a
-//   signature or an external action.
+//   revision 2 of the fact → the historical revision 1 read back unchanged → each revision reads
+//   back exactly its own recorded supports (getCaseFactSources, TB-SCHEMA-API-v1.2.0) → a newer
+//   source revision re-points neither the link nor the facts, and neither it nor a later paused
+//   link changes or hides the recorded support → PATCH / archive / restore of the item →
+//   expected refusals: another case's item and fact supports through this case (404), a mapping
+//   with another case's work (422 CROSS_CASE_REFERENCE), a non-video address (422
+//   REPORTED_URL_UNSUPPORTED), a stale ETag (412), a revision of the old head (409
+//   REVISION_NOT_HEAD) → no readiness, G1–G7, production or correspondence route or field exists
+//   (404 / no such keys) → logout. Nothing here is an infringement, ownership, permission or
+//   exception finding, readiness, a notice, a signature or an external action.
 import { spawn, type ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
@@ -438,6 +440,38 @@ async function main(): Promise<void> {
     fail('the list must show the head only');
   pass('the fact list shows the current head only');
 
+  // TB-SCHEMA-API-v1.2.0 (ADR-0005): each revision reads back exactly the supports recorded for it.
+  async function readSupports(label: string, factId: string) {
+    const read = await call(
+      `GET /cases/{caseId}/facts/{id}/sources (${label})`,
+      'GET',
+      `/cases/${caseId}/facts/${factId}/sources`,
+      200,
+      contracts.GetCaseFactSourcesResponseSchema,
+    );
+    if (read.etag !== null) fail('recorded supports are append-only and carry no ETag');
+    noFinding('recorded supports', read.data);
+    return read.data as unknown as { factId: string; sources: Array<Record<string, unknown>> };
+  }
+  const firstSupports = await readSupports('revision 1', fact.data.id);
+  const [recorded] = firstSupports.sources;
+  if (
+    firstSupports.factId !== fact.data.id ||
+    firstSupports.sources.length !== 1 ||
+    recorded?.['factId'] !== fact.data.id ||
+    recorded['caseSourceId'] !== caseSource.data.id ||
+    recorded['supportRole'] !== 'P4B_CI_CONTEXT' ||
+    recorded['supportedAssertion'] !== 'Synthetic: the operator has not reviewed any permission'
+  ) {
+    fail('revision 1 must read back exactly its one recorded support');
+  }
+  pass('revision 1 reads back exactly its one recorded support');
+  const secondSupports = await readSupports('revision 2', revised.data.id);
+  if (secondSupports.factId !== revised.data.id || secondSupports.sources.length !== 0) {
+    fail('revision 2 recorded no support and must read back none');
+  }
+  pass('revision 2 reads back no support: nothing is carried over from revision 1');
+
   // Pinning: a newer source revision re-points neither the case source link nor the facts.
   await call(
     'POST /sources/{id}/revisions',
@@ -471,6 +505,25 @@ async function main(): Promise<void> {
   );
   if (JSON.stringify(factNow.data) !== JSON.stringify(fact.data)) fail('the fact changed');
   pass('a newer source revision re-points neither the link nor the fact');
+  const unchangedSupports = async (label: string) => {
+    const now = await readSupports(`revision 1, ${label}`, fact.data.id);
+    if (JSON.stringify(now) !== JSON.stringify(firstSupports)) {
+      fail(`${label}: the recorded support must stay exactly as it was`);
+    }
+  };
+  await unchangedSupports('after a newer source revision');
+  pass('a newer source revision leaves the recorded support unchanged');
+  // A link paused later is a state of the link, not of the support recorded through it.
+  await call(
+    'POST /case-sources/{id}/link-state (pause)',
+    'POST',
+    `/case-sources/${caseSource.data.id}/link-state`,
+    200,
+    contracts.SetCaseSourceLinkStateResponseSchema,
+    { body: { state: 'PAUSED', reason: 'P4B CI synthetic pause' }, ifMatch: linkNow.etag ?? '' },
+  );
+  await unchangedSupports('link paused');
+  pass('a paused link leaves the recorded support visible and unchanged');
 
   // Item edits with its own ETag; archive and restore are administrative.
   const patched = await call(
@@ -562,6 +615,14 @@ async function main(): Promise<void> {
     null,
   );
   if (crossRead.code !== 'NOT_FOUND') fail('another case’s item must be 404');
+  const crossSupports = await call(
+    'GET /cases/{caseId}/facts/{id}/sources through another case',
+    'GET',
+    `/cases/${other.data.id}/facts/${fact.data.id}/sources`,
+    404,
+    null,
+  );
+  if (crossSupports.code !== 'NOT_FOUND') fail('another case’s fact supports must be 404');
   const otherNow = await call(
     'GET /cases/{caseId} (second case)',
     'GET',

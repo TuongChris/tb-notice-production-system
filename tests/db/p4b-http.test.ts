@@ -10,13 +10,16 @@
 // infringement finding, a work is not ownership proof, a use mapping is not an infringement or
 // audiovisual-identity finding, and a case fact is an explicit, attributed assertion — never
 // inferred from silence, similarity, a URL, a publication or a source's existence. Nothing crosses
-// from one case to another, and nothing here computes G1–G7 or readiness.
+// from one case to another, and nothing here computes G1–G7 or readiness. The R9 remediation
+// (TB-SCHEMA-API-v1.2.0, ADR-0005) reads back the FactSource rows recorded for one fact revision:
+// exactly as stored, zero rows included, never merged, re-pointed or hidden.
 import { randomUUID } from 'node:crypto';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { Prisma, type PrismaClient } from '../../apps/api/generated/prisma/client.js';
 import type {
   Agency,
   CaseFact,
+  CaseFactSourcesView,
   CaseFactSummary,
   CaseRecord,
   CaseSource,
@@ -29,7 +32,11 @@ import type {
   SourceReference,
   UseMapping,
 } from '../../packages/contracts/src/index.js';
-import { OperationErrorSchema, operations } from '../../packages/contracts/src/index.js';
+import {
+  GetCaseFactResponseSchema,
+  OperationErrorSchema,
+  operations,
+} from '../../packages/contracts/src/index.js';
 import {
   ALLOWED_ORIGIN,
   cookieHeader,
@@ -44,6 +51,7 @@ import {
   cleanSuiteTables,
   countRows,
   dataOf,
+  DIRECTORY_SUITE_TABLES,
   DirectoryClient,
   etagOf,
   FailingAuditWriter,
@@ -112,6 +120,9 @@ const P4B_OPERATIONS = [
   'getCaseFact',
   'reviseCaseFact',
 ] as const;
+
+/** The R9 remediation read of TB-SCHEMA-API-v1.2.0 (ADR-0005). */
+const R9_OPERATIONS = ['getCaseFactSources'] as const;
 
 /** Case records of later phases: P4B never writes any of them. */
 const LATER_CASE_TABLES = [
@@ -209,6 +220,24 @@ function unrouted(method: 'GET' | 'POST' | 'PATCH' | 'DELETE', path: string) {
 
 async function listOf<T>(operationId: string, path: string): Promise<Page<T>> {
   return immutable<Page<T>>(await client.get(operationId, path), 200);
+}
+
+/** Every row of every table this suite can touch (audit and idempotency included). */
+async function suiteDump(): Promise<Record<string, string[]>> {
+  const dump: Record<string, string[]> = {};
+  for (const table of DIRECTORY_SUITE_TABLES) {
+    const rows = await prisma.$queryRawUnsafe<Array<Record<string, unknown>>>(
+      `SELECT * FROM \`${table}\``,
+    );
+    dump[table] = rows
+      .map((row) =>
+        JSON.stringify(row, (_key, value: unknown) =>
+          typeof value === 'bigint' ? value.toString() : value,
+        ),
+      )
+      .sort();
+  }
+  return dump;
 }
 
 /** Every row of every intake table and the cases, to prove that a request wrote nothing. */
@@ -647,13 +676,31 @@ const ADMITTED_SPELLINGS: Array<[string, string]> = [
   ['9999-12-31T23:59:59.499Z', '9999-12-31T23:59:59.499Z'],
 ];
 
-/** The stored FactSource rows of a fact revision (no contracted read returns them — §1.2). */
+/**
+ * The stored FactSource rows of a fact revision straight from the database (the P4B assertions;
+ * the contracted read getCaseFactSources is checked against storedRows below).
+ */
 const storedSupports = (factId: string) =>
   prisma.factSource.findMany({
     where: { factId },
     orderBy: [{ caseSourceId: 'asc' }, { supportRole: 'asc' }],
     select: { factId: true, caseSourceId: true, supportRole: true, supportedAssertion: true },
   });
+
+/** Every stored FactSource row of a revision, all fields, in the contract's (createdAt, id) order. */
+const storedRows = async (factId: string) =>
+  (
+    await prisma.factSource.findMany({
+      where: { factId },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    })
+  ).map((row) => ({ ...row, createdAt: row.createdAt.toISOString() }));
+
+/** GET /cases/{caseId}/facts/{id}/sources (getCaseFactSources, TB-SCHEMA-API-v1.2.0). */
+const readSupports = (caseId: string, id: string) =>
+  client.get('getCaseFactSources', `/cases/${caseId}/facts/${id}/sources`);
+const getSupports = async (caseId: string, id: string) =>
+  immutable<CaseFactSourcesView>(await readSupports(caseId, id), 200);
 
 /** A world plus one item, one work, one mapping between them and one LINKED case source. */
 async function intakeWorld(label = 'A') {
@@ -1914,7 +1961,8 @@ describe('CASE FACTS — explicit, attributed, case-specific assertions; revisio
     );
     const affected = affectedOf(result);
     expect(affected.filter((row) => row['type'] === 'FactSource')).toHaveLength(3);
-    // The wire fact carries no support list (contract gap §1.2): exactly the contracted fields.
+    // The wire fact carries no support list — getCaseFactSources (TB-SCHEMA-API-v1.2.0) reads the
+    // supports — so it keeps exactly the contracted fields.
     expect(Object.keys(fact).sort()).toEqual(
       [
         'id',
@@ -2351,6 +2399,443 @@ describe('CASE FACTS — explicit, attributed, case-specific assertions; revisio
     const unknown = await readFact(w.case.data.id, randomUUID());
     expect([crossCase.status, refusalOf(crossCase)]).toEqual([404, refusalOf(unknown)]);
     expect(crossCase.headers['etag']).toBeUndefined();
+  });
+});
+
+describe('FACT SOURCES READ-BACK (TB-SCHEMA-API-v1.2.0, R9) — the exact supports recorded for one fact revision', () => {
+  /** An error body without its per-request id: equal bodies are indistinguishable refusals. */
+  const refusal = (result: HttpResult) => {
+    const {
+      code: errorCode,
+      message,
+      details,
+    } = (result.json as { error: { code: string; message: string; details: unknown } }).error;
+    return { code: errorCode, message, details };
+  };
+  const FACT_SOURCE_KEYS = [
+    'caseSourceId',
+    'createdAt',
+    'createdById',
+    'factId',
+    'id',
+    'supportRole',
+    'supportedAssertion',
+  ];
+
+  it('zero supports: an empty list naming the revision — a normal answer, not a gap, an error or MISSING; no ETag, no precondition, session only, nothing written', async () => {
+    const { w } = await intakeWorld();
+    const fact = await createFact(w.case.data.id, { provenance: 'OPERATOR_REPORTED' });
+    const before = await suiteDump();
+    const read = await readSupports(w.case.data.id, fact.id);
+    const view = immutable<CaseFactSourcesView>(read, 200);
+    expect(view).toEqual({ factId: fact.id, sources: [] });
+    expect(affectedOf(read)).toEqual([]);
+    // Read-only: sent without If-Match or Idempotency-Key, repeatable, and nothing changed — no
+    // row, version, audit event or idempotency record anywhere.
+    expect(await getSupports(w.case.data.id, fact.id)).toEqual(view);
+    expect(await suiteDump()).toEqual(before);
+    // The fact is exactly as recorded: zero supports implies nothing about it.
+    expect(await getFact(w.case.data.id, fact.id)).toEqual(fact);
+    expect([fact.provenance, fact.resolutionState]).toEqual(['OPERATOR_REPORTED', 'UNASSESSED']);
+    // Session-protected like every business read.
+    const anonymous = await http(
+      t.port,
+      'GET',
+      `/api/v1/cases/${w.case.data.id}/facts/${fact.id}/sources`,
+    );
+    expect([anonymous.status, code(anonymous)]).toEqual([401, 'SESSION_REQUIRED']);
+  });
+
+  it('one support reads back exactly the stored row; several read back byte for byte — role and assertion as entered — in (createdAt, id) order, the same on every read', async () => {
+    const { w, linked } = await intakeWorld();
+    const second = await linkSource(
+      w.case.data.id,
+      (await createSource({ agencyId: w.agency.data.id, title: 'SYNTHETIC second material' })).id,
+    );
+    // One support.
+    const oneResult = await postFact(w.case.data.id, (await getCase(w.case.data.id)).etag, {
+      provenance: 'OPERATOR_REPORTED',
+      sources: [
+        {
+          caseSourceId: linked.data.id,
+          supportRole: 'SYNTHETIC_PRIMARY',
+          supportedAssertion: 'SYNTHETIC the material states this',
+        },
+      ],
+    });
+    const one = immutable<CaseFact>(oneResult, 201);
+    const [createdSupport] = affectedOf(oneResult).filter((row) => row['type'] === 'FactSource');
+    expect(await getSupports(w.case.data.id, one.id)).toEqual({
+      factId: one.id,
+      sources: [
+        {
+          id: createdSupport?.['id'],
+          factId: one.id,
+          caseSourceId: linked.data.id,
+          supportRole: 'SYNTHETIC_PRIMARY',
+          supportedAssertion: 'SYNTHETIC the material states this',
+          createdAt: one.createdAt,
+          createdById: client.session.userId,
+        },
+      ],
+    });
+    // Several supports: roles and assertions exactly as entered — spaces, case, line breaks,
+    // tabs, quotes, both Unicode normal forms and 8000 code points (the contract maximum).
+    const prefix = 'SYNTHETIC-LONG ';
+    const entered = [
+      {
+        caseSourceId: linked.data.id,
+        supportRole: '  synthetic role with spaces — Café  ',
+        supportedAssertion: '  SYNTHETIC leading and trailing spaces  ',
+      },
+      {
+        caseSourceId: linked.data.id,
+        supportRole: 'SYNTHETIC_CONTEXT',
+        supportedAssertion:
+          'SYNTHETIC line one\r\nline two\ttab — “quotes” \\ {"json": true} café / café',
+      },
+      {
+        caseSourceId: second.data.id,
+        supportRole: 'SYNTHETIC_PRIMARY',
+        supportedAssertion: `${prefix}${'𝄞'.repeat(8000 - codePoints(prefix))}`,
+      },
+    ];
+    expect(codePoints(entered[2]?.supportedAssertion ?? '')).toBe(8000);
+    const many = await createFact(w.case.data.id, {
+      provenance: 'OPERATOR_REPORTED',
+      sources: entered,
+    });
+    const view = await getSupports(w.case.data.id, many.id);
+    expect(view.factId).toBe(many.id);
+    expect(view.sources).toHaveLength(3);
+    expect(view.sources).toEqual(await storedRows(many.id));
+    for (const row of view.sources) {
+      expect(Object.keys(row).sort()).toEqual(FACT_SOURCE_KEYS);
+      expect(row).toMatchObject({
+        factId: many.id,
+        createdAt: many.createdAt,
+        createdById: client.session.userId,
+      });
+    }
+    const asEntered = (rows: ReadonlyArray<Record<string, unknown>>) =>
+      rows
+        .map((row) =>
+          JSON.stringify([row['caseSourceId'], row['supportRole'], row['supportedAssertion']]),
+        )
+        .sort();
+    expect(asEntered(view.sources)).toEqual(asEntered(entered));
+    // Deterministic: one revision's rows share their createdAt, so the order is by id — never the
+    // request's order or a role order — and every read returns the same rows in the same order.
+    const ids = view.sources.map((row) => row.id);
+    expect(ids).toEqual([...ids].sort());
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      expect(await getSupports(w.case.data.id, many.id)).toEqual(view);
+    }
+  });
+
+  it('revisions keep their own supports: the earlier revision still reads its rows, a newer one only its own (other or none); nothing is merged or carried over', async () => {
+    const { w, linked } = await intakeWorld();
+    const second = await linkSource(
+      w.case.data.id,
+      (await createSource({ agencyId: w.agency.data.id, title: 'SYNTHETIC second material' })).id,
+    );
+    const first = await createFact(w.case.data.id, {
+      provenance: 'OPERATOR_REPORTED',
+      sources: [
+        {
+          caseSourceId: linked.data.id,
+          supportRole: 'SYNTHETIC_R1_PRIMARY',
+          supportedAssertion: 'SYNTHETIC revision 1, first support',
+        },
+        {
+          caseSourceId: second.data.id,
+          supportRole: 'SYNTHETIC_R1_CONTEXT',
+          supportedAssertion: 'SYNTHETIC revision 1, second support',
+        },
+      ],
+    });
+    const firstView = await getSupports(w.case.data.id, first.id);
+    expect(firstView.sources.map((row) => row.supportRole).sort()).toEqual([
+      'SYNTHETIC_R1_CONTEXT',
+      'SYNTHETIC_R1_PRIMARY',
+    ]);
+    const revised = await reviseFact(w.case.data.id, first.id, {
+      provenance: 'OPERATOR_REPORTED',
+      changeReason: 'SYNTHETIC revision 2 with other supports',
+      sources: [
+        {
+          caseSourceId: second.data.id,
+          supportRole: 'SYNTHETIC_R2_PRIMARY',
+          supportedAssertion: 'SYNTHETIC revision 2, its only support',
+        },
+      ],
+    });
+    const third = await reviseFact(w.case.data.id, revised.id, {
+      provenance: 'OPERATOR_REPORTED',
+      changeReason: 'SYNTHETIC revision 3 without supports',
+    });
+    // The earlier revision reads exactly what it read before; each later revision only its own.
+    expect(await getSupports(w.case.data.id, first.id)).toEqual(firstView);
+    const secondView = await getSupports(w.case.data.id, revised.id);
+    expect(
+      secondView.sources.map((row) => [row.factId, row.caseSourceId, row.supportRole]),
+    ).toEqual([[revised.id, second.data.id, 'SYNTHETIC_R2_PRIMARY']]);
+    expect(await getSupports(w.case.data.id, third.id)).toEqual({ factId: third.id, sources: [] });
+    const allIds = [firstView, secondView].flatMap((view) => view.sources.map((row) => row.id));
+    expect(new Set(allIds).size).toBe(3);
+    expect(await prisma.factSource.count()).toBe(3);
+  });
+
+  it('historical pinning: a newer source revision, a paused link and an unlinked link change nothing in the recorded supports and hide none of them; the link’s present state is its own record', async () => {
+    const { w, linked } = await intakeWorld();
+    const secondSource = await createSource({
+      agencyId: w.agency.data.id,
+      title: 'SYNTHETIC second material',
+    });
+    const second = await linkSource(w.case.data.id, secondSource.id);
+    const fact = await createFact(w.case.data.id, {
+      provenance: 'OPERATOR_REPORTED',
+      sources: [
+        {
+          caseSourceId: linked.data.id,
+          supportRole: 'SYNTHETIC_PRIMARY',
+          supportedAssertion: 'SYNTHETIC supported by revision 1 of the agency material',
+        },
+        {
+          caseSourceId: second.data.id,
+          supportRole: 'SYNTHETIC_CONTEXT',
+          supportedAssertion: 'SYNTHETIC supported by the second material',
+        },
+      ],
+    });
+    const before = await readSupports(w.case.data.id, fact.id);
+    const pinned = immutable<CaseFactSourcesView>(before, 200);
+    const unchanged = async () => {
+      const after = await readSupports(w.case.data.id, fact.id);
+      expect(JSON.stringify(dataOf(after))).toBe(JSON.stringify(dataOf(before)));
+    };
+    // A newer revision of the cited source re-points neither the link nor the support.
+    const newer = await reviseSource(w.source.id, {
+      agencyId: w.agency.data.id,
+      title: 'SYNTHETIC agency material, revision 2',
+    });
+    expect([newer.revision, newer.supersedesSourceId]).toEqual([2, w.source.id]);
+    await unchanged();
+    expect((await getLink(linked.data.id)).data.sourceId).toBe(w.source.id);
+    // Pausing and unlinking later are states of the link, not of the historical support.
+    await setLinkState(linked.data.id, 'PAUSED');
+    await unchanged();
+    await setLinkState(second.data.id, 'UNLINKED');
+    await unchanged();
+    await setLinkState(linked.data.id, 'UNLINKED');
+    await unchanged();
+    expect((await getLink(linked.data.id)).data).toMatchObject({
+      linkState: 'UNLINKED',
+      sourceId: w.source.id,
+    });
+    expect((await getLink(second.data.id)).data.linkState).toBe('UNLINKED');
+    expect(pinned.sources.map((row) => row.caseSourceId).sort()).toEqual(
+      [linked.data.id, second.data.id].sort(),
+    );
+    // A new revision cannot cite the unlinked links; the recorded supports stay as they were.
+    const refused = await postRevision(
+      w.case.data.id,
+      fact.id,
+      (await getCase(w.case.data.id)).etag,
+      {
+        provenance: 'OPERATOR_REPORTED',
+        sources: [
+          {
+            caseSourceId: linked.data.id,
+            supportRole: 'SYNTHETIC_PRIMARY',
+            supportedAssertion: 'SYNTHETIC again',
+          },
+        ],
+      },
+    );
+    expect(outcome(refused)).toEqual([409, 'RECORD_STATE_CONFLICT']);
+    await unchanged();
+    expect(await getFact(w.case.data.id, fact.id)).toEqual(fact);
+  });
+
+  it('case isolation: another case’s fact is 404 through this case, exactly like an unknown fact or case; no existence, count, link id or assertion crosses', async () => {
+    const { w, linked } = await intakeWorld();
+    const caseB = await createCase(w.agency.data.id, {
+      routeId: w.route.data.id,
+      intakeLabel: 'SYNTHETIC B intake',
+    });
+    const linkB = await linkSource(caseB.data.id, w.source.id);
+    const factA = await createFact(w.case.data.id, {
+      provenance: 'OPERATOR_REPORTED',
+      sources: [
+        {
+          caseSourceId: linked.data.id,
+          supportRole: 'SYNTHETIC_A_ROLE',
+          supportedAssertion: 'SYNTHETIC-A-ONLY assertion',
+        },
+      ],
+    });
+    const factB = await createFact(caseB.data.id, {
+      provenance: 'OPERATOR_REPORTED',
+      sources: [
+        {
+          caseSourceId: linkB.data.id,
+          supportRole: 'SYNTHETIC_B_ROLE',
+          supportedAssertion: 'SYNTHETIC-B-ONLY assertion',
+        },
+      ],
+    });
+    const other = await intakeWorld('Other');
+    const factC = await createFact(other.w.case.data.id, {
+      provenance: 'OPERATOR_REPORTED',
+      sources: [
+        {
+          caseSourceId: other.linked.data.id,
+          supportRole: 'SYNTHETIC_C_ROLE',
+          supportedAssertion: 'SYNTHETIC-C-ONLY assertion',
+        },
+      ],
+    });
+    const unknown = refusal(await readSupports(w.case.data.id, randomUUID()));
+    expect(unknown).toEqual({
+      code: 'NOT_FOUND',
+      message: 'The requested resource does not exist.',
+      details: {},
+    });
+    for (const [caseId, id] of [
+      [caseB.data.id, factA.id],
+      [w.case.data.id, factB.id],
+      [w.case.data.id, factC.id],
+      [other.w.case.data.id, factA.id],
+      [randomUUID(), factA.id],
+      [w.case.data.id, w.case.data.id],
+      [w.case.data.id, linked.data.id],
+      [w.case.data.id, 'not-a-fact-id'],
+    ] as const) {
+      const refused = await readSupports(caseId, id);
+      expect(refused.status, `${caseId} ${id}`).toBe(404);
+      expect(refusal(refused), `${caseId} ${id}`).toEqual(unknown);
+      for (const secret of [
+        'SYNTHETIC-A-ONLY',
+        'SYNTHETIC-B-ONLY',
+        'SYNTHETIC-C-ONLY',
+        linked.data.id,
+        linkB.data.id,
+        other.linked.data.id,
+      ]) {
+        expect(refused.text, `${caseId} ${id}`).not.toContain(secret);
+      }
+    }
+    // Each case reads its own fact's rows only.
+    const viewA = await getSupports(w.case.data.id, factA.id);
+    const viewB = await getSupports(caseB.data.id, factB.id);
+    expect(viewA.sources.map((row) => [row.caseSourceId, row.supportedAssertion])).toEqual([
+      [linked.data.id, 'SYNTHETIC-A-ONLY assertion'],
+    ]);
+    expect(viewB.sources.map((row) => [row.caseSourceId, row.supportedAssertion])).toEqual([
+      [linkB.data.id, 'SYNTHETIC-B-ONLY assertion'],
+    ]);
+    expect(JSON.stringify(viewB)).not.toContain(factA.id);
+    expect(JSON.stringify(viewA)).not.toContain(linkB.data.id);
+  });
+
+  it('read only and neutral: the fact keeps its provenance and resolution state as recorded — a reviewed support upgrades nothing; nothing is written; getCaseFact is unchanged (no support list)', async () => {
+    const { w, linked } = await intakeWorld();
+    const reviewedSource = await createSource({
+      agencyId: w.agency.data.id,
+      reportedProvenance: 'DOCUMENT_REVIEWED',
+      reviewedByLabel: 'SYNTHETIC Reviewer',
+      reviewedAt: '2026-09-20T10:00:00Z',
+    });
+    const reviewedLink = await linkSource(w.case.data.id, reviewedSource.id);
+    const supports = [
+      {
+        caseSourceId: reviewedLink.data.id,
+        supportRole: 'SYNTHETIC_REVIEWED',
+        supportedAssertion: 'SYNTHETIC a reviewed source is cited',
+      },
+      {
+        caseSourceId: linked.data.id,
+        supportRole: 'SYNTHETIC_PRIMARY',
+        supportedAssertion: 'SYNTHETIC an operator-reported source is cited',
+      },
+    ];
+    const facts = [];
+    for (const [provenance, resolutionState] of [
+      ['OPERATOR_REPORTED', 'UNASSESSED'],
+      ['MISSING', 'UNASSESSED'],
+      ['CONFLICT', 'CONFLICT'],
+      ['ANALYSIS', 'WITHDRAWN'],
+    ] as const) {
+      facts.push(
+        await createFact(w.case.data.id, { provenance, resolutionState, sources: supports }),
+      );
+    }
+    const before = await suiteDump();
+    const caseBefore = await getCase(w.case.data.id);
+    for (const fact of facts) {
+      const view = await getSupports(w.case.data.id, fact.id);
+      expect(Object.keys(view).sort()).toEqual(['factId', 'sources']);
+      expect(view.sources).toHaveLength(2);
+      // The rows carry no provenance, resolution, link state or review field of their own.
+      for (const row of view.sources) expect(Object.keys(row).sort()).toEqual(FACT_SOURCE_KEYS);
+    }
+    for (const fact of facts) {
+      const read = await readFact(w.case.data.id, fact.id);
+      expect(read.status).toBe(200);
+      // getCaseFact is exactly the v1.0.0/v1.1.0 response: the CaseFact row, strict, no supports.
+      expect(GetCaseFactResponseSchema.safeParse(read.json).success).toBe(true);
+      expect(Object.keys(dataOf<CaseFact>(read))).not.toContain('sources');
+      expect(dataOf<CaseFact>(read)).toEqual(fact);
+    }
+    expect(facts.map((fact) => [fact.provenance, fact.resolutionState])).toEqual([
+      ['OPERATOR_REPORTED', 'UNASSESSED'],
+      ['MISSING', 'UNASSESSED'],
+      ['CONFLICT', 'CONFLICT'],
+      ['ANALYSIS', 'WITHDRAWN'],
+    ]);
+    // Nothing written by any read: no row, version, context revision, audit event or claim.
+    expect(await suiteDump()).toEqual(before);
+    expect((await getCase(w.case.data.id)).data).toEqual(caseBefore.data);
+  });
+
+  it('a stored support that names another case’s link, or more rows than a revision can hold, is never shown: 500, nothing leaks', async () => {
+    const { w, linked } = await intakeWorld();
+    const b = await intakeWorld('B');
+    const fact = await createFact(w.case.data.id, { provenance: 'OPERATOR_REPORTED' });
+    // Not reachable through the API (the write checks the link's case, INVARIANTS §3; a revision
+    // takes at most 100 supports): direct inserts.
+    await prisma.factSource.create({
+      data: {
+        id: randomUUID(),
+        factId: fact.id,
+        caseSourceId: b.linked.data.id,
+        supportRole: 'SYNTHETIC_FOREIGN',
+        supportedAssertion: 'SYNTHETIC-FOREIGN-ONLY assertion',
+        createdAt: new Date(t.clock.ms),
+        createdById: client.session.userId,
+      },
+    });
+    const foreign = await readSupports(w.case.data.id, fact.id);
+    expect(outcome(foreign)).toEqual([500, 'INTERNAL_ERROR']);
+    expect(foreign.text).not.toContain(b.linked.data.id);
+    expect(foreign.text).not.toContain('SYNTHETIC-FOREIGN-ONLY');
+    const crowded = await createFact(w.case.data.id, { provenance: 'OPERATOR_REPORTED' });
+    await prisma.factSource.createMany({
+      data: Array.from({ length: 101 }, (_, index) => ({
+        id: randomUUID(),
+        factId: crowded.id,
+        caseSourceId: linked.data.id,
+        supportRole: `SYNTHETIC_${index}`,
+        supportedAssertion: 'SYNTHETIC',
+        createdAt: new Date(t.clock.ms),
+        createdById: client.session.userId,
+      })),
+    });
+    expect(outcome(await readSupports(w.case.data.id, crowded.id))).toEqual([
+      500,
+      'INTERNAL_ERROR',
+    ]);
   });
 });
 
@@ -3192,15 +3677,16 @@ describe('SECURITY / CONTRACT', () => {
     await expectNoLaterPhaseRecords();
   });
 
-  it('every collected response matches its operation: declared status, contract schema, ETag rules, no readiness vocabulary; all 22 P4B operations were exercised', () => {
+  it('every collected response matches its operation: declared status, contract schema, ETag rules, no readiness vocabulary; all 22 P4B operations and the R9 read were exercised', () => {
     const byId = new Map<string, (typeof operations)[number]>(
       operations.map((operation) => [operation.operationId, operation]),
     );
+    const exercised: readonly string[] = [...P4B_OPERATIONS, ...R9_OPERATIONS];
     const contracted = operations
-      .filter((operation) => (P4B_OPERATIONS as readonly string[]).includes(operation.operationId))
+      .filter((operation) => exercised.includes(operation.operationId))
       .map((operation) => operation.operationId)
       .sort();
-    expect(contracted).toEqual([...P4B_OPERATIONS].sort());
+    expect(contracted).toEqual([...exercised].sort());
     const seen = new Set<string>();
     const forbiddenKey =
       /"(g[1-7]\w*|ready\w*|eligib\w*|authori[sz]ed\w*|infring\w*|isCurrent\w*|approved\w*|verified\w*)"\s*:/i;
@@ -3223,7 +3709,7 @@ describe('SECURITY / CONTRACT', () => {
           // Lists, fact revisions and SourceReferences carry no ETag.
           expect(result.headers['etag'], label).toBeUndefined();
         }
-        if ((P4B_OPERATIONS as readonly string[]).includes(operationId)) {
+        if (exercised.includes(operationId)) {
           expect(result.text, label).not.toMatch(forbiddenKey);
         }
       } else {
@@ -3232,6 +3718,6 @@ describe('SECURITY / CONTRACT', () => {
       }
       expect(result.headers['cache-control'], label).toBe('no-store');
     }
-    expect(P4B_OPERATIONS.filter((operationId) => !seen.has(operationId))).toEqual([]);
+    expect(exercised.filter((operationId) => !seen.has(operationId))).toEqual([]);
   });
 });

@@ -826,7 +826,8 @@ describe('SECURITY', () => {
       .sort();
     // P2 adds the directory routes, P3A the source and route operations, P3B the mandate,
     // version, coverage and coverage-signer operations, P4A the case, case-source and authority
-    // selection operations and R8 the selection read-back of TB-SCHEMA-API-v1.1.0 (exact inventory:
+    // selection operations, R8 the selection read-back of TB-SCHEMA-API-v1.1.0, P4B the case intake
+    // operations and R9 the fact-source read-back of TB-SCHEMA-API-v1.2.0 (exact inventory:
     // directory-http.test.ts); nothing else.
     const directory =
       /^[A-Z]+ \/api\/v1\/(agencies|owners|legal-subjects|signers|owner-subjects|sources|routes|mandates|mandate-versions|coverages|coverage-signers|cases|case-sources)(\/|$)/;

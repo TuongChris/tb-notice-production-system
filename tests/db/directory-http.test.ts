@@ -2660,7 +2660,7 @@ describe('SECURITY / VALIDATION / CONTRACT', () => {
     expect(await countRows(prisma, 'source_references')).toBe(0);
   });
 
-  it('exposes exactly the P1 routes plus the 76 directory, source, route and authority operations and the 39 case operations', async () => {
+  it('exposes exactly the P1 routes plus the 76 directory, source, route and authority operations and the 40 case operations', async () => {
     const express = t.app.getHttpAdapter().getInstance() as {
       router: { stack: Array<{ route?: { path: string; methods: Record<string, boolean> } }> };
     };
@@ -2676,8 +2676,8 @@ describe('SECURITY / VALIDATION / CONTRACT', () => {
     // operations; P3B: the 23 Mandate-tagged operations; P4A: the 16 Case, CaseSource and
     // CaseAuthoritySelection operations, plus the read-back getCaseAuthoritySelection of
     // TB-SCHEMA-API-v1.1.0 (ADR-0004, R8); P4B: the 22 ReportedItem, CaseWork, UseMapping and
-    // CaseFact operations. No other case operation, correspondence, production or validation is
-    // routed.
+    // CaseFact operations, plus the read-back getCaseFactSources of TB-SCHEMA-API-v1.2.0 (ADR-0005,
+    // R9). No other case operation, correspondence, production or validation is routed.
     const directory = operations
       .filter((operation) =>
         /^\/(agencies|owners|legal-subjects|signers|owner-subjects|sources|routes|mandates|mandate-versions|coverages|coverage-signers)(\/|$)/.test(
@@ -2728,6 +2728,7 @@ describe('SECURITY / VALIDATION / CONTRACT', () => {
       'listCaseFacts',
       'createCaseFact',
       'getCaseFact',
+      'getCaseFactSources',
       'reviseCaseFact',
     ]);
     const cases = operations
@@ -2736,7 +2737,7 @@ describe('SECURITY / VALIDATION / CONTRACT', () => {
         (operation) =>
           `${operation.method.toUpperCase()} /api/v1${operation.path.replace(/\{([A-Za-z]+)\}/g, ':$1')}`,
       );
-    expect(cases).toHaveLength(39);
+    expect(cases).toHaveLength(40);
     expect(
       operations.filter((operation) => (operation.tags as readonly string[]).includes('Mandate')),
     ).toHaveLength(23);

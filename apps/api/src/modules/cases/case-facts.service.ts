@@ -29,8 +29,11 @@
 //            never re-points an existing fact.
 //   list     current heads only (a superseded revision is reached by id or through its chain),
 //            newest first; get: any revision of this case by id.
-// Contract gap (reported at R9, not worked around): no operation returns FactSource rows, so a
-// fact's supports are written and validated here but cannot be read back on the wire.
+//   sources  GET /cases/{caseId}/facts/{id}/sources (TB-SCHEMA-API-v1.2.0, ADR-0005 — the R9
+//            remediation of the reported gap): the FactSource rows recorded for one revision,
+//            exactly as stored — zero rows included — never merged across revisions, re-pointed
+//            to a newer source revision or hidden because a link was later paused or unlinked.
+//            Read only: nothing is locked, written or audited.
 // Every child is found through the exact case of the path: another case's fact is 404.
 // Lock order: CaseRecord (update) → CaseSource (share) → CaseWork / ReportedItem / UseMapping
 // (share) → CaseFact (update, the revised head) → SourceReference.
@@ -38,6 +41,7 @@ import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import type {
   CaseFact as CaseFactView,
+  CaseFactSourcesView,
   CaseFactSummary,
   CreateFact,
   FactSupport,
@@ -82,9 +86,11 @@ import {
   TARGET_FIELDS,
   touchCaseFor,
 } from './intake-rules.js';
-import { toCaseFactSummary, toCaseFactView } from './intake-views.js';
+import { toCaseFactSummary, toCaseFactView, toFactSourceView } from './intake-views.js';
 
 const ENTITY = 'CaseFact';
+/** Supports a create or revision accepts (CreateFact / ReviseFact `sources`): 0–100. */
+const MAX_SUPPORTS = 100;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 export const FACT_TYPES: readonly string[] = [
   'RIGHTS_BASIS',
@@ -212,6 +218,32 @@ export class CaseFactsService {
     const row = await this.prisma.caseFact.findFirst({ where: { id, caseId } });
     if (!row) throw apiErrors.notFound();
     return toCaseFactView(row);
+  }
+
+  /**
+   * The FactSource rows recorded for one revision of this case, exactly as stored, in ascending
+   * (createdAt, id) order — a revision's rows share their createdAt, so that is id order; the order
+   * the supports were submitted in is not stored. Zero rows means only that none was recorded.
+   * 404 for an unknown case or fact and for another case's fact, indistinguishably.
+   */
+  async sources(caseId: string, id: string): Promise<CaseFactSourcesView> {
+    const fact = await this.prisma.caseFact.findFirst({
+      where: { id, caseId },
+      select: { id: true },
+    });
+    if (!fact) throw apiErrors.notFound();
+    const rows = await this.prisma.factSource.findMany({
+      where: { factId: fact.id },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      include: { caseSource: { select: { caseId: true } } },
+    });
+    // Every support is written with its revision, naming a CaseSource of the fact's own case
+    // (INVARIANTS §3), at most 100 per revision. A row that is not is never shown: it would name
+    // another case's link or break the contract (500, not a leak or a partial answer).
+    if (rows.length > MAX_SUPPORTS || rows.some((row) => row.caseSource.caseId !== caseId)) {
+      throw apiErrors.internal();
+    }
+    return { factId: fact.id, sources: rows.map(toFactSourceView) };
   }
 
   /** Revision 1 of a new fact chain, exactly as supplied, with its supports. */
