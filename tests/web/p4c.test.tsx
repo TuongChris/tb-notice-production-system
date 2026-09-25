@@ -396,15 +396,29 @@ describe('P4C correspondence registry UI', () => {
 });
 
 describe('P4C case correspondence UI', () => {
-  it('binds a captured message with the case ETag; the event is chosen explicitly — nothing is preselected from an outbound direction — and the history shows the "as sent" copy', async () => {
+  it('binds a captured message with the case ETag; the event is chosen explicitly — nothing is preselected from an outbound direction or a subject — and the history shows the "as sent" copy', async () => {
     const api = new FakeDirectory();
     const w = world(api);
     await render(api, `/cases/${w.caseA.id}/correspondence-bindings/new`);
     await waitFor(() => q('#binding-eventType') !== null, 'binding form');
+    // A subject asking for more information preselects nothing (no NMI classifier).
+    await choose('#binding-correspondenceId', w.inbound.id, 'messages');
+    await waitFor(
+      () => pageText().includes('SYNTHETIC request for more information'),
+      'inbound summary',
+    );
+    expect((q('#binding-eventType') as HTMLSelectElement).value).toBe('');
     await choose('#binding-correspondenceId', w.outbound.id, 'messages');
     expect(optionValues('#binding-correspondenceId')).not.toContain(w.foreign.id);
     expect((q('#binding-eventType') as HTMLSelectElement).value).toBe('');
-    await waitFor(() => q('[data-testid="binding-message-summary"]') !== null, 'summary');
+    await waitFor(
+      () =>
+        q('[data-testid="binding-message-summary"]')?.textContent?.includes(
+          'SYNTHETIC outbound notice',
+        ) === true,
+      'outbound summary',
+    );
+    expect((q('#binding-eventType') as HTMLSelectElement).value).toBe('');
     expect(q('[data-testid="as-sent-copy"]')).toBeNull();
     await submit(q('form.record-form'));
     await until('Choose what this message is recorded as.');
