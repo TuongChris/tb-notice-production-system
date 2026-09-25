@@ -40,6 +40,15 @@
 # correction) and no send, reply, update, delete, readiness or production route, leaving synthetic
 # records in the disposable CI tb_notice_dev only (it refuses to run outside CI). Capture is not a
 # send: no mail, mailbox, Drive or other external action exists.
+# P4D: smoke:local also checks that the compiled production context is session-protected and that
+# prompts onward stay unrouted; smoke:p4d builds a synthetic directory, frozen authority chain, case
+# intake and correspondence, then reads the production context (INITIAL and NMI_REPLY, PREPARATION
+# and DRAFTING, explicit selectors only) and checks the exact pinned authority, MISSING and CONFLICT
+# kept as recorded, a deterministic digest that ignores route defaults and follows a later authority
+# event, the expected refusals, that the reads wrote nothing (row counts read through the runtime
+# account) and that no prompt, candidate, validation, readiness or export route exists, leaving
+# synthetic records in the disposable CI tb_notice_dev only (it refuses to run outside CI). The
+# context determines no G1-G7 or readiness; nothing is generated, signed or sent.
 name: CI
 
 on:
@@ -188,6 +197,8 @@ jobs:
         run: yarn smoke:p4b --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"
       - name: P4C compiled correspondence capture → explicit case bindings → item outcomes → correction (yarn smoke:p4c, synthetic; nothing sent)
         run: yarn smoke:p4c --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"
+      - name: P4D compiled production context → INITIAL and NMI_REPLY reads → pinning, digest and refusals (yarn smoke:p4d, synthetic setup; the context reads write nothing)
+        run: yarn smoke:p4d --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"
       - name: P1.1 recovery commands (synthetic account; P0 actor untouched)
         run: |
           E=p1-ci-admin@example.invalid
