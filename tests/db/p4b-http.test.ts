@@ -45,7 +45,6 @@ import {
   countRows,
   dataOf,
   DirectoryClient,
-  errorOf,
   etagOf,
   FailingAuditWriter,
   newKey,
@@ -140,13 +139,21 @@ interface Page<T> {
   readonly nextCursor: string | null;
 }
 
-const code = (result: HttpResult) => errorOf(result).code;
+/**
+ * The error body of a refusal. A success has none: the helpers below then describe the success, so
+ * a test that expected a refusal fails on the status it got, not on a missing property.
+ */
+const errorBody = (result: HttpResult) =>
+  (result.json as { error?: { code: string; details: Record<string, unknown> } } | undefined)
+    ?.error;
+const code = (result: HttpResult) => errorBody(result)?.code ?? `(no error: HTTP ${result.status})`;
 const outcome = (result: HttpResult) => [result.status, code(result)];
-const detailsOf = (result: HttpResult) => errorOf(result).details;
+const detailsOf = (result: HttpResult) => errorBody(result)?.details ?? {};
 /** The error body without its requestId: two refusals that must be indistinguishable. */
 const refusalOf = (result: HttpResult) => {
-  const { requestId: _requestId, ...rest } = (result.json as { error: Record<string, unknown> })
-    .error;
+  const { requestId: _requestId, ...rest } = (errorBody(result) ?? {
+    noError: `HTTP ${result.status}`,
+  }) as Record<string, unknown>;
   return rest;
 };
 
@@ -608,6 +615,38 @@ async function reviseFact(caseId: string, id: string, body: Record<string, unkno
 const listFacts = (caseId: string, query = '') =>
   listOf<CaseFactSummary>('listCaseFacts', `/cases/${caseId}/facts${query}`);
 
+/** The text MySQL itself holds in an intake DATETIME(3) column (not Prisma's read path). */
+async function columnInstant(
+  table: 'reported_items' | 'case_facts',
+  column: 'observed_at' | 'asserted_as_of',
+  id: string,
+): Promise<string | null> {
+  const [row] = await prisma.$queryRaw<Array<{ value: string | null }>>(
+    Prisma.sql`SELECT CAST(${Prisma.raw(column)} AS CHAR) AS value FROM ${Prisma.raw(table)}
+      WHERE id = ${id}`,
+  );
+  return row?.value ?? null;
+}
+
+/** '2025-06-30T10:15:00.123Z' → '2025-06-30 10:15:00.123', the column's UTC text. */
+const columnText = (instant: string) => instant.replace('T', ' ').replace('Z', '');
+
+/**
+ * [wire value, the instant stored] — spellings the contract format admits that a string parser
+ * gets wrong (R7): V8's Date parser refuses an hour-only offset; Prisma's DateTime parser refuses
+ * ±HH and ±HHMM offsets and a TAB or ideographic-space separator. Each is stored as exactly its
+ * instant, never as the request string or a parser's reading of it.
+ */
+const ADMITTED_SPELLINGS: Array<[string, string]> = [
+  ['2025-06-30T15:15:00+05', '2025-06-30T10:15:00.000Z'],
+  ['2025-06-30T15:45:00+0530', '2025-06-30T10:15:00.000Z'],
+  ['2025-06-30\t10:15:00Z', '2025-06-30T10:15:00.000Z'],
+  ['2025-06-30　10:15:00Z', '2025-06-30T10:15:00.000Z'],
+  ['2025-06-30t10:15:00.5z', '2025-06-30T10:15:00.500Z'],
+  ['0999-12-31T23:30:00-01:00', '1000-01-01T00:30:00.000Z'],
+  ['9999-12-31T23:59:59.499Z', '9999-12-31T23:59:59.499Z'],
+];
+
 /** The stored FactSource rows of a fact revision (no contracted read returns them — §1.2). */
 const storedSupports = (factId: string) =>
   prisma.factSource.findMany({
@@ -796,6 +835,17 @@ describe('REPORTED ITEMS — identification of reported material; not an infring
       ]);
     }
     expect(await countRows(prisma, 'reported_items')).toBe(0);
+    for (const [index, [observedAt, instant]] of ADMITTED_SPELLINGS.entries()) {
+      const spelled = await createItem(w.case.data.id, {
+        rawUrl: itemUrl(`Spelling_0${index}`),
+        observedAt,
+      });
+      expect(spelled.data.observedAt, observedAt).toBe(instant);
+      expect(
+        await columnInstant('reported_items', 'observed_at', spelled.data.id),
+        observedAt,
+      ).toBe(columnText(instant));
+    }
     const item = await createItem(w.case.data.id, {
       observedAt: '2026-09-20T10:00:00.120000+02:00',
     });
@@ -809,12 +859,23 @@ describe('REPORTED ITEMS — identification of reported material; not an infring
     expect(versioned<ReportedItem>(same, 200).data).toEqual(item.data);
     expect(affectedOf(same)).toEqual([]);
     expect(await auditCount('REPORTED_ITEM_UPDATED')).toBe(0);
-    // Clearing it is explicit.
-    const cleared = versioned<ReportedItem>(
-      await patchItem(w.case.data.id, item.data.id, item.etag, { observedAt: null }),
+    // Another instant, in a spelling V8 cannot read, is stored as exactly that instant.
+    const moved = versioned<ReportedItem>(
+      await patchItem(w.case.data.id, item.data.id, item.etag, {
+        observedAt: '2026-09-20T15:00:00+05',
+      }),
       200,
     );
-    expect([cleared.data.observedAt, cleared.data.rowVersion]).toEqual([null, 2]);
+    expect(moved.data.observedAt).toBe('2026-09-20T10:00:00.000Z');
+    expect(await columnInstant('reported_items', 'observed_at', item.data.id)).toBe(
+      '2026-09-20 10:00:00.000',
+    );
+    // Clearing it is explicit.
+    const cleared = versioned<ReportedItem>(
+      await patchItem(w.case.data.id, item.data.id, moved.etag, { observedAt: null }),
+      200,
+    );
+    expect([cleared.data.observedAt, cleared.data.rowVersion]).toEqual([null, 3]);
   });
 
   it('patch, archive and restore: the item’s own If-Match; the raw URL and derived id never change; archived is read-only except restore; nothing cascades', async () => {
@@ -1400,6 +1461,23 @@ describe('USE MAPPINGS — a recorded work ↔ reported item association within 
       basisSourceId: reviewed.id,
     });
     expect(documented.data.provenance).toBe('DOCUMENT_REVIEWED');
+    // A reviewed basis source upgrades nothing: an omitted provenance stays MISSING, a supplied
+    // one stays as supplied.
+    const unstated = await createMapping(w.case.data.id, {
+      ...base,
+      occurrence: 3,
+      basisSourceId: reviewed.id,
+    });
+    const reported = await createMapping(w.case.data.id, {
+      ...base,
+      occurrence: 4,
+      provenance: 'OPERATOR_REPORTED',
+      basisSourceId: reviewed.id,
+    });
+    expect([unstated.data.provenance, reported.data.provenance]).toEqual([
+      'MISSING',
+      'OPERATOR_REPORTED',
+    ]);
     for (const [index, provenance] of ['ANALYSIS', 'CONFLICT', 'MISSING'].entries()) {
       const row = await createMapping(w.case.data.id, {
         ...base,
@@ -1815,6 +1893,8 @@ describe('CASE FACTS — explicit, attributed, case-specific assertions; revisio
       ],
     });
     const fact = immutable<CaseFact>(result, 201);
+    // Supports upgrade nothing: the provenance and resolution state stay as supplied.
+    expect([fact.provenance, fact.resolutionState]).toEqual(['OPERATOR_REPORTED', 'UNASSESSED']);
     expect(await storedSupports(fact.id)).toEqual(
       [
         { caseSourceId: linked.data.id, supportRole: 'SYNTHETIC_CONTEXT' },
@@ -1961,7 +2041,21 @@ describe('CASE FACTS — explicit, attributed, case-specific assertions; revisio
       provenance: 'DOCUMENT_REVIEWED',
       sources: [support(linked.data.id), support(reviewedLink.data.id)],
     });
-    expect(documented.provenance).toBe('DOCUMENT_REVIEWED');
+    expect([documented.provenance, documented.resolutionState]).toEqual([
+      'DOCUMENT_REVIEWED',
+      'UNASSESSED',
+    ]);
+    // A reviewed support upgrades nothing supplied lower and never sets a resolution state.
+    for (const provenance of ['OPERATOR_REPORTED', 'MISSING', 'CONFLICT']) {
+      const lower = await createFact(w.case.data.id, {
+        provenance,
+        sources: [support(reviewedLink.data.id)],
+      });
+      expect([lower.provenance, lower.resolutionState], provenance).toEqual([
+        provenance,
+        'UNASSESSED',
+      ]);
+    }
     // The cited sources and links are unchanged.
     expect((await getLink(linked.data.id)).data).toEqual(linked.data);
     expect((await client.get('getSource', `/sources/${w.source.id}`)).json).toMatchObject({
@@ -2085,8 +2179,15 @@ describe('CASE FACTS — explicit, attributed, case-specific assertions; revisio
     expect(await getFact(b.w.case.data.id, foreign.id)).toEqual(foreign);
   });
 
-  it('pinning: a newer SourceReference revision re-points neither the case source link nor the fact support that cites it', async () => {
-    const { w, linked } = await intakeWorld();
+  it('pinning: a newer SourceReference revision re-points neither the case source link, the fact support nor the mapping basis that cites it', async () => {
+    const { w, item, work, linked } = await intakeWorld();
+    const basis = await createMapping(w.case.data.id, {
+      caseWorkId: work.data.id,
+      reportedItemId: item.data.id,
+      occurrence: 2,
+      provenance: 'OPERATOR_REPORTED',
+      basisSourceId: w.source.id,
+    });
     const fact = await createFact(w.case.data.id, {
       provenance: 'OPERATOR_REPORTED',
       sources: [
@@ -2111,6 +2212,7 @@ describe('CASE FACTS — explicit, attributed, case-specific assertions; revisio
       select: { caseSource: { select: { sourceId: true } } },
     });
     expect(pinned.caseSource.sourceId).toBe(w.source.id);
+    expect((await getMapping(w.case.data.id, basis.data.id)).data).toEqual(basis.data);
   });
 
   it('DUPLICATE_REVIEW names other existing cases only, each once; nothing of them is read into, copied or changed', async () => {
@@ -2174,6 +2276,13 @@ describe('CASE FACTS — explicit, attributed, case-specific assertions; revisio
       ]);
     }
     expect(await countRows(prisma, 'case_facts')).toBe(0);
+    for (const [assertedAsOf, instant] of ADMITTED_SPELLINGS) {
+      const spelled = await createFact(w.case.data.id, { assertedAsOf });
+      expect(spelled.assertedAsOf, assertedAsOf).toBe(instant);
+      expect(await columnInstant('case_facts', 'asserted_as_of', spelled.id), assertedAsOf).toBe(
+        columnText(instant),
+      );
+    }
     const recorded = await createFact(w.case.data.id, {
       factType: 'AUTHORITY_CURRENTNESS',
       value: {

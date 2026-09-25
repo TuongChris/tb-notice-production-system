@@ -590,6 +590,44 @@ describe('P4B case intake UI', () => {
     for (const stamp of stampTexts()) expect(stamp).not.toMatch(FORBIDDEN_STAMPS);
   });
 
+  it('a reviewed source upgrades nothing: a fact and a use mapping are sent with the provenance and resolution exactly as chosen', async () => {
+    const api = new FakeDirectory();
+    const w = world(api);
+    await render(api, `/cases/${w.caseA.id}/facts/new`);
+    await waitFor(() => q('#fact-factType') !== null, 'form');
+    await type('#fact-factType', 'WORK_IDENTIFICATION');
+    await type('#fact-scopeKind', 'CASE');
+    await click(byText('button', 'Add a supporting source'));
+    await choose('#fact-sources-0-caseSourceId', w.linkReviewed.id, 'links');
+    await type('#fact-sources-0-supportRole', 'PRIMARY');
+    await type('#fact-sources-0-supportedAssertion', 'SYNTHETIC supported statement');
+    // Choosing a reviewed source chooses nothing for the operator.
+    expect((q('#fact-provenance') as HTMLSelectElement).value).toBe('');
+    expect((q('#fact-resolutionState') as HTMLSelectElement).value).toBe('UNASSESSED');
+    await type('#fact-provenance', 'OPERATOR_REPORTED');
+    await type('#fact-value-description', 'SYNTHETIC description');
+    await type('#fact-scopeText', 'SYNTHETIC scope of the fact');
+    await type('#fact-changeReason', 'SYNTHETIC first record');
+    await submit(q('form.record-form'));
+    await until('Fact recorded.');
+    const [fact] = bodies(api, 'POST', `/cases/${w.caseA.id}/facts`);
+    expect(fact?.body).toMatchObject({
+      provenance: 'OPERATOR_REPORTED',
+      resolutionState: 'UNASSESSED',
+      sources: [{ caseSourceId: w.linkReviewed.id }],
+    });
+    // A mapping based on the reviewed source keeps the provenance as chosen (here the default).
+    await go(`/cases/${w.caseA.id}/mappings/new`);
+    await choose('#mapping-caseWorkId', w.workA.id, 'works');
+    await type('#mapping-reportedItemId', w.itemA.id);
+    await choose('#mapping-basisSourceId', w.reviewed.id, 'basis sources');
+    expect((q('#mapping-provenance') as HTMLSelectElement).value).toBe('MISSING');
+    await submit(q('form.record-form'));
+    await until('Use mapping recorded.');
+    const [mapping] = bodies(api, 'POST', `/cases/${w.caseA.id}/mappings`);
+    expect(mapping?.body).toMatchObject({ provenance: 'MISSING', basisSourceId: w.reviewed.id });
+  });
+
   it('revises the current fact with the case ETag: type and scope fixed; the earlier revision stays readable, marked as earlier, and cannot be revised', async () => {
     const api = new FakeDirectory();
     const w = world(api);
