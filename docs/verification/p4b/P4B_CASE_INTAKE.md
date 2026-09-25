@@ -2,23 +2,25 @@
 
 Mission TB_R8_MERGE_CLOSEOUT_AND_P4B_CASE_INTAKE_TO_R9 on `feature/p4b-case-intake`, created from the exact post-merge `main` head `1d91c41` (P4A merged by pull request #3; `P4A_CASE_CORE.md` §23). Recorded 2026-09-25 (UTC) on the home PC, the primary development workstation (ADR-0003). The mission stops at review gate **R9**, submitted with the documentation commit that adds this record, on the code head `35cf552`. Every later case phase is **not started**: no correspondence or correspondence binding, ProductionContext, PromptSnapshot, NoticeCandidate, ValidationRun workflow, CandidateAssessment, readiness gate, G1–G7, READY_FOR_SIGNER, signature, adoption, sending, uploader contact, YouTube fetch, Drive write, mailbox or other external action exists.
 
-**R9 result (operator, 2026-09-25): PASS_WITH_ONE_CONTRACT_REMEDIATION.** P4B is functionally accepted. The one blocker was the FactSource read-back gap (§1.2, §19). It is remediated by the mission TB_R9_FACT_SOURCE_READBACK_REMEDIATION_TO_R9_FINAL (2026-09-25) on `feature/r9-fact-support-readback`: the additive contract release **TB-SCHEMA-API-v1.2.0** (ADR-0005, PROPOSED) and its one new read, `getCaseFactSources` (§25). The remediation is submitted for **R9 final (PENDING)**; R9 stays **PASS_WITH_ONE_CONTRACT_REMEDIATION** until the operator's final review.
+**R9 result (operator, 2026-09-25): PASS_WITH_ONE_CONTRACT_REMEDIATION.** P4B is functionally accepted. The one blocker was the FactSource read-back gap (§1.2, §19). It is remediated by the mission TB_R9_FACT_SOURCE_READBACK_REMEDIATION_TO_R9_FINAL (2026-09-25) on `feature/r9-fact-support-readback`: the additive contract release **TB-SCHEMA-API-v1.2.0** (ADR-0005) and its one new read, `getCaseFactSources` (§25).
 
-**Merged (2026-09-25, by the operator):** `P4B = MERGED_TO_MAIN` — pull request #4, merge commit `eb83b19` (parents `1d91c41` and the R9 submission head `6ff6775`); `main` push CI run 36106838217 success. `P4B_STATUS = VERIFIED_COMPLETE_FOR_IMPLEMENTED_SCOPE` (§24). P4C is **not started**.
+**Merged (2026-09-25, by the operator):** `P4B = MERGED_TO_MAIN` — pull request #4, merge commit `eb83b19` (parents `1d91c41` and the R9 submission head `6ff6775`); `main` push CI run 36106838217 success (§24).
+
+**R9 final result (operator, 2026-09-25): PASS.** P4B = **VERIFIED_COMPLETE**; the R9 remediation is accepted; ADR-0005 = **ACCEPTED**; the active wire contract is **TB-SCHEMA-API-v1.2.0**. The operator merged the remediation into `main` by pull request #5 (merge commit `d2b6f00`, parents `eb83b19` and the accepted head `a31ad90`); `main` push CI run 36126817873 success (mission TB_R9_POST_MERGE_CLOSEOUT_AND_P4C_CORRESPONDENCE_TO_R10; §26). P4C is **NOT_STARTED** at this record.
 
 ## Status by scope (not collapsed)
 
 | Scope | Status | Basis |
 |---|---|---|
 | **P4B_FIRST_PC** | **PASS** — `yarn test` 1326 in 36 files, `yarn test:db` 333 in 9 files; regression sweep 21/21 on the code head `35cf552`. R9 remediation: `yarn test` 1346 in 37 files, `yarn test:db` 340 in 9 files, sweep 21/21 on `b862cf7` (§25.10) | §16, `evidence/p4b-first-pc-sweep.txt`, `evidence/r9-first-pc-sweep.txt`; lint **0 warnings** |
-| **P4B_CI** | **PASS** for `e2ce11d` (push run 36097731802; the new compiled `smoke:p4b`, 54 checks), `aa9ee2c` (push run 36099915631), the code head `35cf552` (push run 36104287781, both jobs success, `smoke:p4b` 54 checks) and the R9 submission head `6ff6775` (push run 36105169096; pull_request run 36106823445), all success; the post-merge `main` `eb83b19` (push run 36106838217, success, §24); the R9 remediation code head `b862cf7` (push run 36116320128, both jobs success, `smoke:p4b` 64 checks, §25.10). A commit cannot record its own run: the run of the R9 remediation documentation commit is reported with the R9-final report | CI runs `yarn test`, `yarn test:db`, `smoke:local`, `smoke:auth`, `smoke:directory`, `smoke:p3a`, `smoke:p3b`, `smoke:p4a` and the new compiled `smoke:p4b` (§16) |
+| **P4B_CI** | **PASS** for `e2ce11d` (push run 36097731802; the new compiled `smoke:p4b`, 54 checks), `aa9ee2c` (push run 36099915631), the code head `35cf552` (push run 36104287781, both jobs success, `smoke:p4b` 54 checks) and the R9 submission head `6ff6775` (push run 36105169096; pull_request run 36106823445), all success; the post-merge `main` `eb83b19` (push run 36106838217, success, §24); the R9 remediation code head `b862cf7` (push run 36116320128, both jobs success, `smoke:p4b` 64 checks, §25.10); the accepted R9-final head `a31ad90` (push run 36120427855; pull_request run 36123954319) and the post-merge `main` `d2b6f00` (push run 36126817873), all success (§26). The run of this closeout record is reported in the P4C report | CI runs `yarn test`, `yarn test:db`, `smoke:local`, `smoke:auth`, `smoke:directory`, `smoke:p3a`, `smoke:p3b`, `smoke:p4a` and the new compiled `smoke:p4b` (§16) |
 | **P4B_BROWSER (Playwright MCP)** | **PASS** 27/27 (mission §27), with the reading-back of fact supports in scenario 15 **BLOCKED** by the reported contract gap (§1.2); one UI finding found and fixed (F1, §14). R9 read-back **PASS** 12/12 — the blocked part now verified (§25.8) | Isolated test browser against the compiled API on the disposable `tb_notice_test` (`evidence/p4b-playwright-mcp-verification.txt`, `evidence/r9-playwright-mcp-verification.txt`) |
 | **P4B_NEGATIVE_CONTROLS** | **PASS** 63/63 (§15); R9 remediation **PASS** 21/21 (§25.9) | Every disabled protection made its responsible tests fail; files restored byte-identically; working tree identical before and after; `tb_notice_test` empty afterwards (`evidence/p4b-negative-controls.txt`, `evidence/r9-negative-controls.txt`) |
-| **P4B_CONTRACT** | **NO WIRE CHANGE** in P4B — TB-SCHEMA-API-v1.1.0 stayed the active contract; one gap **REPORTED, not worked around**: no operation returns a fact's FactSource rows (§1.2, §19). Remediated by the additive release **TB-SCHEMA-API-v1.2.0** (R9 remediation, ADR-0005 **PROPOSED**, §25) | `contracts:check` OK; release and parity tests (§25.3) |
+| **P4B_CONTRACT** | **NO WIRE CHANGE** in P4B — TB-SCHEMA-API-v1.1.0 stayed the active contract; one gap **REPORTED, not worked around**: no operation returns a fact's FactSource rows (§1.2, §19). Remediated by the additive release **TB-SCHEMA-API-v1.2.0** (R9 remediation, §25; ADR-0005 **ACCEPTED** at R9 final — the active contract since, §26) | `contracts:check` OK; release and parity tests (§25.3) |
 | **P4B_DATABASE** | **NO MIGRATION** — the initial schema already holds the five intake tables (§18); the R9 remediation made none either (§25.11) | `db:verify`, both drift diffs |
-| **R9 review** | **PASS_WITH_ONE_CONTRACT_REMEDIATION** (operator, 2026-09-25) — P4B functionally accepted; the one remediation, the fact-support read-back (TB-SCHEMA-API-v1.2.0), is **IMPLEMENTED AND VERIFIED** on `feature/r9-fact-support-readback` (§25) and submitted for **R9 final (PENDING)** | §24, §25 |
-| **P4B_STATUS** | **VERIFIED_COMPLETE_FOR_IMPLEMENTED_SCOPE** (the 22 contracted intake operations) | §24 |
-| **P4B_MERGE** | **MERGED_TO_MAIN** — pull request #4, merge commit `eb83b19` (method: merge commit; merged by the operator 2026-09-25T07:16:46Z); `main` push CI run 36106838217 success. The R9 remediation is **not merged** | §24 |
+| **R9 review** | **PASS** (operator, 2026-09-25, R9 final) — first **PASS_WITH_ONE_CONTRACT_REMEDIATION** (P4B functionally accepted); the one remediation, the fact-support read-back (TB-SCHEMA-API-v1.2.0), was **IMPLEMENTED AND VERIFIED** (§25) and accepted with ADR-0005 | §24, §25, §26 |
+| **P4B_STATUS** | **VERIFIED_COMPLETE** (R9 final; at R9: VERIFIED_COMPLETE_FOR_IMPLEMENTED_SCOPE — the 22 contracted intake operations) | §24, §26 |
+| **P4B_MERGE** | **MERGED_TO_MAIN** — pull request #4, merge commit `eb83b19` (method: merge commit; merged by the operator 2026-09-25T07:16:46Z); `main` push CI run 36106838217 success. The R9 remediation: pull request #5, merge commit `d2b6f00` (method: merge commit; merged by the operator 2026-09-25T10:58:02Z); `main` push CI run 36126817873 success | §24, §26 |
 | **P1_WINDOWS_BROWSER** | **NOT_RUN** (not reported) | Unchanged |
 | **P0_SECOND_PC** / **P0_TWO_PC_ACCEPTANCE** / **P0_SINGLE_PC_BASELINE** / **P0_OVERALL** | **DEFERRED_BY_OPERATOR** / **NOT_COMPLETED** / **VERIFIED** / **NOT_COMPLETE** against the original two-PC contract | ADR-0003; unchanged by P4B |
 
@@ -36,11 +38,11 @@ Persistent rules established by P4B (recorded in `CLAUDE.md`):
 - **Revisions preserve history.** A fact is revised only at its current head; every earlier revision and its supports stay exactly as recorded and readable.
 - **Source and provenance are pinned.** A support cites the exact source revision behind its case source link and a mapping its exact basis revision; a newer revision re-points nothing; provenance is never upgraded — DOCUMENT_REVIEWED only with a cited source that itself records a review.
 - **P4B computes no readiness.** No intake record or state computes or implies G1–G7, READY_FOR_SIGNER or readiness.
-- **TB-SCHEMA-API-v1.1.0 remains active.** P4B changed no wire contract; the FactSource read-back gap is reported for a separately approved release. (The R9 remediation proposes that release, TB-SCHEMA-API-v1.2.0 with ADR-0005, for R9 final; §25.)
+- **TB-SCHEMA-API-v1.1.0 remained active during P4B.** P4B changed no wire contract; the FactSource read-back gap was reported for a separately approved release: TB-SCHEMA-API-v1.2.0 with ADR-0005, accepted at R9 final and the active contract since (§25–§26).
 - **Supports are read back exactly as recorded** (R9 remediation, §25). The supports of one fact revision are returned exactly as stored, for that revision only: never merged across revisions, never hidden after the link is paused or unlinked, never following a newer source revision, and never proof, a document review, SUPPORTED_FOR_SCOPE, a finding, G1–G7 or readiness.
 - **No secrets and no real case data in Git.** Every fixture, test and browser record is synthetic.
 
-> §1 was written from the contract, the domain model and the invariants before any P4B code; §2–§23 record the implementation and its verification; §24 records the R9 result and the merge, §25 the R9 remediation. Sections 1–23 keep the state at their time (for example "R9 PENDING" and the support gap).
+> §1 was written from the contract, the domain model and the invariants before any P4B code; §2–§23 record the implementation and its verification; §24 records the R9 result and the merge, §25 the R9 remediation, §26 the R9 final result and the remediation's merge. Sections 1–25 keep the state at their time (for example "R9 PENDING", the support gap, and "R9 final (PENDING)" and "ADR-0005 PROPOSED" in §25).
 
 ## 1. Operation matrix and design (contract-first, produced before coding)
 
@@ -461,3 +463,49 @@ Run 1 (09:08:22Z–09:09:24Z, same head, before the browser pass) was also 21/21
 | P4B | **VERIFIED_COMPLETE_FOR_IMPLEMENTED_SCOPE**, **MERGED_TO_MAIN** (`eb83b19`) |
 | Database / dependencies | **No change** |
 | P4C | **NOT_STARTED** |
+
+## 26. R9 final — PASS and merge reconciliation (2026-09-25, home PC)
+
+Mission TB_R9_POST_MERGE_CLOSEOUT_AND_P4C_CORRESPONDENCE_TO_R10, §0–§2. Recorded on `feature/p4c-correspondence` after the operator merged the remediation, before any P4C code. Sections 1–25 keep the state at their time (for example "R9 final (PENDING)" and "ADR-0005 PROPOSED" in §25).
+
+### 26.1 Result (operator)
+
+| Item | Recorded value |
+|---|---|
+| R9 (first result) | **PASS_WITH_ONE_CONTRACT_REMEDIATION** (2026-09-25) — the FactSource read-back gap (§1.2, §19) |
+| Remediation | **IMPLEMENTED AND VERIFIED** — TB-SCHEMA-API-v1.2.0 with `getCaseFactSources` (§25); **accepted** |
+| **R9 final** | **PASS** (2026-09-25) |
+| **P4B** | **VERIFIED_COMPLETE** and **MERGED_TO_MAIN** (P4B by pull request #4, §24.2; the remediation by pull request #5, §26.2) |
+| **ADR-0005** | **ACCEPTED** (`docs/decisions/ADR-0005-tb-schema-api-v1-2-0-case-fact-sources-read.md`) |
+| **Active wire contract** | **TB-SCHEMA-API-v1.2.0** = TB-SCHEMA-API-v1.1.0 (ADR-0004: the frozen TB-SCHEMA-API-v1.0.0 reference + `docs/contracts/TB-SCHEMA-API-v1.1.0/amendment.json`, sha256 `2f4df697…dfda85`) + `docs/contracts/TB-SCHEMA-API-v1.2.0/amendment.json` (sha256 `b5cae658a3f47639500e2220e4a91fcfb81c34972d8426a4fa9fd1146cdbc294`); both records are pinned and never edited |
+| Frozen historical reference | **TB-SCHEMA-API-v1.0.0** (unchanged under `docs/reference`) |
+| PFC wire id | `PFC-YT-EMAIL-v1.1` (unchanged) |
+| `AppMeta.schemaRelease` | Stays `TB-SCHEMA-API-v1.0.0`, as recorded (ADR-0004, ADR-0005) |
+| `MAIN_POST_R9_CI` | **PASS** (§26.2) |
+| P4C | **NOT_STARTED** at this record — authorized by the same mission on `feature/p4c-correspondence` from the exact post-merge `main`; gate R10 |
+
+### 26.2 Merge reconciliation (verified with `git` and authenticated `gh`, not assumed)
+
+| Item | Observed value |
+|---|---|
+| Accepted remediation head | `a31ad9011ff82979c56342ecb75a61fa73a3a65f` — the R9-final submission (documentation on the code head `b862cf7`); push run [36120427855](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36120427855) success (2026-09-25T09:47:42Z–09:53:00Z, both jobs; `yarn test` 1346 / 37 files, `yarn test:db` 340 / 9 files, lint "Found 0 warnings and 0 errors.", `smoke:p4b` 64) |
+| Pull request | [#5](https://github.com/TuongChris/tb-notice-production-system/pull/5) `feature/r9-fact-support-readback` → `main`, "Feature/r9 fact support readback", 4 commits (`fbcd8ae`, `02332da`, `b862cf7`, `a31ad90`), `headRefOid` = `a31ad90`; opened 2026-09-25T10:26:00Z and merged 10:58:02Z by the repository owner's account. Its pull_request run [36123954319](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36123954319) (10:26:05Z–10:32:00Z) was **success**, both jobs, before the merge |
+| Merge method | **merge commit** (not squash, not rebase): `d2b6f00` has two parents, `eb83b19` (previous `main`) and `a31ad90`; message "Merge pull request #5 from TuongChris/feature/r9-fact-support-readback" |
+| Merged `main` head | `d2b6f0030f9b7e53b612eaf1fa6dffffb98e4395` |
+| Ancestry / content | `git merge-base --is-ancestor a31ad90 origin/main` → exit 0; `eb83b19` is an ancestor of `a31ad90` (the branch started there), so the merge introduced nothing else: the trees of `d2b6f00` and `a31ad90` are identical (`747202334ca84ec30788ade50ca7be1b77d900d4`; `git diff a31ad90 d2b6f00` empty) |
+| `MAIN_POST_R9_CI` | **PASS** — push run [36126817873](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36126817873) on `d2b6f00`, 2026-09-25T10:58:04Z–11:03:10Z: "Non-DB checks (cold install)" (job 108044733876) and "Database, seed and smoke (MySQL 8.4.11)" (job 108044734041) both success — `reference:check` OK, `contracts:check` OK, lint "Found 0 warnings and 0 errors.", `yarn test` 1346 / 37 files, `yarn test:db` 340 / 9 files, build (entry 319.34 kB, no bundle advisory), seed digest unchanged, both drift diffs empty, `smoke:local` 42, `smoke:auth` 4, `smoke:directory` 14, `smoke:p3a` 24, `smoke:p3b` 36, `smoke:p4a` 50, `smoke:p4b` 64, the P1.1 recovery checks, `yarn dev` clean shutdown 4/4 (job logs read with the authenticated `gh api …/actions/jobs/<id>/logs`) |
+
+### 26.3 History preserved
+
+Nothing was amended, rebased, rewritten or force-pushed, and no tag or release was created. `feature/r9-fact-support-readback` stays at `a31ad90` and `feature/p4b-case-intake` at `6ff6775` (local and origin); every earlier phase branch is unchanged. The local `main` was fast-forwarded to `origin/main` (`1d91c41` → `d2b6f00`, fast-forward only); no commit was made on it.
+
+### 26.4 Status
+
+| Scope | Status |
+|---|---|
+| R9 review | **PASS** (operator, 2026-09-25, R9 final) |
+| P4B_STATUS | **VERIFIED_COMPLETE** |
+| P4B_MERGE | **MERGED_TO_MAIN** — P4B: PR #4, merge commit `eb83b19`; the R9 remediation: PR #5, merge commit `d2b6f00` (method: merge commit), merged 2026-09-25T10:58:02Z; `main` push CI run 36126817873 success |
+| ADR-0005 / active contract | **ACCEPTED** / **TB-SCHEMA-API-v1.2.0** (frozen historical reference TB-SCHEMA-API-v1.0.0; PFC wire id `PFC-YT-EMAIL-v1.1`) |
+| Database / dependencies | **No change** — `20260923103912_initial_schema` is still the only migration; lockfile unchanged |
+| P4C | Branch `feature/p4c-correspondence` created from the exact `origin/main` `d2b6f00` (not from `feature/r9-fact-support-readback` or `feature/p4b-case-intake`) and pushed with upstream; at creation local and origin pointed at `d2b6f00`, the worktree was clean, `reference:check` and `contracts:check` passed; branch-creation push run [36129072727](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36129072727) (2026-09-25T11:22:58Z–11:28:13Z) **success**, both jobs. **P4C implementation = NOT_STARTED** at this checkpoint (`docs/verification/p4c/`, when written, records it) |

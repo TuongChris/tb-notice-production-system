@@ -1,10 +1,10 @@
 # ADR-0005 — TB-SCHEMA-API-v1.2.0: additive read of the FactSource rows recorded for one case fact revision
 
-Status: **PROPOSED** — 2026-09-25, with the R9 remediation (mission TB_R9_FACT_SOURCE_READBACK_REMEDIATION_TO_R9_FINAL), for the operator's review at gate **R9 final**. The change itself was directed by the operator in the R9 review result (PASS_WITH_ONE_CONTRACT_REMEDIATION), which names the gap, the preferred path and the expected release identifier. Until it is accepted, `main` carries the accepted TB-SCHEMA-API-v1.1.0 (ADR-0004); the remediation branch `feature/r9-fact-support-readback` generates v1.2.0.
+Status: **ACCEPTED** — operator, 2026-09-25, at review gate **R9 (final)**, whose result is **PASS** (mission TB_R9_POST_MERGE_CLOSEOUT_AND_P4C_CORRESPONDENCE_TO_R10). **TB-SCHEMA-API-v1.2.0 is the active wire contract**; TB-SCHEMA-API-v1.0.0 stays the frozen historical reference. The accepted remediation head `a31ad90` was merged into `main` by pull request #5 (merge commit `d2b6f00`). Proposed 2026-09-25 with the R9 remediation (mission TB_R9_FACT_SOURCE_READBACK_REMEDIATION_TO_R9_FINAL). The change itself was directed by the operator in the R9 review result (PASS_WITH_ONE_CONTRACT_REMEDIATION), which names the gap, the preferred path and the expected release identifier.
 Acceptance boundary: an engineering contract change only. It creates no legal or factual authority, no case finding, no proof, no review, no G1–G7 decision and no readiness implication.
 Scope: `packages/contracts/src/**` (two schemas, one operation, the document version, the release constant), the generated artifacts `packages/contracts/{schemas,openapi}/**`, the release record `docs/contracts/TB-SCHEMA-API-v1.2.0/`, the parity tests `tests/contracts/**`, and the API/UI that implement the read.
 Related: ADR-0002 §6 (an intentional wire change needs a new approved baseline: release + ADR), ADR-0004 (the release this one extends and the pattern it follows), P4B report §1.2 and §19 (the gap), INVARIANTS §3 ("FactSource links a CaseSource from the same Case").
-Verification: P4B report §25 — implemented on `feature/r9-fact-support-readback` (code head `b862cf7`); tests, browser pass, negative controls, regression sweep and CI recorded there and in `docs/verification/p4b/evidence/r9-*`.
+Verification: P4B report §25 — implemented on `feature/r9-fact-support-readback` (code head `b862cf7`, accepted head `a31ad90`); tests, browser pass, negative controls, regression sweep and CI recorded there and in `docs/verification/p4b/evidence/r9-*`; acceptance and merge in §26.
 
 ## Context
 
@@ -98,9 +98,9 @@ Verification: P4B report §25 — implemented on `feature/r9-fact-support-readba
 - **Compatibility: additive only.** No existing operation, path, parameter, schema, required field, enum, format, status code, header, security requirement or error code changed. v1.0.0 and v1.1.0 clients keep working unchanged, and `getCaseFact` still returns exactly the CaseFact row. The new capability is one additional read.
 - **The API routes 116 business operations** (P4B's 115 plus this read); every later case operation stays unrouted.
 - **Release constants.** `@tb/contracts` exports `CONTRACT_BASELINE = 'TB-SCHEMA-API-v1.2.0'` and `FROZEN_REFERENCE_RELEASE = 'TB-SCHEMA-API-v1.0.0'`.
-- **Transition check.** `yarn test:transition-baseline` keeps failing by design, as it has since the v1.1.0 edit. It is a historical oracle, not a gate, and is never "fixed".
+- **Transition check.** `yarn test:transition-baseline` keeps failing by design, as it has since the v1.1.0 edit. It is a historical oracle, not a gate, and is never "fixed" (confirmed at acceptance).
 - **`AppMeta.schemaRelease`** stays open exactly as recorded in ADR-0004.
-- **Until acceptance** the status is PROPOSED. After acceptance the release record is fixed and never edited.
+- **The release record is fixed.** Since acceptance at R9 final, `docs/contracts/TB-SCHEMA-API-v1.2.0/amendment.json` (sha256 `b5cae658…c294`) is a reviewed, pinned release record and is never edited; the same holds for the v1.1.0 record.
 
 ## Alternatives considered
 
