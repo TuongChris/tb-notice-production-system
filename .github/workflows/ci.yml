@@ -32,6 +32,14 @@
 # work, a non-video address, stale ETag, a superseded fact revision) and no readiness, G1–G7,
 # production or correspondence route, leaving synthetic records in the disposable CI
 # tb_notice_dev only (it refuses to run outside CI). Nothing in it is a finding or an external action.
+# P4C: smoke:local also checks the compiled correspondence routes and that production context and
+# prompts onward stay unrouted; smoke:p4c runs a compiled capture (inbound NMI, outbound historical
+# transmission, decision) → explicit case bindings (NMI, INITIAL_AS_SENT for two items, one outcome
+# per item) → corrective binding flow with expected refusals (OUTCOME without an item, another
+# agency's message, another case's item, stale ETag, RAW_SOURCE without its raw source, a second
+# correction) and no send, reply, update, delete, readiness or production route, leaving synthetic
+# records in the disposable CI tb_notice_dev only (it refuses to run outside CI). Capture is not a
+# send: no mail, mailbox, Drive or other external action exists.
 name: CI
 
 on:
@@ -178,6 +186,8 @@ jobs:
         run: yarn smoke:p4a --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"
       - name: P4B compiled case intake → reported item → work → mapping → fact → revision (yarn smoke:p4b, synthetic)
         run: yarn smoke:p4b --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"
+      - name: P4C compiled correspondence capture → explicit case bindings → item outcomes → correction (yarn smoke:p4c, synthetic; nothing sent)
+        run: yarn smoke:p4c --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"
       - name: P1.1 recovery commands (synthetic account; P0 actor untouched)
         run: |
           E=p1-ci-admin@example.invalid
