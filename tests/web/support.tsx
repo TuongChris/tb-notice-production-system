@@ -184,8 +184,11 @@ export class FakeDirectory {
   };
   /** Immutable case fact revisions (no ETag, no row version), in recording order. */
   readonly facts: Array<Record<string, unknown> & { id: string }> = [];
-  /** The supports each fact revision was recorded with: stored, never returned (contract gap). */
-  readonly factSupports = new Map<string, unknown[]>();
+  /**
+   * The FactSource rows each fact revision was recorded with, as getCaseFactSources returns them
+   * (TB-SCHEMA-API-v1.2.0): never changed, never moved to another revision.
+   */
+  readonly factSources = new Map<string, Array<Record<string, unknown> & { id: string }>>();
   /** Append-only case authority selections (no ETag, no row version), in recording order. */
   readonly selections: Array<Record<string, unknown> & { id: string }> = [];
   /** The CaseAuthorityCoverage rows each selection pinned, as the contract returns them. */
@@ -497,6 +500,23 @@ export class FakeDirectory {
       ...fields,
     };
     this.facts.push(row);
+    return row;
+  }
+
+  /** A synthetic FactSource row recorded with a fact revision (the revision's own time and actor). */
+  seedFactSource(
+    factId: string,
+    fields: { caseSourceId: string; supportRole: string; supportedAssertion: string },
+  ): Record<string, unknown> & { id: string } {
+    const fact = this.facts.find((row) => row.id === factId);
+    const row = {
+      id: this.id(),
+      factId,
+      ...fields,
+      createdAt: fact?.['createdAt'] ?? NOW,
+      createdById: fact?.['createdById'] ?? USER_ID,
+    };
+    this.factSources.set(factId, [...(this.factSources.get(factId) ?? []), row]);
     return row;
   }
 
@@ -1574,6 +1594,14 @@ export class FakeDirectory {
           ? null
           : (this.facts.find((row) => row.id === childId && row['caseId'] === caseId) ?? null);
       if (childId !== undefined && !fact) return failure(404, 'NOT_FOUND');
+      if (method === 'GET' && fact && childAction === 'sources') {
+        // The rows recorded for exactly this revision, in (createdAt, id) order.
+        const sources = [...(this.factSources.get(fact.id) ?? [])].sort((x, y) =>
+          `${String(x['createdAt'])} ${x.id}` < `${String(y['createdAt'])} ${y.id}` ? -1 : 1,
+        );
+        return json(200, { data: { factId: fact.id, sources }, meta });
+      }
+      if (method === 'GET' && childAction !== undefined) return failure(404, 'NOT_FOUND');
       if (method === 'GET') return json(200, { data: fact, meta });
       const precondition = this.precondition('CaseRecord', owner, headers);
       if (precondition) return precondition;
@@ -1790,7 +1818,13 @@ export class FakeDirectory {
           }
         : {}),
     });
-    this.factSupports.set(fact.id, (sources ?? []) as unknown[]);
+    for (const support of (sources ?? []) as Array<{
+      caseSourceId: string;
+      supportRole: string;
+      supportedAssertion: string;
+    }>) {
+      this.seedFactSource(fact.id, support);
+    }
     this.touchCase(owner, true);
     return json(201, { data: fact, meta: { requestId: 'r', affectedResources: [] } });
   }

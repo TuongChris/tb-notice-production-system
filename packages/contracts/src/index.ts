@@ -7,10 +7,11 @@
 import type { GetHealthResponse, Health } from './api/schemas/index.js';
 
 /**
- * Active wire-contract release: the frozen reference release plus its approved additive amendment
- * (ADR-0004, docs/contracts/TB-SCHEMA-API-v1.1.0).
+ * Active wire-contract release: the frozen reference release plus its additive amendments, in order
+ * (TB-SCHEMA-API-v1.1.0: ADR-0004, docs/contracts/TB-SCHEMA-API-v1.1.0; TB-SCHEMA-API-v1.2.0:
+ * ADR-0005, docs/contracts/TB-SCHEMA-API-v1.2.0).
  */
-export const CONTRACT_BASELINE = 'TB-SCHEMA-API-v1.1.0';
+export const CONTRACT_BASELINE = 'TB-SCHEMA-API-v1.2.0';
 
 /** The frozen reference release the active one extends (docs/reference/database-api-v1, never edited). */
 export const FROZEN_REFERENCE_RELEASE = 'TB-SCHEMA-API-v1.0.0';

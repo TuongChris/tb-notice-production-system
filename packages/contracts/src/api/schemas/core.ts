@@ -9,7 +9,9 @@
 // port is provenance only and must not be re-run over it. Build wire schemas with the `tb`
 // builders only — the JSON Schema/OpenAPI lowering rejects anything else.
 // Amended additively by TB-SCHEMA-API-v1.1.0 (ADR-0004, docs/contracts/TB-SCHEMA-API-v1.1.0):
-// CaseAuthoritySelectionView and GetCaseAuthoritySelectionResponse.
+// CaseAuthoritySelectionView and GetCaseAuthoritySelectionResponse; and by TB-SCHEMA-API-v1.2.0
+// (ADR-0005, docs/contracts/TB-SCHEMA-API-v1.2.0): CaseFactSourcesView and
+// GetCaseFactSourcesResponse.
 
 import type { z } from 'zod';
 import { tb } from '../../primitives/wire.js';
@@ -3816,6 +3818,27 @@ export const GetCaseFactResponseSchema = tb.object({
   meta: ResponseMetaSchema,
 });
 export type GetCaseFactResponse = z.infer<typeof GetCaseFactResponseSchema>;
+
+// TB-SCHEMA-API-v1.2.0 (ADR-0005, additive): the read-back of the FactSource rows recorded for one
+// fact revision. Exactly the stored rows — nothing current, inferred or evaluated; 0–100 rows, the
+// bound of the CreateFact/ReviseFact supports that are the only way rows are written.
+export const CaseFactSourcesViewSchema = tb.object(
+  {
+    factId: tb.string({ maxLength: 36, minLength: 36, format: 'uuid' }),
+    sources: tb.array(FactSourceSchema, { minItems: 0, maxItems: 100 }),
+  },
+  {
+    description:
+      'The exact stored FactSource rows recorded for one CaseFact revision (factId) of this Case, in ascending createdAt, then id order; an empty list means only that no FactSource row was recorded for that revision. A historical record only: never proof or truth of the fact, a document review, SUPPORTED_FOR_SCOPE, an infringement, ownership, permission or exception finding, G1–G7 or readiness.',
+  },
+);
+export type CaseFactSourcesView = z.infer<typeof CaseFactSourcesViewSchema>;
+
+export const GetCaseFactSourcesResponseSchema = tb.object({
+  data: CaseFactSourcesViewSchema,
+  meta: ResponseMetaSchema,
+});
+export type GetCaseFactSourcesResponse = z.infer<typeof GetCaseFactSourcesResponseSchema>;
 
 export const ReviseCaseFactResponseSchema = tb.object({
   data: CaseFactSchema,

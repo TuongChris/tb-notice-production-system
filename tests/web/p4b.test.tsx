@@ -3,10 +3,11 @@
 // synthetic in-memory API (support.tsx). Covers the exact payloads and preconditions (the case's
 // ETag for new records and fact revisions, the record's own ETag for edits and archive/restore),
 // addresses and times kept exactly as entered, explicit choices of this case's own records only,
-// provenance as chosen (never upgraded), immutable fact revisions with readable history, the honest
-// note that fact supports cannot be read back (the contract gap reported at R9), neutral wording (no
-// infringement, ownership, readiness or G1–G7 claim), safe not-found for another case's record and
-// that nothing loaded or entered for one case is shown for another. All data is synthetic.
+// provenance as chosen (never upgraded), immutable fact revisions with readable history, the
+// supports each revision recorded — read back exactly (TB-SCHEMA-API-v1.2.0, R9), with the link's
+// present state shown apart — neutral wording (no infringement, ownership, readiness or G1–G7 claim),
+// safe not-found for another case's record and that nothing loaded or entered for one case is shown
+// for another. All data is synthetic.
 import { describe, expect, it } from 'vitest';
 import { ApiError } from '../../apps/web/src/app/api/client.js';
 import {
@@ -27,6 +28,7 @@ import {
   render,
   submit,
   type,
+  unmount,
   until,
   waitFor,
 } from './support.js';
@@ -41,6 +43,18 @@ const FORBIDDEN_CLAIMS =
 function stampTexts(): string[] {
   return all('.stamp, .tag, .badge').map((element) => element.textContent ?? '');
 }
+
+/** The recorded supports on a fact page: [role, assertion] each, in the order shown. */
+function supportRows(): Array<[string | null | undefined, string | null | undefined]> {
+  return all('[data-testid="fact-support"]').map((item) => [
+    item.querySelector('[data-testid="fact-support-role"]')?.textContent,
+    item.querySelector('[data-testid="fact-support-assertion"]')?.textContent,
+  ]);
+}
+
+/** Wording the supports section never uses about a support: it is a record of what was cited. */
+const SUPPORT_CLAIMS =
+  /\b(proof|proves?|proven|verified( fact)?|confirmed|permission denied|infringe\w*|unsupported|disproved?)\b/i;
 
 function optionValues(selector: string): string[] {
   return [...((q(selector) as HTMLSelectElement | null)?.options ?? [])].map((o) => o.value);
@@ -510,7 +524,7 @@ describe('P4B case intake UI', () => {
     expect(api.rows.UseMapping.get(mapping.id)?.['basisSourceId']).toBe(w.reported.id);
   });
 
-  it('records a case fact exactly as entered: explicit type and scope, typed value, provenance as chosen and the supports; the supports cannot be read back and the page says so', async () => {
+  it('records a case fact exactly as entered: explicit type and scope, typed value, provenance as chosen and the supports, which the page then reads back as recorded', async () => {
     const api = new FakeDirectory();
     const w = world(api);
     await render(api, `/cases/${w.caseA.id}/facts/new`);
@@ -581,10 +595,17 @@ describe('P4B case intake UI', () => {
     expect(pageText()).toContain('No permission reported');
     expect(pageText()).toContain('Document reviewed');
     expect(pageText()).toContain('Unassessed');
-    expect(q('[data-testid="fact-support-gap"]')?.textContent).toContain(
-      'has no read that returns them, so they cannot be shown here',
-    );
-    expect(pageText()).not.toContain('SYNTHETIC supported statement');
+    // The support is read back from the server (getCaseFactSources), exactly as recorded.
+    await waitFor(() => supportRows().length === 1, 'recorded support');
+    expect(supportRows()).toEqual([['PRIMARY', 'SYNTHETIC supported statement']]);
+    const [fact] = api.facts;
+    expect(
+      api.requests.some(
+        (request) =>
+          request.method === 'GET' &&
+          request.path.endsWith(`/cases/${w.caseA.id}/facts/${fact?.id ?? ''}/sources`),
+      ),
+    ).toBe(true);
     expect(all('[data-testid="fact-history"] li')).toHaveLength(1);
     expect(pageText()).not.toMatch(FORBIDDEN_CLAIMS);
     for (const stamp of stampTexts()) expect(stamp).not.toMatch(FORBIDDEN_STAMPS);
@@ -647,7 +668,9 @@ describe('P4B case intake UI', () => {
     expect((q('#fact-value-description') as HTMLTextAreaElement).value).toBe(
       'SYNTHETIC first description',
     );
-    expect(pageText()).toContain('the earlier revision’s supports cannot be read back');
+    expect(pageText()).toContain(
+      'the earlier revision keeps its own supports, shown on its page, and they are not copied here',
+    );
     await type('#fact-value-description', 'SYNTHETIC corrected description');
     await type('#fact-provenance', 'OPERATOR_REPORTED');
     await type('#fact-changeReason', 'SYNTHETIC correction');
@@ -796,5 +819,195 @@ describe('P4B case intake UI', () => {
     await until('Archived cases are read-only. Restore the case first.');
     expect(byText('button', 'Edit or archive').getAttribute('aria-disabled')).toBe('true');
     expect(all('a').some((link) => link.textContent === 'Edit')).toBe(false);
+  });
+});
+
+describe('R9 — the supports recorded with each fact revision, read back (TB-SCHEMA-API-v1.2.0)', () => {
+  it('create and revise with supports, then unmount and reload: the historical revision still shows exactly its own supports, read back from the server; the newer one only its own', async () => {
+    const api = new FakeDirectory();
+    const w = world(api);
+    await render(api, `/cases/${w.caseA.id}/facts/new`);
+    await waitFor(() => q('#fact-factType') !== null, 'form');
+    await type('#fact-factType', 'WORK_IDENTIFICATION');
+    await type('#fact-scopeKind', 'CASE');
+    await click(byText('button', 'Add a supporting source'));
+    await choose('#fact-sources-0-caseSourceId', w.linkReported.id, 'links');
+    await type('#fact-sources-0-supportRole', 'CONTEXT');
+    await type('#fact-sources-0-supportedAssertion', '  SYNTHETIC first assertion — café  ');
+    await click(byText('button', 'Add a supporting source'));
+    await choose('#fact-sources-1-caseSourceId', w.linkReviewed.id, 'links');
+    await type('#fact-sources-1-supportRole', 'PRIMARY');
+    await type('#fact-sources-1-supportedAssertion', 'SYNTHETIC second assertion\nline two');
+    await type('#fact-provenance', 'OPERATOR_REPORTED');
+    await type('#fact-value-description', 'SYNTHETIC description');
+    await type('#fact-scopeText', 'SYNTHETIC scope of the fact');
+    await type('#fact-changeReason', 'SYNTHETIC first record');
+    await submit(q('form.record-form'));
+    await until('Fact recorded.');
+    await waitFor(() => supportRows().length === 2, 'revision 1 supports');
+    expect(supportRows()).toEqual([
+      ['CONTEXT', '  SYNTHETIC first assertion — café  '],
+      ['PRIMARY', 'SYNTHETIC second assertion\nline two'],
+    ]);
+    const [first] = api.facts;
+    // A new revision with one other support.
+    await go(`/cases/${w.caseA.id}/facts/${first?.id ?? ''}/revise`);
+    await waitFor(() => q('#fact-value-description') !== null, 'revision form');
+    expect(all('[id^="fact-sources-"]')).toHaveLength(0);
+    await click(byText('button', 'Add a supporting source'));
+    await choose('#fact-sources-0-caseSourceId', w.linkReported.id, 'links');
+    await type('#fact-sources-0-supportRole', 'REVISED');
+    await type('#fact-sources-0-supportedAssertion', 'SYNTHETIC revision 2 assertion');
+    await type('#fact-changeReason', 'SYNTHETIC second record');
+    await submit(q('form.record-form'));
+    await until('Revision 2 recorded.');
+    await waitFor(() => supportRows().length === 1, 'revision 2 support');
+    expect(supportRows()).toEqual([['REVISED', 'SYNTHETIC revision 2 assertion']]);
+    const [, revised] = bodies(api, 'POST', '/facts');
+    expect(revised?.body).toMatchObject({
+      sources: [
+        {
+          caseSourceId: w.linkReported.id,
+          supportRole: 'REVISED',
+          supportedAssertion: 'SYNTHETIC revision 2 assertion',
+        },
+      ],
+    });
+    // Unmount (a reload: the page remembers nothing) and open revision 1 by its own address.
+    await unmount();
+    const sent = api.requests.length;
+    await render(api, `/cases/${w.caseA.id}/facts/${first?.id ?? ''}`);
+    await waitFor(() => q('[data-testid="fact-superseded"]') !== null, 'earlier revision');
+    await waitFor(() => supportRows().length === 2, 'revision 1 supports after reload');
+    expect(supportRows()).toEqual([
+      ['CONTEXT', '  SYNTHETIC first assertion — café  '],
+      ['PRIMARY', 'SYNTHETIC second assertion\nline two'],
+    ]);
+    expect(pageText()).not.toContain('SYNTHETIC revision 2 assertion');
+    expect(
+      api.requests
+        .slice(sent)
+        .some(
+          (request) =>
+            request.method === 'GET' &&
+            request.path.endsWith(`/cases/${w.caseA.id}/facts/${first?.id ?? ''}/sources`),
+        ),
+    ).toBe(true);
+    expect(pageText()).not.toMatch(FORBIDDEN_CLAIMS);
+  });
+
+  it('a support whose link was later paused or unlinked stays shown as recorded; the link’s state today is shown apart; a newer source revision is not followed', async () => {
+    const api = new FakeDirectory();
+    const w = world(api);
+    const fact = api.seedFact({ caseId: w.caseA.id, provenance: 'OPERATOR_REPORTED' });
+    api.seedFactSource(fact.id, {
+      caseSourceId: w.linkReported.id,
+      supportRole: 'CONTEXT',
+      supportedAssertion: 'SYNTHETIC recorded through the reported record',
+    });
+    api.seedFactSource(fact.id, {
+      caseSourceId: w.linkReviewed.id,
+      supportRole: 'PRIMARY',
+      supportedAssertion: 'SYNTHETIC recorded through the reviewed record',
+    });
+    Object.assign(api.rows.CaseSource.get(w.linkReported.id) ?? {}, {
+      linkState: 'PAUSED',
+      stateReason: 'SYNTHETIC pause',
+    });
+    Object.assign(api.rows.CaseSource.get(w.linkReviewed.id) ?? {}, {
+      linkState: 'UNLINKED',
+      stateReason: 'SYNTHETIC unlink',
+    });
+    api.seedSource({
+      agencyId: w.agency.id,
+      title: 'SYNTHETIC reported record (rev 2)',
+      sourceGroupId: w.reported['sourceGroupId'],
+      revision: 2,
+      supersedesSourceId: w.reported.id,
+    });
+    await render(api, `/cases/${w.caseA.id}/facts/${fact.id}`);
+    await waitFor(() => supportRows().length === 2, 'supports');
+    expect(supportRows()).toEqual([
+      ['CONTEXT', 'SYNTHETIC recorded through the reported record'],
+      ['PRIMARY', 'SYNTHETIC recorded through the reviewed record'],
+    ]);
+    await until('the source now has revision 2. The citation does not move to it.');
+    // The recorded part cites the revision each link cites — revision 1 — never the newest.
+    await waitFor(() => all('[data-testid="fact-support"] .citation a').length === 2, 'citations');
+    expect(
+      all('[data-testid="fact-support"] .citation a').map((link) => link.getAttribute('href')),
+    ).toEqual([`/sources/${w.reported.id}`, `/sources/${w.reviewed.id}`]);
+    // The link's state today, apart from the record, for each support.
+    await waitFor(
+      () => all('[data-testid="fact-support-link-now"] .stamp').length === 2,
+      'link states',
+    );
+    const today = all('[data-testid="fact-support-link-now"]').map(
+      (element) => element.textContent ?? '',
+    );
+    expect(today[0]).toContain('The link today — not part of this record');
+    expect(today[0]).toContain('Paused');
+    expect(today[0]).toContain('Reason: SYNTHETIC pause');
+    expect(today[0]).toContain(
+      'This link is now paused. The support above stays recorded for this revision exactly as it was.',
+    );
+    expect(today[1]).toContain('Unlinked');
+    expect(today[1]).toContain('This link is now unlinked.');
+    for (const item of all('[data-testid="fact-support"]')) {
+      expect(item.querySelector('dl')?.textContent ?? '').not.toMatch(/Paused|Unlinked/);
+    }
+    const section = q('[data-testid="fact-supports"]')?.closest('section')?.textContent ?? '';
+    expect(section).not.toMatch(SUPPORT_CLAIMS);
+    expect(pageText()).not.toMatch(FORBIDDEN_CLAIMS);
+    for (const stamp of stampTexts()) expect(stamp).not.toMatch(FORBIDDEN_STAMPS);
+    // Provenance and resolution stay as recorded: a reviewed source cited upgrades nothing.
+    expect(all('.provenance').map((element) => element.textContent)).toEqual(['Operator reported']);
+    expect(pageText()).toContain('Unassessed');
+    expect(pageText()).not.toContain('Recorded as supported for its scope');
+  });
+
+  it('a revision recorded without supports says only that none was recorded; nothing is inferred from it', async () => {
+    const api = new FakeDirectory();
+    const w = world(api);
+    const fact = api.seedFact({ caseId: w.caseA.id, provenance: 'MISSING' });
+    await render(api, `/cases/${w.caseA.id}/facts/${fact.id}`);
+    await waitFor(() => q('[data-testid="fact-supports-none"]') !== null, 'no supports');
+    expect(q('[data-testid="fact-supports-none"]')?.textContent).toBe(
+      'No supporting source was recorded for this revision.',
+    );
+    expect(all('[data-testid="fact-support"]')).toHaveLength(0);
+    const section = q('[data-testid="fact-supports-none"]')?.closest('section')?.textContent ?? '';
+    expect(section).not.toMatch(SUPPORT_CLAIMS);
+  });
+
+  it('another case’s fact: not found, its supports never requested or shown; each case shows only its own supports', async () => {
+    const api = new FakeDirectory();
+    const w = world(api);
+    const factA = api.seedFact({ caseId: w.caseA.id });
+    api.seedFactSource(factA.id, {
+      caseSourceId: w.linkReported.id,
+      supportRole: 'A_ROLE',
+      supportedAssertion: 'SYNTHETIC-A-ONLY support',
+    });
+    const factB = api.seedFact({ caseId: w.caseB.id });
+    api.seedFactSource(factB.id, {
+      caseSourceId: w.linkB.id,
+      supportRole: 'B_ROLE',
+      supportedAssertion: 'SYNTHETIC-B-ONLY support',
+    });
+    await render(api, `/cases/${w.caseA.id}/facts/${factB.id}`);
+    await waitFor(() => q('[data-testid="fact-not-found"]') !== null, 'not found');
+    expect(pageText()).not.toContain('SYNTHETIC-B-ONLY');
+    expect(
+      api.requests.some((request) => request.path.includes(`/facts/${factB.id}/sources`)),
+    ).toBe(false);
+    await go(`/cases/${w.caseB.id}/facts/${factB.id}`);
+    await waitFor(() => supportRows().length === 1, 'B support');
+    expect(supportRows()).toEqual([['B_ROLE', 'SYNTHETIC-B-ONLY support']]);
+    await go(`/cases/${w.caseA.id}/facts/${factA.id}`);
+    await waitFor(() => supportRows()[0]?.[0] === 'A_ROLE', 'A support');
+    expect(supportRows()).toEqual([['A_ROLE', 'SYNTHETIC-A-ONLY support']]);
+    expect(pageText()).not.toContain('SYNTHETIC-B-ONLY');
+    expect(pageText()).not.toContain(w.linkB.id);
   });
 });

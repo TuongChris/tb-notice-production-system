@@ -1,0 +1,234 @@
+R9 remediation — CI evidence (GitHub Actions, workflow "CI")
+=============================================================
+Logs were read with the authenticated `gh api repos/TuongChris/tb-notice-production-system/actions/jobs/<id>/logs`
+(`gh run view --log` returned empty files for these runs); key lines below (timestamps UTC, ANSI codes removed).
+A commit cannot record its own run: the run of the documentation commit that adds this file is reported with the
+R9-final report.
+
+1. Post-merge main (mission §1) — P4B merged by pull request #4
+----------------------------------------------------------------
+Run:      36106838217 — https://github.com/TuongChris/tb-notice-production-system/actions/runs/36106838217
+Event:    push to main
+Head:     eb83b19d224c0c7e6bf1bd7de5c21bd3c2e0c361
+Created:  2026-09-25T07:16:48Z   Completed: 2026-09-25T07:22:01Z
+Result:   completed / success
+Jobs:
+  107981183058 Non-DB checks (cold install)             success 07:16:50Z → 07:19:05Z
+  107981183086 Database, seed and smoke (MySQL 8.4.11)  success 07:16:50Z → 07:22:00Z
+The merge commit eb83b19 (parents 1d91c41 and 6ff6775) has the same tree as the R9 submission head 6ff6775.
+
+Non-DB job
+07:17:04Z [reference:check] pinned identity (REFERENCE_BASELINE.json): 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c matches
+07:17:04Z [reference:check] OK — frozen references intact.
+07:17:05Z [reference:helper-tests] frozen helper tests: pass 27, fail 0; exit 0
+07:17:05Z [reference:helper-tests] references after run: intact
+07:17:08Z [contracts:check] OK — 3 generated outputs match the active source.
+07:17:26Z Found 0 warnings and 0 errors.
+07:17:34Z All matched files use Prettier code style!
+07:18:54Z  Test Files  36 passed (36)
+07:18:54Z       Tests  1326 passed (1326)
+07:19:02Z dist/assets/index-DOsoL7EN.css                17.39 kB │ gzip:  4.47 kB
+07:19:02Z dist/assets/facts-CwNQ3ltf.js                 27.45 kB │ gzip:  8.18 kB
+07:19:02Z dist/assets/index-CBAh7S6o.js                319.26 kB │ gzip: 99.57 kB
+07:19:02Z [reference:check] pinned identity (REFERENCE_BASELINE.json): 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c matches
+07:19:02Z [reference:check] OK — frozen references intact.
+
+Database job
+07:17:38Z Database schema is up to date!
+07:17:38Z [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+07:17:38Z [verify] domain rows total: 0
+07:17:38Z [verify] PASS: metadata matches the reviewed inventory.
+07:20:04Z  Test Files  9 passed (9)
+07:20:04Z       Tests  333 passed (333)
+07:20:11Z No pending migrations to apply.
+07:20:11Z [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+07:20:11Z [verify] domain rows total: 0
+07:20:11Z [verify] PASS: metadata matches the reviewed inventory.
+07:20:18Z [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+07:20:18Z [verify] domain rows total: 0
+07:20:18Z [verify] PASS: metadata matches the reviewed inventory.
+07:20:18Z [db:seed] canonical digest 0ee26dc3ee5f3a1030fb78a6cadaf4dabef1f5a296b58163248584e1e0bfb775 (identical on every PC)
+07:20:18Z [db:seed] canonical digest 0ee26dc3ee5f3a1030fb78a6cadaf4dabef1f5a296b58163248584e1e0bfb775 (identical on every PC)
+07:20:19Z [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+07:20:19Z [verify] domain rows total: 1
+07:20:19Z [verify] PASS: metadata matches the reviewed inventory.
+07:20:24Z -- This is an empty migration.
+07:20:26Z -- This is an empty migration.
+07:20:34Z dist/assets/index-DOsoL7EN.css                17.39 kB │ gzip:  4.47 kB
+07:20:34Z dist/assets/facts-CwNQ3ltf.js                 27.45 kB │ gzip:  8.18 kB
+07:20:34Z dist/assets/index-CBAh7S6o.js                319.26 kB │ gzip: 99.57 kB
+07:20:36Z [smoke] PASS (41 checks)
+07:20:41Z [admin:create] created enabled application user aac3886d-d20e-4bc2-9965-ad2046045a92
+07:20:47Z [smoke:auth] PASS (4 checks)
+07:20:50Z [smoke:directory] PASS (14 checks)
+07:20:52Z [smoke:p3a] PASS (24 checks)
+07:20:55Z [smoke:p3b] PASS (36 checks)
+07:20:58Z [smoke:p4a] PASS (50 checks)
+07:21:01Z [smoke:p4b] PASS (54 checks)
+07:21:05Z [admin:revoke-sessions] 0 active session(s) revoked for application user aac3886d-d20e-4bc2-9965-ad2046045a92 (p1-ci-admin@example.invalid); session epoch 1 → 2 (every earlier session is unusable).
+07:21:10Z [admin:disable] disabled application user aac3886d-d20e-4bc2-9965-ad2046045a92 (p1-ci-admin@example.invalid); session epoch 2 → 3; 0 active session(s) revoked. The user row is kept.
+07:21:12Z [smoke:auth] PASS (1 checks)
+07:21:21Z [admin:enable] enabled application user aac3886d-d20e-4bc2-9965-ad2046045a92 (p1-ci-admin@example.invalid); session epoch 3 → 4 (sessions from before stay unusable); 0 active session(s) revoked.
+07:21:23Z [smoke:auth] PASS (4 checks)
+07:21:27Z [admin:password] password replaced for application user aac3886d-d20e-4bc2-9965-ad2046045a92 (p1-ci-admin@example.invalid); session epoch 4 → 5; 0 active session(s) revoked.
+07:21:29Z [smoke:auth] PASS (1 checks)
+07:21:31Z [smoke:auth] PASS (4 checks)
+07:21:36Z [db:seed] canonical digest 0ee26dc3ee5f3a1030fb78a6cadaf4dabef1f5a296b58163248584e1e0bfb775 (identical on every PC)
+07:21:58Z [verify-dev] PASS (4/4 scenarios)
+07:21:58Z [reference:check] pinned identity (REFERENCE_BASELINE.json): 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c matches
+07:21:58Z [reference:check] OK — frozen references intact.
+
+2. The remediation branch at creation — feature/r9-fact-support-readback = eb83b19
+---------------------------------------------------------------------------------
+Run:      36113092678 — https://github.com/TuongChris/tb-notice-production-system/actions/runs/36113092678
+Event:    push to feature/r9-fact-support-readback
+Head:     eb83b19d224c0c7e6bf1bd7de5c21bd3c2e0c361
+Created:  2026-09-25T08:28:19Z   Completed: 2026-09-25T08:32:40Z
+Result:   completed / success
+Jobs:
+  108000801231 Non-DB checks (cold install)             success 08:28:21Z → 08:30:31Z
+  108000801589 Database, seed and smoke (MySQL 8.4.11)  success 08:28:21Z → 08:32:39Z
+
+3. The remediation code head (mission §20)
+------------------------------------------
+Run:      36116320128 — https://github.com/TuongChris/tb-notice-production-system/actions/runs/36116320128
+Event:    push to feature/r9-fact-support-readback
+Head:     b862cf7b560b61dd5e1586feb0f0b9b75290bedb
+Created:  2026-09-25T09:03:39Z   Completed: 2026-09-25T09:08:53Z
+Result:   completed / success
+Jobs:
+  108011169030 Non-DB checks (cold install)             success 09:03:42Z → 09:05:23Z
+  108011169424 Database, seed and smoke (MySQL 8.4.11)  success 09:03:42Z → 09:08:52Z
+Commits on eb83b19: fbcd8ae (contract TB-SCHEMA-API-v1.2.0, ADR-0005), 02332da (API read, DB tests, smokes),
+b862cf7 (UI, web tests).
+
+Non-DB job
+09:03:58Z [reference:check] pinned identity (REFERENCE_BASELINE.json): 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c matches
+09:03:58Z [reference:check] OK — frozen references intact.
+09:03:59Z [reference:helper-tests] frozen helper tests: pass 27, fail 0; exit 0
+09:03:59Z [reference:helper-tests] references after run: intact
+09:04:01Z [contracts:check] OK — 3 generated outputs match the active source.
+09:04:12Z Found 0 warnings and 0 errors.
+09:04:18Z All matched files use Prettier code style!
+09:05:15Z  Test Files  37 passed (37)
+09:05:15Z       Tests  1346 passed (1346)
+09:05:21Z dist/assets/index-Du21GphK.css                17.81 kB │ gzip:  4.54 kB
+09:05:21Z dist/assets/facts-CyMOCh5Y.js                 29.80 kB │ gzip:  8.66 kB
+09:05:21Z dist/assets/index-p4TRgKZi.js                319.34 kB │ gzip: 99.58 kB
+09:05:21Z [reference:check] pinned identity (REFERENCE_BASELINE.json): 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c matches
+09:05:21Z [reference:check] OK — frozen references intact.
+(no "(!) Some chunks are larger than 500 kB" advisory)
+
+Database job
+09:04:28Z Database schema is up to date!
+09:04:28Z [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+09:04:28Z [verify] domain rows total: 0
+09:04:28Z [verify] PASS: metadata matches the reviewed inventory.
+09:06:56Z  Test Files  9 passed (9)
+09:06:56Z       Tests  340 passed (340)
+09:07:03Z No pending migrations to apply.
+09:07:04Z [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+09:07:04Z [verify] domain rows total: 0
+09:07:04Z [verify] PASS: metadata matches the reviewed inventory.
+09:07:10Z [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+09:07:10Z [verify] domain rows total: 0
+09:07:10Z [verify] PASS: metadata matches the reviewed inventory.
+09:07:10Z [db:seed] canonical digest 0ee26dc3ee5f3a1030fb78a6cadaf4dabef1f5a296b58163248584e1e0bfb775 (identical on every PC)
+09:07:10Z [db:seed] canonical digest 0ee26dc3ee5f3a1030fb78a6cadaf4dabef1f5a296b58163248584e1e0bfb775 (identical on every PC)
+09:07:11Z [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+09:07:11Z [verify] domain rows total: 1
+09:07:11Z [verify] PASS: metadata matches the reviewed inventory.
+09:07:16Z -- This is an empty migration.
+09:07:17Z -- This is an empty migration.
+09:07:26Z dist/assets/index-Du21GphK.css                17.81 kB │ gzip:  4.54 kB
+09:07:26Z dist/assets/facts-CyMOCh5Y.js                 29.80 kB │ gzip:  8.66 kB
+09:07:26Z dist/assets/index-p4TRgKZi.js                319.34 kB │ gzip: 99.58 kB
+09:07:28Z [smoke] PASS business boundary: GET /cases/{caseId}/facts/{id}/sources without a session → 401 SESSION_REQUIRED, no-store
+09:07:28Z [smoke] PASS (42 checks)
+09:07:32Z [admin:create] created enabled application user 129a37ef-4fc1-48c2-95bb-1bc322affb68
+09:07:39Z [smoke:auth] PASS (4 checks)
+09:07:41Z [smoke:directory] PASS (14 checks)
+09:07:44Z [smoke:p3a] PASS (24 checks)
+09:07:47Z [smoke:p3b] PASS (36 checks)
+09:07:50Z [smoke:p4a] PASS (50 checks)
+09:07:52Z [smoke:p4b] PASS (64 checks)
+09:07:57Z [admin:revoke-sessions] 0 active session(s) revoked for application user 129a37ef-4fc1-48c2-95bb-1bc322affb68 (p1-ci-admin@example.invalid); session epoch 1 → 2 (every earlier session is unusable).
+09:08:01Z [admin:disable] disabled application user 129a37ef-4fc1-48c2-95bb-1bc322affb68 (p1-ci-admin@example.invalid); session epoch 2 → 3; 0 active session(s) revoked. The user row is kept.
+09:08:03Z [smoke:auth] PASS (1 checks)
+09:08:12Z [admin:enable] enabled application user 129a37ef-4fc1-48c2-95bb-1bc322affb68 (p1-ci-admin@example.invalid); session epoch 3 → 4 (sessions from before stay unusable); 0 active session(s) revoked.
+09:08:14Z [smoke:auth] PASS (4 checks)
+09:08:19Z [admin:password] password replaced for application user 129a37ef-4fc1-48c2-95bb-1bc322affb68 (p1-ci-admin@example.invalid); session epoch 4 → 5; 0 active session(s) revoked.
+09:08:21Z [smoke:auth] PASS (1 checks)
+09:08:23Z [smoke:auth] PASS (4 checks)
+09:08:28Z [db:seed] canonical digest 0ee26dc3ee5f3a1030fb78a6cadaf4dabef1f5a296b58163248584e1e0bfb775 (identical on every PC)
+09:08:49Z [verify-dev] PASS (4/4 scenarios)
+09:08:49Z [reference:check] pinned identity (REFERENCE_BASELINE.json): 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c matches
+09:08:49Z [reference:check] OK — frozen references intact.
+
+smoke:p4b on b862cf7 (compiled API on CI's disposable tb_notice_dev; synthetic records; no external request)
+-----------------------------------------------------------------------------------------------------------
+[smoke:p4b] PASS login → 200 with a session cookie and CSRF token
+[smoke:p4b] PASS POST /agencies → 201
+[smoke:p4b] PASS POST /sources (agency material) → 201
+[smoke:p4b] PASS POST /owners → 201
+[smoke:p4b] PASS POST /legal-subjects → 201
+[smoke:p4b] PASS POST /owners/{id}/subjects (link) → 201
+[smoke:p4b] PASS POST /routes → 201
+[smoke:p4b] PASS POST /cases (bound to the route) → 201
+[smoke:p4b] PASS POST /cases/{caseId}/reported-items → 201
+[smoke:p4b] PASS reported item: raw URL kept, video id derived with its case, observedAt exact
+[smoke:p4b] PASS GET /cases/{caseId} → 200
+[smoke:p4b] PASS the case context revision moved once
+[smoke:p4b] PASS GET /cases/{caseId} → 200
+[smoke:p4b] PASS POST /cases/{caseId}/works → 201
+[smoke:p4b] PASS GET /cases/{caseId} → 200
+[smoke:p4b] PASS POST /cases/{caseId}/mappings → 201
+[smoke:p4b] PASS use mapping: millisecond strings round-trip exactly (beyond 24 h and at the bound)
+[smoke:p4b] PASS GET /cases/{caseId}/mappings/{id} → 200
+[smoke:p4b] PASS GET /cases/{caseId} → 200
+[smoke:p4b] PASS POST /cases/{caseId}/sources → 201
+[smoke:p4b] PASS GET /cases/{caseId} → 200
+[smoke:p4b] PASS POST /cases/{caseId}/facts → 201
+[smoke:p4b] PASS case fact: stored exactly; MISSING stays MISSING; no ETag
+[smoke:p4b] PASS GET /cases/{caseId} → 200
+[smoke:p4b] PASS POST /cases/{caseId}/facts/{id}/revisions → 201
+[smoke:p4b] PASS fact revision 2 supersedes revision 1 in the same chain
+[smoke:p4b] PASS GET /cases/{caseId}/facts/{id} (historical revision) → 200
+[smoke:p4b] PASS the historical revision reads back unchanged
+[smoke:p4b] PASS GET /cases/{caseId}/facts → 200
+[smoke:p4b] PASS the fact list shows the current head only
+[smoke:p4b] PASS GET /cases/{caseId}/facts/{id}/sources (revision 1) → 200
+[smoke:p4b] PASS revision 1 reads back exactly its one recorded support
+[smoke:p4b] PASS GET /cases/{caseId}/facts/{id}/sources (revision 2) → 200
+[smoke:p4b] PASS revision 2 reads back no support: nothing is carried over from revision 1
+[smoke:p4b] PASS POST /sources/{id}/revisions → 201
+[smoke:p4b] PASS GET /case-sources/{id} → 200
+[smoke:p4b] PASS GET /cases/{caseId}/facts/{id} → 200
+[smoke:p4b] PASS a newer source revision re-points neither the link nor the fact
+[smoke:p4b] PASS GET /cases/{caseId}/facts/{id}/sources (revision 1, after a newer source revision) → 200
+[smoke:p4b] PASS a newer source revision leaves the recorded support unchanged
+[smoke:p4b] PASS POST /case-sources/{id}/link-state (pause) → 200
+[smoke:p4b] PASS GET /cases/{caseId}/facts/{id}/sources (revision 1, link paused) → 200
+[smoke:p4b] PASS a paused link leaves the recorded support visible and unchanged
+[smoke:p4b] PASS PATCH /cases/{caseId}/reported-items/{id} → 200
+[smoke:p4b] PASS PATCH /cases/{caseId}/reported-items/{id} with a stale ETag → 412
+[smoke:p4b] PASS POST /cases/{caseId}/reported-items/{id}/archive → 200
+[smoke:p4b] PASS POST /cases/{caseId}/reported-items/{id}/restore → 200
+[smoke:p4b] PASS GET /cases/{caseId}/reported-items → 200
+[smoke:p4b] PASS GET /cases/{caseId}/works → 200
+[smoke:p4b] PASS GET /cases/{caseId}/mappings → 200
+[smoke:p4b] PASS POST /cases (a second case on the same route) → 201
+[smoke:p4b] PASS POST /cases/{caseId}/reported-items (the same video in the second case) → 201
+[smoke:p4b] PASS GET /cases/{caseId}/reported-items/{id} through another case → 404
+[smoke:p4b] PASS GET /cases/{caseId}/facts/{id}/sources through another case → 404
+[smoke:p4b] PASS GET /cases/{caseId} (second case) → 200
+[smoke:p4b] PASS POST /cases/{caseId}/mappings with another case’s work → 422
+[smoke:p4b] PASS POST /cases/{caseId}/reported-items with a channel address → 422
+[smoke:p4b] PASS GET /cases/{caseId} → 200
+[smoke:p4b] PASS POST /cases/{caseId}/facts/{id}/revisions of a superseded revision → 409
+[smoke:p4b] PASS GET /cases/{caseId}/readiness (not routed) → 404
+[smoke:p4b] PASS GET /cases/{caseId}/production-context (not routed) → 404
+[smoke:p4b] PASS POST /cases/{caseId}/correspondence-bindings (not routed) → 404
+[smoke:p4b] PASS POST /cases/{caseId}/g1 (not routed) → 404
+[smoke:p4b] PASS logout → 204
+[smoke:p4b] PASS (64 checks)

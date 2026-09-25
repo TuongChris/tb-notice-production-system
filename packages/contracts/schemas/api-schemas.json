@@ -18438,6 +18438,47 @@
       ],
       "additionalProperties": false
     },
+    "CaseFactSourcesView": {
+      "type": "object",
+      "properties": {
+        "factId": {
+          "type": "string",
+          "maxLength": 36,
+          "minLength": 36,
+          "format": "uuid"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FactSource"
+          },
+          "minItems": 0,
+          "maxItems": 100
+        }
+      },
+      "required": [
+        "factId",
+        "sources"
+      ],
+      "additionalProperties": false,
+      "description": "The exact stored FactSource rows recorded for one CaseFact revision (factId) of this Case, in ascending createdAt, then id order; an empty list means only that no FactSource row was recorded for that revision. A historical record only: never proof or truth of the fact, a document review, SUPPORTED_FOR_SCOPE, an infringement, ownership, permission or exception finding, G1–G7 or readiness."
+    },
+    "GetCaseFactSourcesResponse": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/CaseFactSourcesView"
+        },
+        "meta": {
+          "$ref": "#/$defs/ResponseMeta"
+        }
+      },
+      "required": [
+        "data",
+        "meta"
+      ],
+      "additionalProperties": false
+    },
     "ReviseCaseFactResponse": {
       "type": "object",
       "properties": {

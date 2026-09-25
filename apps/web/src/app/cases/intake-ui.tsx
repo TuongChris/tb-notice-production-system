@@ -21,9 +21,11 @@ export const FACT_HISTORY =
   'Facts are revised, never edited: a new revision becomes the current one, and earlier revisions stay readable and unchanged.';
 export const FACT_PROVENANCE =
   'Provenance and resolution state are stored exactly as chosen and never upgraded: “Missing”, “Conflict” and “Unassessed” stay what they are. “Document reviewed” needs a supporting linked source that records who reviewed the document.';
-/** The contract gap reported at R9: FactSource rows are written but no operation returns them. */
-export const FACT_SUPPORT_GAP =
-  'The linked sources recorded as supporting a fact are stored with that revision, but the current API contract (TB-SCHEMA-API-v1.1.0) has no read that returns them, so they cannot be shown here. They are not lost, and they never change the fact’s provenance.';
+/** What a support recorded with a fact revision is — and is not (read back since TB-SCHEMA-API-v1.2.0). */
+export const FACT_SUPPORT_MEANING =
+  'Each support is recorded with this revision exactly as entered: a linked source of this case and what it was entered to support. It records what was cited — it does not establish that the fact is true, it is not a review of the document, and it never changes the provenance or resolution state recorded for the fact.';
+export const FACT_SUPPORT_PINNED =
+  'A support stays with the revision it was recorded for and keeps citing the exact source revision of its link. A newer source revision, a later change of the link’s state or a newer revision of this fact never changes it.';
 export const NO_READINESS =
   'Nothing here computes readiness, a G1–G7 decision, an infringement finding or whether a notice can be sent.';
 export const PERMISSION_SILENCE =

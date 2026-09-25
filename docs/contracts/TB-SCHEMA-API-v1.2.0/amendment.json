@@ -1,0 +1,174 @@
+{
+  "release": "TB-SCHEMA-API-v1.2.0",
+  "kind": "ADDITIVE",
+  "decision": "docs/decisions/ADR-0005-tb-schema-api-v1-2-0-case-fact-sources-read.md",
+  "summary": "Adds the case-scoped read of the exact FactSource rows recorded for one CaseFact revision (R9 remediation). Nothing of TB-SCHEMA-API-v1.1.0 — and so nothing of TB-SCHEMA-API-v1.0.0 — is changed or removed.",
+  "base": {
+    "release": "TB-SCHEMA-API-v1.1.0",
+    "path": "docs/contracts/TB-SCHEMA-API-v1.1.0",
+    "amendmentSha256": "2f4df69739926d4b50c22a1ba123ede51edec04bafb86459bb6bacb2d1dfda85",
+    "files": {
+      "packages/contracts/schemas/api-schemas.json": "76b8e0d684c1ebd3a5fd697a8e5c3b381ad2b3e246504dee3d7a7353ae69eb58",
+      "packages/contracts/openapi/openapi.json": "2954de6a15d6f40977c801d7b5f67822dfffa1fd380c43cba0858888090acd2b",
+      "packages/contracts/openapi/openapi.yaml": "ba777e948d6e9977128340c88518f012fd5baeac18eea87dcdf8280967f6bbd3"
+    }
+  },
+  "openApiInfoVersion": {
+    "from": "1.1.0",
+    "to": "1.2.0"
+  },
+  "schemas": {
+    "refForm": "JSON Schema $defs (#/$defs/<name>); in OpenAPI components.schemas the same schemas use #/components/schemas/<name>",
+    "insertAfter": "GetCaseFactResponse",
+    "added": {
+      "CaseFactSourcesView": {
+        "type": "object",
+        "properties": {
+          "factId": {
+            "type": "string",
+            "maxLength": 36,
+            "minLength": 36,
+            "format": "uuid"
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/FactSource"
+            },
+            "minItems": 0,
+            "maxItems": 100
+          }
+        },
+        "required": [
+          "factId",
+          "sources"
+        ],
+        "additionalProperties": false,
+        "description": "The exact stored FactSource rows recorded for one CaseFact revision (factId) of this Case, in ascending createdAt, then id order; an empty list means only that no FactSource row was recorded for that revision. A historical record only: never proof or truth of the fact, a document review, SUPPORTED_FOR_SCOPE, an infringement, ownership, permission or exception finding, G1–G7 or readiness."
+      },
+      "GetCaseFactSourcesResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/CaseFactSourcesView"
+          },
+          "meta": {
+            "$ref": "#/$defs/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "operations": {
+    "insertAfterPath": "/cases/{caseId}/facts/{id}",
+    "added": {
+      "/cases/{caseId}/facts/{id}/sources": {
+        "get": {
+          "operationId": "getCaseFactSources",
+          "tags": [
+            "Fact"
+          ],
+          "summary": "Read the exact FactSource rows recorded for one fact revision of this case; a stored historical record, not proof or a finding.",
+          "parameters": [
+            {
+              "name": "caseId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "maxLength": 36,
+                "minLength": 36,
+                "format": "uuid"
+              }
+            },
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "maxLength": 36,
+                "minLength": 36,
+                "format": "uuid"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Success; source-based truth and human gates remain separate.",
+              "headers": {
+                "ETag": {
+                  "schema": {
+                    "type": "string"
+                  },
+                  "description": "Strong entity row-version ETag when the resource is mutable."
+                },
+                "Cache-Control": {
+                  "schema": {
+                    "type": "string"
+                  },
+                  "example": "no-store"
+                }
+              },
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/GetCaseFactSourcesResponse"
+                  }
+                }
+              }
+            },
+            "400": {
+              "$ref": "#/components/responses/Error"
+            },
+            "401": {
+              "$ref": "#/components/responses/Error"
+            },
+            "403": {
+              "$ref": "#/components/responses/Error"
+            },
+            "404": {
+              "$ref": "#/components/responses/Error"
+            },
+            "409": {
+              "$ref": "#/components/responses/Error"
+            },
+            "413": {
+              "$ref": "#/components/responses/Error"
+            },
+            "422": {
+              "$ref": "#/components/responses/Error"
+            },
+            "429": {
+              "$ref": "#/components/responses/Error"
+            },
+            "500": {
+              "$ref": "#/components/responses/Error"
+            }
+          },
+          "security": [
+            {
+              "SessionCookie": []
+            }
+          ],
+          "x-precondition-target": null,
+          "x-idempotent-write": false
+        }
+      }
+    }
+  },
+  "result": {
+    "schemaCount": 288,
+    "operationCount": 143,
+    "files": {
+      "packages/contracts/schemas/api-schemas.json": "f4b8d7e1fb6fe85be8bd89b9a4d514fc5e805f924da3edb89f2af14389ed5ef4",
+      "packages/contracts/openapi/openapi.json": "0391b408344f0f09811d444b4df3ec061eeaf6b639b59867548e4e182e10a511",
+      "packages/contracts/openapi/openapi.yaml": "9c305a974eb47acf3329e0d73629355a7660602e5af4e180a9f63a9e6309083e"
+    }
+  }
+}

@@ -62,6 +62,7 @@ const op = {
   listFacts: contractOperation('listCaseFacts'),
   createFact: contractOperation('createCaseFact'),
   getFact: contractOperation('getCaseFact'),
+  getFactSources: contractOperation('getCaseFactSources'),
   reviseFact: contractOperation('reviseCaseFact'),
 };
 
@@ -393,6 +394,22 @@ export class CaseIntakeController {
     @Req() request: HttpRequest,
   ) {
     return resourceReply(request, await this.facts.get(...childPath(op.getFact, caseId, id)));
+  }
+
+  /**
+   * The FactSource rows recorded for one fact revision of this case, exactly as stored
+   * (TB-SCHEMA-API-v1.2.0, ADR-0005; append-only: no ETag).
+   */
+  @Get(':caseId/facts/:id/sources')
+  async getFactSources(
+    @Param('caseId') caseId: string,
+    @Param('id') id: string,
+    @Req() request: HttpRequest,
+  ) {
+    return resourceReply(
+      request,
+      await this.facts.sources(...childPath(op.getFactSources, caseId, id)),
+    );
   }
 
   @Post(':caseId/facts/:id/revisions')

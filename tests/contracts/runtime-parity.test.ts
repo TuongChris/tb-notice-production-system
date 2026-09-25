@@ -1,8 +1,9 @@
 // Three-way runtime parity (P0-D): for every payload, the baseline JSON Schema (Ajv/full oracle),
 // the generated JSON Schema (same oracle) and the active Zod schema must agree ACCEPT/REJECT.
-// The baseline is the release TB-SCHEMA-API-v1.1.0 (ADR-0004): the frozen TB-SCHEMA-API-v1.0.0
-// schemas, unchanged, plus the two schemas of the reviewed additive amendment (./release.ts); the
-// 31 frozen fixtures are also checked against the frozen bundle itself.
+// The baseline is the active release TB-SCHEMA-API-v1.2.0 (ADR-0005): the frozen TB-SCHEMA-API-v1.0.0
+// schemas, unchanged, plus the two schemas of each reviewed additive amendment (v1.1.0, ADR-0004;
+// v1.2.0, ADR-0005; ./release.ts); the 31 frozen fixtures are also checked against the frozen bundle
+// itself.
 // No exception list exists: any divergence fails with the payload and all three results.
 import { writeFileSync } from 'node:fs';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -21,7 +22,7 @@ import { releaseBaseline } from './release.js';
 
 const baselineBundle = releaseBaseline().bundle;
 const frozenOnly = createOracle(frozenBundle(), 'frozen v1.0.0');
-const frozen = createOracle(baselineBundle, 'baseline (frozen v1.0.0 + amendment)');
+const frozen = createOracle(baselineBundle, 'baseline (frozen v1.0.0 + amendments)');
 const generated = createOracle(generatedBundle(), 'generated');
 const zodByName = new Map<string, z.ZodType>(
   apiSchemaCatalog.map(([name, schema]) => [name, schema]),
@@ -109,7 +110,7 @@ describe('frozen request-validation fixtures (31)', () => {
   });
 });
 
-describe('schema-driven synthetic payloads for all 286 schemas (284 frozen + 2 of the v1.1.0 amendment)', () => {
+describe('schema-driven synthetic payloads for all 288 schemas (284 frozen + 2 of v1.1.0 + 2 of v1.2.0)', () => {
   it('synthetic base instances are valid under the baseline oracle (generator self-check)', () => {
     const invalid: string[] = [];
     for (const [name] of apiSchemaCatalog) {
