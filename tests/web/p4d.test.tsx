@@ -637,6 +637,9 @@ describe('P4D production context page', () => {
     expect(q('[data-testid="context-result"]')).toBeNull();
     await click(byText('button', 'Show the preparation context'));
     await waitFor(() => q('[data-testid="context-result"]') !== null, 'the preparation context');
+    // Its authority block has no recorded event: shown as selected, never as current or passed.
+    expect(q('[data-testid="context-coverage"]')).not.toBeNull();
+    expect(pageText()).not.toMatch(FORBIDDEN_CLAIMS);
     expect(contextQueries(api, w.caseA.id)).toEqual([
       'taskType=INITIAL&generationMode=DRAFTING',
       'taskType=INITIAL&generationMode=PREPARATION',
