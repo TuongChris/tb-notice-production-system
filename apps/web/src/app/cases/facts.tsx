@@ -9,7 +9,7 @@
 // returns them (the gap reported at R9), so the pages say so instead of showing them. Every page is
 // keyed by the case and fact ids and reads a fact only under its own case: another case's fact is
 // not found.
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import type {
   CaseFact,
@@ -36,7 +36,7 @@ import {
   RIGHTS_BASIS_LABEL,
   SCOPE_KIND_LABEL,
 } from '../directory/format.js';
-import { useDirectoryApi, useLoad } from '../directory/hooks.js';
+import { useDirectoryApi, useLoad, type Load } from '../directory/hooks.js';
 import { RecordName } from '../directory/lookup.js';
 import { useFlashMessage, useSubmission, type FlashState } from '../directory/record-page.js';
 import {
@@ -69,6 +69,18 @@ import {
   reportedItemLabel,
 } from './intake-ui.js';
 import type { IntakeParties } from './mappings.js';
+
+/**
+ * The last loaded value, kept while a reload is in flight: after a version conflict the case is
+ * loaded again without unmounting the form, so what the operator typed stays.
+ */
+function useKept<T>(state: Load<T>): T | null {
+  const [kept, setKept] = useState<T | null>(null);
+  useEffect(() => {
+    if (state.status === 'ready') setKept(state.value);
+  }, [state]);
+  return state.status === 'ready' ? state.value : kept;
+}
 
 type FactType = CaseFact['factType'];
 type ScopeKind = CaseFact['scopeKind'];
@@ -899,7 +911,15 @@ function FactForm({
   const fixed = revising !== null;
   return (
     <>
-      {submission.conflict && <ConflictNotice recordLabel="case" onReload={onReload} />}
+      {submission.conflict && (
+        <ConflictNotice
+          recordLabel="case"
+          onReload={() => {
+            submission.reset();
+            onReload();
+          }}
+        />
+      )}
       <ValidationSummary
         issues={issues}
         label={(path) => LABELS[path.split('.')[0] ?? ''] ?? path}
@@ -1247,11 +1267,12 @@ export function NewFactPage() {
 function NewFact({ caseId }: { caseId: string }) {
   const api = useDirectoryApi();
   const [state, reload] = useLoad(`fact-new:${caseId}`, () => loadFormContext(api, caseId));
-  if (state.status === 'loading') return <LoadingNotice label="Loading case…" />;
+  const context = useKept(state);
   if (state.status === 'error') {
     return <ErrorNotice error={state.error} recordLabel="case" onRetry={reload} />;
   }
-  const caseRecord = state.value.caseResult.data;
+  if (context === null) return <LoadingNotice label="Loading case…" />;
+  const caseRecord = context.caseResult.data;
   return (
     <article className="sheet">
       <Breadcrumbs
@@ -1270,7 +1291,7 @@ function NewFact({ caseId }: { caseId: string }) {
           This case is archived, so nothing can be added to it. Restore the case first.
         </p>
       ) : (
-        <FactForm context={state.value} revising={null} onReload={reload} />
+        <FactForm context={context} revising={null} onReload={reload} />
       )}
     </article>
   );
@@ -1290,7 +1311,7 @@ function ReviseFact({ caseId, factId }: { caseId: string; factId: string }) {
     ]);
     return { context, view };
   });
-  if (state.status === 'loading') return <LoadingNotice label="Loading fact…" />;
+  const loaded = useKept(state);
   if (state.status === 'error') {
     if (state.error instanceof ApiError && state.error.status === 404) {
       return (
@@ -1302,7 +1323,8 @@ function ReviseFact({ caseId, factId }: { caseId: string; factId: string }) {
     }
     return <ErrorNotice error={state.error} recordLabel="fact" onRetry={reload} />;
   }
-  const { context, view } = state.value;
+  if (loaded === null) return <LoadingNotice label="Loading fact…" />;
+  const { context, view } = loaded;
   const { fact, head } = view;
   const caseRecord = context.caseResult.data;
   const current = head === null || head.id === fact.id;

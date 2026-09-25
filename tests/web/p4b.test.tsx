@@ -347,6 +347,69 @@ describe('P4B case intake UI', () => {
     expect(api.rows.CaseRecord.get(w.caseA.id)?.['contextRevision']).toBe(contextAfterCreate);
   });
 
+  it('a new record with an outdated case version: "Load latest version" keeps what was typed, clears the notice and saves with the new case version', async () => {
+    const api = new FakeDirectory();
+    const w = world(api);
+    await render(api, `/cases/${w.caseA.id}/works/new`);
+    await waitFor(() => q('#work-title') !== null, 'work form');
+    api.touch('CaseRecord', w.caseA.id);
+    await type('#work-title', 'SYNTHETIC work typed before the conflict');
+    await submit(q('form.record-form'));
+    await waitFor(() => q('[data-testid="conflict-notice"]') !== null, 'conflict');
+    expect(api.rows.CaseWork.size).toBe(2);
+    await click(byText('button', 'Load latest version'));
+    await waitFor(() => q('[data-testid="conflict-notice"]') === null, 'notice cleared');
+    await waitFor(() => q('#work-title') !== null, 'form again');
+    expect((q('#work-title') as HTMLInputElement).value).toBe(
+      'SYNTHETIC work typed before the conflict',
+    );
+    await submit(q('form.record-form'));
+    await until('Work recorded.');
+    const posted = bodies(api, 'POST', `/cases/${w.caseA.id}/works`);
+    expect(posted.map((request) => request.headers['If-Match'])).toEqual([
+      `"CaseRecord:${w.caseA.id}:v1"`,
+      `"CaseRecord:${w.caseA.id}:v2"`,
+    ]);
+    expect(posted[0]?.headers['Idempotency-Key']).not.toBe(posted[1]?.headers['Idempotency-Key']);
+  });
+
+  it('a new fact with an outdated case version keeps what was typed after "Load latest version"', async () => {
+    const api = new FakeDirectory();
+    const w = world(api);
+    await render(api, `/cases/${w.caseA.id}/facts/new`);
+    await waitFor(() => q('#fact-factType') !== null, 'fact form');
+    await type('#fact-factType', 'WORK_IDENTIFICATION');
+    await type('#fact-scopeKind', 'CASE');
+    await waitFor(() => q('#fact-value-description') !== null, 'value fields');
+    await type('#fact-value-description', 'SYNTHETIC description typed before the conflict');
+    await type('#fact-provenance', 'OPERATOR_REPORTED');
+    await type('#fact-scopeText', 'SYNTHETIC scope typed before the conflict');
+    await type('#fact-changeReason', 'SYNTHETIC reason');
+    api.touch('CaseRecord', w.caseA.id);
+    await submit(q('form.record-form'));
+    await waitFor(() => q('[data-testid="conflict-notice"]') !== null, 'conflict');
+    expect(api.facts).toHaveLength(0);
+    await click(byText('button', 'Load latest version'));
+    await waitFor(() => q('[data-testid="conflict-notice"]') === null, 'notice cleared');
+    expect((q('#fact-scopeText') as HTMLTextAreaElement).value).toBe(
+      'SYNTHETIC scope typed before the conflict',
+    );
+    expect((q('#fact-value-description') as HTMLTextAreaElement).value).toBe(
+      'SYNTHETIC description typed before the conflict',
+    );
+    await waitFor(
+      () =>
+        api.requests.filter((request) => request.path === `/api/v1/cases/${w.caseA.id}`).length >=
+        2,
+      'case reloaded',
+    );
+    await submit(q('form.record-form'));
+    await until('Fact recorded.');
+    const posted = bodies(api, 'POST', `/cases/${w.caseA.id}/facts`);
+    expect(posted.at(-1)?.headers['If-Match']).toBe(`"CaseRecord:${w.caseA.id}:v2"`);
+    expect(api.facts).toHaveLength(1);
+  });
+
   it('records a use mapping from this case’s own work and reported item; times are exact milliseconds next to the text as stated', async () => {
     const api = new FakeDirectory();
     const w = world(api);

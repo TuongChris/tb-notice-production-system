@@ -404,7 +404,15 @@ function NewWork({ caseId }: { caseId: string }) {
         </p>
       ) : (
         <>
-          {submission.conflict && <ConflictNotice recordLabel="case" onReload={reload} />}
+          {submission.conflict && (
+            <ConflictNotice
+              recordLabel="case"
+              onReload={() => {
+                submission.reset();
+                reload();
+              }}
+            />
+          )}
           <ValidationSummary
             issues={issues}
             label={(path) => LABELS[path.split('.')[0] ?? ''] ?? path}
