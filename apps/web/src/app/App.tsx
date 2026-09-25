@@ -6,6 +6,14 @@ import { SessionProvider, useSession } from './auth/session.js';
 import { SelectAuthorityPage, SelectionDetailPage } from './cases/authority-selection.js';
 import { LinkCaseSourcePage } from './cases/case-sources.js';
 import { CaseDetailPage, CaseListPage, EditCasePage, NewCasePage } from './cases/cases.js';
+import { FactDetailPage, NewFactPage, ReviseFactPage } from './cases/facts.js';
+import { EditMappingPage, MappingDetailPage, NewMappingPage } from './cases/mappings.js';
+import {
+  EditReportedItemPage,
+  NewReportedItemPage,
+  ReportedItemDetailPage,
+} from './cases/reported-items.js';
+import { EditWorkPage, NewWorkPage, WorkDetailPage } from './cases/works.js';
 import {
   AgencyDetailPage,
   AgencyListPage,
@@ -64,7 +72,8 @@ import {
 /**
  * Web app: Login, session check, the protected shell, the Directory, Sources, the Representation
  * pages (routes, mandates, versions, coverage, coverage signers and authority events) and Cases
- * (case records, linked sources and authority selected for evaluation).
+ * (case records, linked sources, authority selected for evaluation and the case intake: reported
+ * items, works, use mappings and facts).
  */
 export function App({ api }: { api: ApiClient }) {
   const directory = useMemo(() => createDirectoryApi(api), [api]);
@@ -133,6 +142,24 @@ export function App({ api }: { api: ApiClient }) {
                   path="cases/:id/authority-selections/:selectionId"
                   element={<SelectionDetailPage />}
                 />
+                <Route path="cases/:id/reported-items/new" element={<NewReportedItemPage />} />
+                <Route
+                  path="cases/:id/reported-items/:itemId"
+                  element={<ReportedItemDetailPage />}
+                />
+                <Route
+                  path="cases/:id/reported-items/:itemId/edit"
+                  element={<EditReportedItemPage />}
+                />
+                <Route path="cases/:id/works/new" element={<NewWorkPage />} />
+                <Route path="cases/:id/works/:workId" element={<WorkDetailPage />} />
+                <Route path="cases/:id/works/:workId/edit" element={<EditWorkPage />} />
+                <Route path="cases/:id/mappings/new" element={<NewMappingPage />} />
+                <Route path="cases/:id/mappings/:mappingId" element={<MappingDetailPage />} />
+                <Route path="cases/:id/mappings/:mappingId/edit" element={<EditMappingPage />} />
+                <Route path="cases/:id/facts/new" element={<NewFactPage />} />
+                <Route path="cases/:id/facts/:factId" element={<FactDetailPage />} />
+                <Route path="cases/:id/facts/:factId/revise" element={<ReviseFactPage />} />
               </Route>
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />

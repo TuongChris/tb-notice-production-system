@@ -75,7 +75,7 @@ export function TextField(
   props: CommonProps & {
     readonly value: string;
     readonly onChange: (value: string) => void;
-    readonly type?: 'text' | 'email' | 'url' | 'tel' | 'date';
+    readonly type?: 'text' | 'email' | 'url' | 'tel' | 'date' | 'datetime-local';
     readonly multiline?: boolean;
     readonly autoComplete?: string;
   },
