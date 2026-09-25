@@ -8,7 +8,7 @@
 // treatment; capture posture is shown as recorded; captured, source and fact text is plain text and
 // no address in it is opened. There is no generate, approve, sign or send action here. The page is
 // keyed by the case id, so nothing of one case carries over to another.
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import type {
   CaseAuthoritySelection,
@@ -167,6 +167,13 @@ function ProductionContext({ caseId }: { caseId: string }) {
   const api = useDirectoryApi();
   const [params, setParams] = useSearchParams();
   const scope = scopeOf(params);
+  // Focus follows a read asked for on this page, never arriving on it: the control that asked is
+  // replaced while the context is read.
+  const [focusOutcome, setFocusOutcome] = useState(false);
+  function show(query: ContextQuery) {
+    setFocusOutcome(true);
+    setParams(contextQueryString(query));
+  }
   const [caseState] = useLoad(`context-case:${caseId}`, () => api.cases.get(caseId));
   const [choices] = useLoad<Choices>(`context-choices:${caseId}`, async () => {
     const [selections, bindings] = await Promise.all([
@@ -214,7 +221,7 @@ function ProductionContext({ caseId }: { caseId: string }) {
           choices={choices.value}
           currentSelectionId={record.currentAuthoritySelectionId}
           initial={scope}
-          onShow={(query) => setParams(contextQueryString(query))}
+          onShow={show}
         />
       )}
       {scope === null ? (
@@ -226,9 +233,9 @@ function ProductionContext({ caseId }: { caseId: string }) {
           caseId={caseId}
           scope={scope}
           bindings={choices.status === 'ready' ? choices.value.bindings : []}
-          onPreparation={() =>
-            setParams(contextQueryString({ ...scope, generationMode: 'PREPARATION' }))
-          }
+          focusOnShow={focusOutcome}
+          onAsk={() => setFocusOutcome(true)}
+          onPreparation={() => show({ ...scope, generationMode: 'PREPARATION' })}
         />
       )}
     </article>
@@ -451,21 +458,44 @@ function ContextRead({
   caseId,
   scope,
   bindings,
+  focusOnShow,
+  onAsk,
   onPreparation,
 }: {
   caseId: string;
   scope: ContextQuery;
   bindings: readonly CorrespondenceBinding[];
+  /** Move focus to the outcome once it is shown (a read asked for on this page). */
+  focusOnShow: boolean;
+  /** A read is asked for here (Read again). */
+  onAsk: () => void;
   onPreparation: () => void;
 }) {
   const api = useDirectoryApi();
   const key = `context:${caseId}:${contextQueryString(scope)}`;
   const [state, reload] = useLoad(key, () => api.cases.productionContext(caseId, scope));
+  const outcome = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (focusOnShow && state.status !== 'loading') outcome.current?.focus();
+  }, [focusOnShow, state]);
   if (state.status === 'loading') return <LoadingNotice label="Reading the context…" />;
-  if (state.status === 'error') {
-    return <ContextRefusal error={state.error} scope={scope} onPreparation={onPreparation} />;
-  }
-  return <ContextResult view={state.value} caseId={caseId} bindings={bindings} onReload={reload} />;
+  return (
+    <div ref={outcome} tabIndex={-1} className="context-outcome" data-testid="context-outcome">
+      {state.status === 'error' ? (
+        <ContextRefusal error={state.error} scope={scope} onPreparation={onPreparation} />
+      ) : (
+        <ContextResult
+          view={state.value}
+          caseId={caseId}
+          bindings={bindings}
+          onReload={() => {
+            onAsk();
+            reload();
+          }}
+        />
+      )}
+    </div>
+  );
 }
 
 /** A refused read: the reason, and for DRAFTING the gaps it names (nothing is filled in). */

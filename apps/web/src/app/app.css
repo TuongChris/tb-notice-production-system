@@ -1476,6 +1476,11 @@ code.hash {
   font-weight: 600;
 }
 
+/* A read asked for on the page moves focus here (like .shell-main); the container is no control. */
+.context-outcome:focus {
+  outline: none;
+}
+
 .context-scope {
   margin-bottom: 1.25rem;
 }

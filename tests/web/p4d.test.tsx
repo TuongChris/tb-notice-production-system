@@ -7,8 +7,9 @@
 // is); every block of the view shown as recorded — missing context and recorded conflicts in their
 // own treatments, the authority copy, the application scope read back, capture posture, attachment
 // observations, captured text as inert plain text, a MISSING fact never shown as a negative
-// finding; DRAFTING and selector refusals; case isolation; and that the page writes nothing and
-// offers no generate, approve, ready, sign or send action. All data is synthetic.
+// finding; DRAFTING and selector refusals; case isolation; keyboard focus following a read asked for
+// on the page to its outcome; and that the page writes nothing and offers no generate, approve,
+// ready, sign or send action. All data is synthetic.
 import { describe, expect, it } from 'vitest';
 import type { ContextView, ProductionContext } from '../../packages/contracts/src/index.js';
 import { ContextViewSchema } from '../../packages/contracts/src/index.js';
@@ -646,6 +647,38 @@ describe('P4D production context page', () => {
     expect(contextRequests(api, w.caseA.id).at(-1)).toBe(
       'taskType=INITIAL&generationMode=PREPARATION',
     );
+    expect(api.writes()).toEqual([]);
+  });
+
+  it('keyboard focus follows a read asked for on the page — read again, show, the preparation view — to its outcome, since the control that asked is replaced while reading; arriving on the page moves no focus', async () => {
+    const api = new FakeDirectory();
+    const w = world(api);
+    api.contextReplies.set(w.caseA.id, (query) =>
+      query.get('generationMode') === 'DRAFTING'
+        ? failure(422, 'DRAFTING_INPUT_MISSING', { missing: ['REPORTED_ITEMS_ABSENT'] })
+        : json(200, { data: viewOf(w), meta }),
+    );
+    const outcome = () => q('[data-testid="context-outcome"]');
+    await openContext(api, w.caseA.id, { taskType: 'INITIAL', generationMode: 'PREPARATION' });
+    await waitFor(() => q('[data-testid="context-result"]') !== null, 'the context on arrival');
+    expect(document.activeElement).not.toBe(outcome());
+    const before = contextRequests(api, w.caseA.id).length;
+    await click(byText('button', 'Read again'));
+    await waitFor(() => contextRequests(api, w.caseA.id).length > before, 'the repeated read');
+    await waitFor(() => q('[data-testid="context-result"]') !== null, 'the context read again');
+    expect(document.activeElement).toBe(outcome());
+    await chooseRadio('context-mode', 'DRAFTING');
+    await submit(q('form[aria-label="Context scope"]'));
+    await waitFor(() => q('[data-testid="context-refusal"]') !== null, 'the refusal');
+    expect(document.activeElement).toBe(outcome());
+    expect(outcome()?.contains(q('[data-testid="context-refusal"]'))).toBe(true);
+    await click(byText('button', 'Show the preparation context'));
+    await waitFor(() => q('[data-testid="context-result"]') !== null, 'the preparation context');
+    expect(document.activeElement).toBe(outcome());
+    expect(contextQueries(api, w.caseA.id)).toEqual([
+      'taskType=INITIAL&generationMode=PREPARATION',
+      'taskType=INITIAL&generationMode=DRAFTING',
+    ]);
     expect(api.writes()).toEqual([]);
   });
 
