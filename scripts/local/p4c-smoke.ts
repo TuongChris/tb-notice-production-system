@@ -566,14 +566,15 @@ async function main(): Promise<void> {
   }
   pass('refusals wrote nothing: the case moved only with the five recorded bindings');
 
-  // Nothing sends, edits, deletes or computes readiness ------------------------------------------
+  // Nothing sends, edits, deletes or computes readiness (the production context is a GET-only read
+  // since P4D, with its own smoke:p4d) -------------------------------------------------------------
   for (const [label, method, suffix] of [
     ['POST /correspondence/{id}/send', 'POST', `/correspondence/${outbound.data.id}/send`],
     ['POST /correspondence/{id}/reply', 'POST', `/correspondence/${nmi.data.id}/reply`],
     ['PATCH /correspondence/{id}', 'PATCH', `/correspondence/${nmi.data.id}`],
     ['DELETE /correspondence/{id}', 'DELETE', `/correspondence/${nmi.data.id}`],
     ['GET /cases/{caseId}/readiness', 'GET', `/cases/${caseId}/readiness`],
-    ['GET /cases/{caseId}/production-context', 'GET', `/cases/${caseId}/production-context`],
+    ['POST /cases/{caseId}/production-context', 'POST', `/cases/${caseId}/production-context`],
     ['POST /cases/{caseId}/prompts', 'POST', `/cases/${caseId}/prompts`],
   ] as const) {
     const refused = await call(

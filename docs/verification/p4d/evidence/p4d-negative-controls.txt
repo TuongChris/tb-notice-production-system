@@ -1,0 +1,375 @@
+P4D Production context — negative controls (mission §49), home PC, 2026-09-25 (UTC)
+==================================================================================
+
+Method (scratchpad runner outside Git, the P4A/R8/P4B/R9/P4C method): each control disables exactly one
+protection of getProductionContext or of its page by an exact text replacement — or injects the forbidden
+behaviour — then runs every responsible test command. Each command must FAIL with a non-zero exit AND name at
+least one failed test; the first failure message is recorded to show that the failure is the test's assertion,
+not a crash of a broken mutation or a backstop. Every mutated file is then restored and verified byte-identical
+by SHA-256. Every anchor is checked to occur exactly once before a control runs. DB commands run on the
+disposable tb_notice_test only (synthetic example.invalid records; every test cleans up). The working tree is
+fingerprinted (git diff HEAD + SHA-256 of every untracked file) before and after a run. No control touches
+docs/reference/**, a migration, the generated contract artifacts or a release record.
+
+Final run (run 2): 2026-09-25T17:29:21.157Z – 2026-09-25T17:30:42.581Z, head 1b012bdc8dbc94274ffff0cbf7b71218713ce744
+(the code head at the time of the run; clean tree except the untracked docs/verification/p4d/ evidence), runner exit 0.
+  22 controls, 22 caught and restored (28 responsible commands, every one failed and named a test).
+  Working-tree fingerprint before and after: 89e67720db0f843f0b1b1be6eb4dc21e651e1dd34b778b1d0282cdec6bbda98a (identical)
+  Afterwards `yarn db:verify test --expect-empty`: [verify] domain rows total: 0; [verify] PASS: metadata matches the reviewed inventory.
+  First failure message of each command: 28 AssertionError, 0 other; no
+  command failed through a 500 (no backstop answered in place of the test's own assertion).
+  Unmutated baseline right before it — the 19 distinct responsible commands, each passing and selecting one test:
+    OK  exit 0 · Tests  1 passed | 41 skipped (42) · node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t two cases of one agency, owner and route, with the same video
+    OK  exit 0 · Tests  1 passed | 41 skipped (42) · node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t NMI_REPLY without a parent: PREPARATION shows the gap
+    OK  exit 0 · Tests  1 passed | 7 skipped (8) · yarn vitest run --config vitest.config.ts tests/web/p4d.test.tsx -t NMI_REPLY offers only this case’s NMI bindings as the parent
+    OK  exit 0 · Tests  1 passed | 41 skipped (42) · node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t priorBindingIds: explicit bindings only
+    OK  exit 0 · Tests  1 passed | 41 skipped (42) · node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t stay the exact revisions the pinned records name
+    OK  exit 0 · Tests  1 passed | 41 skipped (42) · node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t a support stays pinned to the exact source revision its link names
+    OK  exit 0 · Tests  1 passed | 41 skipped (42) · node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t default signer and preferred coverage never replace the selection
+    OK  exit 0 · Tests  1 passed | 41 skipped (42) · node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t every provenance class and resolution state is kept as recorded
+    OK  exit 0 · Tests  1 passed | 41 skipped (42) · node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t a mapping recorded with provenance CONFLICT is kept as recorded
+    OK  exit 0 · Tests  1 passed | 41 skipped (42) · node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t authority events recorded after the selection
+    OK  exit 0 · Tests  1 passed | 7 skipped (8) · yarn vitest run --config vitest.config.ts tests/web/p4d.test.tsx -t DRAFTING refused: the reason and the gaps are shown
+    OK  exit 0 · Tests  1 passed | 11 skipped (12) · yarn vitest run --config vitest.config.ts tests/api/production-context-rules.test.ts -t is the SHA-256 of the TB canonical JSON of the algorithm
+    OK  exit 0 · Tests  1 passed | 41 skipped (42) · node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t what the context does not rely on changes nothing
+    OK  exit 0 · Tests  1 passed | 41 skipped (42) · node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t the dependencies are exactly the closure of a reply context
+    OK  exit 0 · Tests  1 passed | 41 skipped (42) · node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t writes committed while a read is in flight
+    OK  exit 0 · Tests  1 passed | 11 skipped (12) · yarn vitest run --config vitest.config.ts tests/api/production-context-rules.test.ts -t the service reads in one REPEATABLE READ transaction
+    OK  exit 0 · Tests  1 passed | 41 skipped (42) · node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t repeated successful, refused and DRAFTING reads leave every table byte-identical
+    OK  exit 0 · Tests  1 passed | 11 skipped (12) · yarn vitest run --config vitest.config.ts tests/api/production-context-rules.test.ts -t the production module issues no write, lock, raw SQL, audit or idempotency call
+    OK  exit 0 · Tests  1 passed | 7 skipped (8) · yarn vitest run --config vitest.config.ts tests/web/p4d.test.tsx -t a reply context shows every block as recorded
+    19 distinct commands, 0 problems
+
+RESULT: 22/22 — every disabled protection made its responsible tests fail; every file restored byte-identically.
+
+History (nothing hidden; every run kept in the scratchpad)
+- While the controls were designed, the UI currentness control (NC-P4D-12b) showed a gap: the page's
+  forbidden-claims scan ran only on a reply view whose coverage records a TERMINATION event, so a page that
+  labelled a block "current" whenever no termination is recorded would not have been caught. Commit bfeb9f1 adds
+  the same scan to the DRAFTING test's preparation view (an authority block with no recorded event).
+- Run 1: 2026-09-25T17:25:10.936Z – 2026-09-25T17:26:31.581Z, head bfeb9f1, fingerprint 89e67720db0f843f0b1b1be6eb4dc21e651e1dd34b778b1d0282cdec6bbda98a
+  (identical after): 22 controls, 21 caught and restored, 1 NOT CAUGHT. Its unmutated baseline:
+  19 distinct commands, 0 problems.
+  * NC-P4D-18 (UI shows G1 PASS) was NOT CAUGHT: the web test scanned the page's textContent, which runs
+    adjacent elements together — the injected "G1 PASS" tag followed by the next label read "…G1 PASSSelection…",
+    and the word-boundary pattern \bg1 pass\b did not match. A defect of the test, not of the page. Commit
+    1b012bd makes the three P4D claim scans read the page's text nodes joined by spaces.
+  The same textContent scan is used by 18 claim checks of the accepted P3A–P4C web tests; they were not changed
+  (outside P4D) and are reported for R11.
+- Run 2 (final, above), on 1b012bd.
+
+Mission §49 coverage (each listed kind; the "b" variants are the UI side of the same protection)
+- cross-case item inclusion: NC-P4D-01
+- cross-case fact inclusion: NC-P4D-02
+- cross-case authority selection: NC-P4D-03
+- cross-case parent binding: NC-P4D-04
+- auto-latest NMI: NC-P4D-05a, NC-P4D-05b
+- OUTBOUND interpreted as AS_SENT: NC-P4D-06a, NC-P4D-06b
+- source revision auto-follow: NC-P4D-07
+- route preferred coverage replacing pinned coverage: NC-P4D-08
+- missing converted to false: NC-P4D-09
+- conflict dropped: NC-P4D-10
+- DOCUMENT_REVIEWED auto-upgrade: NC-P4D-11
+- no-termination interpreted as current authority: NC-P4D-12a, NC-P4D-12b
+- digest uses Case.rowVersion only: NC-P4D-13
+- relevant AuthorityEvent omitted from dependency closure: NC-P4D-14
+- nondeterministic dependency order: NC-P4D-15
+- inconsistent snapshot: NC-P4D-16
+- read writes AuditEvent: NC-P4D-17
+- UI shows G1 PASS: NC-P4D-18
+- UI exposes Generate/Send: NC-P4D-19
+
+Notes on single controls
+- NC-P4D-02 (cross-case fact inclusion): dropping the fact query's case filter alone makes the snapshot's
+  integrity backstops refuse the read (500) — another case's fact names that case's source link and its mapping.
+  The control also disables those two backstops (the cross-case support check and the kept-record count), so the
+  foreign facts reach the view; the contamination test then fails on its own assertion (a case A record id in
+  case B's context).
+- NC-P4D-03 / NC-P4D-04 run in the contamination test, whose two cases share agency, owner and route: another
+  case's selection or NMI binding then passes every structural check, and only the case check can refuse it —
+  the test fails on its 422 CROSS_CASE_REFERENCE assertion with a 200.
+- NC-P4D-05b and NC-P4D-06b are the UI side of the same protections: the parent picker preselects the latest NMI
+  binding; the prior-transmission picker also offers bindings recorded as OTHER (the page has no message
+  direction, so this is how an outbound message recorded as OTHER would reach it).
+- NC-P4D-08 re-points the pinned rows to the route's preferred coverage (a re-point of the coverages alone would
+  be refused by the assembly's own chain check before any assertion).
+- NC-P4D-09 rewrites a MISSING permission fact's recorded finding to NO_PERMISSION_REPORTED and drops its missing
+  item; NC-P4D-11 raises a fact supported by a DOCUMENT_REVIEWED source to DOCUMENT_REVIEWED.
+- NC-P4D-12a adds a "current" flag (no TERMINATION or REVOCATION event) to each authority block; NC-P4D-12b
+  renders "Current authority" on such a block.
+- NC-P4D-13 digests only the case row version; NC-P4D-14 removes the authority events from the closure (the
+  event test's own dependency assertion fails: the event is not a dependency).
+- NC-P4D-15 sorts the dependencies randomly; only the DB closure test is responsible — the unit test's bare-case
+  rows have two dependencies, which a random comparator leaves in order half of the time.
+- NC-P4D-16 reads at READ COMMITTED instead of REPEATABLE READ: the observer's commits after the first row then
+  reach the in-flight read. NC-P4D-17 writes an AuditEvent row on every read (a valid row, so the read itself
+  succeeds and only the table comparison and the module scan can see it).
+
+Controls (replacement shown shortened; "must fail" = the responsible commands)
+------------------------------------------------------------------------------
+NC-P4D-01 — [cross-case item inclusion] the context's reported items are this case's only (the item query keeps its case filter)
+  file: apps/api/src/modules/production/context-snapshot.ts
+  replace: "  const items = await tx.reportedItem.findMany({\n    where: { caseId, archivedAt: null },\n"
+  with:    "  const items = await tx.reportedItem.findMany({\n    where: { archivedAt: null },\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t two cases of one agency, owner and route, with the same video
+NC-P4D-02 — [cross-case fact inclusion] the context's facts are this case's chain heads only (fact query loses its case filter; the two snapshot integrity backstops it would trip — cross-case support link, kept record of another case — are disabled so the contamination reaches the view)
+  file: apps/api/src/modules/production/context-snapshot.ts
+  replace: "    where: { caseId, caseFact_supersedesFact: { is: null } },\n"
+  with:    "    where: { caseFact_supersedesFact: { is: null } },\n"
+  file: apps/api/src/modules/production/context-snapshot.ts
+  replace: "  integrity(cited.length === citedIds.length && cited.every((row) => row.caseId === caseId));\n"
+  with:    "  integrity(cited.length === citedIds.length);\n"
+  file: apps/api/src/modules/production/context-snapshot.ts
+  replace: "  const rows = await load([...ids]);\n  integrity(rows.length === ids.length);\n"
+  with:    "  const rows = await load([...ids]);\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t two cases of one agency, owner and route, with the same video
+NC-P4D-03 — [cross-case authority selection] another case's authority selection is refused (422 CROSS_CASE_REFERENCE), never used
+  file: apps/api/src/modules/production/context-snapshot.ts
+  replace: "  if (row.caseId !== caseId) throw apiErrors.crossCaseReference('authoritySelectionId', 'record');\n"
+  with:    ""
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t two cases of one agency, owner and route, with the same video
+NC-P4D-04 — [cross-case parent binding] another case's NMI binding is refused as the parent (422 CROSS_CASE_REFERENCE), never used
+  file: apps/api/src/modules/production/context-snapshot.ts
+  replace: "  if (row.caseId !== caseId) throw apiErrors.crossCaseReference(field, 'record');\n"
+  with:    "  if (row.caseId !== caseId && role === 'prior') throw apiErrors.crossCaseReference(field, 'record');\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t two cases of one agency, owner and route, with the same video
+NC-P4D-05a — [auto-latest NMI] server: a reply without a named parent gets no parent (the latest NMI binding is never chosen)
+  file: apps/api/src/modules/production/context-snapshot.ts
+  replace: "  const parent =\n    scope.parentBindingId === null\n      ? null\n      : await namedBinding(tx, caseRow.id, scope.parentBindingId, 'parentBindingId', 'parent');\n"
+  with:    "  const parent =\n    scope.parentBindingId === null\n      ? scope.taskType === 'NMI_REPLY'\n        ? await tx.correspondenceBinding.findFirst({\n            where: { ca..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t NMI_REPLY without a parent: PREPARATION shows the gap
+NC-P4D-05b — [auto-latest NMI] UI: the parent picker preselects nothing (not the case's latest NMI binding)
+  file: apps/web/src/app/cases/production-context.tsx
+  replace: "  const [parentId, setParentId] = useState(initial?.parentBindingId ?? '');\n"
+  with:    "  const [parentId, setParentId] = useState(\n    initial?.parentBindingId ??\n      choices.bindings.find(\n        (binding) => binding.eventType === 'NMI' && !corrected..."
+  must fail: yarn vitest run --config vitest.config.ts tests/web/p4d.test.tsx -t NMI_REPLY offers only this case’s NMI bindings as the parent
+NC-P4D-06a — [OUTBOUND interpreted as AS_SENT] server: an OUTBOUND message bound as OTHER is refused as a prior transmission (422 PRIOR_BINDING_NOT_AS_SENT)
+  file: apps/api/src/modules/production/context-snapshot.ts
+  replace: "  if (role === 'prior' && !AS_SENT_EVENTS.includes(row.eventType)) {\n"
+  with:    "  const direction = (\n    await tx.correspondence.findUnique({\n      where: { id: row.correspondenceId },\n      select: { direction: true },\n    })\n  )?.direction;\n  i..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t priorBindingIds: explicit bindings only
+NC-P4D-06b — [OUTBOUND interpreted as AS_SENT] UI: the prior-transmission picker offers only bindings recorded as sent (never an OUTBOUND + OTHER binding)
+  file: apps/web/src/app/cases/production-context.tsx
+  replace: "  const sent = choices.bindings.filter((binding) => isAsSent(binding.eventType));\n"
+  with:    "  const sent = choices.bindings.filter(\n    (binding) => isAsSent(binding.eventType) || binding.eventType === 'OTHER',\n  );\n"
+  must fail: yarn vitest run --config vitest.config.ts tests/web/p4d.test.tsx -t NMI_REPLY offers only this case’s NMI bindings as the parent
+NC-P4D-07 — [source revision auto-follow] every source stays the exact revision its record names; a newer revision is never followed
+  file: apps/api/src/modules/production/context-snapshot.ts
+  replace: "  integrity(sources.length === sourceIds.length);\n"
+  with:    "  integrity(sources.length === sourceIds.length);\n  for (const [index, source] of sources.entries()) {\n    const head = await tx.sourceReference.findFirst({\n      wher..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t stay the exact revisions the pinned records name
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t a support stays pinned to the exact source revision its link names
+NC-P4D-08 — [route preferred coverage replacing pinned coverage] the selection's pinned coverage is used, never the route's preferred coverage
+  file: apps/api/src/modules/production/context-snapshot.ts
+  replace: "  const pinned = await tx.caseAuthorityCoverage.findMany({\n    where: { selectionId: selection.id },\n    orderBy: [{ coverageId: 'asc' }],\n  });\n"
+  with:    "  const route = await tx.route.findUniqueOrThrow({ where: { id: selection.routeId } });\n  const pinned = (\n    await tx.caseAuthorityCoverage.findMany({\n      where: {..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t default signer and preferred coverage never replace the selection
+NC-P4D-09 — [missing converted to false] a MISSING permission fact keeps its recorded value and stays listed as missing (never "no permission")
+  file: apps/api/src/modules/production/context-assembly.ts
+  replace: "  const facts = rows.facts.map(toCaseFactView);\n"
+  with:    "  const facts = rows.facts.map(toCaseFactView).map((fact) =>\n    fact.provenance === 'MISSING' && fact.factType === 'PERMISSION'\n      ? { ...fact, value: { ...fact.va..."
+  file: apps/api/src/modules/production/context-assembly.ts
+  replace: "    if (fact.provenance !== 'MISSING') return;\n"
+  with:    "    if (fact.provenance !== 'MISSING' || fact.factType === 'PERMISSION') return;\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t every provenance class and resolution state is kept as recorded
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t two cases of one agency, owner and route, with the same video
+NC-P4D-10 — [conflict dropped] recorded conflicts are listed, never dropped or resolved
+  file: apps/api/src/modules/production/context-assembly.ts
+  replace: "    missing,\n    conflicts,\n"
+  with:    "    missing,\n    conflicts: [],\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t every provenance class and resolution state is kept as recorded
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t a mapping recorded with provenance CONFLICT is kept as recorded
+NC-P4D-11 — [DOCUMENT_REVIEWED auto-upgrade] a fact supported by a DOCUMENT_REVIEWED source keeps its recorded provenance (a support never upgrades it)
+  file: apps/api/src/modules/production/context-assembly.ts
+  replace: "  const facts = rows.facts.map(toCaseFactView);\n"
+  with:    "  const reviewedLinks = new Set(\n    rows.caseSources\n      .filter(\n        (link) =>\n          rows.sources.find((source) => source.id === link.sourceId)?.reportedPr..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t every provenance class and resolution state is kept as recorded
+NC-P4D-12a — [no-termination interpreted as current authority] server: no currentness is derived for an authority block (no "current" flag from the absence of a termination)
+  file: apps/api/src/modules/production/context-assembly.ts
+  replace: "                .map(toAuthorityEventView),\n            };\n"
+  with:    "                .map(toAuthorityEventView),\n              current: !rows.events.some(\n                (event) => event.eventType === 'TERMINATION' || event.eventType =..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t authority events recorded after the selection
+NC-P4D-12b — [no-termination interpreted as current authority] UI: an authority block without a recorded termination is never labelled current
+  file: apps/web/src/app/cases/production-context.tsx
+  replace: "            Coverage: {block.coverage.coverageLabel}{' '}\n"
+  with:    "            Coverage: {block.coverage.coverageLabel}{' '}\n            {block.authorityEvents.every(\n              (event) => event.eventType !== 'TERMINATION' && event..."
+  must fail: yarn vitest run --config vitest.config.ts tests/web/p4d.test.tsx -t DRAFTING refused: the reason and the gaps are shown
+NC-P4D-13 — [digest uses Case.rowVersion only] the digest covers the complete closure and the scope, never merely the case row version
+  file: apps/api/src/modules/production/context-dependencies.ts
+  replace: "export function dependencyDigest(scope: ContextScope, dependencies: readonly Dependency[]): string {\n  return tbCanonicalSha256({\n"
+  with:    "export function dependencyDigest(scope: ContextScope, dependencies: readonly Dependency[]): string {\n  return tbCanonicalSha256({\n    caseRowVersion: dependencies.find..."
+  must fail: yarn vitest run --config vitest.config.ts tests/api/production-context-rules.test.ts -t is the SHA-256 of the TB canonical JSON of the algorithm
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t what the context does not rely on changes nothing
+NC-P4D-14 — [relevant AuthorityEvent omitted from dependency closure] every relevant authority event is a dependency of the context
+  file: apps/api/src/modules/production/context-dependencies.ts
+  replace: "  for (const row of rows.events) {\n    add('AuthorityEvent', row.id, null, semantic(toAuthorityEventView(row)));\n  }\n"
+  with:    ""
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t authority events recorded after the selection
+NC-P4D-15 — [nondeterministic dependency order] dependencies are in (entityType, entityId) order and repeated reads are identical
+  file: apps/api/src/modules/production/context-dependencies.ts
+  replace: "    .sort((x, y) => byId(x.entityType, y.entityType) || byId(x.entityId, y.entityId));\n"
+  with:    "    .sort(() => Math.random() - 0.5);\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t the dependencies are exactly the closure of a reply context
+NC-P4D-16 — [inconsistent snapshot] one REPEATABLE READ snapshot per read: writes committed while a read is in flight are not mixed in
+  file: apps/api/src/modules/production/production-context.service.ts
+  replace: "  isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,\n"
+  with:    "  isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t writes committed while a read is in flight
+  must fail: yarn vitest run --config vitest.config.ts tests/api/production-context-rules.test.ts -t the service reads in one REPEATABLE READ transaction
+NC-P4D-17 — [read writes AuditEvent] a context read writes nothing (no audit event)
+  file: apps/api/src/modules/production/production-context.service.ts
+  replace: "    const { view, blocking } = assembleContext(rows, scope);\n"
+  with:    "    const { view, blocking } = assembleContext(rows, scope);\n    await this.prisma.auditEvent.create({\n      data: {\n        requestId: 'nc-p4d-read',\n        action: ..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t repeated successful, refused and DRAFTING reads leave every table byte-identical
+  must fail: yarn vitest run --config vitest.config.ts tests/api/production-context-rules.test.ts -t the production module issues no write, lock, raw SQL, audit or idempotency call
+NC-P4D-18 — [UI shows G1 PASS] UI: the selected authority is never shown as G1 PASS
+  file: apps/web/src/app/cases/production-context.tsx
+  replace: "        {AUTHORITY_IN_CONTEXT}\n      </p>\n"
+  with:    "        {AUTHORITY_IN_CONTEXT}\n      </p>\n      {authority !== null && <span className=\"tag\">G1 PASS</span>}\n"
+  must fail: yarn vitest run --config vitest.config.ts tests/web/p4d.test.tsx -t a reply context shows every block as recorded
+NC-P4D-19 — [UI exposes Generate/Send] UI: the context page offers no generate or send action
+  file: apps/web/src/app/cases/production-context.tsx
+  replace: "          <button type=\"button\" className=\"button\" onClick={onReload}>\n            Read again\n          </button>\n"
+  with:    "          <>\n            <button type=\"button\" className=\"button\" onClick={onReload}>\n              Read again\n            </button>\n            <button type=\"button\" ..."
+  must fail: yarn vitest run --config vitest.config.ts tests/web/p4d.test.tsx -t a reply context shows every block as recorded
+
+Final run log (run 2)
+---------------------
+# P4D negative controls — start 2026-09-25T17:29:21.157Z — head 1b012bdc8dbc94274ffff0cbf7b71218713ce744 — tree fingerprint 89e67720db0f843f0b1b1be6eb4dc21e651e1dd34b778b1d0282cdec6bbda98a
+[NC-P4D-01] CAUGHT · restored byte-identical · [cross-case item inclusion] the context's reported items are this case's only (the item query keeps its case filter)
+    exit 1 · Tests  1 failed | 41 skipped (42) · node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t two cases of one agency, owner and route, with the same video
+      × two cases of one agency, owner and route, with the same video, the same source URL and one message bound to both: each context holds only its own case's records, and no finding of one case answers a gap of the other
+      FAIL  tests/db/p4d-http.test.ts > CONTAMINATION — nothing of one case appears in, supports or changes another case > two cases of one agency, owner and route, with the same video, the same source URL and one message bound to both: each context holds only its own case's records, and no finding of one case answers a gap of the other
+        ↳ AssertionError: case A record 4a811565-2114-497b-8128-960b869e3c5c in case B: expected '{"contextRevision":9,"dependencyDiges…' not to contain '4a811565-2114-497b-8128-960b869e3c5c'
+[NC-P4D-02] CAUGHT · restored byte-identical · [cross-case fact inclusion] the context's facts are this case's chain heads only (fact query loses its case filter; the two snapshot integrity backstops it would trip — cross-case support link, kept record of another case — are disabled so the contamination reaches the view)
+    exit 1 · Tests  1 failed | 41 skipped (42) · node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t two cases of one agency, owner and route, with the same video
+      × two cases of one agency, owner and route, with the same video, the same source URL and one message bound to both: each context holds only its own case's records, and no finding of one case answers a gap of the other
+      FAIL  tests/db/p4d-http.test.ts > CONTAMINATION — nothing of one case appears in, supports or changes another case > two cases of one agency, owner and route, with the same video, the same source URL and one message bound to both: each context holds only its own case's records, and no finding of one case answers a gap of the other
+        ↳ AssertionError: case A record b6e8ad09-4356-4b53-9acd-3bed0bacbb95 in case B: expected '{"contextRevision":9,"dependencyDiges…' not to contain 'b6e8ad09-4356-4b53-9acd-3bed0bacbb95'
+[NC-P4D-03] CAUGHT · restored byte-identical · [cross-case authority selection] another case's authority selection is refused (422 CROSS_CASE_REFERENCE), never used
+    exit 1 · Tests  1 failed | 41 skipped (42) · node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t two cases of one agency, owner and route, with the same video
+      × two cases of one agency, owner and route, with the same video, the same source URL and one message bound to both: each context holds only its own case's records, and no finding of one case answers a gap of the other
+      FAIL  tests/db/p4d-http.test.ts > CONTAMINATION — nothing of one case appears in, supports or changes another case > two cases of one agency, owner and route, with the same video, the same source URL and one message bound to both: each context holds only its own case's records, and no finding of one case answers a gap of the other
+        ↳ AssertionError: {"authoritySelectionId":"b00350b0-fb5d-4b62-9f31-4f179178edea"}: expected [ 200, '(no error: HTTP 200)' ] to deeply equal [ 422, 'CROSS_CASE_REFERENCE' ]
+[NC-P4D-04] CAUGHT · restored byte-identical · [cross-case parent binding] another case's NMI binding is refused as the parent (422 CROSS_CASE_REFERENCE), never used
+    exit 1 · Tests  1 failed | 41 skipped (42) · node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t two cases of one agency, owner and route, with the same video
+      × two cases of one agency, owner and route, with the same video, the same source URL and one message bound to both: each context holds only its own case's records, and no finding of one case answers a gap of the other
+      FAIL  tests/db/p4d-http.test.ts > CONTAMINATION — nothing of one case appears in, supports or changes another case > two cases of one agency, owner and route, with the same video, the same source URL and one message bound to both: each context holds only its own case's records, and no finding of one case answers a gap of the other
+        ↳ AssertionError: {"taskType":"NMI_REPLY","parentBindingId":"c261eb92-0c31-4251-af72-24cdc4c70bbf"}: expected [ 200, '(no error: HTTP 200)' ] to deeply equal [ 422, 'CROSS_CASE_REFERENCE' ]
+[NC-P4D-05a] CAUGHT · restored byte-identical · [auto-latest NMI] server: a reply without a named parent gets no parent (the latest NMI binding is never chosen)
+    exit 1 · Tests  1 failed | 41 skipped (42) · node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t NMI_REPLY without a parent: PREPARATION shows the gap
+      × NMI_REPLY without a parent: PREPARATION shows the gap (no NMI is chosen by date, subject or text), DRAFTING is 422 REPLY_PARENT_REQUIRED (NOT_SELECTED) with every blocking code
+      FAIL  tests/db/p4d-http.test.ts > QUERY AND TASK SCOPE — only contracted, explicit selectors; nothing is chosen for the caller > NMI_REPLY without a parent: PREPARATION shows the gap (no NMI is chosen by date, subject or text), DRAFTING is 422 REPLY_PARENT_REQUIRED (NOT_SELECTED) with every blocking code
+        ↳ AssertionError: expected 'de3f51ac-b441-460d-b360-d45c2aaef285' to be null
+[NC-P4D-05b] CAUGHT · restored byte-identical · [auto-latest NMI] UI: the parent picker preselects nothing (not the case's latest NMI binding)
+    exit 1 · Tests  1 failed | 7 skipped (8) · yarn vitest run --config vitest.config.ts tests/web/p4d.test.tsx -t NMI_REPLY offers only this case’s NMI bindings as the parent
+      × NMI_REPLY offers only this case’s NMI bindings as the parent and its bindings recorded as sent as priors — a corrected binding is not offered, OUTBOUND + OTHER never is — and sends exactly the named ids; switching to INITIAL drops them
+      FAIL  tests/web/p4d.test.tsx > P4D production context page > NMI_REPLY offers only this case’s NMI bindings as the parent and its bindings recorded as sent as priors — a corrected binding is not offered, OUTBOUND + OTHER never is — and sends exactly the named ids; switching to INITIAL drops them
+        ↳ AssertionError: expected '00000000-0000-4000-8000-000000000031' to be '' // Object.is equality
+[NC-P4D-06a] CAUGHT · restored byte-identical · [OUTBOUND interpreted as AS_SENT] server: an OUTBOUND message bound as OTHER is refused as a prior transmission (422 PRIOR_BINDING_NOT_AS_SENT)
+    exit 1 · Tests  1 failed | 41 skipped (42) · node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t priorBindingIds: explicit bindings only
+      × priorBindingIds: explicit bindings only — unknown 422, another case's 422, OUTBOUND+OTHER or any non-AS_SENT event 422 PRIOR_BINDING_NOT_AS_SENT, a corrected one 409; unnamed AS_SENT bindings are never added; DRAFTING without one is 422 DRAFTING_INPUT_MISSING
+      FAIL  tests/db/p4d-http.test.ts > QUERY AND TASK SCOPE — only contracted, explicit selectors; nothing is chosen for the caller > priorBindingIds: explicit bindings only — unknown 422, another case's 422, OUTBOUND+OTHER or any non-AS_SENT event 422 PRIOR_BINDING_NOT_AS_SENT, a corrected one 409; unnamed AS_SENT bindings are never added; DRAFTING without one is 422 DRAFTING_INPUT_MISSING
+        ↳ AssertionError: expected [ 200, '(no error: HTTP 200)' ] to deeply equal [ 422, 'PRIOR_BINDING_NOT_AS_SENT' ]
+[NC-P4D-06b] CAUGHT · restored byte-identical · [OUTBOUND interpreted as AS_SENT] UI: the prior-transmission picker offers only bindings recorded as sent (never an OUTBOUND + OTHER binding)
+    exit 1 · Tests  1 failed | 7 skipped (8) · yarn vitest run --config vitest.config.ts tests/web/p4d.test.tsx -t NMI_REPLY offers only this case’s NMI bindings as the parent
+      × NMI_REPLY offers only this case’s NMI bindings as the parent and its bindings recorded as sent as priors — a corrected binding is not offered, OUTBOUND + OTHER never is — and sends exactly the named ids; switching to INITIAL drops them
+      FAIL  tests/web/p4d.test.tsx > P4D production context page > NMI_REPLY offers only this case’s NMI bindings as the parent and its bindings recorded as sent as priors — a corrected binding is not offered, OUTBOUND + OTHER never is — and sends exactly the named ids; switching to INITIAL drops them
+        ↳ AssertionError: expected [ …(3) ] to deeply equal [ …(2) ]
+[NC-P4D-07] CAUGHT · restored byte-identical · [source revision auto-follow] every source stays the exact revision its record names; a newer revision is never followed
+    exit 1 · Tests  1 failed | 41 skipped (42) · node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t stay the exact revisions the pinned records name
+      × the version's primary source and the coverage basis stay the exact revisions the pinned records name: newer revisions are not listed or used, and their existence changes the digest, never the authority block
+      FAIL  tests/db/p4d-http.test.ts > AUTHORITY SOURCES — pinned revisions, never followed > the version's primary source and the coverage basis stay the exact revisions the pinned records name: newer revisions are not listed or used, and their existence changes the digest, never the authority block
+        ↳ AssertionError: expected [ …(4) ] to deeply equal [ …(4) ]
+    exit 1 · Tests  1 failed | 41 skipped (42) · node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t a support stays pinned to the exact source revision its link names
+      × a support stays pinned to the exact source revision its link names: a newer revision is never followed, but its existence changes the digest; a PAUSED or UNLINKED link keeps the recorded support, is listed as a conflict and changes the digest
+      FAIL  tests/db/p4d-http.test.ts > FACTS AND SOURCES — chain heads, provenance as recorded, pinned supports, closure-only manifests > a support stays pinned to the exact source revision its link names: a newer revision is never followed, but its existence changes the digest; a PAUSED or UNLINKED link keeps the recorded support, is listed as a conflict and changes the digest
+        ↳ AssertionError: expected { …(24) } to deeply equal { …(24) }
+[NC-P4D-08] CAUGHT · restored byte-identical · [route preferred coverage replacing pinned coverage] the selection's pinned coverage is used, never the route's preferred coverage
+    exit 1 · Tests  1 failed | 41 skipped (42) · node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t default signer and preferred coverage never replace the selection
+      × the route's default signer and preferred coverage never replace the selection: changing them changes neither the context nor its digest
+      FAIL  tests/db/p4d-http.test.ts > PARTY AND AUTHORITY — explicit route relationship, exact selection pinning, no currentness > the route's default signer and preferred coverage never replace the selection: changing them changes neither the context nor its digest
+        ↳ AssertionError: expected [ Array(1) ] to deeply equal [ Array(1) ]
+[NC-P4D-09] CAUGHT · restored byte-identical · [missing converted to false] a MISSING permission fact keeps its recorded value and stays listed as missing (never "no permission")
+    exit 1 · Tests  1 failed | 41 skipped (42) · node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t every provenance class and resolution state is kept as recorded
+      × every provenance class and resolution state is kept as recorded: MISSING is listed as missing (never false), CONFLICT as a conflict (never resolved), UNASSESSED is not support, WITHDRAWN stays visible, DOCUMENT_REVIEWED only as recorded — a support never upgrades anything
+      FAIL  tests/db/p4d-http.test.ts > FACTS AND SOURCES — chain heads, provenance as recorded, pinned supports, closure-only manifests > every provenance class and resolution state is kept as recorded: MISSING is listed as missing (never false), CONFLICT as a conflict (never resolved), UNASSESSED is not support, WITHDRAWN stays visible, DOCUMENT_REVIEWED only as recorded — a support never upgrades anything
+        ↳ AssertionError: expected [ { …(21) }, { …(21) }, …(5) ] to deeply equal [ { …(21) }, { …(21) }, …(5) ]
+    exit 1 · Tests  1 failed | 41 skipped (42) · node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t two cases of one agency, owner and route, with the same video
+      × two cases of one agency, owner and route, with the same video, the same source URL and one message bound to both: each context holds only its own case's records, and no finding of one case answers a gap of the other
+      FAIL  tests/db/p4d-http.test.ts > CONTAMINATION — nothing of one case appears in, supports or changes another case > two cases of one agency, owner and route, with the same video, the same source URL and one message bound to both: each context holds only its own case's records, and no finding of one case answers a gap of the other
+        ↳ AssertionError: expected [ { …(3) } ] to deep equally contain ObjectContaining{…}
+[NC-P4D-10] CAUGHT · restored byte-identical · [conflict dropped] recorded conflicts are listed, never dropped or resolved
+    exit 1 · Tests  1 failed | 41 skipped (42) · node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t every provenance class and resolution state is kept as recorded
+      × every provenance class and resolution state is kept as recorded: MISSING is listed as missing (never false), CONFLICT as a conflict (never resolved), UNASSESSED is not support, WITHDRAWN stays visible, DOCUMENT_REVIEWED only as recorded — a support never upgrades anything
+      FAIL  tests/db/p4d-http.test.ts > FACTS AND SOURCES — chain heads, provenance as recorded, pinned supports, closure-only manifests > every provenance class and resolution state is kept as recorded: MISSING is listed as missing (never false), CONFLICT as a conflict (never resolved), UNASSESSED is not support, WITHDRAWN stays visible, DOCUMENT_REVIEWED only as recorded — a support never upgrades anything
+        ↳ AssertionError: expected [] to deeply equal [ { …(3) }, { …(3) } ]
+    exit 1 · Tests  1 failed | 41 skipped (42) · node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t a mapping recorded with provenance CONFLICT is kept as recorded
+      × a mapping recorded with provenance CONFLICT is kept as recorded and listed as a conflict; its basis source stays the exact revision it names
+      FAIL  tests/db/p4d-http.test.ts > INTAKE RECORDS — exact records of this case; archived ones only when an included record still names them > a mapping recorded with provenance CONFLICT is kept as recorded and listed as a conflict; its basis source stays the exact revision it names
+        ↳ AssertionError: expected [] to deeply equal [ { …(3) } ]
+[NC-P4D-11] CAUGHT · restored byte-identical · [DOCUMENT_REVIEWED auto-upgrade] a fact supported by a DOCUMENT_REVIEWED source keeps its recorded provenance (a support never upgrades it)
+    exit 1 · Tests  1 failed | 41 skipped (42) · node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t every provenance class and resolution state is kept as recorded
+      × every provenance class and resolution state is kept as recorded: MISSING is listed as missing (never false), CONFLICT as a conflict (never resolved), UNASSESSED is not support, WITHDRAWN stays visible, DOCUMENT_REVIEWED only as recorded — a support never upgrades anything
+      FAIL  tests/db/p4d-http.test.ts > FACTS AND SOURCES — chain heads, provenance as recorded, pinned supports, closure-only manifests > every provenance class and resolution state is kept as recorded: MISSING is listed as missing (never false), CONFLICT as a conflict (never resolved), UNASSESSED is not support, WITHDRAWN stays visible, DOCUMENT_REVIEWED only as recorded — a support never upgrades anything
+        ↳ AssertionError: expected [ { …(21) }, { …(21) }, …(5) ] to deeply equal [ { …(21) }, { …(21) }, …(5) ]
+[NC-P4D-12a] CAUGHT · restored byte-identical · [no-termination interpreted as current authority] server: no currentness is derived for an authority block (no "current" flag from the absence of a termination)
+    exit 1 · Tests  1 failed | 41 skipped (42) · node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t authority events recorded after the selection
+      × authority events recorded after the selection: a whole-mandate event and one scoped to a pinned coverage are in the context, in recording order, and change the digest without touching the case; an event scoped to another coverage of the same mandate is not; nothing is judged current, expired, valid or invalid
+      FAIL  tests/db/p4d-http.test.ts > PARTY AND AUTHORITY — explicit route relationship, exact selection pinning, no currentness > authority events recorded after the selection: a whole-mandate event and one scoped to a pinned coverage are in the context, in recording order, and change the digest without touching the case; an event scoped to another coverage of the same mandate is not; nothing is judged current, expired, valid or invalid
+        ↳ AssertionError: expected '{"selection":{"id":"8d0d6b4b-e1ad-416…' not to match /"(current|expired|valid|invalid|isCu…/i
+[NC-P4D-12b] CAUGHT · restored byte-identical · [no-termination interpreted as current authority] UI: an authority block without a recorded termination is never labelled current
+    exit 1 · Tests  1 failed | 7 skipped (8) · yarn vitest run --config vitest.config.ts tests/web/p4d.test.tsx -t DRAFTING refused: the reason and the gaps are shown
+      × DRAFTING refused: the reason and the gaps are shown and nothing is filled in; the preparation view is one step away; a repeated read asks again and nothing is written
+      FAIL  tests/web/p4d.test.tsx > P4D production context page > DRAFTING refused: the reason and the gaps are shown and nothing is filled in; the preparation view is one step away; a repeated read asks again and nothing is written
+        ↳ AssertionError: expected 'Skip to content TB Notice Production …' not to match /\b(g1 pass|g[1-7] passed|ready for s…/i
+[NC-P4D-13] CAUGHT · restored byte-identical · [digest uses Case.rowVersion only] the digest covers the complete closure and the scope, never merely the case row version
+    exit 1 · Tests  1 failed | 11 skipped (12) · yarn vitest run --config vitest.config.ts tests/api/production-context-rules.test.ts -t is the SHA-256 of the TB canonical JSON of the algorithm
+      × is the SHA-256 of the TB canonical JSON of the algorithm, contract, PFC version, scope (priors as a sorted set) and the dependencies without row versions
+      FAIL  tests/api/production-context-rules.test.ts > dependencyDigest — the closure and the scope, never a row version or a clock > is the SHA-256 of the TB canonical JSON of the algorithm, contract, PFC version, scope (priors as a sorted set) and the dependencies without row versions
+        ↳ AssertionError: expected '335e8b9a5b051848913ea00481e66dd4986f7…' to be '954e81fa072217e1a7109ccd2c575f7fe4e8c…' // Object.is equality
+    exit 1 · Tests  1 failed | 41 skipped (42) · node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t what the context does not rely on changes nothing
+      × what the context does not rely on changes nothing: the case's notes, a work's notes, a clock advance and records of other cases or of the registry leave the digest unchanged (row versions may move)
+      FAIL  tests/db/p4d-http.test.ts > DEPENDENCIES AND DIGEST — the complete closure, deterministic, never a row version or a clock > what the context does not rely on changes nothing: the case's notes, a work's notes, a clock advance and records of other cases or of the registry leave the digest unchanged (row versions may move)
+        ↳ AssertionError: expected '066169c45ce2dc446f64732ca26cc6dca83d0…' to be '433a535e9c8c767748939efb8eb8590b027a3…' // Object.is equality
+[NC-P4D-14] CAUGHT · restored byte-identical · [relevant AuthorityEvent omitted from dependency closure] every relevant authority event is a dependency of the context
+    exit 1 · Tests  1 failed | 41 skipped (42) · node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t authority events recorded after the selection
+      × authority events recorded after the selection: a whole-mandate event and one scoped to a pinned coverage are in the context, in recording order, and change the digest without touching the case; an event scoped to another coverage of the same mandate is not; nothing is judged current, expired, valid or invalid
+      FAIL  tests/db/p4d-http.test.ts > PARTY AND AUTHORITY — explicit route relationship, exact selection pinning, no currentness > authority events recorded after the selection: a whole-mandate event and one scoped to a pinned coverage are in the context, in recording order, and change the digest without touching the case; an event scoped to another coverage of the same mandate is not; nothing is judged current, expired, valid or invalid
+        ↳ AssertionError: expected undefined to be null
+[NC-P4D-15] CAUGHT · restored byte-identical · [nondeterministic dependency order] dependencies are in (entityType, entityId) order and repeated reads are identical
+    exit 1 · Tests  1 failed | 41 skipped (42) · node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t the dependencies are exactly the closure of a reply context
+      × the dependencies are exactly the closure of a reply context, in (entityType, entityId) order; row versions only for version-checked records, matching the records; repeated reads are identical
+      FAIL  tests/db/p4d-http.test.ts > DEPENDENCIES AND DIGEST — the complete closure, deterministic, never a row version or a clock > the dependencies are exactly the closure of a reply context, in (entityType, entityId) order; row versions only for version-checked records, matching the records; repeated reads are identical
+        ↳ AssertionError: expected [ [ 'Route', …(1) ], …(26) ] to deeply equal [ [ 'Agency', …(1) ], …(26) ]
+[NC-P4D-16] CAUGHT · restored byte-identical · [inconsistent snapshot] one REPEATABLE READ snapshot per read: writes committed while a read is in flight are not mixed in
+    exit 1 · Tests  1 failed | 41 skipped (42) · node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t writes committed while a read is in flight
+      × writes committed while a read is in flight (after its first row) are not in that read — no new revision with old children or old selection with new rows; the next read has all of them
+      FAIL  tests/db/p4d-http.test.ts > CONSISTENT SNAPSHOT — one snapshot per read; concurrent commits are never mixed in > writes committed while a read is in flight (after its first row) are not in that read — no new revision with old children or old selection with new rows; the next read has all of them
+        ↳ AssertionError: expected { contextRevision: 7, …(3) } to deeply equal { contextRevision: 7, …(3) }
+    exit 1 · Tests  1 failed | 11 skipped (12) · yarn vitest run --config vitest.config.ts tests/api/production-context-rules.test.ts -t the service reads in one REPEATABLE READ transaction
+      × the service reads in one REPEATABLE READ transaction and the controller routes exactly one GET
+      FAIL  tests/api/production-context-rules.test.ts > module source — a read and nothing else > the service reads in one REPEATABLE READ transaction and the controller routes exactly one GET
+        ↳ AssertionError: expected 'import { Inject, Injectable } from \'…' to match /TransactionIsolationLevel\.Repeatable…/
+[NC-P4D-17] CAUGHT · restored byte-identical · [read writes AuditEvent] a context read writes nothing (no audit event)
+    exit 1 · Tests  1 failed | 41 skipped (42) · node scripts/db/run-db-tests.mjs tests/db/p4d-http.test.ts -t repeated successful, refused and DRAFTING reads leave every table byte-identical
+      × repeated successful, refused and DRAFTING reads leave every table byte-identical: no audit event, idempotency record, revision or row version moves, and nothing of a later phase exists
+      FAIL  tests/db/p4d-http.test.ts > READ-ONLY — a context read writes nothing, whatever its outcome > repeated successful, refused and DRAFTING reads leave every table byte-identical: no audit event, idempotency record, revision or row version moves, and nothing of a later phase exists
+        ↳ AssertionError: expected { …(33) } to deeply equal { …(33) }
+    exit 1 · Tests  1 failed | 11 skipped (12) · yarn vitest run --config vitest.config.ts tests/api/production-context-rules.test.ts -t the production module issues no write, lock, raw SQL, audit or idempotency call
+      × the production module issues no write, lock, raw SQL, audit or idempotency call, reads no clock and opens no network, mail, Drive or process client
+      FAIL  tests/api/production-context-rules.test.ts > module source — a read and nothing else > the production module issues no write, lock, raw SQL, audit or idempotency call, reads no clock and opens no network, mail, Drive or process client
+        ↳ AssertionError: production-context.service.ts: write: expected true to be false // Object.is equality
+[NC-P4D-18] CAUGHT · restored byte-identical · [UI shows G1 PASS] UI: the selected authority is never shown as G1 PASS
+    exit 1 · Tests  1 failed | 7 skipped (8) · yarn vitest run --config vitest.config.ts tests/web/p4d.test.tsx -t a reply context shows every block as recorded
+      × a reply context shows every block as recorded: exact authority with the selection’s application scope, capture posture beside each message, the as-sent copy, attachment observations, one message once however often it is bound, captured text as inert text, and a MISSING fact never as a negative finding
+      FAIL  tests/web/p4d.test.tsx > P4D production context page > a reply context shows every block as recorded: exact authority with the selection’s application scope, capture posture beside each message, the as-sent copy, attachment observations, one message once however often it is bound, captured text as inert text, and a MISSING fact never as a negative finding
+        ↳ AssertionError: expected 'Skip to content TB Notice Production …' not to match /\b(g1 pass|g[1-7] passed|ready for s…/i
+[NC-P4D-19] CAUGHT · restored byte-identical · [UI exposes Generate/Send] UI: the context page offers no generate or send action
+    exit 1 · Tests  1 failed | 7 skipped (8) · yarn vitest run --config vitest.config.ts tests/web/p4d.test.tsx -t a reply context shows every block as recorded
+      × a reply context shows every block as recorded: exact authority with the selection’s application scope, capture posture beside each message, the as-sent copy, attachment observations, one message once however often it is bound, captured text as inert text, and a MISSING fact never as a negative finding
+      FAIL  tests/web/p4d.test.tsx > P4D production context page > a reply context shows every block as recorded: exact authority with the selection’s application scope, capture posture beside each message, the as-sent copy, attachment observations, one message once however often it is bound, captured text as inert text, and a MISSING fact never as a negative finding
+        ↳ AssertionError: expected [ 'Generate and send notice' ] to deeply equal []
+# end 2026-09-25T17:30:42.581Z — tree fingerprint 89e67720db0f843f0b1b1be6eb4dc21e651e1dd34b778b1d0282cdec6bbda98a (identical)
+22 controls, 22 caught and restored, 0 problems
+exit=0

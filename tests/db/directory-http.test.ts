@@ -2660,7 +2660,7 @@ describe('SECURITY / VALIDATION / CONTRACT', () => {
     expect(await countRows(prisma, 'source_references')).toBe(0);
   });
 
-  it('exposes exactly the P1 routes plus the 76 directory, source, route and authority operations, the 40 case operations and the 5 correspondence operations', async () => {
+  it('exposes exactly the P1 routes plus the 76 directory, source, route and authority operations, the 40 case operations, the 5 correspondence operations and the production-context read', async () => {
     const express = t.app.getHttpAdapter().getInstance() as {
       router: { stack: Array<{ route?: { path: string; methods: Record<string, boolean> } }> };
     };
@@ -2678,8 +2678,8 @@ describe('SECURITY / VALIDATION / CONTRACT', () => {
     // TB-SCHEMA-API-v1.1.0 (ADR-0004, R8); P4B: the 22 ReportedItem, CaseWork, UseMapping and
     // CaseFact operations, plus the read-back getCaseFactSources of TB-SCHEMA-API-v1.2.0 (ADR-0005,
     // R9); P4C: the 5 Correspondence-tagged operations (capture, list and read correspondence, bind
-    // it to a case, list a case's bindings). No production, prompt, candidate or validation
-    // operation is routed.
+    // it to a case, list a case's bindings); P4D: the read-only getProductionContext. No prompt,
+    // candidate, validation, assessment, readiness or export operation is routed.
     const directory = operations
       .filter((operation) =>
         /^\/(agencies|owners|legal-subjects|signers|owner-subjects|sources|routes|mandates|mandate-versions|coverages|coverage-signers)(\/|$)/.test(
@@ -2756,6 +2756,14 @@ describe('SECURITY / VALIDATION / CONTRACT', () => {
       'POST /api/v1/cases/:caseId/correspondence-bindings',
       'GET /api/v1/cases/:caseId/correspondence-bindings',
     ]);
+    const production = operations
+      .filter((operation) => (operation.tags as readonly string[]).includes('Production'))
+      .filter((operation) => operation.operationId === 'getProductionContext')
+      .map(
+        (operation) =>
+          `${operation.method.toUpperCase()} /api/v1${operation.path.replace(/\{([A-Za-z]+)\}/g, ':$1')}`,
+      );
+    expect(production).toEqual(['GET /api/v1/cases/:caseId/production-context']);
     expect(routes).toEqual(
       [
         'GET /api/v1/auth/session',
@@ -2765,6 +2773,7 @@ describe('SECURITY / VALIDATION / CONTRACT', () => {
         ...directory,
         ...cases,
         ...correspondence,
+        ...production,
       ].sort(),
     );
   });

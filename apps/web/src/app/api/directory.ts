@@ -10,6 +10,8 @@
 // ADR-0005). Correspondence (P4C): a captured message is an immutable record of its agency (no
 // ETag, no edit, no delete) and sends nothing; a case binding is its explicit, append-only
 // interpretation for one case, written with the case's ETag and corrected only by a later binding.
+// Production context (P4D): a read of the recorded input of one case for one task, assembled by the
+// server from one snapshot with exactly the selectors named — it writes and decides nothing.
 import type {
   Agency,
   ArchiveRequest,
@@ -26,6 +28,7 @@ import type {
   CaseSource,
   CaseWork,
   CaseWorkflowRequest,
+  ContextView,
   Correspondence,
   CorrespondenceBinding,
   CorrespondenceSummary,
@@ -100,6 +103,26 @@ export interface ListQuery {
   readonly workflowState?: string;
   /** listCaseFacts only. */
   readonly factType?: string;
+}
+
+/** The scope of one production-context read: task, mode and only the selectors named. */
+export interface ContextQuery {
+  readonly taskType: 'INITIAL' | 'NMI_REPLY';
+  readonly generationMode: 'PREPARATION' | 'DRAFTING';
+  readonly authoritySelectionId?: string | null;
+  readonly parentBindingId?: string | null;
+  readonly priorBindingIds?: readonly string[];
+}
+
+/** The query of getProductionContext; each prior binding is one repeated priorBindingIds value. */
+export function contextQueryString(query: ContextQuery): string {
+  const params = new URLSearchParams();
+  params.set('taskType', query.taskType);
+  params.set('generationMode', query.generationMode);
+  if (query.authoritySelectionId) params.set('authoritySelectionId', query.authoritySelectionId);
+  if (query.parentBindingId) params.set('parentBindingId', query.parentBindingId);
+  for (const id of query.priorBindingIds ?? []) params.append('priorBindingIds', id);
+  return params.toString();
 }
 
 export interface Page<T> {
@@ -594,6 +617,19 @@ export function createCasesApi(api: ApiClient) {
           )
         ).data,
     },
+    /**
+     * The production context of this case for one task and mode (getProductionContext,
+     * TB-SCHEMA-API-v1.2.0): assembled by the server from one consistent snapshot with exactly the
+     * selectors named — none is filled in. A read: it writes nothing and has no ETag, and it is no
+     * G1–G7 decision, readiness or approval.
+     */
+    productionContext: async (caseId: string, query: ContextQuery) =>
+      (
+        await api.request<ContextView>(
+          'GET',
+          `${base}/${caseId}/production-context?${contextQueryString(query)}`,
+        )
+      ).data,
     reportedItems: child<ReportedItem, CreateReportedItem, PatchReportedItem>('reported-items'),
     works: child<CaseWork, CreateCaseWork, PatchCaseWork>('works'),
     mappings: child<UseMapping, CreateUseMapping, PatchUseMapping>('mappings'),

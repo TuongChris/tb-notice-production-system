@@ -281,6 +281,15 @@ const INTAKE_RECORD_TEXT: Record<string, string> = {
   UseMapping: 'That use mapping',
 };
 
+/** A selector of a production-context read (P4D): named explicitly, never chosen for the caller. */
+function isContextSelector(field: unknown): boolean {
+  return (
+    field === 'authoritySelectionId' ||
+    field === 'parentBindingId' ||
+    (typeof field === 'string' && field.startsWith('priorBindingIds'))
+  );
+}
+
 /** Case-child reference fields: a CROSS_CASE_REFERENCE on them names a record of another case. */
 function isCaseRecordField(field: string): boolean {
   return (
@@ -550,6 +559,9 @@ export function describeError(error: unknown, recordLabel = 'record'): string {
       }
       return 'That source is already recorded as another owner’s material, so it cannot be used for this owner.';
     case 'CROSS_CASE_REFERENCE':
+      if (isContextSelector(details['field'])) {
+        return 'That selection or binding belongs to another case. A production context uses only this case’s own records.';
+      }
       if (details['field'] === 'supersedesBindingId') {
         return 'That binding belongs to another case. A corrected interpretation names an earlier binding of this same case.';
       }
@@ -669,7 +681,24 @@ export function describeError(error: unknown, recordLabel = 'record'): string {
     case 'OUTCOME_ITEM_REQUIRED':
       return 'An outcome is recorded for one reported item of this case. Choose the reported item; for several videos, record one binding per item.';
     case 'BINDING_ALREADY_SUPERSEDED':
+      if (isContextSelector(details['field'])) {
+        return 'That binding was corrected by a later binding. Name the correction instead; the earlier binding stays in the history and is never used in its place.';
+      }
       return 'That binding already has a corrected interpretation. A binding history does not fork: correct the latest binding instead.';
+    case 'SELECTOR_NOT_FOR_TASK':
+      return 'An initial notice has no parent message and no prior transmissions. Those selectors apply to a reply to a request for more information only.';
+    case 'REPLY_PARENT_REQUIRED':
+      return details['reason'] === 'NOT_NMI'
+        ? 'That binding is not recorded as a request for more information (NMI). A reply starts from the exact NMI binding it answers.'
+        : 'Drafting a reply needs the exact binding of the request for more information (NMI) it answers. Name it; none is chosen for you.';
+    case 'PRIOR_BINDING_NOT_AS_SENT':
+      return 'That binding is not recorded as a past transmission (as sent). Only a binding recorded as sent can be a prior transmission; a message’s direction never makes one.';
+    case 'DRAFTING_INPUT_MISSING':
+      return 'Drafting needs the required content listed below. Nothing was filled in; the preparation view shows the same context with these gaps.';
+    case 'PRODUCTION_CONTEXT_TOO_LARGE':
+      return `This context holds more records than the contract allows (${String(details['field'])}: ${String(details['count'])}, at most ${String(details['maximum'])}). Nothing is cut to fit.`;
+    case 'INVALID_QUERY_PARAMETER':
+      return `The request named an invalid value (${String(details['parameter'])}). Choose again.`;
     case 'EVENT_ALREADY_SUPERSEDED':
       return 'That event already has a successor. An event history does not fork: supersede the latest event instead.';
     case 'IDEMPOTENCY_IN_PROGRESS':

@@ -299,6 +299,17 @@ function CaseDetail({ id }: { id: string }) {
       <AuthoritySelectionSection caseRecord={item} />
       <CaseIntakeSections caseRecord={item} />
       <CaseCorrespondenceSection caseRecord={item} />
+      <Section title="Production context">
+        <p className="hint">
+          Assembles this case’s recorded context for one task, to inspect what is recorded and what
+          is missing. It does not determine G1–G7 or readiness, and reading it changes nothing.
+        </p>
+        <p>
+          <Link to={`/cases/${item.id}/production-context`} data-testid="open-production-context">
+            Open the production context
+          </Link>
+        </p>
+      </Section>
       <Section title="Notes">
         {item.notes ? <p className="prose">{item.notes}</p> : <Absent />}
       </Section>

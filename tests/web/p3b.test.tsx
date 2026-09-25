@@ -10,6 +10,7 @@ import { formatInstant } from '../../apps/web/src/app/directory/format.js';
 import {
   all,
   byText,
+  claimTexts,
   click,
   FakeDirectory,
   pageText,
@@ -143,8 +144,8 @@ describe('P3B mandates UI', () => {
     );
     expect(stampTexts()).toEqual(['Draft', 'Frozen']);
     expect(stampTexts().join(' ')).not.toMatch(AUTHORITY_WORDS);
-    expect(tree).not.toMatch(AUTHORITY_WORDS);
-    expect(pageText()).not.toMatch(SIGNER_CLAIMS);
+    for (const text of claimTexts(q('.authority-tree'))) expect(text).not.toMatch(AUTHORITY_WORDS);
+    for (const text of claimTexts()) expect(text).not.toMatch(SIGNER_CLAIMS);
   });
 
   it('creates a mandate from an explicit agency: the label proves nothing and nothing else is sent', async () => {
@@ -461,7 +462,7 @@ describe('P3B coverage UI', () => {
     expect(pageText()).toContain(
       'An association is not signature authority, G7 clearance or eligibility for any notice',
     );
-    expect(pageText()).not.toMatch(SIGNER_CLAIMS);
+    for (const text of claimTexts()) expect(text).not.toMatch(SIGNER_CLAIMS);
     await click(byText('button', 'Remove from this draft'));
     await waitFor(() => q('dialog[open]') !== null, 'confirm');
     await click(byText('button', 'Remove signer'));

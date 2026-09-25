@@ -417,4 +417,52 @@ export const apiErrors = {
       'The referenced binding already has a correction; a binding history does not fork. Correct the latest binding instead.',
       successorId === null ? {} : { successorId },
     ),
+
+  // Production context (P4D, read-only): REPLY_PARENT_REQUIRED is a frozen stable code
+  // (API_CONTRACT_v1 §5); SELECTOR_NOT_FOR_TASK, PRIOR_BINDING_NOT_AS_SENT, DRAFTING_INPUT_MISSING
+  // and PRODUCTION_CONTEXT_TOO_LARGE are operation-specific codes in the free-string `code` field
+  // with the contracted statuses (R6 interpretation 10). REFERENCE_NOT_FOUND, CROSS_CASE_REFERENCE
+  // and BINDING_ALREADY_SUPERSEDED above are reused.
+  selectorNotForTask: (field: string, taskType: string) =>
+    new ApiError(
+      422,
+      'SELECTOR_NOT_FOR_TASK',
+      'An INITIAL context has no parent message and no prior transmissions: parentBindingId and priorBindingIds apply to an NMI_REPLY context only.',
+      { field, taskType },
+    ),
+  replyParentRequired: (details: Readonly<Record<string, unknown>>) =>
+    new ApiError(
+      422,
+      'REPLY_PARENT_REQUIRED',
+      'A reply starts from the exact binding of the NMI it answers: name a binding of this case recorded as NMI. Nothing is chosen for you.',
+      details,
+    ),
+  priorBindingNotAsSent: (field: string, eventType: string) =>
+    new ApiError(
+      422,
+      'PRIOR_BINDING_NOT_AS_SENT',
+      "A prior transmission is a binding recorded as sent (INITIAL_AS_SENT, REPLY_AS_SENT, SUPPLEMENT_AS_SENT or CORRECTION_AS_SENT); another event type, or a message's direction, is not one.",
+      { field, eventType },
+    ),
+  selectedBindingSuperseded: (field: string, successorId: string) =>
+    new ApiError(
+      409,
+      'BINDING_ALREADY_SUPERSEDED',
+      'The named binding has been corrected by a later binding of this case. The correction is not used in its place: name it explicitly to use the corrected interpretation.',
+      { field, successorId },
+    ),
+  draftingInputMissing: (missing: readonly string[]) =>
+    new ApiError(
+      422,
+      'DRAFTING_INPUT_MISSING',
+      'DRAFTING needs the recorded input the Production Form Contract requires. PREPARATION returns the same context with what is missing; nothing is filled in.',
+      { missing },
+    ),
+  productionContextTooLarge: (field: string, count: number, maximum: number) =>
+    new ApiError(
+      409,
+      'PRODUCTION_CONTEXT_TOO_LARGE',
+      'The recorded context exceeds a contracted bound of the production context. Nothing is cut off, so it cannot be returned.',
+      { field, count, maximum },
+    ),
 } as const;

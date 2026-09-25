@@ -1,6 +1,7 @@
 // yarn ui:sandbox --password-file <path> — a disposable local UI sandbox for manual or browser-
 // automation checks of the Directory, Sources, Routes, representation-authority, Case, case
-// intake and Correspondence pages (P2, P3A, P3B, P4A, P4B, P4C) WITHOUT touching tb_notice_dev.
+// intake, Correspondence and Production context pages (P2, P3A, P3B, P4A, P4B, P4C, P4D) WITHOUT
+// touching tb_notice_dev.
 //
 //  1. Guards: the target is the allowlisted disposable tb_notice_test schema (tooling account,
 //     loopback port 3307, never tb_notice_dev); every table the sandbox can write must be empty
@@ -12,8 +13,9 @@
 //     given file (mode 600, outside the repository); it is never printed.
 //  4. On Ctrl+C / SIGTERM (or any failure) both servers stop and every row the sandbox could have
 //     written is deleted in foreign-key order; the tables are verified empty again.
-// No external request is made (captured correspondence is only recorded; nothing is sent). The
-// account is a synthetic sandbox login, not a Signer.
+// No external request is made (captured correspondence is only recorded; nothing is sent; the
+// production context is a read that writes nothing). The account is a synthetic sandbox login, not
+// a Signer.
 import 'reflect-metadata';
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { randomBytes } from 'node:crypto';

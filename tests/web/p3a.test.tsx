@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest';
 import {
   all,
   byText,
+  claimTexts,
   click,
   FakeDirectory,
   IDENTITY_FIELDS,
@@ -186,7 +187,7 @@ describe('P3A canonical bindings UI', () => {
     await submit(q('dialog[open] form'));
     await until('already recorded as another owner’s material');
     expect(api.rows.Owner.get(owner.id)?.['bindingState']).toBe('LOCAL_ONLY');
-    expect(pageText()).not.toMatch(/verified copyright owner/i);
+    for (const text of claimTexts()) expect(text).not.toMatch(/verified copyright owner/i);
   });
 
   it('a bound legal subject locks every identity field under one notice; its binding shows the source', async () => {

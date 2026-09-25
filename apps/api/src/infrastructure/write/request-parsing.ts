@@ -4,7 +4,9 @@
 //                 empty PATCH included — API_CONTRACT_v1 §4); issue paths and fixed messages only;
 //   path id     → contract path-parameter schema; a value that can never name a record is 404;
 //   query       → only the operation's declared parameters, each a single value matching its
-//                 contract schema; anything else is 400 INVALID_QUERY_PARAMETER.
+//                 contract schema — an array parameter (style form, explode: the name repeated once
+//                 per item) its items — and every parameter the contract marks required present;
+//                 anything else is 400 INVALID_QUERY_PARAMETER.
 // Text that MySQL utf8mb4 cannot store exactly (an unpaired UTF-16 surrogate) is rejected rather
 // than silently replaced (service constraint; the stored value must equal the accepted value).
 import {
@@ -95,19 +97,37 @@ export function parsePathParam(operation: OperationSpec, name: string, value: un
   return value;
 }
 
-export type QueryValues = Readonly<Record<string, string | number | undefined>>;
+export type QueryValue = string | number | readonly string[];
+export type QueryValues = Readonly<Record<string, QueryValue | undefined>>;
 
 /**
  * Validates the query string against the operation's declared query parameters. Integers are
- * accepted only as plain decimal digits. Returns only declared parameters that were present.
+ * accepted only as plain decimal digits. An array parameter (style form, explode) is the name
+ * repeated once per item (`?a=x&a=y`; one occurrence is a one-item array); its items and bounds
+ * are checked with the contract array schema. A parameter the contract marks required must be
+ * present. Returns only declared parameters that were present.
  */
 export function parseQuery(operation: OperationSpec, raw: unknown): QueryValues {
   const specs = inlineParameters(operation, 'query');
-  const values: Record<string, string | number | undefined> = {};
+  const values: Record<string, QueryValue | undefined> = {};
   const query = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>;
   for (const [name, value] of Object.entries(query)) {
     const spec = specs.find((parameter) => parameter.name === name);
-    if (!spec || typeof value !== 'string') throw apiErrors.invalidQueryParameter(name);
+    if (!spec) throw apiErrors.invalidQueryParameter(name);
+    if (wireRegistration(spec.schema)?.lowering.kind === 'array') {
+      const items =
+        typeof value === 'string'
+          ? [value]
+          : Array.isArray(value) && value.every((item) => typeof item === 'string')
+            ? (value as string[])
+            : null;
+      if (items === null || !spec.schema.safeParse(items).success) {
+        throw apiErrors.invalidQueryParameter(name);
+      }
+      values[name] = items;
+      continue;
+    }
+    if (typeof value !== 'string') throw apiErrors.invalidQueryParameter(name);
     if (wireRegistration(spec.schema)?.lowering.kind === 'integer') {
       if (!/^(0|[1-9][0-9]*)$/.test(value)) throw apiErrors.invalidQueryParameter(name);
       const number = Number(value);
@@ -116,6 +136,11 @@ export function parseQuery(operation: OperationSpec, raw: unknown): QueryValues 
     } else {
       if (!spec.schema.safeParse(value).success) throw apiErrors.invalidQueryParameter(name);
       values[name] = value;
+    }
+  }
+  for (const spec of specs) {
+    if (spec.required && values[spec.name] === undefined) {
+      throw apiErrors.invalidQueryParameter(spec.name);
     }
   }
   return values;

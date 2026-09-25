@@ -55,6 +55,7 @@
     "smoke:p4a": "node scripts/local/p4a-smoke.ts",
     "smoke:p4b": "node scripts/local/p4b-smoke.ts",
     "smoke:p4c": "node scripts/local/p4c-smoke.ts",
+    "smoke:p4d": "node scripts/local/p4d-smoke.ts",
     "ui:sandbox": "node scripts/local/ui-sandbox.ts"
   },
   "devDependencies": {

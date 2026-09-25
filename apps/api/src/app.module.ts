@@ -6,6 +6,7 @@ import { AuthModule } from './modules/auth/auth.module.js';
 import { CasesModule } from './modules/cases/cases.module.js';
 import { CorrespondenceModule } from './modules/correspondence/correspondence.module.js';
 import { DirectoryModule } from './modules/directory/directory.module.js';
+import { ProductionModule } from './modules/production/production.module.js';
 import { RepresentationModule } from './modules/representation/representation.module.js';
 import { SourcesModule } from './modules/sources/sources.module.js';
 import { HealthModule } from './modules/health/health.module.js';
@@ -15,8 +16,9 @@ import { HealthModule } from './modules/health/health.module.js';
 // P3A: SourceReference registry, canonical bindings and Route. P3B: Mandate, MandateVersion,
 // MandateCoverage, CoverageSigner and AuthorityEvent. P4A: Case, CaseSource and
 // CaseAuthoritySelection. P4B: reported items, case works, use mappings and case facts. P4C:
-// correspondence capture and case bindings (records only; nothing is sent). No production,
-// prompt, candidate, validation, assessment, readiness, signing or sending endpoints.
+// correspondence capture and case bindings (records only; nothing is sent). P4D: the read-only
+// production context (recorded input only; no G1–G7 decision or readiness). No prompt, candidate,
+// validation, assessment, readiness, signing or sending endpoints.
 @Module({
   imports: [
     DatabaseModule,
@@ -27,6 +29,7 @@ import { HealthModule } from './modules/health/health.module.js';
     RepresentationModule,
     CasesModule,
     CorrespondenceModule,
+    ProductionModule,
   ],
   providers: [{ provide: APP_FILTER, useClass: ApiExceptionFilter }],
 })

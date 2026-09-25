@@ -1463,3 +1463,82 @@ code.hash {
     scroll-behavior: auto !important;
   }
 }
+
+/* Production context (P4D). A read of recorded input, never a verdict: the boundary is a ruled
+   note (no badge), missing context and recorded conflicts each get their own neutral rule colour —
+   neither is styled as a failure — and long ids, digests and addresses wrap at any width. */
+.context-boundary {
+  margin: 0.4rem 0 0.2rem;
+  padding: 0.45rem 0.7rem;
+  border-left: 3px solid var(--ink-2);
+  background: var(--sunken);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* A read asked for on the page moves focus here (like .shell-main); the container is no control. */
+.context-outcome:focus {
+  outline: none;
+}
+
+.context-scope {
+  margin-bottom: 1.25rem;
+}
+
+.context-list {
+  margin: 0.4rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.context-missing,
+.context-conflict {
+  padding: 0.35rem 0.6rem;
+}
+
+/* Missing: a dashed neutral rule — something is absent, nothing is wrong or false. */
+.context-missing {
+  border-left: 3px dashed var(--ink-3);
+  background: var(--sunken);
+}
+
+/* Recorded conflict: a solid caution rule — the records disagree; nothing is resolved here. */
+.context-conflict {
+  border-left: 3px solid var(--caution);
+  background: var(--caution-soft);
+}
+
+.tag-conflict {
+  border-color: var(--caution);
+}
+
+.context-message {
+  display: block;
+  margin-top: 0.15rem;
+}
+
+.context-path {
+  color: var(--ink-3);
+}
+
+.context-block {
+  margin: 0.75rem 0 0;
+  padding: 0.6rem 0 0 0.8rem;
+  border-left: 3px solid var(--rule);
+}
+
+.context-block h3,
+.context-block h4 {
+  margin: 0.2rem 0 0.4rem;
+  font-size: 1rem;
+}
+
+.digest,
+.context-url,
+.context-code {
+  font-family: var(--font-id);
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}

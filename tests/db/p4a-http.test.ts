@@ -3615,10 +3615,11 @@ describe('SECURITY / CONTRACT', () => {
     const { case: created } = await caseWorld();
     const id = created.data.id;
     // The case intake material (reported items, works, mappings, facts) is routed since P4B
-    // (tests/db/p4b-http.test.ts) and correspondence since P4C (tests/db/p4c-http.test.ts);
-    // production and everything after it are not.
+    // (tests/db/p4b-http.test.ts), correspondence since P4C (tests/db/p4c-http.test.ts) and the
+    // read-only production context (GET only) since P4D (tests/db/p4d-http.test.ts); nothing
+    // writes a production context, and prompts and everything after them are not routed.
     const paths: Array<['GET' | 'POST' | 'PATCH' | 'DELETE', string]> = [
-      ['GET', `/cases/${id}/production-context`],
+      ['POST', `/cases/${id}/production-context`],
       ['POST', `/cases/${id}/prompts`],
       ['POST', `/cases/${id}/candidates`],
       ['GET', `/candidates/${randomUUID()}/readiness`],
