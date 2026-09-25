@@ -4,7 +4,7 @@
 |---|---|
 | Release | **TB-SCHEMA-API-v1.1.0** — additive (semantic minor) |
 | Base | **TB-SCHEMA-API-v1.0.0**, the frozen reference `docs/reference/database-api-v1/TB_DATABASE_SCHEMA_API_CONTRACT_v1` (never edited; `MANIFEST.sha256` digest `42c2a419…9c`) |
-| Decision | `docs/decisions/ADR-0004-tb-schema-api-v1-1-0-case-authority-selection-read.md` — PROPOSED for acceptance at review gate R8 (final) |
+| Decision | `docs/decisions/ADR-0004-tb-schema-api-v1-1-0-case-authority-selection-read.md` — **ACCEPTED** (operator, 2026-09-25, review gate R8 final = PASS); this release is the **active** wire contract |
 | Recorded | 2026-09-25, R8 remediation (mission TB_R8_CASE_AUTHORITY_SELECTION_READBACK_REMEDIATION) |
 | Record | `amendment.json` (this folder), sha256 `2f4df69739926d4b50c22a1ba123ede51edec04bafb86459bb6bacb2d1dfda85` |
 
@@ -63,4 +63,4 @@ Additive only. No existing operation, path, parameter, schema, required field, e
 
 ## Record integrity
 
-`amendment.json` is the reviewed release record. It was written once for this release from the reviewed source change, and its correctness is proven by the composition tests above, not by a generator. It is never edited: its digest is pinned in `tests/contracts/release-v1-1-0.test.ts`. A later wire change is a new release with its own record and ADR.
+`amendment.json` is the reviewed release record, accepted with ADR-0004 at R8 final. It was written once for this release from the reviewed source change, and its correctness is proven by the composition tests above, not by a generator. It is never edited: its digest is pinned in `tests/contracts/release-v1-1-0.test.ts`. A later wire change is a new release with its own record and ADR.

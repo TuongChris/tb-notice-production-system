@@ -2,17 +2,20 @@
 
 Mission TB_P4A_CASE_CORE_AND_AUTHORITY_SELECTION_TO_R8 on `feature/p4a-case-core`, branched from the post-P3B `main` head `3649bef` and started at the R7 closeout head `b97ac13`. Recorded 2026-09-24 (UTC) on the home PC, the primary development workstation (ADR-0003). The mission stopped at review gate **R8**, submitted at `7a11ce4`. Every later case phase was **not started**: no ReportedItem, CaseWork, UseMapping, CaseFact, audiovisual evidence conclusion, permission or exception finding, correspondence, PromptSnapshot, NoticeCandidate, ValidationRun workflow, CandidateAssessment, readiness gate, G1–G7, READY_FOR_SIGNER, signature, adoption, sending, retraction, counter-notification, uploader contact, Drive write, mailbox or other external action exists.
 
-**R8 result (operator, 2026-09-25): PASS_WITH_ONE_CONTRACT_REMEDIATION.** The implementation, tests, browser verification, negative controls and CI were accepted. The one blocker was the CaseAuthorityCoverage read-back gap (§9). It is remediated by the mission TB_R8_CASE_AUTHORITY_SELECTION_READBACK_REMEDIATION (2026-09-25): the additive contract release **TB-SCHEMA-API-v1.1.0** (ADR-0004, PROPOSED) and its one new read, `getCaseAuthoritySelection` (§21). The remediation is submitted for **R8 final (PENDING)**. There is no merge and no P4B.
+**R8 result (operator, 2026-09-25): PASS_WITH_ONE_CONTRACT_REMEDIATION.** The implementation, tests, browser verification, negative controls and CI were accepted. The one blocker was the CaseAuthorityCoverage read-back gap (§9). It is remediated by the mission TB_R8_CASE_AUTHORITY_SELECTION_READBACK_REMEDIATION (2026-09-25): the additive contract release **TB-SCHEMA-API-v1.1.0** (ADR-0004) and its one new read, `getCaseAuthoritySelection` (§21).
+
+**R8 final result (operator, 2026-09-25): PASS.** P4A = **VERIFIED_COMPLETE**; ADR-0004 = **ACCEPTED**; the active wire contract is **TB-SCHEMA-API-v1.1.0**. P4A is authorized for merge to `main` by a normal merge commit (mission TB_R8_MERGE_CLOSEOUT_AND_P4B_CASE_INTAKE_TO_R9; §22). P4B is **NOT_STARTED** at this record.
 
 ## Status by scope (not collapsed)
 
 | Scope | Status | Basis |
 |---|---|---|
 | **P4A_FIRST_PC** | **PASS** | All automated checks in §14 executed on the home PC and passed; lint **0 warnings**. The R8 remediation sweep on the code head `ab56139`: 21 of 21 steps passed (§21.11) |
-| **P4A_CI** | **PASS** for the code head `61164fa` (push run 36028683469, `smoke:p4a` 47 checks), the R8 submission head `7a11ce4` (push run 36030891042), and the R8 remediation heads `e745a20` (push run 36082079759) and `ab56139` (push run 36083151963, both jobs success, `smoke:p4a` 50 checks) | CI runs `yarn test`, `yarn test:db`, `smoke:local`, `smoke:auth`, `smoke:directory`, `smoke:p3a`, `smoke:p3b` and the compiled `smoke:p4a` flow (§14, §21.11). A commit cannot record its own run, so the run of the documentation head is reported with R8 final |
+| **P4A_CI** | **PASS** for the code head `61164fa` (push run 36028683469, `smoke:p4a` 47 checks), the R8 submission head `7a11ce4` (push run 36030891042), the R8 remediation heads `e745a20` (push run 36082079759) and `ab56139` (push run 36083151963, both jobs success, `smoke:p4a` 50 checks), and the R8 final submission head `eeb94ce` (push run 36084981272, both jobs success) | CI runs `yarn test`, `yarn test:db`, `smoke:local`, `smoke:auth`, `smoke:directory`, `smoke:p3a`, `smoke:p3b` and the compiled `smoke:p4a` flow (§14, §21.11, §22). A commit cannot record its own run, so the run of this closeout head is reported with the merge |
 | **P4A_BROWSER (Playwright MCP)** | **PASS** 23/23 (mission §34); three UI findings found and fixed (F1–F3, §12). R8 read-back **PASS** 12/12; one layout finding found and fixed (F4, §21.9) | Isolated test browser against the compiled API on the disposable `tb_notice_test` (`evidence/p4a-playwright-mcp-verification.txt`, `evidence/r8-playwright-mcp-verification.txt`) |
 | **P4A_NEGATIVE_CONTROLS** | **PASS** 24/24; R8 **PASS** 17/17, and the 24 P4A controls again 24/24 on the final code (§21.10) | Every disabled protection made its responsible tests fail; files restored byte-identically (§13, `evidence/p4a-negative-controls.txt`, `evidence/r8-negative-controls.txt`) |
-| **R8 review** | **PASS_WITH_ONE_CONTRACT_REMEDIATION** (operator, 2026-09-25). The remediation is **IMPLEMENTED AND VERIFIED** and submitted for **R8 final — PENDING** | §21 |
+| **R8 review** | **PASS** (operator, 2026-09-25, R8 final) — first **PASS_WITH_ONE_CONTRACT_REMEDIATION**; the remediation was **IMPLEMENTED AND VERIFIED** (§21) and accepted with ADR-0004 | §21, §22 |
+| **P4A_STATUS** | **VERIFIED_COMPLETE** — authorized for merge to `main` (normal merge commit); not merged at this record | §22 |
 | **P1_WINDOWS_BROWSER** | **NOT_RUN** (not reported) | Unchanged |
 | **P0_SECOND_PC** / **P0_TWO_PC_ACCEPTANCE** / **P0_SINGLE_PC_BASELINE** / **P0_OVERALL** | **DEFERRED_BY_OPERATOR** / **NOT_COMPLETED** / **VERIFIED** / **NOT_COMPLETE** against the original two-PC contract | ADR-0003; unchanged by P4A |
 
@@ -571,4 +574,36 @@ Totals: `yarn test` **1247** in 33 files (P4A: 1228 in 32); `yarn test:db` **301
 | `b6be5c9` | API: the read (`case-authority.service.ts`, `case-views.ts`, `cases.controller.ts`); DB tests (+6) and the routed inventories; `smoke:p4a` read-back and cross-case refusal; `smoke:local` boundary |
 | `e745a20` | UI: the read-back page, the history's Open selection link and route; the web API client; web tests (+2) and the test API's case-scoped read |
 | `ab56139` | UI fix F4 (browser finding): the pinned rows are a record list, not a timeline; web-test guard |
-| *(this commit)* | Documentation: this section, the evidence files `r8-*`, the screenshots `r8-*`, `CURRENT_STATE.md`, `CLAUDE.md` |
+| `eeb94ce` | Documentation: this section, the evidence files `r8-*`, the screenshots `r8-*`, `CURRENT_STATE.md`, `CLAUDE.md` (the R8 final submission head; push run 36084981272 success, §22) |
+
+## 22. R8 final — PASS (2026-09-25, home PC)
+
+Mission TB_R8_MERGE_CLOSEOUT_AND_P4B_CASE_INTAKE_TO_R9. This section records the operator's R8 final result before the P4A pull request. Sections 1–21 keep the state at their time (for example "R8 final — PENDING" in §21).
+
+### 22.1 Result (operator)
+
+| Item | Recorded value |
+|---|---|
+| R8 (first result) | **PASS_WITH_ONE_CONTRACT_REMEDIATION** (2026-09-25) — the CaseAuthorityCoverage read-back gap (§9) |
+| Remediation | **IMPLEMENTED AND VERIFIED** — TB-SCHEMA-API-v1.1.0 with `getCaseAuthoritySelection` (§21) |
+| **R8 final** | **PASS** (2026-09-25) |
+| **P4A** | **VERIFIED_COMPLETE** |
+| **ADR-0004** | **ACCEPTED** (`docs/decisions/ADR-0004-tb-schema-api-v1-1-0-case-authority-selection-read.md`) |
+| **Active wire contract** | **TB-SCHEMA-API-v1.1.0** = the frozen TB-SCHEMA-API-v1.0.0 reference (unchanged, the frozen historical reference) + `docs/contracts/TB-SCHEMA-API-v1.1.0/amendment.json` (sha256 `2f4df69739926d4b50c22a1ba123ede51edec04bafb86459bb6bacb2d1dfda85`, a pinned release record never edited after acceptance) |
+| PFC wire id | `PFC-YT-EMAIL-v1.1` (unchanged) |
+| `AppMeta.schemaRelease` | Stays `TB-SCHEMA-API-v1.0.0`, as recorded, until a separately approved future contract decision |
+| `yarn test:transition-baseline` | A historical opt-in transition oracle; it fails by design after the approved v1.1.0 edit and is never "fixed" by reverting the amendment or modifying the frozen baseline |
+| Merge | **Authorized** — pull request `feature/p4a-case-core` → `main`, normal GitHub merge commit (no squash, no rebase, no force-push, the branch kept) after the exact closeout head and the pull request checks are green |
+| P4B | **NOT_STARTED** at this record (branch `feature/p4b-case-intake` from the exact post-merge `main`, after `main` CI is green) |
+
+### 22.2 Heads
+
+| Name | Commit |
+|---|---|
+| `P4A_ACCEPTED_CODE_HEAD` (as named by the operator: the accepted R8 remediation head) | `eeb94ce573dad9b2da71e01922f1db02e734437a` — documentation on top of the code head `ab56139` (`git diff ab56139 eeb94ce` touches only `docs/` and `CLAUDE.md`) |
+| R8 final CI | push run [36084981272](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36084981272) on `eeb94ce`, 2026-09-25T02:07:56Z–02:11:38Z, **success**: "Non-DB checks (cold install)" (job 107914736227) and "Database, seed and smoke (MySQL 8.4.11)" (job 107914736418) — lint "Found 0 warnings and 0 errors.", `yarn test` 1247 / 33 files, `yarn test:db` 301 / 8 files, `smoke:p4a` 50 checks |
+| `P4A_R8_CLOSEOUT_HEAD` | the commit that adds this section (documentation only); its CI run and the merge are recorded on `feature/p4b-case-intake` |
+
+### 22.3 Closeout checks (this commit)
+
+Pre-flight on `eeb94ce`: branch in sync with origin, worktree clean, `origin/main` = `3649bef4d83feeec3bcf6b8293757354af739ae4` (unchanged since R8), no P4A pull request yet, `main` without branch protection or rulesets, `reference:check` and `contracts:check` OK. This commit changes documentation only (ADR-0004 status, the release README's decision line, this report, `CURRENT_STATE.md`, `CLAUDE.md`); `amendment.json`, `docs/reference/**`, code, tests, migrations and the lockfile are untouched.
