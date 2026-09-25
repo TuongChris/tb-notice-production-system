@@ -5,7 +5,9 @@
 // selection is followed by a later selection). A selection is read back with the exact coverage rows
 // it pinned through getCaseAuthoritySelection (TB-SCHEMA-API-v1.1.0, ADR-0004). Case intake (P4B):
 // reported items, works and use mappings are versioned children of one case; a case fact is an
-// immutable revision (no ETag) that changes only through a new revision of its chain.
+// immutable revision (no ETag) that changes only through a new revision of its chain, and the
+// supports recorded with a revision are read back with getCaseFactSources (TB-SCHEMA-API-v1.2.0,
+// ADR-0005).
 import type {
   Agency,
   ArchiveRequest,
@@ -15,6 +17,7 @@ import type {
   CaseAuthoritySelection,
   CaseAuthoritySelectionView,
   CaseFact,
+  CaseFactSourcesView,
   CaseFactSummary,
   CaseRecord,
   CaseSource,
@@ -598,6 +601,14 @@ export function createCasesApi(api: ApiClient) {
       /** Any revision of this case by id (another case's fact is 404). No ETag: it never changes. */
       get: async (caseId: string, id: string) =>
         (await api.request<CaseFact>('GET', `${base}/${caseId}/facts/${id}`)).data,
+      /**
+       * The FactSource rows recorded for one revision of this case, exactly as stored
+       * (getCaseFactSources, TB-SCHEMA-API-v1.2.0); none is a normal answer. Another case's fact is
+       * 404. No ETag: the rows never change.
+       */
+      sources: async (caseId: string, id: string) =>
+        (await api.request<CaseFactSourcesView>('GET', `${base}/${caseId}/facts/${id}/sources`))
+          .data,
       /** Precondition target: the case's ETag. */
       create: async (caseId: string, body: CreateFact, caseEtag: string, auth: WriteAuth) =>
         (

@@ -1339,6 +1339,43 @@ code.hash {
   border-top: 0;
 }
 
+/* The supports recorded with a fact revision (R9): one ruled entry each, as recorded, and apart
+   from it the state of its link today — shown as the link's own present state, not the record. */
+.recorded-supports {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.recorded-supports > li {
+  padding: 0.6rem 0;
+  border-top: 1px solid var(--rule);
+}
+
+.recorded-supports > li:first-child {
+  border-top: 0;
+}
+
+.support-heading {
+  margin: 0 0 0.3rem;
+  font-size: 0.95rem;
+}
+
+.support-now {
+  display: grid;
+  gap: 0.3rem;
+  justify-items: start;
+  margin-top: 0.45rem;
+  padding: 0.45rem 0.65rem;
+  border-left: 3px solid var(--rule-strong);
+}
+
+.support-now-title {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 0.84rem;
+}
+
 @media (max-width: 48rem) {
   .shell-body {
     grid-template-columns: 1fr;

@@ -5,10 +5,11 @@
 // readiness. Nothing is inferred from silence, similarity, an address or a source's existence.
 // Facts are revised, never edited: only the current revision can be revised, keeping its type and
 // scope, and every earlier revision stays readable exactly as it was (by id, or through the chain).
-// The linked sources a revision names as support are stored with it, but no contracted operation
-// returns them (the gap reported at R9), so the pages say so instead of showing them. Every page is
-// keyed by the case and fact ids and reads a fact only under its own case: another case's fact is
-// not found.
+// The linked sources a revision names as support are stored with it and read back exactly as
+// recorded (getCaseFactSources, TB-SCHEMA-API-v1.2.0): each stays with its revision and keeps citing
+// the exact source revision of its link, and the link's present state is shown apart from the record.
+// Every page is keyed by the case and fact ids and reads a fact only under its own case: another
+// case's fact is not found.
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import type {
@@ -16,6 +17,7 @@ import type {
   CaseFactSummary,
   CaseRecord,
   CreateFact,
+  FactSource,
   FactSupport,
   UseMapping,
 } from '@tb/contracts';
@@ -30,6 +32,8 @@ import {
   EXCEPTION_FINDING_LABEL,
   FACT_TYPE_LABEL,
   issuesOf,
+  LINK_STATE_LABEL,
+  LINK_STATE_TONE,
   PERMISSION_FINDING_LABEL,
   PROVENANCE_LABEL,
   RESOLUTION_STATE_LABEL,
@@ -52,14 +56,15 @@ import {
   UnavailableAction,
   ValidationSummary,
 } from '../directory/ui.js';
-import { RecordedBy } from '../representation/authority-ui.js';
+import { RecordedBy, SourceCitation } from '../representation/authority-ui.js';
 import {
   ArchivedStamp,
   CASE_ARCHIVED_READ_ONLY,
   FACT_HISTORY,
   FACT_MEANING,
   FACT_PROVENANCE,
-  FACT_SUPPORT_GAP,
+  FACT_SUPPORT_MEANING,
+  FACT_SUPPORT_PINNED,
   instantInput,
   instantValue,
   mappingLabel,
@@ -572,11 +577,7 @@ function FactDetail({ caseId, factId }: { caseId: string; factId: string }) {
           {FACT_PROVENANCE} {NO_READINESS}
         </p>
       </Section>
-      <Section title="Supporting sources">
-        <p className="notice notice-quiet" data-testid="fact-support-gap">
-          {FACT_SUPPORT_GAP}
-        </p>
-      </Section>
+      <FactSupports caseId={caseId} factId={fact.id} />
       <Section title="Revision history">
         <ol className="revision-list" reversed data-testid="fact-history">
           {chain.map((revision) => (
@@ -612,6 +613,120 @@ function FactDetail({ caseId, factId }: { caseId: string; factId: string }) {
         <Link to={`/cases/${caseId}`}>Back to the case</Link>
       </p>
     </article>
+  );
+}
+
+// recorded supports -------------------------------------------------------------------------------
+
+/**
+ * The supports recorded with one revision (getCaseFactSources, TB-SCHEMA-API-v1.2.0), exactly as
+ * stored and in the order the server returns them; none is a normal answer. Nothing here follows a
+ * newer source revision, hides a support whose link was later paused or unlinked, or takes a
+ * support from another revision.
+ */
+function FactSupports({ caseId, factId }: { caseId: string; factId: string }) {
+  const api = useDirectoryApi();
+  const [state, reload] = useLoad(`fact-sources:${caseId}:${factId}`, () =>
+    api.cases.facts.sources(caseId, factId),
+  );
+  return (
+    <Section title="Supporting sources">
+      <p className="hint">{FACT_SUPPORT_MEANING}</p>
+      {state.status === 'loading' && <LoadingNotice label="Loading the recorded supports…" />}
+      {state.status === 'error' && (
+        <ErrorNotice error={state.error} recordLabel="recorded supports" onRetry={reload} />
+      )}
+      {state.status === 'ready' && state.value.sources.length === 0 && (
+        <p className="absent" data-testid="fact-supports-none">
+          No supporting source was recorded for this revision.
+        </p>
+      )}
+      {state.status === 'ready' && state.value.sources.length > 0 && (
+        <ol
+          className="recorded-supports"
+          aria-label="Supports recorded with this revision"
+          data-testid="fact-supports"
+        >
+          {state.value.sources.map((support, index) => (
+            <RecordedSupport key={support.id} support={support} number={index + 1} />
+          ))}
+        </ol>
+      )}
+      <p className="hint">{FACT_SUPPORT_PINNED}</p>
+    </Section>
+  );
+}
+
+/**
+ * One recorded support: its role, assertion and the source revision its link cites, as recorded.
+ * The link is read as it is now only to show its present state, apart from the record.
+ */
+function RecordedSupport({ support, number }: { support: FactSource; number: number }) {
+  const api = useDirectoryApi();
+  const [state] = useLoad(`fact-support-link:${support.caseSourceId}`, () =>
+    api.cases.sources.get(support.caseSourceId),
+  );
+  const link = state.status === 'ready' ? state.value.data : null;
+  const unavailable =
+    state.status === 'loading' ? (
+      <span className="hint">Loading…</span>
+    ) : (
+      <span className="absent">Not available</span>
+    );
+  return (
+    <li data-testid="fact-support">
+      <h3 className="support-heading">Support {number}</h3>
+      <Details
+        rows={[
+          ['Support role', <span data-testid="fact-support-role">{support.supportRole}</span>],
+          [
+            'What it supports',
+            <p className="prose" data-testid="fact-support-assertion">
+              {support.supportedAssertion}
+            </p>,
+          ],
+          [
+            'Cited source (the exact revision its link cites)',
+            link === null ? unavailable : <SourceCitation sourceId={link.sourceId} />,
+          ],
+          [
+            'Linked to this case as',
+            link === null ? (
+              unavailable
+            ) : (
+              <>
+                {link.useRole} <code className="hash">{support.caseSourceId}</code>
+              </>
+            ),
+          ],
+        ]}
+      />
+      <div
+        className="support-now"
+        role="group"
+        aria-label={`The link of support ${number} today`}
+        data-testid="fact-support-link-now"
+      >
+        <p className="support-now-title">The link today — not part of this record</p>
+        {link === null ? (
+          unavailable
+        ) : (
+          <>
+            <StateStamp
+              label={LINK_STATE_LABEL[link.linkState]}
+              tone={LINK_STATE_TONE[link.linkState]}
+            />
+            {link.stateReason && <p className="hint">Reason: {link.stateReason}</p>}
+            {link.linkState !== 'LINKED' && (
+              <p className="hint">
+                This link is now {LINK_STATE_LABEL[link.linkState].toLowerCase()}. The support above
+                stays recorded for this revision exactly as it was.
+              </p>
+            )}
+          </>
+        )}
+      </div>
+    </li>
   );
 }
 
@@ -1072,7 +1187,7 @@ function FactForm({
             Only sources linked to this case (and not paused or unlinked) can be named; the exact
             source revision of each link stays cited. A support never upgrades provenance.
             {fixed &&
-              ' Supports are entered for each revision: the earlier revision’s supports cannot be read back through the current API, so they are not copied here.'}
+              ' Supports are entered for each revision: the earlier revision keeps its own supports, shown on its page, and they are not copied here.'}
           </p>
           {context.links.length === 0 && (
             <p className="absent">No source is linked to this case, so none can be named.</p>
