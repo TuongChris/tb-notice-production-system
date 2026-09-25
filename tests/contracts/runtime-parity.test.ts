@@ -1,5 +1,8 @@
-// Three-way runtime parity (P0-D): for every payload, the frozen JSON Schema (Ajv/full oracle),
+// Three-way runtime parity (P0-D): for every payload, the baseline JSON Schema (Ajv/full oracle),
 // the generated JSON Schema (same oracle) and the active Zod schema must agree ACCEPT/REJECT.
+// The baseline is the release TB-SCHEMA-API-v1.1.0 (ADR-0004): the frozen TB-SCHEMA-API-v1.0.0
+// schemas, unchanged, plus the two schemas of the reviewed additive amendment (./release.ts); the
+// 31 frozen fixtures are also checked against the frozen bundle itself.
 // No exception list exists: any divergence fails with the payload and all three results.
 import { writeFileSync } from 'node:fs';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -14,13 +17,16 @@ import {
   type OracleResult,
 } from './oracle.js';
 import { PayloadEngine, type ParityCase } from './payload-engine.js';
+import { releaseBaseline } from './release.js';
 
-const frozen = createOracle(frozenBundle(), 'frozen');
+const baselineBundle = releaseBaseline().bundle;
+const frozenOnly = createOracle(frozenBundle(), 'frozen v1.0.0');
+const frozen = createOracle(baselineBundle, 'baseline (frozen v1.0.0 + amendment)');
 const generated = createOracle(generatedBundle(), 'generated');
 const zodByName = new Map<string, z.ZodType>(
   apiSchemaCatalog.map(([name, schema]) => [name, schema]),
 );
-const engine = new PayloadEngine(frozenBundle().$defs);
+const engine = new PayloadEngine(baselineBundle.$defs);
 
 interface Outcome {
   readonly frozen: OracleResult;
@@ -51,7 +57,7 @@ function divergenceReport(testCase: ParityCase, outcome: Outcome): string {
     `schema: ${testCase.schema}`,
     `case: ${testCase.label}`,
     `payload: ${truncate(testCase.payload)}`,
-    `frozen Ajv: ${outcome.frozen.valid ? 'ACCEPT' : `REJECT ${truncate(outcome.frozen.errors)}`}`,
+    `baseline Ajv: ${outcome.frozen.valid ? 'ACCEPT' : `REJECT ${truncate(outcome.frozen.errors)}`}`,
     `generated Ajv: ${outcome.generated.valid ? 'ACCEPT' : `REJECT ${truncate(outcome.generated.errors)}`}`,
     `Zod: ${outcome.zod.success ? 'ACCEPT' : `REJECT ${truncate(outcome.zod.issues)}`}`,
   ].join('\n    ');
@@ -99,11 +105,12 @@ describe('frozen request-validation fixtures (31)', () => {
     ]);
     expect(divergence, divergence).toBeUndefined();
     expect(evaluate(fixture.schema, fixture.payload).frozen.valid).toBe(fixture.expectedValid);
+    expect(frozenOnly.validate(fixture.schema, fixture.payload).valid).toBe(fixture.expectedValid);
   });
 });
 
-describe('schema-driven synthetic payloads for all 284 schemas', () => {
-  it('synthetic base instances are valid under the frozen oracle (generator self-check)', () => {
+describe('schema-driven synthetic payloads for all 286 schemas (284 frozen + 2 of the v1.1.0 amendment)', () => {
+  it('synthetic base instances are valid under the baseline oracle (generator self-check)', () => {
     const invalid: string[] = [];
     for (const [name] of apiSchemaCatalog) {
       const [base] = engine.casesFor(name);
@@ -114,7 +121,7 @@ describe('schema-driven synthetic payloads for all 284 schemas', () => {
   });
 
   it.each(apiSchemaCatalog.map(([name]) => [name] as const))(
-    '%s — frozen Ajv, generated Ajv and Zod agree',
+    '%s — baseline Ajv, generated Ajv and Zod agree',
     (name) => {
       stats.schemas += 1;
       const divergences = runCases(engine.casesFor(name));

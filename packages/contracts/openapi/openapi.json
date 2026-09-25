@@ -2,7 +2,7 @@
   "openapi": "3.1.1",
   "info": {
     "title": "TB Notice Production System — API Contract v1",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "LOCAL-FIRST contract, not a deployed API. Terminal product: unsigned candidate. Technical validation does not certify rights/G1-G6. No send, signature, G7 or raw evidence export route."
   },
   "servers": [
@@ -8585,6 +8585,99 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ListCaseAuthoritySelectionsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "x-precondition-target": null,
+        "x-idempotent-write": false
+      }
+    },
+    "/cases/{caseId}/authority-selections/{id}": {
+      "get": {
+        "operationId": "getCaseAuthoritySelection",
+        "tags": [
+          "Case"
+        ],
+        "summary": "Read one selection of this case with the exact coverage rows it pinned; a stored historical record, not G1 or current authority.",
+        "parameters": [
+          {
+            "name": "caseId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 36,
+              "minLength": 36,
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 36,
+              "minLength": 36,
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; source-based truth and human gates remain separate.",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Strong entity row-version ETag when the resource is mutable."
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetCaseAuthoritySelectionResponse"
                 }
               }
             }
@@ -31478,6 +31571,44 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/CaseAuthoritySelectionPage"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "CaseAuthoritySelectionView": {
+        "type": "object",
+        "properties": {
+          "selection": {
+            "$ref": "#/components/schemas/CaseAuthoritySelection"
+          },
+          "coverages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CaseAuthorityCoverage"
+            },
+            "minItems": 1,
+            "maxItems": 20
+          }
+        },
+        "required": [
+          "selection",
+          "coverages"
+        ],
+        "additionalProperties": false,
+        "description": "The exact stored CaseAuthoritySelection and every CaseAuthorityCoverage row it pinned for evaluation in this Case, coverages in ascending coverageId order. A historical record only: never a G1 decision, current authority, signer eligibility, G7 or readiness."
+      },
+      "GetCaseAuthoritySelectionResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CaseAuthoritySelectionView"
           },
           "meta": {
             "$ref": "#/components/schemas/ResponseMeta"

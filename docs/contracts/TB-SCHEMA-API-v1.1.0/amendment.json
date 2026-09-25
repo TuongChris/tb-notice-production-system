@@ -1,0 +1,170 @@
+{
+  "release": "TB-SCHEMA-API-v1.1.0",
+  "kind": "ADDITIVE",
+  "decision": "docs/decisions/ADR-0004-tb-schema-api-v1-1-0-case-authority-selection-read.md",
+  "summary": "Adds the case-scoped read of one CaseAuthoritySelection with the exact CaseAuthorityCoverage rows it pinned (R8 remediation). Nothing of TB-SCHEMA-API-v1.0.0 is changed or removed.",
+  "base": {
+    "release": "TB-SCHEMA-API-v1.0.0",
+    "path": "docs/reference/database-api-v1/TB_DATABASE_SCHEMA_API_CONTRACT_v1",
+    "manifestSha256": "42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c",
+    "files": {
+      "contracts/api-schemas.json": "bdb3213ba0070d13173fd5ba5f9177b769f54c90af6a46f5473667b0f1b4f7b4",
+      "contracts/openapi.json": "c47e2ea160eaa747f64218746c2997a99dec4206fbec6294ebe1335f2a7a8ba2"
+    }
+  },
+  "openApiInfoVersion": {
+    "from": "1.0.0",
+    "to": "1.1.0"
+  },
+  "schemas": {
+    "refForm": "JSON Schema $defs (#/$defs/<name>); in OpenAPI components.schemas the same schemas use #/components/schemas/<name>",
+    "insertAfter": "ListCaseAuthoritySelectionsResponse",
+    "added": {
+      "CaseAuthoritySelectionView": {
+        "type": "object",
+        "properties": {
+          "selection": {
+            "$ref": "#/$defs/CaseAuthoritySelection"
+          },
+          "coverages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/CaseAuthorityCoverage"
+            },
+            "minItems": 1,
+            "maxItems": 20
+          }
+        },
+        "required": [
+          "selection",
+          "coverages"
+        ],
+        "additionalProperties": false,
+        "description": "The exact stored CaseAuthoritySelection and every CaseAuthorityCoverage row it pinned for evaluation in this Case, coverages in ascending coverageId order. A historical record only: never a G1 decision, current authority, signer eligibility, G7 or readiness."
+      },
+      "GetCaseAuthoritySelectionResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/CaseAuthoritySelectionView"
+          },
+          "meta": {
+            "$ref": "#/$defs/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "operations": {
+    "insertAfterPath": "/cases/{caseId}/authority-selections",
+    "added": {
+      "/cases/{caseId}/authority-selections/{id}": {
+        "get": {
+          "operationId": "getCaseAuthoritySelection",
+          "tags": [
+            "Case"
+          ],
+          "summary": "Read one selection of this case with the exact coverage rows it pinned; a stored historical record, not G1 or current authority.",
+          "parameters": [
+            {
+              "name": "caseId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "maxLength": 36,
+                "minLength": 36,
+                "format": "uuid"
+              }
+            },
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "maxLength": 36,
+                "minLength": 36,
+                "format": "uuid"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Success; source-based truth and human gates remain separate.",
+              "headers": {
+                "ETag": {
+                  "schema": {
+                    "type": "string"
+                  },
+                  "description": "Strong entity row-version ETag when the resource is mutable."
+                },
+                "Cache-Control": {
+                  "schema": {
+                    "type": "string"
+                  },
+                  "example": "no-store"
+                }
+              },
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/GetCaseAuthoritySelectionResponse"
+                  }
+                }
+              }
+            },
+            "400": {
+              "$ref": "#/components/responses/Error"
+            },
+            "401": {
+              "$ref": "#/components/responses/Error"
+            },
+            "403": {
+              "$ref": "#/components/responses/Error"
+            },
+            "404": {
+              "$ref": "#/components/responses/Error"
+            },
+            "409": {
+              "$ref": "#/components/responses/Error"
+            },
+            "413": {
+              "$ref": "#/components/responses/Error"
+            },
+            "422": {
+              "$ref": "#/components/responses/Error"
+            },
+            "429": {
+              "$ref": "#/components/responses/Error"
+            },
+            "500": {
+              "$ref": "#/components/responses/Error"
+            }
+          },
+          "security": [
+            {
+              "SessionCookie": []
+            }
+          ],
+          "x-precondition-target": null,
+          "x-idempotent-write": false
+        }
+      }
+    }
+  },
+  "result": {
+    "schemaCount": 286,
+    "operationCount": 142,
+    "files": {
+      "packages/contracts/schemas/api-schemas.json": "76b8e0d684c1ebd3a5fd697a8e5c3b381ad2b3e246504dee3d7a7353ae69eb58",
+      "packages/contracts/openapi/openapi.json": "2954de6a15d6f40977c801d7b5f67822dfffa1fd380c43cba0858888090acd2b",
+      "packages/contracts/openapi/openapi.yaml": "ba777e948d6e9977128340c88518f012fd5baeac18eea87dcdf8280967f6bbd3"
+    }
+  }
+}

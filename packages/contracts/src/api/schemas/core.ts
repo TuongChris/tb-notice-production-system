@@ -8,6 +8,8 @@
 // After the Zod-first transition is accepted (ADR-0002) this file is editable active source; the
 // port is provenance only and must not be re-run over it. Build wire schemas with the `tb`
 // builders only — the JSON Schema/OpenAPI lowering rejects anything else.
+// Amended additively by TB-SCHEMA-API-v1.1.0 (ADR-0004, docs/contracts/TB-SCHEMA-API-v1.1.0):
+// CaseAuthoritySelectionView and GetCaseAuthoritySelectionResponse.
 
 import type { z } from 'zod';
 import { tb } from '../../primitives/wire.js';
@@ -3514,6 +3516,28 @@ export const ListCaseAuthoritySelectionsResponseSchema = tb.object({
 });
 export type ListCaseAuthoritySelectionsResponse = z.infer<
   typeof ListCaseAuthoritySelectionsResponseSchema
+>;
+
+// TB-SCHEMA-API-v1.1.0 (ADR-0004, additive): the read-back of one selection with the coverage rows
+// it pinned. Exactly the stored rows — nothing current, inferred or evaluated.
+export const CaseAuthoritySelectionViewSchema = tb.object(
+  {
+    selection: CaseAuthoritySelectionSchema,
+    coverages: tb.array(CaseAuthorityCoverageSchema, { minItems: 1, maxItems: 20 }),
+  },
+  {
+    description:
+      'The exact stored CaseAuthoritySelection and every CaseAuthorityCoverage row it pinned for evaluation in this Case, coverages in ascending coverageId order. A historical record only: never a G1 decision, current authority, signer eligibility, G7 or readiness.',
+  },
+);
+export type CaseAuthoritySelectionView = z.infer<typeof CaseAuthoritySelectionViewSchema>;
+
+export const GetCaseAuthoritySelectionResponseSchema = tb.object({
+  data: CaseAuthoritySelectionViewSchema,
+  meta: ResponseMetaSchema,
+});
+export type GetCaseAuthoritySelectionResponse = z.infer<
+  typeof GetCaseAuthoritySelectionResponseSchema
 >;
 
 export const ReportedItemPageSchema = tb.object({

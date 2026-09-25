@@ -17449,6 +17449,44 @@
       ],
       "additionalProperties": false
     },
+    "CaseAuthoritySelectionView": {
+      "type": "object",
+      "properties": {
+        "selection": {
+          "$ref": "#/$defs/CaseAuthoritySelection"
+        },
+        "coverages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CaseAuthorityCoverage"
+          },
+          "minItems": 1,
+          "maxItems": 20
+        }
+      },
+      "required": [
+        "selection",
+        "coverages"
+      ],
+      "additionalProperties": false,
+      "description": "The exact stored CaseAuthoritySelection and every CaseAuthorityCoverage row it pinned for evaluation in this Case, coverages in ascending coverageId order. A historical record only: never a G1 decision, current authority, signer eligibility, G7 or readiness."
+    },
+    "GetCaseAuthoritySelectionResponse": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/CaseAuthoritySelectionView"
+        },
+        "meta": {
+          "$ref": "#/$defs/ResponseMeta"
+        }
+      },
+      "required": [
+        "data",
+        "meta"
+      ],
+      "additionalProperties": false
+    },
     "ReportedItemPage": {
       "type": "object",
       "properties": {
