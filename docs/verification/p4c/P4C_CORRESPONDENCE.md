@@ -193,7 +193,7 @@ The UI shows the posture verbatim — "Raw source captured", "Copied full text",
 
 ## 6. Raw source, hashes and no deduplication
 
-- **Cited sources:** `rawSourceId` and each attachment `sourceId` must name an existing SourceReference (422 `REFERENCE_NOT_FOUND`) that applies to the capture's agency under the one source-scope rule set (target Agency). Another agency's source, an agency-less source not naming the agency, or a case-scoped source is refused (`CROSS_AGENCY_REFERENCE`, `SOURCE_SCOPE_UNRESOLVED`, `CASE_SCOPED_SOURCE`).
+- **Cited sources:** `rawSourceId` and each attachment `sourceId` must name an existing SourceReference (422 `REFERENCE_NOT_FOUND`) that applies to the capture's agency under the one source-scope rule set (target Agency). Refusals, each 422 on the field (`rawSourceId` or `attachmentsManifest.<i>.sourceId`): another agency's source → `CROSS_AGENCY_REFERENCE`; an agency-less source not naming the agency → `SOURCE_SCOPE_UNRESOLVED` with reason `NOT_SCOPED_TO_AGENCY`; a case-scoped source → `SOURCE_SCOPE_UNRESOLVED` with reason `CASE_SCOPED_SOURCE`.
 - **What a pointer is:** the exact revision cited stays pinned. A pointer proves nothing, is not fetched and creates no SourceReference.
 - **`bodySha256`** = SHA-256(UTF-8(`bodyText`)), or null without a body. It covers the recorded text only, whatever the capture mode, and is never presented as a raw-MIME hash. The UI labels it "SHA-256 of the recorded body text" and explains that it "is not a hash of a raw message (MIME) file, and it does not show that the text is complete or authentic". No raw-MIME hash is computed: the app never has the raw bytes.
 - **`sourceIdentityHash`** stays null (D4): the contracted input carries no reliable provider or capture identity.
