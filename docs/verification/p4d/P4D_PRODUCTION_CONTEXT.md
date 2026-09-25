@@ -2,7 +2,7 @@
 
 Mission **TB_R10_CLOSEOUT_MERGE_AND_P4D_PRODUCTION_CONTEXT_TO_R11**, steps 9–11. Branch `feature/p4d-production-context`, created from the exact post-P4C `main` `ed5b3d7` (merge commit of PR #6), with the R10 closeout checkpoint `ca3d7cd` (documentation only). P4D implements **one** contracted operation, `getProductionContext` (GET `/cases/{caseId}/production-context`, TB-SCHEMA-API-v1.2.0), and its page. It is a **read**: it assembles recorded case context for one task and determines nothing.
 
-Submitted for review gate **R11 — PENDING**. No P4D pull request, no merge, and nothing of a later phase (prompts, candidates, validation, assessments, readiness, unsigned export) is started.
+**R11 result (operator, 2026-09-26): PASS.** P4D = **VERIFIED_COMPLETE**; the active wire contract stays **TB-SCHEMA-API-v1.2.0**. P4D is authorized for merge to `main` by a normal merge commit (mission TB_R11_CLOSEOUT_MERGE_AND_P4E_PROMPT_SNAPSHOT_TO_R12; §29), after the R11 closeout: the P4A documentation reconciliation and the claim-scan hardening of the web tests (§29.4–§29.5). P4E (prompts) is **NOT_STARTED** at this record.
 
 Persistent rules (they stay in force after R11; `CLAUDE.md` carries them):
 
@@ -26,10 +26,13 @@ Persistent rules (they stay in force after R11; `CLAUDE.md` carries them):
 | Browser verification (Playwright MCP, `tb_notice_test`) | **PASS** — 32/32, one keyboard-focus finding fixed and re-verified (§19) |
 | Negative controls | **PASS** — 22/22 on `1b012bd` (the first run found one test weakness, fixed) (§20) |
 | Full regression (§54 of the mission) | **PASS** — 21/21 steps exit 0 on `1b012bd`, lint 0 warnings (§21, `evidence/p4d-first-pc-sweep.txt`) |
-| Exact final branch CI | Recorded in the R11 report (the final head is the commit that adds this record) |
+| Exact final branch CI | **PASS** — push run 36169409720 on the R11 submission head `aa67476`, both jobs (§29.2) |
 | Schema / migration | **No change** (§23) |
 | Wire contract | **No change** — TB-SCHEMA-API-v1.2.0 (§24) |
-| R11 review | **PENDING** — no pull request, no merge |
+| R11 review | **PASS** (operator, 2026-09-26) — no remediation (§29) |
+| P4D_STATUS | **VERIFIED_COMPLETE** |
+| P4D_MERGE | **NOT_MERGED at this record — AUTHORIZED_FOR_MERGE** (§29) |
+| R11 closeout (hygiene) | **DONE** — P4A documentation reconciled (§29.4); web claim scans hardened, test code only, no product defect (§29.5) |
 
 ## 1. Operation matrix and design (contract-first)
 
@@ -87,6 +90,7 @@ Recorded in `docs/verification/p4c/P4C_CORRESPONDENCE.md` §29–§30 (verified 
 | `6bbba3a` | Fix from the browser pass: keyboard focus follows a requested read to its outcome (§18) + web test (8) | run 36165581902 success |
 | `bfeb9f1` | Test: the forbidden-claims scan also on an authority block without recorded events (from the negative-control design) | (local; pushed with the record) |
 | `1b012bd` | Test: the claim scans read text nodes joined by spaces (from negative-control run 1) | (local; pushed with the record) |
+| `aa67476` | R11 submission: this record, the evidence, `CLAUDE.md`, `CURRENT_STATE.md` (documentation only; the accepted head) | run 36169409720 success |
 
 40 files changed against `ed5b3d7` before this record. No migration, no generated contract artifact, no dependency or lockfile change.
 
@@ -212,8 +216,8 @@ None. `getProductionContext` is used exactly as contracted in TB-SCHEMA-API-v1.2
 
 ## 26. Deviations, warnings and limitations
 
-1. **Pre-existing P4A documentation discrepancy (not changed).** `P4A_CASE_CORE.md` §149 and `CLAUDE.md` say the intake label does not move `contextRevision`; the accepted P4A implementation (`MATERIAL_PATCH_FIELDS` includes `intakeLabel`) and its accepted test (a rename moves `contextRevision` to 2) do. P4D follows the implementation (a rename therefore changes the digest through `contextRevision`). The operator decides which is intended.
-2. **Test weakness in accepted earlier phases (not changed).** 18 forbidden-claims scans in the P3A–P4C web tests read `textContent`, where adjacent elements run together and a claim fused with the next word escapes a word-boundary pattern (found by NC-P4D-18; P4D's own scans were fixed).
+1. **Pre-existing P4A documentation discrepancy (not changed).** `P4A_CASE_CORE.md` §149 and `CLAUDE.md` say the intake label does not move `contextRevision`; the accepted P4A implementation (`MATERIAL_PATCH_FIELDS` includes `intakeLabel`) and its accepted test (a rename moves `contextRevision` to 2) do. P4D follows the implementation (a rename therefore changes the digest through `contextRevision`). The operator decides which is intended. *(Resolved in the R11 closeout: the documentation now follows the accepted implementation, §29.4.)*
+2. **Test weakness in accepted earlier phases (not changed).** 18 forbidden-claims scans in the P3A–P4C web tests read `textContent`, where adjacent elements run together and a claim fused with the next word escapes a word-boundary pattern (found by NC-P4D-18; P4D's own scans were fixed). *(Resolved in the R11 closeout: every claim scan of the web tests reads all views of the text, test code only, §29.5.)*
 3. **Efficiency.** Each source citation on the page fetches its own record (the existing citation component, no cache): a full reply context issues about forty GETs. Correctness is unaffected.
 4. The browser pass's one finding (keyboard focus) was fixed before R11 (`6bbba3a`).
 5. The P1 session activity touch is the only write an authenticated GET can cause (§17); it predates P4D.
@@ -226,3 +230,102 @@ None. No schema change, contract change, semantic ambiguity outside the accepted
 ## 28. Proposed next phase (not started)
 
 Prompt generation (`generatePrompt`, PromptSnapshot persistence) from an exact production context (its digest and dependencies pinned) — only by a separately approved mission after R11. Candidates, validation, assessments, readiness and unsigned export follow in later phases; signing, sending and G7 never exist in the app.
+
+## 29. R11 — PASS and closeout (2026-09-26, home PC)
+
+Mission TB_R11_CLOSEOUT_MERGE_AND_P4E_PROMPT_SNAPSHOT_TO_R12. This section records the operator's R11 result and the R11 closeout before the P4D pull request. Sections 1–28 keep the state at their time; the two observations of §26 that the closeout resolves carry a pointer here.
+
+### 29.1 Result (operator)
+
+| Item | Recorded value |
+|---|---|
+| **R11** | **PASS** (2026-09-26) — no remediation |
+| **P4D** | **VERIFIED_COMPLETE** — `getProductionContext` (§1.1) and its page |
+| Merge | **AUTHORIZED_FOR_MERGE** — pull request `feature/p4d-production-context` → `main`, normal GitHub merge commit (no squash, no rebase, no force-push, no admin bypass, the branch kept) after the exact closeout head and the pull request checks are green |
+| **Active wire contract** | **TB-SCHEMA-API-v1.2.0**, unchanged by P4D; both release records pinned and never edited; the frozen historical reference TB-SCHEMA-API-v1.0.0 unchanged |
+| Decisions | ADR-0001, ADR-0002, ADR-0003, ADR-0004 and ADR-0005 — all ACCEPTED; P4D adds no ADR |
+| PFC wire id | `PFC-YT-EMAIL-v1.1` (unchanged) |
+| R11 semantics | The permanent P4D rules stay in force, unchanged in `CLAUDE.md`: a production context is recorded input, not a legal conclusion; exact case isolation; exact authority pinning; no latest/default substitution; MISSING stays missing and CONFLICT stays conflict; correspondence capture posture stays visible and `*_AS_SENT` does not imply a verified transmission package; one consistent database snapshot per read; a complete dependency closure; the dependency digest is never merely `Case.rowVersion`; no G1–G7 decision, no READY_FOR_SIGNER, no write and no external action |
+| R11 hygiene (non-functional) | (1) reconcile the P4A documentation that said the intake label does not move `contextRevision` with the accepted implementation — documentation only (§29.4); (2) harden every web-test claim scan that reads run-together text — test code only, and a real forbidden-wording finding would stop the closeout (§29.5) |
+| `yarn test:transition-baseline` | A historical opt-in oracle that fails by design since the v1.1.0 edit; not a gate and not "fixed" |
+| P4E | **NOT_STARTED** at this record — authorized by the same mission on `feature/p4e-prompt-snapshot`, created from the exact post-merge `main` once its CI is green |
+
+### 29.2 Heads
+
+| Name | Commit |
+|---|---|
+| `P4D_ACCEPTED_HEAD` (named by the operator) | `aa6747626dbff4f1ff98be378c516a2257c3c8bb` — the R11 submission, documentation on the code head `1b012bd` |
+| R11 final CI | push run [36169409720](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36169409720) on `aa67476`, 2026-09-25T17:48:17Z–17:52:23Z, **success**: "Database, seed and smoke (MySQL 8.4.11)" (job 108185002052) and "Non-DB checks (cold install)" (job 108185002331) — `reference:check` and `contracts:check` OK, lint "Found 0 warnings and 0 errors.", Prettier clean, `yarn test` 1397 / 41 files, `yarn test:db` 422 / 11 files, both drift diffs empty, seed digest `0ee26dc3…b775`, `smoke:local` 48, `smoke:auth` 4, `smoke:directory` 14, `smoke:p3a` 24, `smoke:p3b` 36, `smoke:p4a` 50, `smoke:p4b` 64, `smoke:p4c` 62, `smoke:p4d` 88 |
+| `P4D_R11_CLOSEOUT_HEAD` | the commit that adds this section (documentation); its CI run and the merge are recorded on `feature/p4e-prompt-snapshot` |
+
+### 29.3 Closeout checks
+
+Pre-flight on `aa67476`, after `git fetch origin`:
+
+- branch `feature/p4d-production-context` in sync with origin, worktree clean;
+- `origin/main` = `ed5b3d743c8c64dc1c54b38e2e13bd9aa80d5921`, unchanged since the branch was created;
+- no P4D pull request (pull requests #1–#6, all merged); `gh` authenticated as the repository owner's account; `main` has no branch protection and no rulesets;
+- run 36169409720 completed with success;
+- `reference:check` and `contracts:check` OK.
+
+The closeout is three scoped commits: `c4797b0` (the P4A documentation reconciliation), `ca77ac0` (the test hardening) and this record with `CLAUDE.md`, `CURRENT_STATE.md` and the hardening evidence. No product code, contract source, generated artefact, release record, `docs/reference/**`, migration or lockfile changes.
+
+Checks on the complete closeout tree before committing:
+
+- `reference:check` and `contracts:check` OK;
+- `typecheck` OK;
+- `lint` and `oxlint --deny-warnings --format default` report "Found 0 warnings and 0 errors.";
+- `format:check` clean;
+- `yarn test` 1398 passed in 42 files — 1397 and 41 before, plus `tests/web/claim-texts.test.tsx`.
+
+`yarn test:db` was not rerun because no database code changed; it runs in CI on the closeout head.
+
+### 29.4 Hygiene 1 — P4A documentation reconciliation
+
+The finding was §26 observation 1. `MATERIAL_PATCH_FIELDS` in `cases.service.ts` has included `intakeLabel` since the first P4A commit `2cae729`, and the accepted test has asserted that a rename moves `contextRevision` since then. So the documentation now follows the code:
+
+- `P4A_CASE_CORE.md` §3 and the §17 row now name the intake label among what moves the context revision; notes-only edits stay non-material. Both changed lines are marked.
+- `CLAUDE.md` says the same.
+- The new `P4A_CASE_CORE.md` §24 records the finding, quotes the original wording, gives the history and lists the search of every non-frozen file that mentions the context revision.
+
+This is a documentation reconciliation: no behaviour changes. P4D already read the accepted behaviour (§25 item 8), so its digest and tests are unaffected.
+
+Noted, not changed: the case page's hint in `apps/web/src/app/cases/cases.tsx` lists what moves the context revision without naming the intake label. It is incomplete rather than contradictory, and it is product copy, which this documentation-only item does not change. The operator may approve a one-line copy fix.
+
+### 29.5 Hygiene 2 — claim-scan hardening (R11 QA hardening)
+
+The weak pattern (§26 observation 2) is a scan for forbidden wording over the `textContent` of a subtree that holds several elements. The text of adjacent elements runs together, so a word-boundary or phrase pattern can miss wording a reader sees: "G1 PASS" + "Selection", "Ready to" + "sign", "Send" + "notice".
+
+The P4D fix `1b012bd` had two gaps of its own:
+
+- it replaced the `textContent` reading instead of adding a second one;
+- it did not collapse whitespace, so React's two text nodes for `{'Ready for '}{'signer'}` read "Ready for  signer" and escaped the P4D scans (control HC-08).
+
+The shared helper `claimTexts(root = the page)` in `tests/web/support.tsx` reads the text in three views:
+
+1. the `textContent` as is, which is every earlier scan's reading, so no scan becomes weaker;
+2. the same with whitespace collapsed;
+3. the text nodes joined by single spaces and collapsed.
+
+A forbidden pattern must match none of the three. Each hardened assertion keeps its pattern and its subtree; only the reading widens. The new `tests/web/claim-texts.test.tsx` pins the helper: `textContent` misses three fused cases and finds a word split across nodes, `claimTexts` finds all four, and its first view is `textContent` itself.
+
+Hardened: 31 assertions in 7 files, all listed in `evidence/r11-claim-scan-hardening.txt`:
+
+- the 18 page-level claim scans of P3A–P4C reported at R11;
+- 4 section-level scans: the authority tree, the selection detail and the supports sections;
+- 6 action-label scans: the directory boundary actions, and the P4C and P4D `actionTexts` helpers;
+- the 3 P4D page scans.
+
+Reviewed and left unchanged, because the element boundary cannot hide wording in them:
+
+- stamp, tag and badge scans, which read leaf elements with a string label;
+- literal `not.toContain` checks, since a string inside one text node stays a substring;
+- a single-word pattern without boundaries;
+- `describeError` strings;
+- the P1 secret checks.
+
+Every affected file passes on its own and the combined web suite passes (137 tests in 10 files). The stronger reading exposed **no forbidden wording in the product**, so there is no product defect and nothing to stop for.
+
+Nine controls each inject forbidden wording split across elements into a page. In every control, the test files as accepted at `aa67476` pass, meaning they miss the wording, and the hardened files of `ca77ac0` fail at a hardened scan line. Files were restored byte-identically and the tree fingerprint was identical before and after (9/9).
+
+This is recorded as R11 QA hardening, not a historical failure: every accepted scan passed before and passes after.

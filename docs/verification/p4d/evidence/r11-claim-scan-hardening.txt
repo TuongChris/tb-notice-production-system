@@ -1,0 +1,168 @@
+R11 QA hardening — claim scans of the web tests (mission TB_R11_CLOSEOUT_MERGE_AND_P4E_PROMPT_SNAPSHOT_TO_R12,
+R11 hygiene item 2), home PC, 2026-09-25/26 (UTC)
+===========================================================================================================
+
+Test code only. No product file changed; no product defect was found (no forbidden wording appeared once the
+scans read every view). This is QA hardening recorded at R11, not a historical failure: every accepted scan
+passed before and passes after.
+
+The weak pattern
+----------------
+A scan for forbidden wording over the textContent of a DOM subtree that holds several elements. textContent
+joins the text of adjacent elements with nothing between them, so wording a reader sees can escape a scan:
+  - a word-boundary pattern misses a word followed by the next element's text ("G1 PASS" + "Selection" reads
+    "G1 PASSSelection"; "Send" + "notice" reads "Sendnotice");
+  - a phrase across two elements without whitespace escapes a phrase pattern ("Ready to" + "sign" reads
+    "Ready tosign");
+  - whitespace on both sides of a node boundary spaces a phrase twice ("Ready for " + " signer").
+The P4D negative control NC-P4D-18 found it in the P4D page scans; 1b012bd replaced them by a walk over the
+page's text nodes joined by a space. That helper has two gaps of its own: it replaced the textContent reading
+instead of adding to it (a word split across nodes, "G" + "1" + " PASS", is whole only in textContent) and it
+did not collapse whitespace (React renders {'Ready for '}{'signer'} as two text nodes of one element, which it
+read "Ready for  signer" — control HC-08 below: the accepted P4D scans missed it).
+
+The hardened reading (tests/web/support.tsx: claimTexts(root = the page))
+--------------------------------------------------------------------------
+Three views, and a forbidden pattern must match none: (1) textContent as is — exactly the reading every earlier
+scan used, so no scan becomes weaker; (2) the same with whitespace runs collapsed; (3) the text nodes joined by
+single spaces, whitespace collapsed. Each hardened assertion keeps its pattern and its subtree; only the
+reading widens: `expect(pageText()).not.toMatch(P)` became `for (const text of claimTexts()) expect(text).not.toMatch(P)`.
+tests/web/claim-texts.test.tsx (new, 1 test) pins the reading: textContent misses the first three cases above
+and finds the split word; claimTexts finds all four; its first view is textContent itself.
+
+Hardened sites (31 assertions in 7 files; line numbers of the hardened files)
+------------------------------------------------------------------------------
+Page-level claim scans — the 18 reported at R11 (pageText() before):
+  tests/web/p3a.test.tsx:190   /verified copyright owner/i
+  tests/web/p3b.test.tsx:148, 465   SIGNER_CLAIMS
+  tests/web/p4a.test.tsx:297   /\b(authorized|approved|g1 pass|eligible|ready to sign)\b/i
+  tests/web/p4b.test.tsx:226, 261, 350, 474, 611, 897, 962   FORBIDDEN_CLAIMS
+  tests/web/p4c.test.tsx:207, 275, 450, 528, 562   FORBIDDEN_CLAIMS
+  tests/web/p4c.test.tsx:362   /\b(raw[- ]MIME hash|hash of the raw message)\b/i
+  tests/web/p4c.test.tsx:464   /\b(removed|rejected|reinstated|retracted)\b/i
+Section-level claim scans (the same pattern over one section's textContent):
+  tests/web/p3b.test.tsx:147   AUTHORITY_WORDS over the authority tree
+  tests/web/p4a.test.tsx:790   /\b(authorized|approved|g1 pass|eligible|ready to sign|archived)\b/i over the selection detail
+  tests/web/p4b.test.tsx:961, 981   SUPPORT_CLAIMS over the supports section
+Action-label scans (a button's or link's textContent; a label in two elements runs together):
+  tests/web/directory.test.tsx:572–586   the boundary actions (sign, send, adopt, approve, ready for signer)
+  tests/web/p4c.test.tsx:208, 276, 340, 451   FORBIDDEN_ACTIONS (the file's actionTexts helper)
+  tests/web/p4d.test.tsx:616   FORBIDDEN_ACTIONS (the file's actionTexts helper)
+P4D page-level claim scans (its local spacedText helper is replaced by the shared reading, over document.body as before):
+  tests/web/p4d.test.tsx:471, 615, 644   FORBIDDEN_CLAIMS
+
+Reviewed and unchanged (not the weak pattern)
+----------------------------------------------
+  - Stamp, tag and badge scans (p3a, p3b stampTexts().join(' '); p4a, p4b per stamp): each element is a leaf —
+    StateStamp renders `label: string`, every .tag and .badge renders plain text — so no element boundary lies
+    inside it; the P3A/P3B joins already put a space between stamps.
+  - Literal not.toContain checks (record labels, identifiers, isolation markers, messages that must be absent):
+    a string rendered inside one text node stays a substring of textContent; joining adds nothing between its
+    characters.
+  - tests/web/p4b.test.tsx:957 /Paused|Unlinked/ over each support's <dl>: single words without word boundaries
+    (a substring match that joining cannot defeat).
+  - tests/web/p4c.test.tsx:181–182: describeError() strings, not DOM text.
+  - tests/web/app.test.tsx: the page's HTML must not contain the CSRF token, a user id or the password
+    (substrings).
+
+Runs after hardening (tests/web, each file alone, then together)
+----------------------------------------------------------------
+tests/web/claim-texts.test.tsx   exit 0 · Tests  1 passed (1)
+tests/web/directory.test.tsx     exit 0 · Tests  22 passed (22)
+tests/web/p3a.test.tsx           exit 0 · Tests  18 passed (18)
+tests/web/p3b.test.tsx           exit 0 · Tests  17 passed (17)
+tests/web/p4a.test.tsx           exit 0 · Tests  17 passed (17)
+tests/web/p4b.test.tsx           exit 0 · Tests  24 passed (24)
+tests/web/p4c.test.tsx           exit 0 · Tests  17 passed (17)
+tests/web/p4d.test.tsx           exit 0 · Tests  8 passed (8)
+combined tests/web/ (all 10 web files): Test Files  10 passed (10) Tests  137 passed (137) 
+Every hardened file passes: the stronger reading exposed no forbidden wording in the product.
+
+Controls (scratch runner outside Git; final run on the committed tests): each control injects wording a scan
+forbids into a page, split across elements, then runs each responsible file twice — OLD: the test file as
+accepted at aa67476 (the pre-hardening reading), NEW: the hardened test file as committed in ca77ac0 (the
+working-tree copy was verified identical to HEAD = ca77ac0 before the run). OLD must pass (the wording is missed);
+NEW must fail at a hardened scan line (the failing statement is shown). Injected product files and swapped test
+files are restored and verified byte-identical by SHA-256; the tree fingerprint (git diff HEAD + untracked files)
+is identical before and after. Earlier runs of the same controls against the uncommitted hardened files gave the
+same result (9/9).
+--------------------------------------------------------------------------------------------------------------
+# R11 claim-scan hardening controls — start 2026-09-25T22:42:15.388Z — HEAD ca77ac0c7d3eb3b478e966404a4640395f906ff6 (OLD = the test files at aa6747626dbff4f1ff98be378c516a2257c3c8bb, NEW = the working tree) — tree fingerprint a5ca3f52ae1533fe83e5d78745496970cc914d69be9360852336bba7695eff67
+[HC-01] OK · restored byte-identical · page-level claim scans (P3B signer claims, P4A, P4B and P4C forbidden claims)
+    injection: "Ready to" and "sign" in adjacent elements of the shell (textContent: "Ready tosign")
+    tests/web/p3b.test.tsx: OLD exit 0 · Tests  17 passed (17) → missed; NEW exit 1 · Tests  2 failed | 15 passed (17) → caught at the hardened scan
+        line 148: for (const text of claimTexts()) expect(text).not.toMatch(SIGNER_CLAIMS);
+        line 465: for (const text of claimTexts()) expect(text).not.toMatch(SIGNER_CLAIMS);
+        ↳ AssertionError: expected 'Skip to content TB Notice Production …' not to match /authori[sz]ed signer|approved signer…/i
+    tests/web/p4a.test.tsx: OLD exit 0 · Tests  17 passed (17) → missed; NEW exit 1 · Tests  1 failed | 16 passed (17) → caught at the hardened scan
+        line 298: expect(text).not.toMatch(/\b(authorized|approved|g1 pass|eligible|ready to sign)\b/i);
+        ↳ AssertionError: expected 'Skip to content TB Notice Production …' not to match /\b(authorized|approved|g1 pass|eligi…/i
+    tests/web/p4b.test.tsx: OLD exit 0 · Tests  24 passed (24) → missed; NEW exit 1 · Tests  7 failed | 17 passed (24) → caught at the hardened scan
+        line 226: for (const text of claimTexts()) expect(text).not.toMatch(FORBIDDEN_CLAIMS);
+        line 261: for (const text of claimTexts()) expect(text).not.toMatch(FORBIDDEN_CLAIMS);
+        line 350: for (const text of claimTexts()) expect(text).not.toMatch(FORBIDDEN_CLAIMS);
+        line 474: for (const text of claimTexts()) expect(text).not.toMatch(FORBIDDEN_CLAIMS);
+        line 611: for (const text of claimTexts()) expect(text).not.toMatch(FORBIDDEN_CLAIMS);
+        line 897: for (const text of claimTexts()) expect(text).not.toMatch(FORBIDDEN_CLAIMS);
+        line 962: for (const text of claimTexts()) expect(text).not.toMatch(FORBIDDEN_CLAIMS);
+        ↳ AssertionError: expected 'Skip to content TB Notice Production …' not to match /\b(infringing video|infringes|is inf…/i
+    tests/web/p4c.test.tsx: OLD exit 0 · Tests  17 passed (17) → missed; NEW exit 1 · Tests  5 failed | 12 passed (17) → caught at the hardened scan
+        line 207: for (const text of claimTexts()) expect(text).not.toMatch(FORBIDDEN_CLAIMS);
+        line 275: for (const text of claimTexts()) expect(text).not.toMatch(FORBIDDEN_CLAIMS);
+        line 450: for (const text of claimTexts()) expect(text).not.toMatch(FORBIDDEN_CLAIMS);
+        line 528: for (const text of claimTexts()) expect(text).not.toMatch(FORBIDDEN_CLAIMS);
+        line 562: for (const text of claimTexts()) expect(text).not.toMatch(FORBIDDEN_CLAIMS);
+        ↳ AssertionError: expected 'Skip to content TB Notice Production …' not to match /\b(verified email|authentic email|co…/i
+[HC-02] OK · restored byte-identical · P3A page-level scan for "verified copyright owner"
+    injection: "Verified" and "copyright owner" in adjacent elements of the shell
+    tests/web/p3a.test.tsx: OLD exit 0 · Tests  18 passed (18) → missed; NEW exit 1 · Tests  1 failed | 17 passed (18) → caught at the hardened scan
+        line 190: for (const text of claimTexts()) expect(text).not.toMatch(/verified copyright owner/i);
+        ↳ AssertionError: expected 'Skip to content TB Notice Production …' not to match /verified copyright owner/i
+[HC-03] OK · restored byte-identical · P3B authority-tree status-word scan (AUTHORITY_WORDS)
+    injection: a tree row "G1" + "Coverage" in adjacent elements (textContent: "G1Coverage")
+    tests/web/p3b.test.tsx: OLD exit 0 · Tests  17 passed (17) → missed; NEW exit 1 · Tests  1 failed | 16 passed (17) → caught at the hardened scan
+        line 147: for (const text of claimTexts(q('.authority-tree'))) expect(text).not.toMatch(AUTHORITY_WORDS);
+        ↳ AssertionError: expected 'G1 Coverage Version 2 Draft Amendment…' not to match /\b(authori[sz]ed|ready|eligible|veri…/i
+[HC-04] OK · restored byte-identical · P4A selection-detail claim scan
+    injection: "Approved" + "Selection" in adjacent elements of the selection detail
+    tests/web/p4a.test.tsx: OLD exit 0 · Tests  17 passed (17) → missed; NEW exit 1 · Tests  1 failed | 16 passed (17) → caught at the hardened scan
+        line 791: expect(text).not.toMatch(
+        ↳ AssertionError: expected 'Approved Selection Cases SYNTHETIC Ca…' not to match /\b(authorized|approved|g1 pass|eligi…/i
+[HC-05] OK · restored byte-identical · P4B supports-section claim scans (SUPPORT_CLAIMS)
+    injection: "Proven" + "Support" in adjacent elements of the supports section
+    tests/web/p4b.test.tsx: OLD exit 0 · Tests  24 passed (24) → missed; NEW exit 1 · Tests  2 failed | 22 passed (24) → caught at the hardened scan
+        line 961: for (const text of claimTexts(section)) expect(text).not.toMatch(SUPPORT_CLAIMS);
+        line 981: for (const text of claimTexts(section)) expect(text).not.toMatch(SUPPORT_CLAIMS);
+        ↳ AssertionError: expected 'Supporting sources Each support is re…' not to match /\b(proof|proves?|proven|verified( fa…/i
+[HC-06] OK · restored byte-identical · action-label scans (P4C forbidden actions, directory boundary actions)
+    injection: a shell button whose label is "Send" + "notice" in two elements (textContent: "Sendnotice")
+    tests/web/p4c.test.tsx: OLD exit 0 · Tests  17 passed (17) → missed; NEW exit 1 · Tests  4 failed | 13 passed (17) → caught at the hardened scan
+        line 208: expect(actionTexts().filter((text) => FORBIDDEN_ACTIONS.test(text))).toEqual([]);
+        line 276: expect(actionTexts().filter((text) => FORBIDDEN_ACTIONS.test(text))).toEqual([]);
+        line 340: expect(actionTexts().filter((text) => FORBIDDEN_ACTIONS.test(text))).toEqual([]);
+        line 451: expect(actionTexts().filter((text) => FORBIDDEN_ACTIONS.test(text))).toEqual([]);
+        ↳ AssertionError: expected [ 'Send notice' ] to deeply equal []
+    tests/web/directory.test.tsx: OLD exit 0 · Tests  22 passed (22) → missed; NEW exit 1 · Tests  1 failed | 21 passed (22) → caught at the hardened scan
+        line 586: expect( labels.filter((label) => forbidden.test(label)), String(forbidden), ).toEqual([]);
+        ↳ AssertionError: /\bsend\b/: expected [ 'send notice' ] to deeply equal []
+[HC-07] OK · restored byte-identical · P4C page-level scans for a raw-MIME hash claim and for outcome words
+    injection: "raw MIME hash", "Removed" and "Item" in adjacent elements of the shell (textContent: "raw MIME hashRemovedItem")
+    tests/web/p4c.test.tsx: OLD exit 0 · Tests  17 passed (17) → missed; NEW exit 1 · Tests  2 failed | 15 passed (17) → caught at the hardened scan
+        line 363: expect(text).not.toMatch(/\b(raw[- ]MIME hash|hash of the raw message)\b/i);
+        line 465: expect(text).not.toMatch(/\b(removed|rejected|reinstated|retracted)\b/i);
+        ↳ AssertionError: expected 'Skip to content TB Notice Production …' not to match /\b(raw[- ]MIME hash|hash of the raw …/i
+        ↳ AssertionError: expected 'Skip to content TB Notice Production …' not to match /\b(removed|rejected|reinstated|retra…/i
+[HC-08] OK · restored byte-identical · P4D page-level claim scans (the accepted P4D helper joined text nodes without collapsing whitespace)
+    injection: a paragraph {'Ready for '}{'signer'}: two text nodes of one element (P4D helper: "Ready for  signer")
+    tests/web/p4d.test.tsx: OLD exit 0 · Tests  8 passed (8) → missed; NEW exit 1 · Tests  3 failed | 5 passed (8) → caught at the hardened scan
+        line 471: for (const text of claimTexts(document.body)) expect(text).not.toMatch(FORBIDDEN_CLAIMS);
+        line 615: for (const text of claimTexts(document.body)) expect(text).not.toMatch(FORBIDDEN_CLAIMS);
+        line 644: for (const text of claimTexts(document.body)) expect(text).not.toMatch(FORBIDDEN_CLAIMS);
+        ↳ AssertionError: expected 'Skip to content TB Notice Production …' not to match /\b(g1 pass|g[1-7] passed|ready for s…/i
+[HC-09] OK · restored byte-identical · P4D action-label scan
+    injection: a button "Approve" + "context" in two elements inside the context page
+    tests/web/p4d.test.tsx: OLD exit 0 · Tests  8 passed (8) → missed; NEW exit 1 · Tests  1 failed | 7 passed (8) → caught at the hardened scan
+        line 616: expect(actionTexts().filter((text) => FORBIDDEN_ACTIONS.test(text))).toEqual([]);
+        ↳ AssertionError: expected [ 'Approve context' ] to deeply equal []
+# end 2026-09-25T22:43:06.046Z — tree fingerprint a5ca3f52ae1533fe83e5d78745496970cc914d69be9360852336bba7695eff67 (identical)
+9 controls, 9 OK (missed by the old scan, caught by the hardened scan, restored), 0 problems
