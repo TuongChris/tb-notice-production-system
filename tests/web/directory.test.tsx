@@ -11,6 +11,7 @@ import {
   IDENTITY_FIELDS,
   all,
   byText,
+  claimTexts,
   click,
   pageText,
   q,
@@ -569,7 +570,9 @@ describe('P2 directory UI', () => {
     const agency = api.seed('Agency', { displayName: 'SYNTHETIC Boundary' });
     await render(api, `/directory/agencies/${agency.id}`);
     await waitFor(() => q('[data-testid="agency-detail"]') !== null, 'detail');
-    const labels = all('button, a').map((element) => element.textContent?.toLowerCase() ?? '');
+    const labels = all('button, a').flatMap((element) =>
+      claimTexts(element).map((text) => text.toLowerCase()),
+    );
     for (const forbidden of [
       /\bsign\b(?! out)/,
       /\bsend\b/,

@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest';
 import {
   all,
   byText,
+  claimTexts,
   click,
   FakeDirectory,
   go,
@@ -293,7 +294,9 @@ describe('P4A cases UI', () => {
     );
     expect(pageText()).not.toContain('the contract has no operation that reads them back yet');
     for (const stamp of stampTexts()) expect(stamp).not.toMatch(FORBIDDEN_STAMPS);
-    expect(pageText()).not.toMatch(/\b(authorized|approved|g1 pass|eligible|ready to sign)\b/i);
+    for (const text of claimTexts()) {
+      expect(text).not.toMatch(/\b(authorized|approved|g1 pass|eligible|ready to sign)\b/i);
+    }
   });
 
   it('binds a route: only the case agency’s linked routes can be chosen; the case ETag is sent; nothing is selected', async () => {
@@ -784,9 +787,11 @@ describe('P4A cases UI', () => {
       expect(item.querySelector(':scope > .timeline-when')).not.toBeNull();
     }
     for (const stamp of stampTexts()) expect(stamp).not.toMatch(FORBIDDEN_STAMPS);
-    expect(detail()).not.toMatch(
-      /\b(authorized|approved|g1 pass|eligible|ready to sign|archived)\b/i,
-    );
+    for (const text of claimTexts(q('[data-testid="selection-detail"]'))) {
+      expect(text).not.toMatch(
+        /\b(authorized|approved|g1 pass|eligible|ready to sign|archived)\b/i,
+      );
+    }
     // One read, no write: the read-back is a GET of the contracted operation.
     expect(api.writes()).toHaveLength(writesBefore);
     expect(

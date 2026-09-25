@@ -2266,6 +2266,27 @@ export const all = (selector: string) =>
 export const q = (selector: string) => container?.querySelector<HTMLElement>(selector) ?? null;
 export const pageText = () => container?.textContent ?? '';
 
+/**
+ * Text as a scan for forbidden wording reads it (the page by default), in three views: the
+ * textContent as is; the same with whitespace runs collapsed ("Ready for " + " signer"); and the
+ * text nodes joined by single spaces, collapsed, so text of adjacent elements no longer runs
+ * together ("G1 PASS" followed by a label reads "G1 PASS Selection", not "G1 PASSSelection", which
+ * a word-boundary scan misses). A forbidden pattern must match no view. The first view is the
+ * reading every earlier scan used, so no scan becomes weaker.
+ */
+export function claimTexts(root: Node | null | undefined = container): string[] {
+  const raw = root?.textContent ?? '';
+  const nodes: string[] = [];
+  if (root) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
+      nodes.push(node.textContent ?? '');
+    }
+  }
+  const collapse = (text: string) => text.replace(/\s+/g, ' ');
+  return [raw, collapse(raw), collapse(nodes.join(' '))];
+}
+
 export function byText(selector: string, text: string | RegExp): HTMLElement {
   const found = all(selector).find((element) =>
     typeof text === 'string'

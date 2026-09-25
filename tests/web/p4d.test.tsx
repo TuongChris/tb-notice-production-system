@@ -26,6 +26,7 @@ import {
 import {
   all,
   byText,
+  claimTexts,
   click,
   failure,
   FakeDirectory,
@@ -354,23 +355,11 @@ const contextQueries = (api: FakeDirectory, caseId: string) => [
 
 const answer = (view: ContextView) => () => json(200, { data: view, meta });
 
-/**
- * The page's text nodes joined by spaces. textContent runs adjacent elements together ("G1 PASS"
- * followed by a label reads "G1 PASSSelection"), which a word-boundary scan would miss.
- */
-function spacedText(): string {
-  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-  const parts: string[] = [];
-  for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
-    parts.push(node.textContent ?? '');
-  }
-  return parts.join(' ');
-}
-
+/** Every action's label, in each view a scan for forbidden wording reads (`claimTexts`). */
 function actionTexts(): string[] {
-  return all('[data-testid="production-context"] button, [data-testid="production-context"] a').map(
-    (element) => element.textContent?.trim() ?? '',
-  );
+  return all(
+    '[data-testid="production-context"] button, [data-testid="production-context"] a',
+  ).flatMap((element) => claimTexts(element).map((text) => text.trim()));
 }
 
 async function chooseRadio(name: string, value: string): Promise<void> {
@@ -479,7 +468,7 @@ describe('P4D production context page', () => {
     ]) {
       expect(pageText()).toContain(value);
     }
-    expect(spacedText()).not.toMatch(FORBIDDEN_CLAIMS);
+    for (const text of claimTexts(document.body)) expect(text).not.toMatch(FORBIDDEN_CLAIMS);
     expect(api.writes()).toEqual([]);
   });
 
@@ -623,7 +612,7 @@ describe('P4D production context page', () => {
     const policy = q('[data-testid="context-policy-sources"]');
     expect(policy?.textContent).toContain('https://policy.example.invalid/copyright');
     expect(q('[data-testid="context-policy-sources"] a[href^="https://"]')).toBeNull();
-    expect(spacedText()).not.toMatch(FORBIDDEN_CLAIMS);
+    for (const text of claimTexts(document.body)) expect(text).not.toMatch(FORBIDDEN_CLAIMS);
     expect(actionTexts().filter((text) => FORBIDDEN_ACTIONS.test(text))).toEqual([]);
     expect(api.writes()).toEqual([]);
   });
@@ -652,7 +641,7 @@ describe('P4D production context page', () => {
     await waitFor(() => q('[data-testid="context-result"]') !== null, 'the preparation context');
     // Its authority block has no recorded event: shown as selected, never as current or passed.
     expect(q('[data-testid="context-coverage"]')).not.toBeNull();
-    expect(spacedText()).not.toMatch(FORBIDDEN_CLAIMS);
+    for (const text of claimTexts(document.body)) expect(text).not.toMatch(FORBIDDEN_CLAIMS);
     expect(contextQueries(api, w.caseA.id)).toEqual([
       'taskType=INITIAL&generationMode=DRAFTING',
       'taskType=INITIAL&generationMode=PREPARATION',

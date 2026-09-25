@@ -15,6 +15,7 @@ import { describeError } from '../../apps/web/src/app/directory/format.js';
 import {
   all,
   byText,
+  claimTexts,
   click,
   FakeDirectory,
   go,
@@ -43,9 +44,10 @@ const AS_SENT_COPY =
 const refusal = (status: number, code: string, details: Record<string, unknown>) =>
   new ApiError(status, code, 'synthetic', undefined, details);
 
+/** Every action's label, in each view a scan for forbidden wording reads (`claimTexts`). */
 function actionTexts(): string[] {
-  return all('button, a, [role="button"], input[type="submit"]').map(
-    (element) => element.textContent?.trim() ?? '',
+  return all('button, a, [role="button"], input[type="submit"]').flatMap((element) =>
+    claimTexts(element).map((text) => text.trim()),
   );
 }
 
@@ -202,7 +204,7 @@ describe('P4C correspondence registry UI', () => {
     expect(pageText()).toContain('Copied full text');
     expect(pageText()).toContain('Excerpt');
     expect(pageText()).toContain('Recorded in TB');
-    expect(pageText()).not.toMatch(FORBIDDEN_CLAIMS);
+    for (const text of claimTexts()) expect(text).not.toMatch(FORBIDDEN_CLAIMS);
     expect(actionTexts().filter((text) => FORBIDDEN_ACTIONS.test(text))).toEqual([]);
     expect(byText('nav a', 'Correspondence')).toBeTruthy();
     await choose('.list-filter select', w.otherAgency.id, 'agency filter');
@@ -270,7 +272,7 @@ describe('P4C correspondence registry UI', () => {
       'Tue, 22 Sep 2026 10:00:00 +0700',
     );
     expect(q('[data-testid="timestamp-precision"]')?.textContent).toBe('UNKNOWN');
-    expect(pageText()).not.toMatch(FORBIDDEN_CLAIMS);
+    for (const text of claimTexts()) expect(text).not.toMatch(FORBIDDEN_CLAIMS);
     expect(actionTexts().filter((text) => FORBIDDEN_ACTIONS.test(text))).toEqual([]);
     expect(api.requests.every((request) => request.path.startsWith('/api/v1/'))).toBe(true);
     expect(api.writes().map((request) => request.path)).toEqual(['/api/v1/correspondence']);
@@ -357,7 +359,9 @@ describe('P4C correspondence registry UI', () => {
     );
     expect(byText('dt', 'SHA-256 of the recorded body text')).toBeTruthy();
     expect(pageText()).toContain('It is not a hash of a raw message (MIME) file');
-    expect(pageText()).not.toMatch(/\b(raw[- ]MIME hash|hash of the raw message)\b/i);
+    for (const text of claimTexts()) {
+      expect(text).not.toMatch(/\b(raw[- ]MIME hash|hash of the raw message)\b/i);
+    }
     const dated = api.seedCorrespondence({
       agencyId: w.agency.id,
       subject: 'SYNTHETIC dated',
@@ -443,7 +447,7 @@ describe('P4C case correspondence UI', () => {
     );
     expect(q('[data-testid="as-sent-copy"]')?.textContent).toBe(AS_SENT_COPY);
     expect(q('[data-testid="binding-item-link"]')?.textContent).toBe('SYNTHETIC video A1');
-    expect(pageText()).not.toMatch(FORBIDDEN_CLAIMS);
+    for (const text of claimTexts()) expect(text).not.toMatch(FORBIDDEN_CLAIMS);
     expect(actionTexts().filter((text) => FORBIDDEN_ACTIONS.test(text))).toEqual([]);
   });
 
@@ -457,7 +461,9 @@ describe('P4C case correspondence UI', () => {
     );
     expect(q('[data-testid="as-sent-copy"]')).toBeNull();
     expect(pageText()).not.toContain('SYNTHETIC outbound notice');
-    expect(pageText()).not.toMatch(/\b(removed|rejected|reinstated|retracted)\b/i);
+    for (const text of claimTexts()) {
+      expect(text).not.toMatch(/\b(removed|rejected|reinstated|retracted)\b/i);
+    }
   });
 
   it('an outcome names one reported item: without one, the refusal is shown on the item field and nothing is recorded', async () => {
@@ -519,7 +525,7 @@ describe('P4C case correspondence UI', () => {
     expect(all('dt').filter((dt) => dt.textContent === 'Recorded outcome')).toHaveLength(3);
     expect(q('[data-testid="binding-count"]')?.textContent).toBe('3 bindings');
     expect(q('[data-testid="message-count"]')?.textContent).toBe('2 captured messages');
-    expect(pageText()).not.toMatch(FORBIDDEN_CLAIMS);
+    for (const text of claimTexts()) expect(text).not.toMatch(FORBIDDEN_CLAIMS);
   });
 
   it('one message bound to two reported items is one message, not two transmissions; an operator-reported "as sent" record shows its limited posture', async () => {
@@ -553,7 +559,7 @@ describe('P4C case correspondence UI', () => {
     expect(q('[data-testid="as-sent-limited-posture"]')?.textContent).toContain(
       'Operator reported',
     );
-    expect(pageText()).not.toMatch(FORBIDDEN_CLAIMS);
+    for (const text of claimTexts()) expect(text).not.toMatch(FORBIDDEN_CLAIMS);
   });
 
   it('a corrected interpretation names the earlier binding, keeps its message and leaves it unchanged; a corrected binding cannot be corrected again', async () => {

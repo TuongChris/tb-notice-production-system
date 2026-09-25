@@ -20,6 +20,7 @@ import { describeError } from '../../apps/web/src/app/directory/format.js';
 import {
   all,
   byText,
+  claimTexts,
   click,
   FakeDirectory,
   go,
@@ -222,7 +223,7 @@ describe('P4B case intake UI', () => {
     expect(pageText()).not.toContain('SYNTHETIC-B');
     expect(q('[data-testid="mappings-empty"]')).not.toBeNull();
     expect(q('[data-testid="facts-empty"]')).not.toBeNull();
-    expect(pageText()).not.toMatch(FORBIDDEN_CLAIMS);
+    for (const text of claimTexts()) expect(text).not.toMatch(FORBIDDEN_CLAIMS);
     for (const stamp of stampTexts()) expect(stamp).not.toMatch(FORBIDDEN_STAMPS);
   });
 
@@ -257,7 +258,7 @@ describe('P4B case intake UI', () => {
     expect(pageText()).toContain('SYNTHETIC_2');
     expect(pageText()).toContain('https://www.youtube.com/watch?v=SYNTHETIC_2');
     expect(pageText()).toContain('nothing was fetched from YouTube');
-    expect(pageText()).not.toMatch(FORBIDDEN_CLAIMS);
+    for (const text of claimTexts()) expect(text).not.toMatch(FORBIDDEN_CLAIMS);
   });
 
   it('edits a reported item with its own ETag: only changed fields; an untouched observation time is kept exactly; an outdated version shows the conflict notice', async () => {
@@ -346,7 +347,7 @@ describe('P4B case intake UI', () => {
     expect(created?.headers['If-Match']).toBe(`"CaseRecord:${w.caseA.id}:v1"`);
     expect(pageText()).toContain('It does not establish ownership');
     expect(pageText()).toContain('is not proof of ownership or of any right');
-    expect(pageText()).not.toMatch(FORBIDDEN_CLAIMS);
+    for (const text of claimTexts()) expect(text).not.toMatch(FORBIDDEN_CLAIMS);
     const contextAfterCreate = api.rows.CaseRecord.get(w.caseA.id)?.['contextRevision'];
     const work = [...api.rows.CaseWork.values()].find((row) => row['title'] === 'SYNTHETIC Song');
     await waitFor(() => all('a').some((link) => link.textContent === 'Edit'), 'edit link');
@@ -470,7 +471,7 @@ describe('P4B case intake UI', () => {
     expect(q('[data-testid="mapping-sourceEnd"]')?.textContent).toContain('(9007199254740991 ms)');
     expect(pageText()).toContain('not as an infringement verdict');
     expect(pageText()).toContain('similarity alone is never infringement');
-    expect(pageText()).not.toMatch(FORBIDDEN_CLAIMS);
+    for (const text of claimTexts()) expect(text).not.toMatch(FORBIDDEN_CLAIMS);
     for (const stamp of stampTexts()) expect(stamp).not.toMatch(FORBIDDEN_STAMPS);
   });
 
@@ -607,7 +608,7 @@ describe('P4B case intake UI', () => {
       ),
     ).toBe(true);
     expect(all('[data-testid="fact-history"] li')).toHaveLength(1);
-    expect(pageText()).not.toMatch(FORBIDDEN_CLAIMS);
+    for (const text of claimTexts()) expect(text).not.toMatch(FORBIDDEN_CLAIMS);
     for (const stamp of stampTexts()) expect(stamp).not.toMatch(FORBIDDEN_STAMPS);
   });
 
@@ -893,7 +894,7 @@ describe('R9 — the supports recorded with each fact revision, read back (TB-SC
             request.path.endsWith(`/cases/${w.caseA.id}/facts/${first?.id ?? ''}/sources`),
         ),
     ).toBe(true);
-    expect(pageText()).not.toMatch(FORBIDDEN_CLAIMS);
+    for (const text of claimTexts()) expect(text).not.toMatch(FORBIDDEN_CLAIMS);
   });
 
   it('a support whose link was later paused or unlinked stays shown as recorded; the link’s state today is shown apart; a newer source revision is not followed', async () => {
@@ -956,9 +957,9 @@ describe('R9 — the supports recorded with each fact revision, read back (TB-SC
     for (const item of all('[data-testid="fact-support"]')) {
       expect(item.querySelector('dl')?.textContent ?? '').not.toMatch(/Paused|Unlinked/);
     }
-    const section = q('[data-testid="fact-supports"]')?.closest('section')?.textContent ?? '';
-    expect(section).not.toMatch(SUPPORT_CLAIMS);
-    expect(pageText()).not.toMatch(FORBIDDEN_CLAIMS);
+    const section = q('[data-testid="fact-supports"]')?.closest('section');
+    for (const text of claimTexts(section)) expect(text).not.toMatch(SUPPORT_CLAIMS);
+    for (const text of claimTexts()) expect(text).not.toMatch(FORBIDDEN_CLAIMS);
     for (const stamp of stampTexts()) expect(stamp).not.toMatch(FORBIDDEN_STAMPS);
     // Provenance and resolution stay as recorded: a reviewed source cited upgrades nothing.
     expect(all('.provenance').map((element) => element.textContent)).toEqual(['Operator reported']);
@@ -976,8 +977,8 @@ describe('R9 — the supports recorded with each fact revision, read back (TB-SC
       'No supporting source was recorded for this revision.',
     );
     expect(all('[data-testid="fact-support"]')).toHaveLength(0);
-    const section = q('[data-testid="fact-supports-none"]')?.closest('section')?.textContent ?? '';
-    expect(section).not.toMatch(SUPPORT_CLAIMS);
+    const section = q('[data-testid="fact-supports-none"]')?.closest('section');
+    for (const text of claimTexts(section)) expect(text).not.toMatch(SUPPORT_CLAIMS);
   });
 
   it('another case’s fact: not found, its supports never requested or shown; each case shows only its own supports', async () => {
