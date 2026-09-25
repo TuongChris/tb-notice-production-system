@@ -68,6 +68,9 @@ export function AppShell({ api }: { api: ApiClient }) {
             <li>
               <NavLink to="/cases">Cases</NavLink>
             </li>
+            <li>
+              <NavLink to="/correspondence">Correspondence</NavLink>
+            </li>
             {UNAVAILABLE_MODULES.map((name) => (
               <li
                 key={name}

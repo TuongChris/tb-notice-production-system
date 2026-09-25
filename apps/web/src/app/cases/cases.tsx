@@ -51,6 +51,7 @@ import {
 import { SourceCitation, SourceSelect } from '../representation/authority-ui.js';
 import type { SourceTarget } from '../sources/scope.js';
 import { AuthoritySelectionSection } from './authority-selection.js';
+import { CaseCorrespondenceSection } from './case-correspondence.js';
 import { CaseIntakeSections } from './case-intake.js';
 import { CaseSourcesSection } from './case-sources.js';
 import {
@@ -87,7 +88,7 @@ export function CaseListPage() {
     <DirectoryList<CaseRecord>
       title="Cases"
       noun="cases"
-      intro="Each case holds its own records: its route binding, linked sources, the authority materials selected for evaluation and its intake (reported items, works, use mappings and facts). A case is not a legal verdict."
+      intro="Each case holds its own records: its route binding, linked sources, the authority materials selected for evaluation, its intake (reported items, works, use mappings and facts) and its correspondence bindings. A case is not a legal verdict."
       searchLabel="Search intake label or canonical case id"
       newLabel="New case"
       newTo="/cases/new"
@@ -297,6 +298,7 @@ function CaseDetail({ id }: { id: string }) {
       <CaseSourcesSection caseRecord={item} onCaseChanged={page.reloadWith} />
       <AuthoritySelectionSection caseRecord={item} />
       <CaseIntakeSections caseRecord={item} />
+      <CaseCorrespondenceSection caseRecord={item} />
       <Section title="Notes">
         {item.notes ? <p className="prose">{item.notes}</p> : <Absent />}
       </Section>
@@ -313,7 +315,7 @@ function CaseDetail({ id }: { id: string }) {
         <p className="hint">
           The context revision moves with every change to what the case relies on: its route,
           canonical id, linked sources, authority selection, owner hint, packet source and folder,
-          and its reported items, works, use mappings and facts.
+          its reported items, works, use mappings and facts, and its correspondence bindings.
         </p>
       </Section>
     </article>

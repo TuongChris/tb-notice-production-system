@@ -187,8 +187,8 @@ describe('P1 web shell', () => {
       expect(item.getAttribute('aria-disabled')).toBe('true');
       expect(item.querySelector('a')).toBeNull();
     }
-    // P2: Directory; P3A: Sources and Representation (routes); P4A: Cases. Production stays
-    // unreachable.
+    // P2: Directory; P3A: Sources and Representation (routes); P4A: Cases; P4C: Correspondence
+    // (captured messages; nothing is sent). Production stays unreachable.
     const navLinks = [...(container?.querySelectorAll('nav[aria-label="Modules"] a') ?? [])];
     expect(navLinks.map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
       ['Overview', '/'],
@@ -196,6 +196,7 @@ describe('P1 web shell', () => {
       ['Sources', '/sources'],
       ['Representation', '/representation'],
       ['Cases', '/cases'],
+      ['Correspondence', '/correspondence'],
     ]);
     expect(text('[data-testid="boundary-note"]')).toMatch(/does not make you a Signer/);
     expect(text('[data-testid="boundary-note"]')).toMatch(/signs, adopts or sends nothing/);
