@@ -1,6 +1,8 @@
-// Inventory and OpenAPI parity of the active contract source with the frozen TB-SCHEMA-API-v1.0.0
-// reference (P0-D). Byte identity of the serialized JSON is checked first; the explicit inventory
-// below itemizes the properties required by the transition so a future difference is legible.
+// Inventory and OpenAPI parity of the active contract source with its release baseline (P0-D;
+// TB-SCHEMA-API-v1.1.0 since R8, ADR-0004): the frozen TB-SCHEMA-API-v1.0.0 reference plus exactly
+// the reviewed additive amendment (./release.ts). Byte identity of the serialized JSON is checked
+// first; the explicit inventory below itemizes every frozen schema and operation against the frozen
+// reference itself, so any change to v1.0.0 — or any difference beyond the amendment — is legible.
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
@@ -14,6 +16,7 @@ import {
   ProductionContextSchema,
 } from '../../packages/contracts/src/index.js';
 import { FROZEN_CONTRACTS, readJson, repoRoot } from './oracle.js';
+import { readAmendment, releaseBaseline, withComponentRefs } from './release.js';
 
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 type JsonObject = { [key: string]: Json };
@@ -23,6 +26,9 @@ const frozenOpenApiRaw = readFileSync(path.join(FROZEN_CONTRACTS, 'openapi.json'
 const frozenBundle = JSON.parse(frozenBundleRaw) as JsonObject;
 const frozenOpenApi = JSON.parse(frozenOpenApiRaw) as JsonObject;
 const { jsonSchemaBundle, openApi } = buildContractArtifacts();
+const amendment = readAmendment();
+const baseline = releaseBaseline(amendment);
+const addedSchemas = amendment.schemas.added as Record<string, Json>;
 
 /** Itemized inventory of one schema tree: every constraint with its JSON path. */
 function inventory(root: Json, rootPath: string): Record<string, string[]> {
@@ -92,22 +98,39 @@ function inventory(root: Json, rootPath: string): Record<string, string[]> {
 const frozenDefs = frozenBundle['$defs'] as JsonObject;
 const generatedDefs = jsonSchemaBundle['$defs'] as JsonObject;
 
-describe('JSON Schema bundle parity (284 schemas)', () => {
-  it('serializes byte-identically to the frozen api-schemas.json', () => {
-    expect(JSON.stringify(jsonSchemaBundle, null, 2) === frozenBundleRaw).toBe(true);
+describe('JSON Schema bundle parity (the 284 frozen schemas + the 2 of the v1.1.0 amendment)', () => {
+  it('serializes byte-identically to the release baseline (the frozen api-schemas.json + the amendment)', () => {
+    // The frozen file round-trips byte for byte, so the baseline keeps its exact serialization.
+    expect(JSON.stringify(frozenBundle, null, 2) === frozenBundleRaw).toBe(true);
+    expect(
+      JSON.stringify(jsonSchemaBundle, null, 2) === JSON.stringify(baseline.bundle, null, 2),
+    ).toBe(true);
   });
 
-  it('is deep-equal to the frozen bundle', () => {
-    expect(isDeepStrictEqual(jsonSchemaBundle, frozenBundle)).toBe(true);
+  it('is deep-equal to the release baseline', () => {
+    expect(isDeepStrictEqual(jsonSchemaBundle, baseline.bundle)).toBe(true);
   });
 
-  it('retains all 284 schema identities in the frozen order', () => {
-    expect(Object.keys(generatedDefs)).toHaveLength(284);
-    expect(Object.keys(generatedDefs)).toEqual(Object.keys(frozenDefs));
-    expect(apiSchemaCatalog.map(([name]) => name)).toEqual(Object.keys(frozenDefs));
+  it('retains all 284 frozen schema identities in the frozen order; the 2 additions follow their insertion point', () => {
+    const names = Object.keys(generatedDefs);
+    expect(names).toHaveLength(286);
+    expect(names).toEqual(Object.keys(baseline.bundle.$defs));
+    expect(names.filter((name) => name in frozenDefs)).toEqual(Object.keys(frozenDefs));
+    const at = names.indexOf(amendment.schemas.insertAfter);
+    expect(names.slice(at + 1, at + 3)).toEqual(Object.keys(addedSchemas));
+    expect(apiSchemaCatalog.map(([name]) => name)).toEqual(names);
     expect(jsonSchemaBundle['$id']).toBe(frozenBundle['$id']);
     expect(jsonSchemaBundle['$schema']).toBe('https://json-schema.org/draft/2020-12/schema');
   });
+
+  it.each(Object.keys(addedSchemas).map((name) => [name] as const))(
+    '%s (TB-SCHEMA-API-v1.1.0 addition): itemized inventory equal to the amendment',
+    (name) => {
+      expect(inventory(generatedDefs[name] as Json, name)).toEqual(
+        inventory(addedSchemas[name] as Json, name),
+      );
+    },
+  );
 
   it.each(Object.keys(frozenDefs).map((name) => [name] as const))(
     '%s: itemized inventory equal',
@@ -127,8 +150,26 @@ describe('JSON Schema bundle parity (284 schemas)', () => {
       }
       return sums;
     };
-    const generatedTotals = total(generatedDefs);
+    const frozenSubset = Object.fromEntries(
+      Object.keys(frozenDefs).map((name) => [name, generatedDefs[name] as Json]),
+    );
+    const generatedTotals = total(frozenSubset);
     expect(generatedTotals).toEqual(total(frozenDefs));
+    // The whole generated bundle = the frozen totals + the amendment's two schemas.
+    const addedTotals = total(addedSchemas as JsonObject);
+    expect(addedTotals).toMatchObject({
+      refs: 4,
+      arrayBounds: 1,
+      strictObjects: 2,
+      nullableUnions: 0,
+      formats: 0,
+      oneOf: 0,
+      minProperties: 0,
+    });
+    const everything = total(generatedDefs);
+    for (const [key, count] of Object.entries(everything)) {
+      expect(count, key).toBe((generatedTotals[key] ?? 0) + (addedTotals[key] ?? 0));
+    }
     expect(generatedTotals['oneOf']).toBe(4);
     expect(generatedTotals['minProperties']).toBe(12);
     expect(generatedTotals['nullableUnions']).toBe(691);
@@ -192,13 +233,16 @@ const methodsOf = (doc: JsonObject) =>
     })),
   );
 
-describe('OpenAPI parity (141 operations)', () => {
-  it('serializes byte-identically to the frozen openapi.json and is deep-equal', () => {
-    expect(JSON.stringify(openApi, null, 2) === frozenOpenApiRaw).toBe(true);
-    expect(isDeepStrictEqual(openApi, frozenOpenApi)).toBe(true);
+describe('OpenAPI parity (the 141 frozen operations + getCaseAuthoritySelection of v1.1.0)', () => {
+  it('serializes byte-identically to the release baseline (the frozen openapi.json + the amendment) and is deep-equal', () => {
+    expect(JSON.stringify(frozenOpenApi, null, 2) === frozenOpenApiRaw).toBe(true);
+    expect(JSON.stringify(openApi, null, 2) === JSON.stringify(baseline.openApi, null, 2)).toBe(
+      true,
+    );
+    expect(isDeepStrictEqual(openApi, baseline.openApi)).toBe(true);
   });
 
-  it('keeps OpenAPI 3.1.1, the loopback server URL, info, tags, security and components', () => {
+  it('keeps OpenAPI 3.1.1, the loopback server URL, info (version 1.1.0), tags, security and components', () => {
     expect(openApi['openapi']).toBe('3.1.1');
     expect(openApi['servers']).toEqual([
       {
@@ -206,23 +250,45 @@ describe('OpenAPI parity (141 operations)', () => {
         description: 'Loopback development only; production requires HTTPS.',
       },
     ]);
-    for (const key of ['info', 'tags', 'security'])
-      expect(openApi[key], key).toEqual(frozenOpenApi[key]);
+    expect(openApi['info']).toEqual({
+      ...(frozenOpenApi['info'] as JsonObject),
+      version: amendment.openApiInfoVersion.to,
+    });
+    expect((frozenOpenApi['info'] as JsonObject)['version']).toBe(
+      amendment.openApiInfoVersion.from,
+    );
+    for (const key of ['tags', 'security']) expect(openApi[key], key).toEqual(frozenOpenApi[key]);
     const components = openApi['components'] as JsonObject;
     const frozenComponents = frozenOpenApi['components'] as JsonObject;
-    for (const key of ['schemas', 'securitySchemes', 'parameters', 'responses']) {
+    for (const key of ['securitySchemes', 'parameters', 'responses']) {
       expect(components[key], key).toEqual(frozenComponents[key]);
     }
+    const schemas = components['schemas'] as JsonObject;
+    const frozenSchemas = frozenComponents['schemas'] as JsonObject;
+    for (const [name, schema] of Object.entries(frozenSchemas)) {
+      expect(schemas[name], name).toEqual(schema);
+    }
+    for (const [name, schema] of Object.entries(addedSchemas)) {
+      expect(schemas[name], name).toEqual(withComponentRefs(schema));
+    }
+    expect(Object.keys(schemas)).toEqual(Object.keys(generatedDefs));
   });
 
   const frozenOps = methodsOf(frozenOpenApi);
   const generatedOps = new Map(methodsOf(openApi).map((o) => [`${o.method} ${o.route}`, o.op]));
 
-  it('has the same 141 method/path pairs and 141 unique operationIds', () => {
+  it('keeps the 141 frozen method/path pairs; 142 operations with unique operationIds', () => {
     expect(frozenOps).toHaveLength(141);
-    expect(generatedOps.size).toBe(141);
-    expect(operations).toHaveLength(141);
-    expect(new Set(operations.map((o) => o.operationId)).size).toBe(141);
+    expect(generatedOps.size).toBe(142);
+    expect(operations).toHaveLength(142);
+    expect(new Set(operations.map((o) => o.operationId)).size).toBe(142);
+    const added = [...generatedOps.keys()].filter(
+      (key) => !frozenOps.some((o) => `${o.method} ${o.route}` === key),
+    );
+    expect(added).toEqual(['get /cases/{caseId}/authority-selections/{id}']);
+    expect(generatedOps.get(added[0] as string)).toEqual(
+      (amendment.operations.added['/cases/{caseId}/authority-selections/{id}'] ?? {})['get'],
+    );
   });
 
   it.each(frozenOps.map((o) => [`${o.method.toUpperCase()} ${o.route}`, o] as const))(
@@ -302,11 +368,12 @@ describe('OpenAPI YAML', () => {
     expect(anchorsOrAliases).toBe(0);
   });
 
-  it('is semantically equal to the frozen openapi.yaml (which uses 45 anchors / 351 aliases)', () => {
+  it('the frozen openapi.yaml (45 anchors / 351 aliases) is semantically the frozen openapi.json the release extends; the generated YAML is the release', () => {
     const frozenYaml = parseDocument(
       readFileSync(path.join(FROZEN_CONTRACTS, 'openapi.yaml'), 'utf8'),
     );
-    expect(isDeepStrictEqual(frozenYaml.toJS({ maxAliasCount: -1 }), openApi)).toBe(true);
+    expect(isDeepStrictEqual(frozenYaml.toJS({ maxAliasCount: -1 }), frozenOpenApi)).toBe(true);
+    expect(isDeepStrictEqual(parse(yamlText), baseline.openApi)).toBe(true);
   });
 
   it('committed JSON artifacts equal the in-memory build', () => {

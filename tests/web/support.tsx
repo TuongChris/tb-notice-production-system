@@ -4,10 +4,15 @@
 // helpers. The representation-authority records (P3B) follow the server's main rules: the parent
 // ETag as precondition of a child create, FROZEN_VERSION for any change under a frozen version,
 // version numbers max+1, append-only events and a frozen coverage of the same route as a route's
-// preferred coverage. All data is synthetic.
+// preferred coverage. Cases (P4A) follow the case rules the pages rely on: the case's ETag as the
+// precondition of its commands, links and selections, the link's own ETag for a link-state change,
+// read-only archived cases, route binding only to a linked route of the case's agency, and
+// append-only selections of frozen coverage that records the chosen signer; a selection is read back
+// only under its own case, with its stored coverage rows in ascending coverageId order
+// (getCaseAuthoritySelection, TB-SCHEMA-API-v1.1.0). All data is synthetic.
 import { act, StrictMode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, useNavigate } from 'react-router';
 import { afterEach } from 'vitest';
 import { createApiClient } from '../../apps/web/src/app/api/client.js';
 import { App } from '../../apps/web/src/app/App.js';
@@ -24,7 +29,9 @@ export type Kind =
   | 'Mandate'
   | 'MandateVersion'
   | 'MandateCoverage'
-  | 'CoverageSigner';
+  | 'CoverageSigner'
+  | 'CaseRecord'
+  | 'CaseSource';
 export type Row = Record<string, unknown> & { id: string; rowVersion: number };
 
 export interface RecordedRequest {
@@ -115,7 +122,13 @@ export class FakeDirectory {
     MandateVersion: new Map(),
     MandateCoverage: new Map(),
     CoverageSigner: new Map(),
+    CaseRecord: new Map(),
+    CaseSource: new Map(),
   };
+  /** Append-only case authority selections (no ETag, no row version), in recording order. */
+  readonly selections: Array<Record<string, unknown> & { id: string }> = [];
+  /** The CaseAuthorityCoverage rows each selection pinned, as the contract returns them. */
+  readonly pinned = new Map<string, Array<Record<string, unknown> & { coverageId: string }>>();
   /** Append-only authority events (no ETag, no row version), in recording order. */
   readonly events: Array<Record<string, unknown> & { id: string }> = [];
   /** Immutable SourceReference revisions (no ETag, no row version). */
@@ -282,15 +295,44 @@ export class FakeDirectory {
         endsOn: null,
         limitations: null,
       },
+      CaseRecord: {
+        agencyId: '',
+        platform: 'YOUTUBE',
+        intakeLabel: 'x',
+        ownerHintId: null,
+        routeId: null,
+        canonicalCaseId: null,
+        canonicalBindingSourceId: null,
+        caseClass: 'WORKING_INTAKE',
+        workflowState: 'INTAKE',
+        currentAuthoritySelectionId: null,
+        packetSourceId: null,
+        driveFolderUrl: null,
+        contextRevision: 1,
+        closedAt: null,
+        closeReason: null,
+      },
+      CaseSource: {
+        caseId: '',
+        sourceId: '',
+        useRole: 'x',
+        scopeNote: 'x',
+        linkState: 'LINKED',
+        stateReason: null,
+      },
     };
     const row = { ...base, ...defaults[kind], ...fields } as Row;
     if (
       kind === 'OwnerSubject' ||
       kind === 'MandateVersion' ||
       kind === 'MandateCoverage' ||
-      kind === 'CoverageSigner'
+      kind === 'CoverageSigner' ||
+      kind === 'CaseSource'
     ) {
       for (const key of NOT_ON_CHILDREN) delete row[key];
+    }
+    if (kind === 'CaseRecord') {
+      for (const key of ['canonicalCode', 'canonicalSourceId', 'bindingState']) delete row[key];
     }
     this.rows[kind].set(id, row);
     return row;
@@ -403,8 +445,14 @@ export class FakeDirectory {
       if (!headers['Idempotency-Key']) return failure(400, 'IDEMPOTENCY_KEY_REQUIRED');
     }
     const parts = url.pathname.replace('/api/v1/', '').split('/');
-    const [collection, id, action] = parts;
+    const [collection, id, action, childId] = parts;
     if (collection === 'sources') return this.sourceRequest(method, id, action, url, body);
+    if (collection === 'cases') {
+      return this.caseRequest(method, id, action, url, headers, body, childId);
+    }
+    if (collection === 'case-sources' && id) {
+      return this.caseSourceRequest(method, id, action, headers, body);
+    }
     if (collection === 'mandates' && id && (action === 'versions' || action === 'events')) {
       return this.mandateChildren(method, id, action, url, headers, body);
     }
@@ -611,13 +659,13 @@ export class FakeDirectory {
     return issues.length === 0 ? null : failure(422, 'VALIDATION_FAILED', { issues });
   }
 
-  private list(kind: Kind, url: URL): Response | Promise<Response> {
+  private list(kind: Kind, url: URL, rows?: Row[]): Response | Promise<Response> {
     if (this.failLists) return failure(500, 'INTERNAL_ERROR');
     const q = url.searchParams.get('q')?.toLowerCase();
     const agencyId = url.searchParams.get('agencyId');
     const limit = this.pageSize ?? Number(url.searchParams.get('limit') ?? 25);
     const start = Number(url.searchParams.get('cursor')?.replace('c', '') ?? 0);
-    const all = [...this.rows[kind].values()].filter(
+    const all = (rows ?? [...this.rows[kind].values()]).filter(
       (row) =>
         (!q || JSON.stringify(row).toLowerCase().includes(q)) &&
         (!agencyId || row['agencyId'] === agencyId),
@@ -1036,6 +1084,336 @@ export class FakeDirectory {
     return failure(404, 'NOT_FOUND');
   }
 
+  // Cases (P4A) --------------------------------------------------------------------------------
+
+  /**
+   * A selection as the contract returns it (no ETag, no row version), with the coverage rows it
+   * pinned (each coverage with its own application scope).
+   */
+  seedSelection(
+    fields: Record<string, unknown>,
+    coverages: ReadonlyArray<{ coverageId: string; applicationScope: string }> = [],
+  ): Record<string, unknown> & { id: string } {
+    const row = {
+      id: this.id(),
+      caseId: '',
+      agencyId: '',
+      routeId: '',
+      signerId: '',
+      taskType: 'INITIAL',
+      intendedFromEmail: 'synthetic-sender@example.invalid',
+      basisSourceId: null,
+      selectionNote: 'Synthetic selection note',
+      createdAt: NOW,
+      createdById: USER_ID,
+      ...fields,
+    };
+    this.selections.push(row);
+    this.pinned.set(
+      row.id,
+      coverages.map((chosen) => ({
+        id: this.id(),
+        selectionId: row.id,
+        caseId: row.caseId,
+        agencyId: row.agencyId,
+        routeId: row.routeId,
+        coverageId: chosen.coverageId,
+        applicationScope: chosen.applicationScope,
+        createdAt: row.createdAt,
+        createdById: row.createdById,
+      })),
+    );
+    return row;
+  }
+
+  private touchCase(row: Row, material: boolean): void {
+    Object.assign(row, {
+      rowVersion: row.rowVersion + 1,
+      contextRevision: Number(row['contextRevision']) + (material ? 1 : 0),
+      updatedAt: NOW,
+    });
+  }
+
+  private caseRequest(
+    method: string,
+    id: string | undefined,
+    action: string | undefined,
+    url: URL,
+    headers: Record<string, string>,
+    body: unknown,
+    childId?: string,
+  ): Response | Promise<Response> {
+    const request = (body ?? {}) as Record<string, unknown>;
+    if (id === undefined) {
+      if (method === 'GET') {
+        const workflowState = url.searchParams.get('workflowState');
+        const routeId = url.searchParams.get('routeId');
+        const cases = [...this.rows.CaseRecord.values()].filter(
+          (row) =>
+            (!workflowState || row['workflowState'] === workflowState) &&
+            (!routeId || row['routeId'] === routeId),
+        );
+        const response = this.list('CaseRecord', url, cases);
+        return response;
+      }
+      const agency = this.rows.Agency.get(String(request['agencyId']));
+      if (!agency) return failure(422, 'REFERENCE_NOT_FOUND', { field: 'agencyId' });
+      if (typeof request['routeId'] === 'string') {
+        const route = this.rows.Route.get(request['routeId']);
+        if (!route) return failure(422, 'REFERENCE_NOT_FOUND', { field: 'routeId' });
+        if (route['agencyId'] !== agency.id) {
+          return failure(422, 'CROSS_AGENCY_REFERENCE', { field: 'routeId' });
+        }
+      }
+      const row = this.seed('CaseRecord', request);
+      return this.reply(201, 'CaseRecord', row);
+    }
+    const row = this.rows.CaseRecord.get(id);
+    if (!row) return failure(404, 'NOT_FOUND');
+    if (method === 'GET') {
+      if (action === undefined) return this.reply(200, 'CaseRecord', row);
+      if (action === 'sources') {
+        return this.page(
+          [...this.rows.CaseSource.values()].filter((link) => link['caseId'] === id).reverse(),
+        );
+      }
+      if (action === 'authority-selections' && childId !== undefined) {
+        // Only under its own case; another case's selection is 404 like an unknown one.
+        const selection = this.selections.find(
+          (item) => item.id === childId && item['caseId'] === id,
+        );
+        if (!selection) return failure(404, 'NOT_FOUND');
+        const coverages = [...(this.pinned.get(selection.id) ?? [])]
+          .filter((row) => row['caseId'] === id)
+          .sort((x, y) => (x.coverageId < y.coverageId ? -1 : x.coverageId > y.coverageId ? 1 : 0));
+        return json(200, {
+          data: { selection, coverages },
+          meta: { requestId: 'r', affectedResources: [] },
+        });
+      }
+      if (action === 'authority-selections') {
+        return this.page(this.selections.filter((item) => item['caseId'] === id).reverse());
+      }
+      return failure(404, 'NOT_FOUND');
+    }
+    const precondition = this.precondition('CaseRecord', row, headers);
+    if (precondition) return precondition;
+    if (row['archivedAt'] !== null && action !== 'restore') {
+      return failure(409, 'RECORD_STATE_CONFLICT', { record: 'CaseRecord', archived: true });
+    }
+    if (method === 'PATCH') {
+      const material = ['intakeLabel', 'ownerHintId', 'packetSourceId', 'driveFolderUrl'].some(
+        (field) => field in request,
+      );
+      Object.assign(row, request);
+      this.touchCase(row, material);
+      return this.reply(200, 'CaseRecord', row);
+    }
+    if (method === 'DELETE') {
+      const blockers = [
+        ...(this.deleteBlockers.get(id) ?? []),
+        ...([...this.rows.CaseSource.values()].some((link) => link['caseId'] === id)
+          ? ['REFERENCED_BY:case_sources.case_id']
+          : []),
+        ...(this.selections.some((item) => item['caseId'] === id)
+          ? ['REFERENCED_BY:case_authority_selections.case_id']
+          : []),
+      ];
+      if (blockers.length > 0) return failure(409, 'REFERENCED_RECORD_CANNOT_DELETE', { blockers });
+      this.rows.CaseRecord.delete(id);
+      return new Response(null, { status: 204 });
+    }
+    switch (action) {
+      case 'archive':
+        Object.assign(row, { archivedAt: NOW, archiveReason: request['reason'] });
+        this.touchCase(row, false);
+        return this.reply(200, 'CaseRecord', row);
+      case 'restore':
+        if (row['archivedAt'] === null) {
+          return failure(409, 'RECORD_STATE_CONFLICT', { archived: false, operation: 'restore' });
+        }
+        Object.assign(row, { archivedAt: null, archiveReason: null });
+        this.touchCase(row, false);
+        return this.reply(200, 'CaseRecord', row);
+      case 'workflow': {
+        if (row['workflowState'] === request['state']) {
+          return failure(409, 'RECORD_STATE_CONFLICT', {
+            workflowState: row['workflowState'],
+            requested: request['state'],
+            operation: 'workflow',
+          });
+        }
+        const closing = request['state'] === 'CLOSED';
+        Object.assign(row, {
+          workflowState: request['state'],
+          closedAt: closing ? NOW : null,
+          closeReason: closing ? request['reason'] : null,
+        });
+        this.touchCase(row, false);
+        return this.reply(200, 'CaseRecord', row);
+      }
+      case 'route-binding': {
+        const route = this.rows.Route.get(String(request['routeId']));
+        if (!route) return failure(422, 'REFERENCE_NOT_FOUND', { field: 'routeId' });
+        if (route['agencyId'] !== row['agencyId']) {
+          return failure(422, 'CROSS_AGENCY_REFERENCE', { field: 'routeId' });
+        }
+        if (row['routeId'] === route.id) {
+          return failure(409, 'RECORD_STATE_CONFLICT', {
+            routeId: route.id,
+            operation: 'route-binding',
+          });
+        }
+        if (row['routeId'] !== null && this.selections.some((item) => item['caseId'] === id)) {
+          return failure(409, 'BINDING_CORRECTION_REQUIRES_RECONCILIATION', {
+            routeId: row['routeId'],
+            blockers: ['AUTHORITY_SELECTION'],
+          });
+        }
+        if (route['archivedAt'] || route['linkState'] !== 'LINKED') {
+          return failure(409, 'RECORD_STATE_CONFLICT', {
+            record: 'Route',
+            linkState: route['linkState'],
+            field: 'routeId',
+          });
+        }
+        row['routeId'] = route.id;
+        this.touchCase(row, true);
+        return this.reply(200, 'CaseRecord', row);
+      }
+      case 'canonical-binding':
+        if (row['canonicalCaseId'] !== null) {
+          return failure(409, 'BINDING_CORRECTION_REQUIRES_RECONCILIATION', {
+            canonicalCaseId: row['canonicalCaseId'],
+          });
+        }
+        if (!this.sources.has(String(request['sourceId']))) {
+          return failure(422, 'REFERENCE_NOT_FOUND', { field: 'sourceId' });
+        }
+        Object.assign(row, {
+          canonicalCaseId: request['canonicalCode'],
+          canonicalBindingSourceId: request['sourceId'],
+        });
+        this.touchCase(row, true);
+        return this.reply(200, 'CaseRecord', row);
+      case 'sources': {
+        const source = this.sources.get(String(request['sourceId']));
+        if (!source) return failure(422, 'REFERENCE_NOT_FOUND', { field: 'sourceId' });
+        const caseIds = (source['scopeBindings'] as { caseIds?: string[] } | null)?.caseIds ?? [];
+        if (caseIds.length > 0 && !caseIds.includes(id)) {
+          return failure(422, 'CROSS_CASE_REFERENCE', { field: 'sourceId' });
+        }
+        const duplicate = [...this.rows.CaseSource.values()].find(
+          (link) =>
+            link['caseId'] === id &&
+            link['sourceId'] === source.id &&
+            link['useRole'] === request['useRole'],
+        );
+        if (duplicate) return failure(409, 'DUPLICATE_CASE_SOURCE', { caseSourceId: duplicate.id });
+        const link = this.seed('CaseSource', { ...request, caseId: id });
+        this.touchCase(row, true);
+        return this.reply(201, 'CaseSource', link);
+      }
+      case 'authority-selections': {
+        if (row['routeId'] === null) {
+          return failure(422, 'AUTHORITY_SCOPE_UNRESOLVED', {
+            field: 'routeId',
+            reason: 'CASE_ROUTE_UNBOUND',
+          });
+        }
+        if (request['routeId'] !== row['routeId']) {
+          return failure(422, 'AUTHORITY_SCOPE_UNRESOLVED', {
+            field: 'routeId',
+            reason: 'NOT_CASE_ROUTE',
+          });
+        }
+        const signer = this.rows.Signer.get(String(request['signerId']));
+        if (!signer) return failure(422, 'REFERENCE_NOT_FOUND', { field: 'signerId' });
+        if (signer['agencyId'] !== row['agencyId']) {
+          return failure(422, 'CROSS_AGENCY_REFERENCE', { field: 'signerId' });
+        }
+        const chosen = (request['coverages'] ?? []) as Array<{
+          coverageId: string;
+          applicationScope: string;
+        }>;
+        for (const [index, item] of chosen.entries()) {
+          const field = `coverages.${index}.coverageId`;
+          const coverage = this.rows.MandateCoverage.get(item.coverageId);
+          if (!coverage) return failure(422, 'REFERENCE_NOT_FOUND', { field });
+          if (coverage['routeId'] !== row['routeId']) {
+            return failure(422, 'AUTHORITY_SCOPE_UNRESOLVED', { field, reason: 'OTHER_ROUTE' });
+          }
+          const version = this.versionOf(coverage);
+          if (version?.['versionState'] !== 'FROZEN') {
+            return failure(409, 'VERSION_NOT_FROZEN', { field, versionId: version?.id });
+          }
+          const recorded = [...this.rows.CoverageSigner.values()].some(
+            (association) =>
+              association['coverageId'] === coverage.id && association['signerId'] === signer.id,
+          );
+          if (!recorded) {
+            return failure(422, 'AUTHORITY_SCOPE_UNRESOLVED', {
+              field,
+              reason: 'SIGNER_NOT_RECORDED',
+            });
+          }
+        }
+        const selection = this.seedSelection(
+          {
+            caseId: id,
+            agencyId: row['agencyId'],
+            routeId: row['routeId'],
+            signerId: signer.id,
+            taskType: request['taskType'],
+            intendedFromEmail: request['intendedFromEmail'],
+            basisSourceId: request['basisSourceId'] ?? null,
+            selectionNote: request['selectionNote'],
+          },
+          chosen,
+        );
+        row['currentAuthoritySelectionId'] = selection.id;
+        this.touchCase(row, true);
+        return json(201, { data: selection, meta: { requestId: 'r', affectedResources: [] } });
+      }
+      default:
+        return failure(404, 'NOT_FOUND');
+    }
+  }
+
+  private caseSourceRequest(
+    method: string,
+    id: string,
+    action: string | undefined,
+    headers: Record<string, string>,
+    body: unknown,
+  ): Response {
+    const link = this.rows.CaseSource.get(id);
+    if (!link) return failure(404, 'NOT_FOUND');
+    if (method === 'GET' && action === undefined) return this.reply(200, 'CaseSource', link);
+    if (method !== 'POST' || action !== 'link-state') return failure(404, 'NOT_FOUND');
+    const precondition = this.precondition('CaseSource', link, headers);
+    if (precondition) return precondition;
+    const owner = this.rows.CaseRecord.get(String(link['caseId']));
+    if (owner?.['archivedAt']) {
+      return failure(409, 'RECORD_STATE_CONFLICT', { record: 'CaseRecord', archived: true });
+    }
+    const request = body as { state: string; reason: string };
+    if (link['linkState'] === request.state) {
+      return failure(409, 'RECORD_STATE_CONFLICT', {
+        linkState: link['linkState'],
+        requested: request.state,
+      });
+    }
+    Object.assign(link, {
+      linkState: request.state,
+      stateReason: request.reason,
+      rowVersion: link.rowVersion + 1,
+      updatedAt: NOW,
+    });
+    if (owner) this.touchCase(owner, true);
+    return this.reply(200, 'CaseSource', link);
+  }
+
   private coverageSignerRequest(
     method: string,
     id: string,
@@ -1061,6 +1439,24 @@ export class FakeDirectory {
 
 let root: Root | undefined;
 let container: HTMLElement | undefined;
+let navigateTo: ((path: string) => void) | undefined;
+
+/** Captures the router's navigate function so a test can move between URLs in the same app. */
+function NavigationProbe() {
+  const navigate = useNavigate();
+  navigateTo = (path: string) => void navigate(path);
+  return null;
+}
+
+/**
+ * In-app navigation to another URL (like history back/forward between two records of the same
+ * page): the page's route element stays mounted and only its parameters change.
+ */
+export async function go(path: string): Promise<void> {
+  if (!navigateTo) throw new Error('nothing rendered');
+  const navigate = navigateTo;
+  await act(async () => navigate(path));
+}
 
 export async function render(api: FakeDirectory, path: string): Promise<void> {
   container = document.createElement('div');
@@ -1070,6 +1466,7 @@ export async function render(api: FakeDirectory, path: string): Promise<void> {
     root?.render(
       <StrictMode>
         <MemoryRouter initialEntries={[path]}>
+          <NavigationProbe />
           <App api={createApiClient(api.fetch)} />
         </MemoryRouter>
       </StrictMode>,
@@ -1083,6 +1480,7 @@ export async function unmount(): Promise<void> {
   container?.remove();
   root = undefined;
   container = undefined;
+  navigateTo = undefined;
 }
 
 afterEach(unmount);

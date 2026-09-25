@@ -296,6 +296,12 @@ function SourceDetail({ id }: { id: string }) {
                 <NameList kind="legalSubject" ids={scope.legalSubjectIds ?? []} />
               ),
             ],
+            [
+              'Cases named',
+              (scope.caseIds ?? []).length === 0 ? null : (
+                <NameList kind="case" ids={scope.caseIds ?? []} />
+              ),
+            ],
             ['Scope limitation', scope.limitation],
             ['What it covers', <p className="prose">{source.scopeText}</p>],
           ]}
@@ -343,7 +349,13 @@ function SourceDetail({ id }: { id: string }) {
   );
 }
 
-function NameList({ kind, ids }: { kind: 'agency' | 'legalSubject'; ids: readonly string[] }) {
+function NameList({
+  kind,
+  ids,
+}: {
+  kind: 'agency' | 'legalSubject' | 'case';
+  ids: readonly string[];
+}) {
   return (
     <ul className="plain-list">
       {ids.map((id) => (
@@ -433,16 +445,22 @@ function SourceForm({ base }: { base: SourceReference | null }) {
   const [agencyId, setAgencyId] = useState('');
   const [sharedWith, setSharedWith] = useState<string[]>([]);
   const [subjects, setSubjects] = useState<string[]>([]);
+  const [caseIds, setCaseIds] = useState<string[]>([]);
   const [clientErrors, setClientErrors] = useState<Record<string, string>>({});
   const [agencies] = useLoad('source-form:agencies', () => api.agencies.list({ limit: 100 }));
   const [subjectList] = useLoad('source-form:subjects', () =>
     api.legalSubjects.list({ limit: 100 }),
   );
+  const [caseList] = useLoad('source-form:cases', () => api.cases.list({ limit: 100 }));
   const agencyItems = (agencies.status === 'ready' ? agencies.value.items : []).filter(
     (agency) => agency.recordState !== 'ARCHIVED',
   );
   const subjectItems = (subjectList.status === 'ready' ? subjectList.value.items : []).filter(
     (subject) => subject.recordState !== 'ARCHIVED',
+  );
+  // An agency's own source can name only that agency's cases; archived cases take no new source.
+  const caseItems = (caseList.status === 'ready' ? caseList.value.items : []).filter(
+    (item) => item.archivedAt === null && (agencyId === '' || item.agencyId === agencyId),
   );
   const issues = issuesOf(submission.error);
   const errorFor = (path: string) =>
@@ -474,11 +492,12 @@ function SourceForm({ base }: { base: SourceReference | null }) {
     }
     const scopeLimitation = createText(values.scopeLimitation, true);
     const newScope =
-      sharedWith.length + subjects.length === 0 && scopeLimitation === undefined
+      sharedWith.length + subjects.length + caseIds.length === 0 && scopeLimitation === undefined
         ? undefined
         : {
             ...(sharedWith.length > 0 ? { agencyIds: sharedWith } : {}),
             ...(subjects.length > 0 ? { legalSubjectIds: subjects } : {}),
+            ...(caseIds.length > 0 ? { caseIds } : {}),
             ...(scopeLimitation === undefined ? {} : { limitation: scopeLimitation }),
           };
     const capture = {
@@ -617,6 +636,7 @@ function SourceForm({ base }: { base: SourceReference | null }) {
                 onChange={(value) => {
                   setAgencyId(value);
                   setSharedWith([]);
+                  setCaseIds([]);
                 }}
               />
               {agencyId === '' && (
@@ -641,8 +661,14 @@ function SourceForm({ base }: { base: SourceReference | null }) {
                 selected={subjects}
                 onChange={setSubjects}
               />
+              <CheckboxList
+                legend="Cases named"
+                hint="A source that names cases applies only to those cases — to no directory, route or authority record. An agency’s own source can name only that agency’s cases."
+                items={caseItems.map((item) => ({ id: item.id, label: item.intakeLabel }))}
+                selected={caseIds}
+                onChange={setCaseIds}
+              />
               {text('scopeLimitation', 'Scope limitation', { multiline: true })}
-              <p className="hint">Case scope cannot be recorded before cases exist.</p>
             </>
           ) : (
             <Details
@@ -665,6 +691,12 @@ function SourceForm({ base }: { base: SourceReference | null }) {
                   'Legal subjects named',
                   (base.scopeBindings?.legalSubjectIds ?? []).length === 0 ? null : (
                     <NameList kind="legalSubject" ids={base.scopeBindings?.legalSubjectIds ?? []} />
+                  ),
+                ],
+                [
+                  'Cases named',
+                  (base.scopeBindings?.caseIds ?? []).length === 0 ? null : (
+                    <NameList kind="case" ids={base.scopeBindings?.caseIds ?? []} />
                   ),
                 ],
                 ['Scope limitation', base.scopeBindings?.limitation ?? null],

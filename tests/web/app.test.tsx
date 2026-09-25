@@ -182,21 +182,20 @@ describe('P1 web shell', () => {
 
     expect(text('[data-testid="identity"]')).toBe(`Signed in as Synthetic UI Admin (${EMAIL})`);
     const modules = [...(container?.querySelectorAll('[data-testid="unavailable-module"]') ?? [])];
-    expect(modules.map((item) => item.textContent)).toEqual([
-      'Cases Not implemented',
-      'Production Not implemented',
-    ]);
+    expect(modules.map((item) => item.textContent)).toEqual(['Production Not implemented']);
     for (const item of modules) {
       expect(item.getAttribute('aria-disabled')).toBe('true');
       expect(item.querySelector('a')).toBeNull();
     }
-    // P2: Directory; P3A: Sources and Representation (routes). Cases and Production stay unreachable.
+    // P2: Directory; P3A: Sources and Representation (routes); P4A: Cases. Production stays
+    // unreachable.
     const navLinks = [...(container?.querySelectorAll('nav[aria-label="Modules"] a') ?? [])];
     expect(navLinks.map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
       ['Overview', '/'],
       ['Directory', '/directory'],
       ['Sources', '/sources'],
       ['Representation', '/representation'],
+      ['Cases', '/cases'],
     ]);
     expect(text('[data-testid="boundary-note"]')).toMatch(/does not make you a Signer/);
     expect(text('[data-testid="boundary-note"]')).toMatch(/signs, adopts or sends nothing/);

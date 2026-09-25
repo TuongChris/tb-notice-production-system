@@ -1,0 +1,154 @@
+P4A — Playwright MCP browser verification (mission §34), home PC, 2026-09-24 (UTC)
+=====================================================================================
+
+Target and isolation
+- `yarn ui:sandbox --password-file <scratchpad file outside the repository>`: the COMPILED API on the disposable
+  `tb_notice_test` schema plus the built web app (`vite preview`) on http://localhost:5173 (proxying /api).
+  Synthetic sandbox user p2-ui-sandbox@example.invalid; the password file was deleted afterwards.
+- Browser: the Playwright MCP isolated headless Chromium profile (no personal profile, no real login session).
+  Never `tb_notice_dev`, never the operator's `yarn dev`, never real case or owner data.
+- Prerequisites were created through the compiled API with the sandbox user (scratchpad script, not committed):
+  agencies SYNTHETIC Agency Sigma and Tau; owners Upsilon and Phi with legal subjects; routes Sigma·Upsilon (LINKED),
+  Sigma·Phi (PAUSED), Tau·Upsilon; signers Chi and Psi (Sigma) and Omega (Tau); six source pointers (Sigma letter,
+  schedule, case packet, a DOCUMENT_REVIEWED renewal-letter copy, a subject-scoped Upsilon company record, Tau letter);
+  five authority chains — Sigma representation agreement (Chi), Sigma supplementary agreement (Chi; set as the route's
+  preferred coverage, default signer Chi), Sigma agreement naming Psi (Psi only), a DRAFT Sigma chain, Tau (Omega).
+  Every case record was created in the browser.
+- Pass window: 2026-09-24T15:56Z–16:22Z. Web bundle rebuilt twice during the pass for the fixes F1–F3 (below).
+- Teardown: SIGINT to the sandbox → "[ui:sandbox] sandbox rows deleted; tb_notice_test is empty again";
+  then `yarn db:verify test --expect-empty` PASS (domain rows total: 0); `git status` showed no stray file.
+
+Results — 23/23 PASS (three UI findings fixed during the pass and re-verified)
+------------------------------------------------------------------------------
+ 1 Cases list — PASS. Empty state with the neutral introduction, search, agency and workflow filters. After creation
+   the list shows the cases with neutral workflow stamps; no readiness, authority or verdict badge.
+ 2 Create Case — PASS. An empty submit is refused client-side (both required fields invalid, focus to Agency).
+   The route picker offers only Sigma's routes (Sigma·Phi shown but disabled: paused; Tau's route not offered).
+   "SYNTHETIC Case Alpha" created without a route: Intake, version 1, context revision 1, "No canonical case id".
+   Screenshot p4a-01-case-created.png.
+ 3 Case detail — PASS. Identity, context, workflow, route, canonical id, linked sources and selection sections;
+   "A case is the boundary of its case-specific records. It is not a legal verdict: it establishes no ownership,
+   infringement, permission, authority or readiness."
+ 4 Edit allowed Case field — PASS. Drive folder URL and notes edited: "Case updated.", version 2, context revision 2.
+   The edit page states that agency, platform, class, route, canonical id, workflow and selection change only
+   through their own actions.
+ 5 Stale Case ETag conflict — PASS. The case was changed to v3 from a second request (as another tab) while the page
+   held v2; the page's workflow change was refused with 412 and the conflict notice ("nothing was saved"); the state
+   stayed Intake. Reload showed v3 and the other tab's note; context revision stayed 2 (notes are not case context).
+   Screenshot p4a-02-stale-etag-conflict.png.
+ 6 Workflow command — PASS. Intake → Preparing with a reason: "Workflow state changed to Preparing.", version 4,
+   context revision unchanged; the dialog says no state means infringement, authority, readiness, submission or an
+   outcome.
+ 7 Bind compatible Route — PASS. The dialog lists only Sigma's routes (Sigma·Phi "Not available: paused");
+   Sigma·Upsilon bound: version 5, context revision 3. Nothing is selected by the binding.
+   Screenshot p4a-03-route-bound.png. Finding F1 (focus) — see below.
+ 8 Incompatible Route refusal — PASS. Forced requests from the signed-in browser (same-origin fetch, CSRF, fresh
+   Idempotency-Key, current If-Match): another agency's route → 422 CROSS_AGENCY_REFERENCE; the paused route →
+   409 RECORD_STATE_CONFLICT; the same route again → 409 RECORD_STATE_CONFLICT; the case unchanged (route, v5).
+   In the UI, an owner hint of another owner than the bound route's owner is refused with a focused alert: "The
+   case's owner hint and its route's owner must be the same owner. Change the owner hint or choose that owner's
+   route." Screenshot p4a-04-owner-hint-route-refusal.png.
+ 9 Canonical Case binding — PASS. Canonical case id SYN-P4A-ALPHA-001 bound to the Sigma representation letter
+   (CANONICAL_RECORD): version 6, context revision 4; "Delete unused case" is then shown as unavailable with the
+   reason. Screenshot p4a-05-canonical-case-id.png.
+10 Link CaseSource — PASS. The DOCUMENT_REVIEWED renewal-letter copy linked to Alpha as CONTEXT with a scope note
+   (version 7, context revision 5). The table shows "Source reference (exact revision)" and "Recorded provenance"
+   exactly as recorded (Document reviewed); the page says linking does not mean the document was reviewed, true,
+   proven, permitted or authoritative. Finding F2 (hidden label) — see below.
+11 Source scope refusal — PASS. "SYNTHETIC Case Beta" created on the same route, and a Sigma source scoped to Beta
+   recorded through the source form's "Cases named" field. Forced links on Alpha: the Beta-scoped source → 422
+   CROSS_CASE_REFERENCE; Tau's source → 422 CROSS_AGENCY_REFERENCE; an unknown id → 422 REFERENCE_NOT_FOUND;
+   Alpha's links 1 → 1. UI: Beta's picker offers the Beta packet, Alpha's does not ("2 sources outside this record's
+   scope not offered": Tau's letter and Beta's packet).
+12 Pause / unlink / relink CaseSource — PASS. LINKED → PAUSED (v8/ctx 6) → UNLINKED (v9/ctx 7) → LINKED (v10/ctx 8)
+   with a reason each time; one row throughout, state and reason shown; the dialog focuses "New link state" and offers
+   exactly the two other states (server: any different state; the same state is 409). Screenshot
+   p4a-06-link-relinked.png.
+13 Select compatible authority — PASS. Nothing preselected: the route's default signer Chi is shown as "a suggestion
+   only and is not preselected"; the route's preferred coverage is labelled "an operational default, not preselected"
+   and unchecked; "1 coverage record of draft versions not offered"; Omega and Tau's coverage are not offered;
+   coverage checkboxes stay disabled until a signer is chosen; with Chi, the Psi-only coverage is disabled ("The
+   chosen signer is not recorded under this coverage."). A submit without the coverage's application scope is stopped
+   client-side (focus to the field, "Describe how this coverage applies to this case."; no request). Recorded:
+   version 11, context revision 9, "Authority materials selected for evaluation. This is not a G1 decision."
+   The history item shows Agency, Route, "Signer named in the selection", task type, intended sender, basis source
+   with its recorded provenance, selection note and "Recorded by you (application user)".
+   Screenshot p4a-07-authority-selected.png.
+14 Incompatible / cross-agency authority refusal — PASS. Forced selectCaseAuthority requests (If-Match v11):
+     cross-agency signer Omega + Tau coverage      → 422 CROSS_AGENCY_REFERENCE
+     Tau coverage with Sigma signer Chi            → 422 CROSS_AGENCY_REFERENCE
+     cross-agency signer Omega + Sigma coverage    → 422 CROSS_AGENCY_REFERENCE
+     route other than the case route (Tau route)   → 422 AUTHORITY_SCOPE_UNRESOLVED
+     coverage not recording the signer (Psi-only)  → 422 AUTHORITY_SCOPE_UNRESOLVED
+     draft (unfrozen) coverage                     → 409 VERSION_NOT_FROZEN
+     Tau basis source                              → 422 CROSS_AGENCY_REFERENCE
+   Case ETag before and after "CaseRecord:<alpha>:v11" (context revision 9); selections 1 → 1.
+15 Selection history preserved — PASS. A second selection (Chi, supplementary + representation coverage, each with
+   its own application scope, "Reply to a request for more information", the DOCUMENT_REVIEWED basis source): the
+   history lists 2 items — the new one "In use for evaluation", the first "Earlier selection" with its original task,
+   sender, basis source and note. The new-selection form opened empty (nothing copied from the earlier selection).
+   Screenshot p4a-08-selection-history.png.
+16 CaseAuthoritySelection copy says not G1 — PASS. Page text scan on the case page and the selection form: no
+   AUTHORIZED, APPROVED, VALID AUTHORITY, CURRENT AUTHORITY, READY/READY_FOR_SIGNER/READY TO SIGN, ELIGIBLE,
+   G1/G7 PASS, VERIFIED, "confidence" or "trust"; tags only "Not implemented" (navigation), "In use for evaluation",
+   "Earlier selection"; every G1 sentence is a negation ("This selection records which authority materials will be
+   evaluated for this Case. It is not a G1 decision."). Screenshot p4a-09-selection-not-g1.png.
+17 Case A data does not appear in Case B — PASS. In-place client navigation (history.pushState + popstate, so the
+   same route component is reused):
+   - selection form: Alpha with Chi chosen, a coverage checked, sender and note typed (unsaved) → Beta: every field
+     empty, the chain summary names Beta, no Alpha text;
+   - case page: Alpha (2 selections, 1 link, canonical id) → Beta: 0 selections, no link row, "No canonical case id",
+     no Alpha token (also after 2 s more; the same tokens are detected on Alpha once loaded);
+   - link form: Alpha with a source chosen and role/scope typed (unsaved) → Beta: source, role and scope empty;
+     Alpha offers 5 sources (not Beta's packet), Beta offers 6 (with Beta's packet).
+   Screenshot p4a-10-case-beta-isolated.png.
+18 deleteUnused success — PASS. "SYNTHETIC Case Gamma (disposable, unused)" created and deleted: the confirmation
+   dialog focuses "Keep it"; "Unused case deleted."; GET → 404 NOT_FOUND. Screenshot p4a-11-unused-case-deleted.png.
+19 Delete refused once dependent records exist — PASS. Beta got a linked source (its own packet); the delete was
+   refused by the server (409) and the dialog explains: "This case can't be deleted because sources are linked to it
+   and saved snapshots or source scopes mention it. Archive it instead; that keeps its history." Beta, its link and
+   the source intact (v2). On Alpha the action is shown inert (aria-disabled, described by "This case has a canonical
+   binding, so it is not an unused case."). Screenshot p4a-12-delete-refused.png.
+20 Archive / restore — PASS. Beta archived with a reason (v3): Edit and workflow actions gone; route, canonical,
+   link and selection actions inert; delete inert with "Archived cases are kept for history and are not deleted.";
+   focus moves to Restore. Forced writes while archived: PATCH → 409, link pause → 409, workflow → 409
+   (RECORD_STATE_CONFLICT; ETag unchanged). Restored (v4): still Intake, the link still Linked, actions back, focus
+   on Archive. Screenshot p4a-13-case-restored.png.
+21 Keyboard / focus — PASS. Tab walk of the case page (24 stops): skip link → Sign out → navigation → breadcrumb →
+   case actions (the inert delete stays focusable with its described reason) → context links → route →
+   "Correct the route binding" → canonical source → links; every stop shows a 2px focus outline (:focus-visible).
+   The skip link moves focus to main#main. Dialogs: route binding (after F1) focuses the route fieldset, Tab order
+   fieldset → Reason → Cancel → Bind route; the workflow, archive, restore and delete dialogs focus inside
+   (Reason / Keep it); Escape closes and focus returns to the opener; after archive/restore focus moves to the
+   replacing control. Observation (pre-existing, unchanged): the shared ReasonDialog focuses its Reason field even
+   when a select precedes it (workflow dialog here; the accepted P3A route link-state dialog behaves the same).
+22 390px viewport — PASS after F3. /cases, /cases/new, the case page, edit, link form and selection form: page
+   scrollWidth = clientWidth = 390 (no horizontal page scroll); wide tables scroll inside their frame; the workflow
+   dialog fits (18–372 px). Screenshots p4a-14-390-cases-list.png, p4a-15-390-case-detail.png,
+   p4a-16-390-case-detail-top.png, p4a-17-390-workflow-dialog.png.
+23 Logout → Login — PASS. Sign out → /login; session, case read and case list → 401; a deep link to Alpha
+   redirects to /login with no case data; the session cookie is not readable by page script.
+   Screenshot p4a-18-signed-out.png.
+
+Findings (fixed during the pass, with web tests and negative controls NC-15–NC-17)
+----------------------------------------------------------------------------------
+F1 The route-binding dialog opened with focus on the document body: its route options load after it opens and it
+   had no initial focus target. Fix: the route fieldset is the dialog's first focus (tabIndex -1, data-autofocus);
+   re-verified: focus on the fieldset (legend "Route of this case's agency"), :focus-visible, 2px outline.
+F2 The link form's hidden search label read "Find a source for source". Fix: the field is "Source to link"
+   (hidden label "Find a source for source to link").
+F3 At 390px the case page scrolled sideways (document scrollWidth 871): the link table's visually hidden "Actions"
+   header (position absolute) escaped the table's scroll frame. Fix: a visible "Actions" header, as in the P2
+   tables; re-measured on all six case pages (no horizontal page scroll).
+
+Other observations (not defects of P4A behaviour)
+- Tool artefact: two targeted MCP snapshots showed a stale "Loading applicable sources…"/one-option view while the
+  full snapshot taken just before and in-page evaluation showed the list loaded (in-page poll: ready at 160 ms; all
+  API calls done by ~120 ms; no second request set). Not an application defect.
+- Pre-existing: the source picker fetches each listed source individually after the list (P3A pattern; 7 small
+  requests here); the source form's "Cases named" checklist briefly shows "Not recorded" while loading (P3B pattern).
+
+Console (P4A pass logs 15:56–16:22 UTC): 26 entries, all "Failed to load resource" lines for deliberate refusals and
+signed-out checks — 422 ×12, 409 ×7, 401 ×5, 412 ×1, 404 ×1. No script error, no warning.
+
+Nothing external: no mail, Drive, platform or network call beyond 127.0.0.1; no real data; no write to tb_notice_dev.

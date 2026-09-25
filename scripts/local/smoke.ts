@@ -13,10 +13,10 @@
 //     without a session → 401, proxied session check → 401 without CORS headers. Every response is
 //     a valid contract OperationError with Cache-Control: no-store.
 //  6. Business boundary of the compiled API, read-only: every directory (P2), source and route
-//     (P3A) and representation-authority (P3B) collection is routed and session-protected (no
-//     cookie → 401, also through the web proxy), unsafe writes without Origin → 403 before any
-//     handler, canonical bindings and freezes are session-protected, and Case operations (a later
-//     phase) are not routed (404).
+//     (P3A), representation-authority (P3B) and case (P4A) collection is routed and
+//     session-protected (no cookie → 401, also through the web proxy), unsafe writes without
+//     Origin → 403 before any handler, canonical bindings and freezes are session-protected, and
+//     later case phases (reported items onward) are not routed (404).
 //  7. Terminate both processes (SIGTERM, bounded wait, SIGKILL fallback) and verify ports 3000 and
 //     5173 are released. Any failure exits non-zero.
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
@@ -394,10 +394,40 @@ async function checkBusinessBoundary(): Promise<void> {
       401,
       'SESSION_REQUIRED',
     ],
-    // Cases are a later phase: not routed at all.
+    // P4A: Case, CaseSource and CaseAuthoritySelection are routed behind the same guard.
     [
-      'POST /cases (Case phase, not routed)',
+      'POST /cases without a session',
       `${api}/cases`,
+      { method: 'POST', headers: { ...json, Origin: origin }, body: '{}' },
+      401,
+      'SESSION_REQUIRED',
+    ],
+    [
+      'POST /cases/{caseId}/authority-selections without Origin',
+      `${api}/cases/${id}/authority-selections`,
+      { method: 'POST', headers: json, body: '{}' },
+      403,
+      'ORIGIN_REJECTED',
+    ],
+    // TB-SCHEMA-API-v1.1.0 (ADR-0004): the selection read-back is behind the same guard.
+    [
+      'GET /cases/{caseId}/authority-selections/{id} without a session',
+      `${api}/cases/${id}/authority-selections/${id}`,
+      {},
+      401,
+      'SESSION_REQUIRED',
+    ],
+    [
+      'GET /case-sources/{id} through the web proxy without a session',
+      `http://localhost:${WEB_PORT}/api/v1/case-sources/${id}`,
+      {},
+      401,
+      'SESSION_REQUIRED',
+    ],
+    // Reported items and every later case record are later phases: not routed at all.
+    [
+      'POST /cases/{caseId}/reported-items (later phase, not routed)',
+      `${api}/cases/${id}/reported-items`,
       { method: 'POST', headers: { ...json, Origin: origin }, body: '{}' },
       404,
       'NOT_FOUND',

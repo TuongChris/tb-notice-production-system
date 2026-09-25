@@ -5,7 +5,7 @@ import { useSession } from '../auth/session.js';
 import { HealthIndicator } from '../health.js';
 
 /** Future modules, listed for orientation only. None is implemented or reachable yet. */
-export const UNAVAILABLE_MODULES = ['Cases', 'Production'] as const;
+export const UNAVAILABLE_MODULES = ['Production'] as const;
 
 /**
  * Protected application shell. Shows only safe application identity (display name and email of
@@ -63,6 +63,9 @@ export function AppShell({ api }: { api: ApiClient }) {
             </li>
             <li>
               <NavLink to="/representation">Representation</NavLink>
+            </li>
+            <li>
+              <NavLink to="/cases">Cases</NavLink>
             </li>
             {UNAVAILABLE_MODULES.map((name) => (
               <li

@@ -8,6 +8,8 @@
 // After the Zod-first transition is accepted (ADR-0002) this file is editable active source; the
 // port is provenance only and must not be re-run over it. Build wire schemas with the `tb`
 // builders only — the JSON Schema/OpenAPI lowering rejects anything else.
+// Amended additively by TB-SCHEMA-API-v1.1.0 (ADR-0004, docs/contracts/TB-SCHEMA-API-v1.1.0): two
+// schemas after ListCaseAuthoritySelectionsResponse.
 
 import type { SchemaCatalog } from '../generation/artifacts.js';
 import * as schemas from './schemas/index.js';
@@ -228,6 +230,8 @@ export const apiSchemaCatalog = [
   ['SelectCaseAuthorityResponse', schemas.SelectCaseAuthorityResponseSchema],
   ['CaseAuthoritySelectionPage', schemas.CaseAuthoritySelectionPageSchema],
   ['ListCaseAuthoritySelectionsResponse', schemas.ListCaseAuthoritySelectionsResponseSchema],
+  ['CaseAuthoritySelectionView', schemas.CaseAuthoritySelectionViewSchema],
+  ['GetCaseAuthoritySelectionResponse', schemas.GetCaseAuthoritySelectionResponseSchema],
   ['ReportedItemPage', schemas.ReportedItemPageSchema],
   ['ListCaseReportedItemsResponse', schemas.ListCaseReportedItemsResponseSchema],
   ['CreateReportedItemResponse', schemas.CreateReportedItemResponseSchema],

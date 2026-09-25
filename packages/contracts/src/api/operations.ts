@@ -8,6 +8,8 @@
 // After the Zod-first transition is accepted (ADR-0002) this file is editable active source; the
 // port is provenance only and must not be re-run over it. Build wire schemas with the `tb`
 // builders only — the JSON Schema/OpenAPI lowering rejects anything else.
+// Amended additively by TB-SCHEMA-API-v1.1.0 (ADR-0004, docs/contracts/TB-SCHEMA-API-v1.1.0): the
+// operation getCaseAuthoritySelection after listCaseAuthoritySelections.
 
 import { tb } from '../primitives/wire.js';
 import type { OperationSpec } from './operation-types.js';
@@ -79,6 +81,7 @@ import {
   GetAgencyResponseSchema,
   GetCandidateReadinessResponseSchema,
   GetCandidateResponseSchema,
+  GetCaseAuthoritySelectionResponseSchema,
   GetCaseFactResponseSchema,
   GetCaseResponseSchema,
   GetCaseSourceResponseSchema,
@@ -2194,6 +2197,37 @@ export const operations = [
       { name: 'q', in: 'query', schema: tb.string({ maxLength: 200 }) },
     ],
     success: { status: '200', schema: ListCaseAuthoritySelectionsResponseSchema },
+    errors: ['400', '401', '403', '404', '409', '413', '422', '429', '500'],
+    security: 'session',
+    preconditionTarget: null,
+    idempotentWrite: false,
+  },
+  // TB-SCHEMA-API-v1.1.0 (ADR-0004, additive): the read-back of one selection of this case with the
+  // exact CaseAuthorityCoverage rows it pinned. Same shape as the other case-child reads
+  // (getReportedItem: `/cases/{caseId}/…/{id}`, the {data, meta} envelope, no ETag for an
+  // append-only record).
+  {
+    operationId: 'getCaseAuthoritySelection',
+    method: 'get',
+    path: '/cases/{caseId}/authority-selections/{id}',
+    tags: ['Case'],
+    summary:
+      'Read one selection of this case with the exact coverage rows it pinned; a stored historical record, not G1 or current authority.',
+    parameters: [
+      {
+        name: 'caseId',
+        in: 'path',
+        required: true,
+        schema: tb.string({ maxLength: 36, minLength: 36, format: 'uuid' }),
+      },
+      {
+        name: 'id',
+        in: 'path',
+        required: true,
+        schema: tb.string({ maxLength: 36, minLength: 36, format: 'uuid' }),
+      },
+    ],
+    success: { status: '200', schema: GetCaseAuthoritySelectionResponseSchema },
     errors: ['400', '401', '403', '404', '409', '413', '422', '429', '500'],
     security: 'session',
     preconditionTarget: null,

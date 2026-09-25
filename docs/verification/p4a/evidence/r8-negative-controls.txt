@@ -1,0 +1,262 @@
+R8 remediation — negative controls (mission §8, §11), home PC, 2026-09-25 (UTC)
+==================================================================================
+
+Method (scratchpad runner outside Git, same as P4A §13): each control disables exactly one protection
+by an exact text replacement (or injects the forbidden behaviour), runs every responsible test command —
+each must FAIL with a non-zero exit AND name at least one failed test — then restores the file and
+verifies it byte-identical by SHA-256. DB commands run on the disposable tb_notice_test only.
+
+Final runs on the final code head ab56139 (clean tree except the uncommitted R8 documentation and the
+untracked r8 screenshots; the tree is not changed during a run):
+  R8 controls   2026-09-25T02:00:03Z – 02:00:41Z, runner exit 0 — 17 controls, 17 caught and restored.
+  P4A controls  2026-09-25T01:58:42Z – 01:59:52Z, runner exit 0 — 24 controls, 24 caught and restored
+                (the unchanged P4A runner of evidence/p4a-negative-controls.txt, re-run on the R8 code).
+  Working-tree fingerprint (git diff + sha256 of every untracked file), before and after each run:
+    605f9de9d8ba6398d3d38639dc7ee9fd4b7b24f2eb432987e1880dc5fa3f1ccd (identical)
+  Afterwards `yarn db:verify test --expect-empty`: PASS, domain rows total 0 (after each run).
+
+RESULT: R8 17/17 and P4A 24/24 — every responsible command failed; every file restored byte-identically.
+
+History of the R8 runs (all kept in the scratchpad; nothing hidden)
+- 01:22:43Z–01:23:19Z, R8 tree before its first commit, 16 controls: 15 caught; NC-R8-13 NOT CAUGHT —
+  the release test crashed while collecting (a module-level lookup of the path the control removed), so
+  it failed without naming a test. The test was made robust (the path item and operation are looked up
+  defensively and asserted inside named tests); NC-R8-13 re-run 01:23:49Z: caught.
+- 01:24:03Z–01:25:14Z, the 24 P4A controls on the same R8 tree: 24/24.
+- 01:36:15Z, NC-R8-17 added with the F4 fix (browser finding): caught.
+- 01:42:18Z–01:42:55Z, head ab56139, 17 controls: 16 caught; NC-R8-09 skipped ("anchor found 0 times")
+  because the F4 fix re-indented its anchor line by two spaces — nothing was changed or tested. The
+  anchor was updated to the new indentation; NC-R8-09 re-run 01:46:31Z–01:46:33Z: caught.
+- 02:00:03Z–02:00:41Z, head ab56139, all 17 in one run: 17/17 (the final result above).
+
+Mission §8 coverage: cross-case selection detail leakage (NC-R8-01: the read's case filter removed, so a
+selection is found by its id alone — the DB case-isolation test fails; the UI shows only what that
+case-scoped read returns, and its web test "a selection is shown only under its own case" has no separate
+control); deterministic order (NC-R8-02); historical pinning — preferred coverage, newer source revision, newer
+frozen version (NC-R8-03/04/05); no union of application scopes (NC-R8-06); read-only (NC-R8-07); exact
+contract response / no invented chain (NC-R8-08); UI after reload (NC-R8-09/10/11, F4 NC-R8-17); additive
+contract, exact operation, no G1 field, the release record and its frozen base (NC-R8-12…16).
+
+Controls (replacement shown shortened; "must fail" = the responsible commands)
+------------------------------------------------------------------------------
+NC-R8-01 — Case isolation of the read-back: the selection and its rows are found only under the path’s case (cross-case leakage)
+  file: apps/api/src/modules/cases/case-authority.service.ts
+  replace: "    const selection = await this.prisma.caseAuthoritySelection.findFirst({ where: { id, caseId } });\n    if (!selection) throw apiErrors.notFound();\n    const coverage..."
+  with:    "    const selection = await this.prisma.caseAuthoritySelection.findFirst({ where: { id } });\n    if (!selection) throw apiErrors.notFound();\n    const coverages = awai..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t case isolation: another case
+NC-R8-02 — Deterministic order: pinned rows in ascending coverageId order
+  file: apps/api/src/modules/cases/case-authority.service.ts
+  replace: "      orderBy: [{ coverageId: 'asc' }, { id: 'asc' }],\n"
+  with:    "      orderBy: [{ coverageId: 'desc' }, { id: 'asc' }],\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t several coverages: every pinned row
+NC-R8-03 — Historical pinning: the route’s present preferred coverage never replaces a pinned coverage
+  file: apps/api/src/modules/cases/case-authority.service.ts
+  replace: "      coverages: coverages.map(toPinnedCoverageView),\n"
+  with:    "      coverages: await (async () => {\n        const route = await this.prisma.route.findUniqueOrThrow({ where: { id: selection.routeId } });\n        return coverages.m..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t historical pinning
+NC-R8-04 — Historical pinning: a newer SourceReference revision never replaces the pinned basis source
+  file: apps/api/src/modules/cases/case-authority.service.ts
+  replace: "      selection: toSelectionView(selection),\n"
+  with:    "      selection: {\n        ...toSelectionView(selection),\n        basisSourceId:\n          selection.basisSourceId === null\n            ? null\n            : ((\n       ..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t historical pinning
+NC-R8-05 — Historical pinning: a newer frozen MandateVersion’s coverage never replaces a pinned coverage
+  file: apps/api/src/modules/cases/case-authority.service.ts
+  replace: "      coverages: coverages.map(toPinnedCoverageView),\n"
+  with:    "      coverages: await Promise.all(\n        coverages.map(async (row) => {\n          const pinnedCoverage = await this.prisma.mandateCoverage.findUniqueOrThrow({\n     ..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t historical pinning
+NC-R8-06 — No union: each pinned coverage keeps its own application scope
+  file: apps/api/src/modules/cases/case-authority.service.ts
+  replace: "      coverages: coverages.map(toPinnedCoverageView),\n"
+  with:    "      coverages: coverages.map((row) =>\n        toPinnedCoverageView({\n          ...row,\n          applicationScope: coverages.map((each) => each.applicationScope).joi..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t several coverages: every pinned row
+NC-R8-07 — Read-only: the read-back writes nothing
+  file: apps/api/src/modules/cases/case-authority.service.ts
+  replace: "    if (!selection) throw apiErrors.notFound();\n"
+  with:    "    if (!selection) throw apiErrors.notFound();\n    await this.prisma.caseRecord.update({\n      where: { id: caseId },\n      data: { rowVersion: { increment: 1 } },\n  ..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t one coverage: reads back exactly
+NC-R8-08 — Exact contract response: a selection without its pinned rows is never shown as a chain
+  file: apps/api/src/modules/cases/case-authority.service.ts
+  replace: "    if (coverages.length < PINNED_COVERAGES.min || coverages.length > PINNED_COVERAGES.max) {\n"
+  with:    "    if (PINNED_COVERAGES.min < 0) {\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t a stored selection without its pinned rows
+NC-R8-09 — UI after reload: each stored application scope is shown exactly as recorded
+  file: apps/web/src/app/cases/authority-selection.tsx
+  replace: "              {row.applicationScope}\n"
+  with:    "              {row.applicationScope.trim()}\n"
+  must fail: npx vitest run --config vitest.config.ts tests/web/p4a.test.tsx -t reads a selection back after a reload
+NC-R8-10 — UI: each selection in the history opens its read-back
+  file: apps/web/src/app/cases/authority-selection.tsx
+  replace: "            to={`/cases/${caseId}/authority-selections/${selection.id}`}\n"
+  with:    "            to={`/cases/${caseId}`}\n"
+  must fail: npx vitest run --config vitest.config.ts tests/web/p4a.test.tsx -t reads a selection back after a reload
+NC-R8-11 — UI: the read-back states that a selection is not a G1 decision
+  file: apps/web/src/app/cases/authority-selection.tsx
+  replace: "      <h1>Selected authority record</h1>\n      <SelectionMeaning />\n"
+  with:    "      <h1>Selected authority record</h1>\n"
+  must fail: npx vitest run --config vitest.config.ts tests/web/p4a.test.tsx -t reads a selection back after a reload
+NC-R8-17 — UI (browser finding F4): the pinned rows are a record list, not a timeline without its "when" column
+  file: apps/web/src/app/cases/authority-selection.tsx
+  replace: "        <ol className=\"pinned-coverage\" aria-label=\"Pinned coverage\" data-testid=\"pinned-coverages\">\n"
+  with:    "        <ol className=\"timeline\" aria-label=\"Pinned coverage\" data-testid=\"pinned-coverages\">\n"
+  must fail: npx vitest run --config vitest.config.ts tests/web/p4a.test.tsx -t reads a selection back after a reload
+NC-R8-12 — Additive only: an existing v1.0.0 schema is never changed
+  file: packages/contracts/src/api/schemas/core.ts
+  replace: "  selectionNote: tb.string({ maxLength: 1000000 }),\n"
+  with:    "  selectionNote: tb.string({ maxLength: 999999 }),\n"
+  must fail: npx vitest run --config vitest.config.ts tests/contracts/release-v1-1-0.test.ts
+  must fail: npx vitest run --config vitest.config.ts tests/contracts/inventory-openapi.test.ts
+NC-R8-13 — The added operation is exactly the approved one (path)
+  file: packages/contracts/src/api/operations.ts
+  replace: "    path: '/cases/{caseId}/authority-selections/{id}',\n"
+  with:    "    path: '/case-authority-selections/{caseId}/{id}',\n"
+  must fail: npx vitest run --config vitest.config.ts tests/contracts/release-v1-1-0.test.ts
+  must fail: npx vitest run --config vitest.config.ts tests/contracts/inventory-openapi.test.ts
+NC-R8-14 — No G1/readiness/currentness field in the read model
+  file: packages/contracts/src/api/schemas/core.ts
+  replace: "    coverages: tb.array(CaseAuthorityCoverageSchema, { minItems: 1, maxItems: 20 }),\n  },\n"
+  with:    "    coverages: tb.array(CaseAuthorityCoverageSchema, { minItems: 1, maxItems: 20 }),\n    currentAuthority: tb.boolean(),\n  },\n"
+  must fail: npx vitest run --config vitest.config.ts tests/contracts/release-v1-1-0.test.ts
+NC-R8-15 — The release record is never edited (pinned digest)
+  file: docs/contracts/TB-SCHEMA-API-v1.1.0/amendment.json
+  replace: "(R8 remediation)"
+  with:    "(R8 remediation, edited)"
+  must fail: npx vitest run --config vitest.config.ts tests/contracts/release-v1-1-0.test.ts -t release record
+NC-R8-16 — The frozen v1.0.0 base is the one the release extends (a different base is refused)
+  file: docs/contracts/TB-SCHEMA-API-v1.1.0/amendment.json
+  replace: "\"manifestSha256\": \"42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c\""
+  with:    "\"manifestSha256\": \"0000000000000000000000000000000000000000000000000000000000000000\""
+  must fail: npx vitest run --config vitest.config.ts tests/contracts/release-v1-1-0.test.ts -t extends exactly the frozen
+
+Final R8 run log (ab56139, 02:00:03Z–02:00:41Z)
+------------------------------------------------
+[NC-R8-01] CAUGHT · restored byte-identical · Case isolation of the read-back: the selection and its rows are found only under the path’s case (cross-case leakage)
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t case isolation: another case
+      × case isolation: another case’s selection is 404 through this case, exactly like an unknown selection or case; each case reads only its own
+      FAIL  tests/db/p4a-http.test.ts > SELECTION READ-BACK (TB-SCHEMA-API-v1.1.0, R8) — the exact chain pinned for evaluation in this case > case isolation: another case’s selection is 404 through this case, exactly like an unknown selection or case; each case reads only its own
+[NC-R8-02] CAUGHT · restored byte-identical · Deterministic order: pinned rows in ascending coverageId order
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t several coverages: every pinned row
+      × several coverages: every pinned row reads back in ascending coverageId order, each with its own application scope exactly as entered
+      FAIL  tests/db/p4a-http.test.ts > SELECTION READ-BACK (TB-SCHEMA-API-v1.1.0, R8) — the exact chain pinned for evaluation in this case > several coverages: every pinned row reads back in ascending coverageId order, each with its own application scope exactly as entered
+[NC-R8-03] CAUGHT · restored byte-identical · Historical pinning: the route’s present preferred coverage never replaces a pinned coverage
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t historical pinning
+      × historical pinning: a new preferred coverage, newer authority records, newer source revisions and an archived mandate leave the read-back unchanged
+      FAIL  tests/db/p4a-http.test.ts > SELECTION READ-BACK (TB-SCHEMA-API-v1.1.0, R8) — the exact chain pinned for evaluation in this case > historical pinning: a new preferred coverage, newer authority records, newer source revisions and an archived mandate leave the read-back unchanged
+[NC-R8-04] CAUGHT · restored byte-identical · Historical pinning: a newer SourceReference revision never replaces the pinned basis source
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t historical pinning
+      × historical pinning: a new preferred coverage, newer authority records, newer source revisions and an archived mandate leave the read-back unchanged
+      FAIL  tests/db/p4a-http.test.ts > SELECTION READ-BACK (TB-SCHEMA-API-v1.1.0, R8) — the exact chain pinned for evaluation in this case > historical pinning: a new preferred coverage, newer authority records, newer source revisions and an archived mandate leave the read-back unchanged
+[NC-R8-05] CAUGHT · restored byte-identical · Historical pinning: a newer frozen MandateVersion’s coverage never replaces a pinned coverage
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t historical pinning
+      × historical pinning: a new preferred coverage, newer authority records, newer source revisions and an archived mandate leave the read-back unchanged
+      FAIL  tests/db/p4a-http.test.ts > SELECTION READ-BACK (TB-SCHEMA-API-v1.1.0, R8) — the exact chain pinned for evaluation in this case > historical pinning: a new preferred coverage, newer authority records, newer source revisions and an archived mandate leave the read-back unchanged
+[NC-R8-06] CAUGHT · restored byte-identical · No union: each pinned coverage keeps its own application scope
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t several coverages: every pinned row
+      × several coverages: every pinned row reads back in ascending coverageId order, each with its own application scope exactly as entered
+      FAIL  tests/db/p4a-http.test.ts > SELECTION READ-BACK (TB-SCHEMA-API-v1.1.0, R8) — the exact chain pinned for evaluation in this case > several coverages: every pinned row reads back in ascending coverageId order, each with its own application scope exactly as entered
+[NC-R8-07] CAUGHT · restored byte-identical · Read-only: the read-back writes nothing
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t one coverage: reads back exactly
+      × one coverage: reads back exactly the stored selection and its one pinned row; no ETag, no precondition, nothing written
+      FAIL  tests/db/p4a-http.test.ts > SELECTION READ-BACK (TB-SCHEMA-API-v1.1.0, R8) — the exact chain pinned for evaluation in this case > one coverage: reads back exactly the stored selection and its one pinned row; no ETag, no precondition, nothing written
+[NC-R8-08] CAUGHT · restored byte-identical · Exact contract response: a selection without its pinned rows is never shown as a chain
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t a stored selection without its pinned rows
+      × a stored selection without its pinned rows is never shown as a chain: 500, nothing invented
+      FAIL  tests/db/p4a-http.test.ts > SELECTION READ-BACK (TB-SCHEMA-API-v1.1.0, R8) — the exact chain pinned for evaluation in this case > a stored selection without its pinned rows is never shown as a chain: 500, nothing invented
+[NC-R8-09] CAUGHT · restored byte-identical · UI after reload: each stored application scope is shown exactly as recorded
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · npx vitest run --config vitest.config.ts tests/web/p4a.test.tsx -t reads a selection back after a reload
+      × reads a selection back after a reload: the exact pinned coverage and each application scope, nothing re-evaluated, not a G1 decision
+      FAIL  tests/web/p4a.test.tsx > P4A cases UI > reads a selection back after a reload: the exact pinned coverage and each application scope, nothing re-evaluated, not a G1 decision
+[NC-R8-10] CAUGHT · restored byte-identical · UI: each selection in the history opens its read-back
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · npx vitest run --config vitest.config.ts tests/web/p4a.test.tsx -t reads a selection back after a reload
+      × reads a selection back after a reload: the exact pinned coverage and each application scope, nothing re-evaluated, not a G1 decision
+      FAIL  tests/web/p4a.test.tsx > P4A cases UI > reads a selection back after a reload: the exact pinned coverage and each application scope, nothing re-evaluated, not a G1 decision
+[NC-R8-11] CAUGHT · restored byte-identical · UI: the read-back states that a selection is not a G1 decision
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · npx vitest run --config vitest.config.ts tests/web/p4a.test.tsx -t reads a selection back after a reload
+      × reads a selection back after a reload: the exact pinned coverage and each application scope, nothing re-evaluated, not a G1 decision
+      FAIL  tests/web/p4a.test.tsx > P4A cases UI > reads a selection back after a reload: the exact pinned coverage and each application scope, nothing re-evaluated, not a G1 decision
+[NC-R8-17] CAUGHT · restored byte-identical · UI (browser finding F4): the pinned rows are a record list, not a timeline without its "when" column
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · npx vitest run --config vitest.config.ts tests/web/p4a.test.tsx -t reads a selection back after a reload
+      × reads a selection back after a reload: the exact pinned coverage and each application scope, nothing re-evaluated, not a G1 decision
+      FAIL  tests/web/p4a.test.tsx > P4A cases UI > reads a selection back after a reload: the exact pinned coverage and each application scope, nothing re-evaluated, not a G1 decision
+[NC-R8-12] CAUGHT · restored byte-identical · Additive only: an existing v1.0.0 schema is never changed
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯ · npx vitest run --config vitest.config.ts tests/contracts/release-v1-1-0.test.ts
+      × JSON Schema bundle
+      × OpenAPI document
+      × all 284 frozen schemas are byte-identical and in the frozen order; the only new names are the amendment’s
+      × the response is exactly the stored selection and its stored coverage rows (1–20), nothing else
+      FAIL  tests/contracts/release-v1-1-0.test.ts > frozen v1.0.0 + amendment reproduces the generated contract byte for byte > JSON Schema bundle
+      FAIL  tests/contracts/release-v1-1-0.test.ts > frozen v1.0.0 + amendment reproduces the generated contract byte for byte > OpenAPI document
+      FAIL  tests/contracts/release-v1-1-0.test.ts > additive only: nothing of v1.0.0 is changed, removed or reordered > all 284 frozen schemas are byte-identical and in the frozen order; the only new names are the amendment’s
+      FAIL  tests/contracts/release-v1-1-0.test.ts > the added read: case-scoped, read-only, exactly the stored rows > the response is exactly the stored selection and its stored coverage rows (1–20), nothing else
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 7 ⎯⎯⎯⎯⎯⎯⎯ · npx vitest run --config vitest.config.ts tests/contracts/inventory-openapi.test.ts
+      × serializes byte-identically to the release baseline (the frozen api-schemas.json + the amendment)
+      × is deep-equal to the release baseline
+      × CaseAuthoritySelection: itemized inventory equal
+      × serializes byte-identically to the release baseline (the frozen openapi.json + the amendment) and is deep-equal
+      × keeps OpenAPI 3.1.1, the loopback server URL, info (version 1.1.0), tags, security and components
+      × parses with default YAML settings to exactly the generated JSON document
+      × committed JSON artifacts equal the in-memory build
+      FAIL  tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (the 284 frozen schemas + the 2 of the v1.1.0 amendment) > serializes byte-identically to the release baseline (the frozen api-schemas.json + the amendment)
+[NC-R8-13] CAUGHT · restored byte-identical · The added operation is exactly the approved one (path)
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯ · npx vitest run --config vitest.config.ts tests/contracts/release-v1-1-0.test.ts
+      × OpenAPI document
+      × all 141 frozen operations are identical and in the frozen order; the only new one is getCaseAuthoritySelection
+      × GET under the case, session only, no body, no If-Match, no Idempotency-Key
+      FAIL  tests/contracts/release-v1-1-0.test.ts > frozen v1.0.0 + amendment reproduces the generated contract byte for byte > OpenAPI document
+      FAIL  tests/contracts/release-v1-1-0.test.ts > additive only: nothing of v1.0.0 is changed, removed or reordered > all 141 frozen operations are identical and in the frozen order; the only new one is getCaseAuthoritySelection
+      FAIL  tests/contracts/release-v1-1-0.test.ts > the added read: case-scoped, read-only, exactly the stored rows > GET under the case, session only, no body, no If-Match, no Idempotency-Key
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯ · npx vitest run --config vitest.config.ts tests/contracts/inventory-openapi.test.ts
+      × serializes byte-identically to the release baseline (the frozen openapi.json + the amendment) and is deep-equal
+      × keeps the 141 frozen method/path pairs; 142 operations with unique operationIds
+      × parses with default YAML settings to exactly the generated JSON document
+      × committed JSON artifacts equal the in-memory build
+      FAIL  tests/contracts/inventory-openapi.test.ts > OpenAPI parity (the 141 frozen operations + getCaseAuthoritySelection of v1.1.0) > serializes byte-identically to the release baseline (the frozen openapi.json + the amendment) and is deep-equal
+      FAIL  tests/contracts/inventory-openapi.test.ts > OpenAPI parity (the 141 frozen operations + getCaseAuthoritySelection of v1.1.0) > keeps the 141 frozen method/path pairs; 142 operations with unique operationIds
+      FAIL  tests/contracts/inventory-openapi.test.ts > OpenAPI YAML > parses with default YAML settings to exactly the generated JSON document
+      FAIL  tests/contracts/inventory-openapi.test.ts > OpenAPI YAML > committed JSON artifacts equal the in-memory build
+[NC-R8-14] CAUGHT · restored byte-identical · No G1/readiness/currentness field in the read model
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯ · npx vitest run --config vitest.config.ts tests/contracts/release-v1-1-0.test.ts
+      × JSON Schema bundle
+      × OpenAPI document
+      × the response is exactly the stored selection and its stored coverage rows (1–20), nothing else
+      × no G1, readiness, currentness, validity or eligibility field is added
+      FAIL  tests/contracts/release-v1-1-0.test.ts > frozen v1.0.0 + amendment reproduces the generated contract byte for byte > JSON Schema bundle
+      FAIL  tests/contracts/release-v1-1-0.test.ts > frozen v1.0.0 + amendment reproduces the generated contract byte for byte > OpenAPI document
+      FAIL  tests/contracts/release-v1-1-0.test.ts > the added read: case-scoped, read-only, exactly the stored rows > the response is exactly the stored selection and its stored coverage rows (1–20), nothing else
+      FAIL  tests/contracts/release-v1-1-0.test.ts > the added read: case-scoped, read-only, exactly the stored rows > no G1, readiness, currentness, validity or eligibility field is added
+[NC-R8-15] CAUGHT · restored byte-identical · The release record is never edited (pinned digest)
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · npx vitest run --config vitest.config.ts tests/contracts/release-v1-1-0.test.ts -t release record
+      × the amendment record is the reviewed one (never edited after the release)
+      FAIL  tests/contracts/release-v1-1-0.test.ts > TB-SCHEMA-API-v1.1.0 release record > the amendment record is the reviewed one (never edited after the release)
+[NC-R8-16] CAUGHT · restored byte-identical · The frozen v1.0.0 base is the one the release extends (a different base is refused)
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · npx vitest run --config vitest.config.ts tests/contracts/release-v1-1-0.test.ts -t extends exactly the frozen
+      × extends exactly the frozen TB-SCHEMA-API-v1.0.0 reference, which stays unchanged
+      FAIL  tests/contracts/release-v1-1-0.test.ts > TB-SCHEMA-API-v1.1.0 release record > extends exactly the frozen TB-SCHEMA-API-v1.0.0 reference, which stays unchanged
+17 controls, 17 caught and restored, 0 problems
+
+P4A controls re-run on the R8 code (ab56139, 01:58:42Z–01:59:52Z) — result lines
+----------------------------------------------------------------------------------
+[NC-01] CAUGHT · restored byte-identical · Case isolation: a case-scoped source applies only to the cases it names
+[NC-02] CAUGHT · restored byte-identical · Route binding: only a route of the case’s own agency
+[NC-03] CAUGHT · restored byte-identical · Route binding / owner hint: a bound route’s owner and the owner hint agree
+[NC-04] CAUGHT · restored byte-identical · CaseSource scope: a linked source must apply to the case
+[NC-05a] CAUGHT · restored byte-identical · Chain compatibility: the signer must be recorded under each selected coverage
+[NC-05b] CAUGHT · restored byte-identical · Chain compatibility: a selected coverage names the case’s route
+[NC-05c] CAUGHT · restored byte-identical · Chain compatibility: only coverage of a FROZEN version
+[NC-06a] CAUGHT · restored byte-identical · History: earlier selections and their pinned coverages are never changed
+[NC-06b] CAUGHT · restored byte-identical · History: a history-bearing case’s route binding is not replaced
+[NC-07] CAUGHT · restored byte-identical · ETag: PATCH /cases/{id} checks If-Match against the current row version
+[NC-08] CAUGHT · restored byte-identical · Idempotency: a replay returns the stored result and never repeats the write
+[NC-09] CAUGHT · restored byte-identical · Audit: an audit failure rolls back the whole selection
+[NC-10] CAUGHT · restored byte-identical · Provenance: linking a source never upgrades it
+[NC-11a] CAUGHT · restored byte-identical · Selection ≠ G1: selecting changes no authority record (no approval written back)
+[NC-11b] CAUGHT · restored byte-identical · Selection ≠ G1: the UI states that a selection is not a G1 decision
+[NC-12] CAUGHT · restored byte-identical · UI isolation: the case page is rebuilt per case (no state of case A shown for B)
+[NC-12b] CAUGHT · restored byte-identical · UI isolation: the link-source form is rebuilt per case (no source chosen for A offered as B’s)
+[NC-13] CAUGHT · restored byte-identical · Delete safety: any reference blocks deletion; nothing is deleted to make room
+[NC-14] CAUGHT · restored byte-identical · Case scope on createSource: every named case must exist
+[NC-14b] CAUGHT · restored byte-identical · Case scope on createSource: a named case must not be archived
+[NC-14c] CAUGHT · restored byte-identical · Case scope on createSource: an agency’s own source names only its own agency’s cases
+[NC-15] CAUGHT · restored byte-identical · UI (browser finding F1): the route-binding dialog takes focus before its options load
+[NC-16] CAUGHT · restored byte-identical · UI (browser finding F2): the link form names its source field "Source to link"
+[NC-17] CAUGHT · restored byte-identical · UI (browser finding F3): no hidden header escapes the table scroll frame (390px)
+24 controls, 24 caught and restored, 0 problems

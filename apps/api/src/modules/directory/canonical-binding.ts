@@ -133,7 +133,7 @@ const fieldsOf = (row: BindableRow): Readonly<Record<string, unknown>> => ({
 });
 
 /** The id of the current (highest) revision of the chain `sourceId` belongs to. */
-async function currentHead(
+export async function currentHead(
   tx: Prisma.TransactionClient,
   sourceId: string,
   sourceGroupId: string,

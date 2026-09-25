@@ -287,7 +287,7 @@ describe('SOURCES — capture metadata, not evidence', () => {
     }
   });
 
-  it('create refuses unknown fields, case scope, incomplete hashes and unattributed review', async () => {
+  it('create refuses unknown fields, unknown cases, incomplete hashes and unattributed review', async () => {
     const cases: Array<[Record<string, unknown>, number, string, Record<string, unknown>?]> = [
       [{ fetchNow: true }, 422, 'VALIDATION_FAILED'],
       [{ canonicalUrl: 'ftp://example.invalid/x' }, 422, 'VALIDATION_FAILED'],
@@ -295,11 +295,12 @@ describe('SOURCES — capture metadata, not evidence', () => {
       [{ scopeText: '' }, 422, 'VALIDATION_FAILED'],
       [{ title: 'x'.repeat(501) }, 422, 'VALIDATION_FAILED'],
       [{ contentSha256: 'A'.repeat(64), hashTarget: 'RAW_FILE' }, 422, 'VALIDATION_FAILED'],
+      // P4A: case scope names existing cases only (CASE_SCOPE_UNAVAILABLE is retired).
       [
         { scopeBindings: { caseIds: [randomUUID()] } },
         422,
-        'CASE_SCOPE_UNAVAILABLE',
-        { field: 'scopeBindings.caseIds' },
+        'REFERENCE_NOT_FOUND',
+        { field: 'scopeBindings.caseIds.0' },
       ],
       [{ contentSha256: 'a'.repeat(64) }, 422, 'CONTENT_HASH_INCOMPLETE', { field: 'hashTarget' }],
       [{ hashTarget: 'RAW_FILE' }, 422, 'CONTENT_HASH_INCOMPLETE', { field: 'contentSha256' }],
@@ -1538,7 +1539,7 @@ describe('SCOPE / CONTAMINATION', () => {
     expect(code(refused)).toBe('CROSS_OWNER_REFERENCE');
   });
 
-  it('case scope does not exist in P3A: a case-scoped fixture applies to no record', async () => {
+  it('a case-scoped source applies to no directory record (P4A: only to the cases it names)', async () => {
     const agency = await createAgency();
     const caseScoped = await insertSource(prisma, client.session.userId, {
       agencyId: agency.data.id,
@@ -2058,7 +2059,7 @@ describe('ROUTES — a relationship record, not authority', () => {
       200,
     );
     expect(await blockers(boundRoute.data.id, bound.etag)).toEqual(['CANONICAL_BINDING']);
-    // A synthetic case fixture referencing a route (test-only row; no Case feature exists).
+    // A synthetic case row referencing a route, inserted directly as a fixture.
     const third = await createAgency({ displayName: 'SYNTHETIC referenced route agency' });
     const referenced = await createRoute({
       agencyId: third.data.id,

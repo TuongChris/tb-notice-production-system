@@ -3,6 +3,8 @@
 Mission TB_P3B_REPRESENTATION_AUTHORITY_TO_R7 on `feature/p3b-representation-authority`, branched from `main` `adea2bc` (post-P3A merge) and started at the R6 closeout head `c8da59f`. Recorded 2026-09-24 (UTC) on the home PC, the primary development workstation (ADR-0003). The mission stops at review gate **R7** and is submitted as **PENDING**. Cases and every later phase were **not started**. No case, CaseAuthoritySelection, reported item, case work, use mapping, case fact, correspondence, prompt, NoticeCandidate, ValidationRun workflow, CandidateAssessment, G1–G7 readiness, READY_FOR_SIGNER, signing, adoption, sending, retraction, counter-notification, uploader contact, Drive write, mailbox or other external action exists.
 
 > **R7 (operator, 2026-09-24): PASS_WITH_ONE_REMEDIATION.** P3B is functionally accepted; the accepted decisions and the one remediation (SourceReference instant storability, `ee31fa3`) are recorded in §21.
+>
+> **R7 closeout (operator, 2026-09-24): PASS** — P3B is VERIFIED_COMPLETE and MERGED_TO_MAIN (pull request #2, merge commit `3649bef`); the closeout is §22. Sections 1–20 are the record as submitted at R7 and §21 the remediation record; they are not rewritten.
 
 ## Status by scope (not collapsed)
 
@@ -12,7 +14,7 @@ Mission TB_P3B_REPRESENTATION_AUTHORITY_TO_R7 on `feature/p3b-representation-aut
 | **P3B_CI** | **PASS** for the code head `04b8528` (push run 35990960584, both jobs success, `smoke:p3b` 36 checks) and for `f79aa0a` (run 35980464772) | CI runs `yarn test`, `yarn test:db`, `smoke:local`, `smoke:auth`, `smoke:directory`, `smoke:p3a` and the new compiled `smoke:p3b` flow (§14). A commit cannot record its own run; the final run of the submitted documentation head is reported with R7 |
 | **P3B_BROWSER (Playwright MCP)** | **PASS** 20/20 (supplemental); three UI findings found and fixed (`04b8528`) | Isolated test browser against the compiled API on the disposable `tb_notice_test` (`evidence/p3b-playwright-mcp-verification.txt`, §12) |
 | **P3B_NEGATIVE_CONTROLS** | **PASS** 51/51 | Every disabled protection made its responsible suites fail; files restored byte-identically (§13, `evidence/p3b-negative-controls.txt`) |
-| **R7 review** | **PASS_WITH_ONE_REMEDIATION** (operator, 2026-09-24): P3B functionally accepted; decisions accepted (§21.1) | The one remediation — SourceReference instant storability — is implemented (`ee31fa3`) and verified (§21); R7 closeout pending |
+| **R7 review** | **PASS** (operator, 2026-09-24, closeout) — first **PASS_WITH_ONE_REMEDIATION**: P3B functionally accepted; decisions accepted (§21.1) | The one remediation — SourceReference instant storability — implemented (`ee31fa3`) and verified (§21); closeout and merge §22; submitted as PENDING |
 | **P1_WINDOWS_BROWSER** | **NOT_RUN** (not reported) | Unchanged |
 | **P0_SECOND_PC** / **P0_TWO_PC_ACCEPTANCE** / **P0_SINGLE_PC_BASELINE** / **P0_OVERALL** | **DEFERRED_BY_OPERATOR** / **NOT_COMPLETED** / **VERIFIED** / **NOT_COMPLETE** against the original two-PC contract | ADR-0003; unchanged by P3B |
 
@@ -408,3 +410,69 @@ Unchanged, and proven by the unchanged P3B suites — the 61 earlier P3B HTTP te
 | Merge to `main` | **Not merged**; `main` keeps the pre-fix P3A capture path until an approved merge |
 | P4A | **Not started** |
 | Recommendation | R7 closeout: **PASS** — P3B accepted, the one remediation delivered; merge only on explicit operator approval |
+
+## 22. R7 closeout (2026-09-24, home PC)
+
+**R7 result (operator): PASS.** P3B — Representation Authority — is accepted: `P3B = VERIFIED_COMPLETE`, `P3B = MERGED_TO_MAIN`, with the accepted R7 remediation (§21) included. Mission: TB_R7_POST_MERGE_CLOSEOUT_AND_P4A_BRANCH — reconciliation and branch preparation only.
+
+### 22.1 Merge reconciliation (verified with `git` and authenticated `gh`, not assumed)
+
+| Item | Observed value |
+|---|---|
+| `P3B_ACCEPTED_HEAD` | `05ce7b06118182d6592a434a90f4b88ce53f6fa8` |
+| Pull request | #2 `feature/p3b-representation-authority` → `main`, opened 2026-09-24T13:31:19Z, state MERGED, merged 2026-09-24T13:50:21Z by the repository owner; `headRefOid` = `05ce7b0` (nothing was added after the accepted head); 9 commits (`c8da59f`…`05ce7b0`), 88 files |
+| `P3B_MERGE_METHOD` | **merge commit** (GitHub "Create a merge commit"): `3649bef` has two parents, `adea2bc` (previous `main`) and `05ce7b0`; message "Merge pull request #2 from TuongChris/feature/p3b-representation-authority"; committed by GitHub; the pull request's `merged` timeline event names `3649bef`. Not squash, not rebase |
+| `P3B_MERGED_MAIN_HEAD` | `3649bef4d83feeec3bcf6b8293757354af739ae4` |
+| Ancestry / content | `git merge-base --is-ancestor 05ce7b0 origin/main` → exit 0. The branch started at the previous `main` `adea2bc` (the merge base of both parents), so the merge introduced nothing else: the trees of `3649bef` and `05ce7b0` are identical (`c758d3d2242d5b5c0564c5182d7d01f51d42b188`; `git diff 05ce7b0 3649bef` empty), and `git log 05ce7b0..origin/main` lists only the merge commit |
+| `main` CI after the merge | The workflow runs on every push (`push: branches: ['**']`) and on pull requests. Push run **36008448885** on `3649bef` — **success**, both jobs (https://github.com/TuongChris/tb-notice-production-system/actions/runs/36008448885): `yarn test` 1196 in 31 files, `yarn test:db` 256 in 7 files, `smoke:local` 33 checks, `smoke:auth` 4, `smoke:directory` 14, `smoke:p3a` 24, `smoke:p3b` 36 (including its expected refusals), the P1.1 recovery checks, seed canonical digest `0ee26dc3…b775`, both Prisma drift diffs empty, `dev:verify-shutdown` 4/4, `reference:check`, `reference:helper-tests` 27/27, `contracts:check`, `typecheck`, `lint` (0 errors, 1 warning — §22.6), `format:check`, `build`, frozen references and working tree unchanged. Both check runs on `3649bef` are `completed / success` (the legacy commit-status API holds no statuses) |
+| Accepted head CI | `05ce7b0`: push run 36004964689 success; pull_request run 36006237155 (PR #2) success. Remediation `ee31fa3`: run 36002633201 success; R7 submission head `8e513f0`: run 35991749458 success |
+
+### 22.2 History preserved
+
+Nothing was amended, rebased, rewritten or force-pushed, and no tag or release was created. `feature/p3b-representation-authority` stays at the accepted head `05ce7b0` (local and origin); `bootstrap/p0-local`, `feature/p1-auth-shell`, `feature/p2-directory` and `feature/p3a-sources-route` are unchanged. Sections 1–21 keep the state at their time (for example §21.8 "Not merged"). The branch's only run that is not green — run 35970356174, the branch-creation push of `adea2bc`, `cancelled` by the workflow's concurrency group when the R6 closeout `c8da59f` was pushed — stays as it is; every other run of the branch succeeded.
+
+### 22.3 Accepted semantics carried forward (unchanged; no new legal conclusion)
+
+- A Mandate is a representation container, not a legal identity.
+- An archived Mandate is read-only until an explicit restore.
+- UNTIL_TERMINATED and `expiresOn` values are preserved as documentary facts; no authority currentness is inferred.
+- A PAUSED Route or Signer may remain usable where the contract permits; PAUSED is administrative only.
+- A FROZEN MandateVersion is an immutable snapshot only: FROZEN ≠ complete, FROZEN ≠ approved, FROZEN ≠ current authority, FROZEN ≠ G1 PASS.
+- Coverage ≠ G1 PASS. CoverageSigner ≠ G7. An AuthorityEvent's existence is not proof by itself.
+- `Route.preferredCoverageId` is an operational preference only.
+- An application User is not a Signer.
+- DOCUMENT_REVIEWED is never inferred.
+- A SourceReference revision never silently re-points existing citations.
+- Date and time values that cannot round-trip exactly through the current database representation are refused before persistence (§21.2).
+
+### 22.4 Next phase recorded (not started)
+
+**P4A — Case Core and Case Authority Selection**, gate **R8**; it needs its own explicit, approved mission. Expected contracted operations, as listed at the closeout:
+
+| Family | Expected operations |
+|---|---|
+| Case — 10 | `listCases`, `createCase`, `getCase`, `patchCase`, `deleteUnusedCase`, `ArchiveCase`, `RestoreCase`, `WorkflowCase`, `RouteBindingCase`, `CanonicalBindingCase` |
+| CaseSource — 4 | `listCaseSources`, `linkCaseSource`, `getCaseSource`, `setCaseSourceLinkState` |
+| CaseAuthoritySelection — 2 | `selectCaseAuthority`, `listCaseAuthoritySelections` |
+
+Expected total: 16. Before implementation, the P4A mission verifies this against the current contract rather than trusting the remembered count. (A read-only look at `packages/contracts/src/api/operations.ts` on `3649bef` during this closeout found each of the 16 operationIds exactly once, spelled as above; it does not replace that verification.) P4A excludes ReportedItem, CaseWork, UseMapping, CaseFact, correspondence, prompt production, candidates, validation, assessments, G1–G7, READY_FOR_SIGNER, signing and sending.
+
+**CaseAuthoritySelection — semantic note (operator, recorded for P4A).** It means "the authority chain selected/pinned for evaluation in this specific Case". It does **not** mean G1 PASS, current authority confirmed, legally valid authority adjudicated, signer eligibility confirmed, G7 or notice readiness. Actual G1 evaluation is a later readiness phase. §20's phrase "the first place where case authority is determined" is read with this note: a selection pins a chain for evaluation; it confirms or adjudicates no authority. R7 decision 6 applies: the selection workflow revalidates whether a Route's preferred coverage is usable.
+
+### 22.5 P4A branch
+
+`feature/p4a-case-core` was created from the exact current `origin/main` head `3649bef` (not from `feature/p3b-representation-authority`) and pushed with upstream. At creation, local and origin both pointed at `3649bef`, the worktree was clean, `reference:check` reported the frozen references intact and `contracts:check` passed; the branch-creation push run 36011769204 on `3649bef` succeeded (both jobs). Before this documentation commit, `install --immutable`, `reference:check`, `reference:helper-tests` (27/27), `contracts:check`, `typecheck`, `lint` (the §22.6 warning only), `format:check` and `yarn test` (1196 in 31 files) all exited 0 on the branch. The branch carries this closeout documentation only. **P4A = NOT_STARTED**: no Case, CaseSource, CaseAuthoritySelection, reported item, case work, use mapping, case fact, correspondence, prompt, NoticeCandidate, validation, readiness, G1–G7, signing or sending code and no migration exist.
+
+### 22.6 Observation — one lint warning since `ee31fa3` (not fixed here)
+
+`yarn lint` has reported one warning since the R7 remediation commit: `tests/api/source-rules.test.ts:183:15` eslint(no-unsafe-optional-chaining), in the R7 test's helper (`(problem?.details['issues'] as …).map(…)`). Lint exits 0 (warnings do not fail the gate); CI runs 36002633201 (`ee31fa3`) and 36008448885 (`3649bef`) show "Found 1 warning and 0 errors", run 35991749458 (`8e513f0`) "Found 0 warnings". The R7 sweep and report recorded `lint` as exit 0 without naming it. It is test code only and changes no assertion: when `problem` is absent, the preceding `expect(problem?.code).toBe('VALIDATION_FAILED')` fails first. This closeout changes documentation only, so the warning stays; the one-line fix belongs to the next approved code change.
+
+### 22.7 Status
+
+| Scope | Status |
+|---|---|
+| R7 review | **PASS** (operator, 2026-09-24) |
+| P3B_STATUS | **VERIFIED_COMPLETE** |
+| P3B_MERGE | **MERGED_TO_MAIN** — PR #2, merge commit `3649bef` (method: merge commit), merged 2026-09-24T13:50:21Z; `main` push CI run 36008448885 success |
+| Database / wire contract / dependencies | **No change** — `20260923103912_initial_schema` is still the only migration; `contracts:check` OK; PFC wire id `PFC-YT-EMAIL-v1.1`; lockfile unchanged |
+| P4A | **NOT_STARTED** — branch `feature/p4a-case-core` from `main` `3649bef` |

@@ -1,0 +1,262 @@
+P4A — negative controls (mission §39), home PC, 2026-09-24 (UTC)
+===================================================================
+
+Method (scratchpad runner outside Git): each control disables exactly one protection by an exact
+text replacement (or injects the forbidden behaviour), runs every responsible test command — each
+must FAIL (non-zero exit) — then restores the file and verifies it byte-identical by SHA-256. DB
+commands run on the disposable tb_notice_test only.
+
+Final run on the final code head 6330aeb (plus the uncommitted documentation):
+  2026-09-24T16:46:25Z – 16:47:32Z, runner exit 0.
+  Working-tree fingerprint (git diff --binary + sha256 of every untracked file), before and after:
+    b3731fd3607be62b4ba89434cb6085ac8855db10cbaf32468f3972b16ec81f41 (identical)
+  Afterwards `yarn db:verify test --expect-empty`: PASS, domain rows total 0.
+  An earlier full run on the code before the last test commit (16:26:12Z–16:27:26Z, 22 controls)
+  gave the same result; NC-14b/NC-14c were added with the createSource case-scope test (6330aeb).
+
+RESULT: 24 controls, 24 caught (every responsible command failed) and restored byte-identically.
+
+Controls (replacement shown shortened; "must fail" = the responsible commands)
+------------------------------------------------------------------------------
+NC-01 — Case isolation: a case-scoped source applies only to the cases it names
+  file: apps/api/src/modules/sources/source-scope.ts
+  replace: "    if (!scope.caseIds.includes(target.caseId)) return { code: 'CROSS_CASE_REFERENCE' };\n"
+  with:    "    // NEGATIVE CONTROL: case dimension disabled\n"
+  must fail: npx vitest run --config vitest.config.ts tests/api/source-rules.test.ts
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t two cases on one route|link refuses sources|refuses a superseded revision
+NC-02 — Route binding: only a route of the case’s own agency
+  file: apps/api/src/modules/cases/case-rules.ts
+  replace: "  if (route.agencyId !== caseAgencyId) throw apiErrors.crossAgencyReference(field, 'record');\n"
+  with:    "  // NEGATIVE CONTROL: agency check disabled\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t refuses unknown, other-agency|two agencies with identical names
+NC-03 — Route binding / owner hint: a bound route’s owner and the owner hint agree
+  file: apps/api/src/modules/cases/case-rules.ts
+  replace: "  if (ownerHintId !== null && ownerHintId !== route.ownerId) {\n"
+  with:    "  if (ownerHintId !== null && ownerHintId !== route.ownerId && false) {\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t create refuses uncontracted fields|another owner than the hint|patch: with a bound route
+NC-04 — CaseSource scope: a linked source must apply to the case
+  file: apps/api/src/modules/cases/case-sources.service.ts
+  replace: "        await assertSourcesUsable(\n          tx,\n          [{ field: 'sourceId', sourceId: body.sourceId }],\n          await caseTarget(tx, current),\n        );\n      ..."
+  with:    "        const id = randomUUID();\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t link refuses sources that do not apply
+NC-05a — Chain compatibility: the signer must be recorded under each selected coverage
+  file: apps/api/src/modules/cases/case-authority.service.ts
+  replace: "          if (!recorded) throw apiErrors.authorityScopeUnresolved(field, 'SIGNER_NOT_RECORDED');\n"
+  with:    "          void recorded;\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t the chain must be exact
+NC-05b — Chain compatibility: a selected coverage names the case’s route
+  file: apps/api/src/modules/cases/case-authority.service.ts
+  replace: "          if (coverage.routeId !== current.routeId) {\n            throw apiErrors.authorityScopeUnresolved(field, 'OTHER_ROUTE');\n          }\n"
+  with:    ""
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t the chain must be exact
+NC-05c — Chain compatibility: only coverage of a FROZEN version
+  file: apps/api/src/modules/cases/case-authority.service.ts
+  replace: "          if (version.versionState !== 'FROZEN') {\n            throw apiErrors.versionNotFrozen(field, coverage.mandateVersionId);\n          }\n"
+  with:    ""
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t the chain must be exact
+NC-06a — History: earlier selections and their pinned coverages are never changed
+  file: apps/api/src/modules/cases/case-authority.service.ts
+  replace: "        const id = randomUUID();\n        const selection = await tx.caseAuthoritySelection.create({\n"
+  with:    "        await tx.caseAuthorityCoverage.deleteMany({ where: { caseId } });\n        const id = randomUUID();\n        const selection = await tx.caseAuthoritySelection.cr..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t history is append-only
+NC-06b — History: a history-bearing case’s route binding is not replaced
+  file: apps/api/src/modules/cases/cases.service.ts
+  replace: "        if (current.routeId !== null) {\n          const blockers = await historyBlockers(tx, id);\n"
+  with:    "        if (current.routeId !== null && false) {\n          const blockers = await historyBlockers(tx, id);\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t a correction replaces the route only before
+NC-07 — ETag: PATCH /cases/{id} checks If-Match against the current row version
+  file: apps/api/src/modules/cases/cases.service.ts
+  replace: "        const current = await lockCase(tx, id);\n        context.checkPrecondition({ entityType: ENTITY, id, rowVersion: current.rowVersion });\n        assertCaseWritab..."
+  with:    "        const current = await lockCase(tx, id);\n        assertCaseWritable(current, 'patchCase');\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t the 10 conditional operations|two tabs and concurrent writers
+NC-08 — Idempotency: a replay returns the stored result and never repeats the write
+  file: apps/api/src/infrastructure/write/write-executor.ts
+  replace: "    if (claim.kind === 'replay') return replay(claim, requester.requestId);\n"
+  with:    "    if (claim.kind === 'replay' && false) return replay(claim, requester.requestId);\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t Idempotency-Key for every P4A write family
+NC-09 — Audit: an audit failure rolls back the whole selection
+  file: apps/api/src/modules/cases/case-authority.service.ts
+  replace: "        await context.audit({\n          action: 'CASE_AUTHORITY_SELECTED',\n"
+  with:    "        await (async (entry: Parameters<typeof context.audit>[0]) => {\n          try {\n            await context.audit(entry);\n          } catch {\n            // NEGAT..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t a failing audit insert rolls back every P4A write
+NC-10 — Provenance: linking a source never upgrades it
+  file: apps/api/src/modules/cases/case-sources.service.ts
+  replace: "        const caseRow = await touchCase(context, current, true);\n        await context.audit({\n          action: 'CASE_SOURCE_LINKED',\n"
+  with:    "        await tx.sourceReference.update({\n          where: { id: body.sourceId },\n          data: { reportedProvenance: 'DOCUMENT_REVIEWED', reviewedByLabel: 'NEGATIVE..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t link: exactly as requested
+NC-11a — Selection ≠ G1: selecting changes no authority record (no approval written back)
+  file: apps/api/src/modules/cases/case-authority.service.ts
+  replace: "        const caseRow = await tx.caseRecord.update({\n          where: { id: caseId, rowVersion: current.rowVersion },\n          data: {\n            currentAuthoritySel..."
+  with:    "        for (const chosen of body.coverages) {\n          await tx.mandateCoverage.update({\n            where: { id: chosen.coverageId },\n            data: { rowVersion..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t select: pins exactly the chosen
+NC-11b — Selection ≠ G1: the UI states that a selection is not a G1 decision
+  file: apps/web/src/app/cases/case-ui.tsx
+  replace: "  'This selection records which authority materials will be evaluated for this Case. It is not a G1 decision.';\n"
+  with:    "  'Authority approved for this Case.';\n"
+  must fail: npx vitest run --config vitest.config.ts tests/web/p4a.test.tsx -t states what a case|selects authority for evaluation|without a route cannot select
+NC-12 — UI isolation: the case page is rebuilt per case (no state of case A shown for B)
+  file: apps/web/src/app/cases/cases.tsx
+  replace: "  return <CaseDetail key={id} id={id} />;\n"
+  with:    "  return <CaseDetail id={id} />;\n"
+  must fail: npx vitest run --config vitest.config.ts tests/web/p4a.test.tsx -t switching from case A to case B
+NC-12b — UI isolation: the link-source form is rebuilt per case (no source chosen for A offered as B’s)
+  file: apps/web/src/app/cases/case-sources.tsx
+  replace: "  return <LinkCaseSource key={id} caseId={id} />;\n"
+  with:    "  return <LinkCaseSource caseId={id} />;\n"
+  must fail: npx vitest run --config vitest.config.ts tests/web/p4a.test.tsx -t switching from case A to case B
+NC-13 — Delete safety: any reference blocks deletion; nothing is deleted to make room
+  file: apps/api/src/modules/cases/cases.service.ts
+  replace: "        blockers.push(...(await dependencyReasons(context.tx, ENTITY, id)));\n"
+  with:    "        // NEGATIVE CONTROL: dependency blockers disabled\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t delete: only an unused
+NC-14 — Case scope on createSource: every named case must exist
+  file: apps/api/src/modules/sources/source-rules.ts
+  replace: "    if (!(await lockForShare(tx, 'CaseRecord', id))) {\n      throw apiErrors.referenceNotFound(caseFields.get(id) ?? 'scopeBindings');\n    }\n"
+  with:    "    await lockForShare(tx, 'CaseRecord', id);\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p3a-http.test.ts -t create refuses unknown fields, unknown cases
+NC-14b — Case scope on createSource: a named case must not be archived
+  file: apps/api/src/modules/sources/source-rules.ts
+  replace: "    if (row.archivedAt !== null) {\n      throw apiErrors.recordStateConflict({\n        record: 'CaseRecord',\n"
+  with:    "    if (row.archivedAt === 'NEGATIVE CONTROL') {\n      throw apiErrors.recordStateConflict({\n        record: 'CaseRecord',\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t createSource names only
+NC-14c — Case scope on createSource: an agency’s own source names only its own agency’s cases
+  file: apps/api/src/modules/sources/source-rules.ts
+  replace: "    if (body.agencyId && row.agencyId !== body.agencyId) {\n      throw apiErrors.crossAgencyReference(field, 'scope');\n    }\n"
+  with:    "    // NEGATIVE CONTROL: case agency check disabled\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t createSource names only
+NC-15 — UI (browser finding F1): the route-binding dialog takes focus before its options load
+  file: apps/web/src/app/cases/cases.tsx
+  replace: "          tabIndex={-1}\n          data-autofocus\n"
+  with:    ""
+  must fail: npx vitest run --config vitest.config.ts tests/web/p4a.test.tsx -t binds a route: only the case agency
+NC-16 — UI (browser finding F2): the link form names its source field "Source to link"
+  file: apps/web/src/app/cases/case-sources.tsx
+  replace: "              label=\"Source to link\"\n"
+  with:    "              label=\"Source\"\n"
+  must fail: npx vitest run --config vitest.config.ts tests/web/p4a.test.tsx -t links a source: only sources whose scope
+NC-17 — UI (browser finding F3): no hidden header escapes the table scroll frame (390px)
+  file: apps/web/src/app/cases/case-sources.tsx
+  replace: "                <th scope=\"col\">Actions</th>\n"
+  with:    "                <th scope=\"col\">\n                  <span className=\"visually-hidden\">Actions</span>\n                </th>\n"
+  must fail: npx vitest run --config vitest.config.ts tests/web/p4a.test.tsx -t changes a link state with the link
+
+Run log (failing tests per control)
+-----------------------------------
+[NC-01] CAUGHT · restored byte-identical · Case isolation: a case-scoped source applies only to the cases it names
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯ · npx vitest run --config vitest.config.ts tests/api/source-rules.test.ts
+      × scoped to another case → Case
+      × own agency, scoped to another case → Case
+      FAIL  tests/api/source-rules.test.ts > scopeProblem — the recorded-scope applicability matrix > scoped to another case → Case
+      FAIL  tests/api/source-rules.test.ts > scopeProblem — the recorded-scope applicability matrix > own agency, scoped to another case → Case
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t two cases on one route|link refuses sources|refuses a superseded revision
+      × refuses a superseded revision, a non-canonical role, another agency’s source, another case’s source and unknown sources
+      × link refuses sources that do not apply to this case; accepted scopes are the agency’s, a named case and the bound subject
+      × two cases on one route: links, selections, canonical ids, workflow and archive stay with their own case
+      FAIL  tests/db/p4a-http.test.ts > CANONICAL BINDING — an identity reference; never a review, a provenance change or proof > refuses a superseded revision, a non-canonical role, another agency’s source, another case’s source and unknown sources
+      FAIL  tests/db/p4a-http.test.ts > CASE SOURCES — an explicit association of one source with one case; not proof > link refuses sources that do not apply to this case; accepted scopes are the agency’s, a named case and the bound subject
+      FAIL  tests/db/p4a-http.test.ts > CONTAMINATION — nothing crosses from one case to another, or from another agency > two cases on one route: links, selections, canonical ids, workflow and archive stay with their own case
+[NC-02] CAUGHT · restored byte-identical · Route binding: only a route of the case’s own agency
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t refuses unknown, other-agency|two agencies with identical names
+      × refuses unknown, other-agency (even identically named), paused, archived and party-archived routes, a paused association and a route of another owner than the hint
+      × two agencies with identical names: a case never reaches the other agency’s route, signer, coverage or source
+      FAIL  tests/db/p4a-http.test.ts > ROUTE BINDING — an explicit association with one compatible route; not authority > refuses unknown, other-agency (even identically named), paused, archived and party-archived routes, a paused association and a route of another owner than the hint
+      FAIL  tests/db/p4a-http.test.ts > CONTAMINATION — nothing crosses from one case to another, or from another agency > two agencies with identical names: a case never reaches the other agency’s route, signer, coverage or source
+[NC-03] CAUGHT · restored byte-identical · Route binding / owner hint: a bound route’s owner and the owner hint agree
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t create refuses uncontracted fields|another owner than the hint|patch: with a bound route
+      × create refuses uncontracted fields, missing or archived parties, other agencies’ and other owners’ routes and unusable routes; nothing is written
+      × patch: with a bound route the owner hint is null or the route’s owner; a packet source must apply to this case
+      × refuses unknown, other-agency (even identically named), paused, archived and party-archived routes, a paused association and a route of another owner than the hint
+      FAIL  tests/db/p4a-http.test.ts > CASES — the boundary of case-specific records; not a legal verdict > create refuses uncontracted fields, missing or archived parties, other agencies’ and other owners’ routes and unusable routes; nothing is written
+      FAIL  tests/db/p4a-http.test.ts > CASES — the boundary of case-specific records; not a legal verdict > patch: with a bound route the owner hint is null or the route’s owner; a packet source must apply to this case
+      FAIL  tests/db/p4a-http.test.ts > ROUTE BINDING — an explicit association with one compatible route; not authority > refuses unknown, other-agency (even identically named), paused, archived and party-archived routes, a paused association and a route of another owner than the hint
+[NC-04] CAUGHT · restored byte-identical · CaseSource scope: a linked source must apply to the case
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t link refuses sources that do not apply
+      × link refuses sources that do not apply to this case; accepted scopes are the agency’s, a named case and the bound subject
+      FAIL  tests/db/p4a-http.test.ts > CASE SOURCES — an explicit association of one source with one case; not proof > link refuses sources that do not apply to this case; accepted scopes are the agency’s, a named case and the bound subject
+[NC-05a] CAUGHT · restored byte-identical · Chain compatibility: the signer must be recorded under each selected coverage
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t the chain must be exact
+      × the chain must be exact — route, signer, coverage, frozen version, unarchived mandate, recorded signer, applicable basis; every refusal writes nothing
+      FAIL  tests/db/p4a-http.test.ts > AUTHORITY SELECTION — pins the chain to evaluate for this case; not a G1 decision > the chain must be exact — route, signer, coverage, frozen version, unarchived mandate, recorded signer, applicable basis; every refusal writes nothing
+[NC-05b] CAUGHT · restored byte-identical · Chain compatibility: a selected coverage names the case’s route
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t the chain must be exact
+      × the chain must be exact — route, signer, coverage, frozen version, unarchived mandate, recorded signer, applicable basis; every refusal writes nothing
+      FAIL  tests/db/p4a-http.test.ts > AUTHORITY SELECTION — pins the chain to evaluate for this case; not a G1 decision > the chain must be exact — route, signer, coverage, frozen version, unarchived mandate, recorded signer, applicable basis; every refusal writes nothing
+[NC-05c] CAUGHT · restored byte-identical · Chain compatibility: only coverage of a FROZEN version
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t the chain must be exact
+      × the chain must be exact — route, signer, coverage, frozen version, unarchived mandate, recorded signer, applicable basis; every refusal writes nothing
+      FAIL  tests/db/p4a-http.test.ts > AUTHORITY SELECTION — pins the chain to evaluate for this case; not a G1 decision > the chain must be exact — route, signer, coverage, frozen version, unarchived mandate, recorded signer, applicable basis; every refusal writes nothing
+[NC-06a] CAUGHT · restored byte-identical · History: earlier selections and their pinned coverages are never changed
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t history is append-only
+      × history is append-only: a new selection moves the pointer; earlier selections and their pinned coverages never change
+      FAIL  tests/db/p4a-http.test.ts > AUTHORITY SELECTION — pins the chain to evaluate for this case; not a G1 decision > history is append-only: a new selection moves the pointer; earlier selections and their pinned coverages never change
+[NC-06b] CAUGHT · restored byte-identical · History: a history-bearing case’s route binding is not replaced
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t a correction replaces the route only before
+      × a correction replaces the route only before the case has history; afterwards 409 BINDING_CORRECTION_REQUIRES_RECONCILIATION
+      FAIL  tests/db/p4a-http.test.ts > ROUTE BINDING — an explicit association with one compatible route; not authority > a correction replaces the route only before the case has history; afterwards 409 BINDING_CORRECTION_REQUIRES_RECONCILIATION
+[NC-07] CAUGHT · restored byte-identical · ETag: PATCH /cases/{id} checks If-Match against the current row version
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t the 10 conditional operations|two tabs and concurrent writers
+      × the 10 conditional operations: 428 without If-Match, 412 for a stale, foreign or child ETag; 404 before 412; nothing is written
+      × two tabs and concurrent writers: one ETag, one winner; the others are 412 and change nothing
+      FAIL  tests/db/p4a-http.test.ts > SHARED WRITE LAYER — If-Match, Idempotency-Key, atomic audit > the 10 conditional operations: 428 without If-Match, 412 for a stale, foreign or child ETag; 404 before 412; nothing is written
+      FAIL  tests/db/p4a-http.test.ts > SHARED WRITE LAYER — If-Match, Idempotency-Key, atomic audit > two tabs and concurrent writers: one ETag, one winner; the others are 412 and change nothing
+[NC-08] CAUGHT · restored byte-identical · Idempotency: a replay returns the stored result and never repeats the write
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t Idempotency-Key for every P4A write family
+      × Idempotency-Key for every P4A write family: required; an exact replay returns the stored result once; another payload is 409
+      FAIL  tests/db/p4a-http.test.ts > SHARED WRITE LAYER — If-Match, Idempotency-Key, atomic audit > Idempotency-Key for every P4A write family: required; an exact replay returns the stored result once; another payload is 409
+[NC-09] CAUGHT · restored byte-identical · Audit: an audit failure rolls back the whole selection
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t a failing audit insert rolls back every P4A write
+      × a failing audit insert rolls back every P4A write: no row, no version change, no idempotency record
+      FAIL  tests/db/p4a-http.test.ts > SHARED WRITE LAYER — If-Match, Idempotency-Key, atomic audit > a failing audit insert rolls back every P4A write: no row, no version change, no idempotency record
+[NC-10] CAUGHT · restored byte-identical · Provenance: linking a source never upgrades it
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t link: exactly as requested
+      × link: exactly as requested and pinned to the exact revision; the case context moves; the source is never changed
+      FAIL  tests/db/p4a-http.test.ts > CASE SOURCES — an explicit association of one source with one case; not proof > link: exactly as requested and pinned to the exact revision; the case context moves; the source is never changed
+[NC-11a] CAUGHT · restored byte-identical · Selection ≠ G1: selecting changes no authority record (no approval written back)
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t select: pins exactly the chosen
+      × select: pins exactly the chosen route, signer, frozen coverages and basis source; the case pointer and context move; no authority record changes
+      FAIL  tests/db/p4a-http.test.ts > AUTHORITY SELECTION — pins the chain to evaluate for this case; not a G1 decision > select: pins exactly the chosen route, signer, frozen coverages and basis source; the case pointer and context move; no authority record changes
+[NC-11b] CAUGHT · restored byte-identical · Selection ≠ G1: the UI states that a selection is not a G1 decision
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯ · npx vitest run --config vitest.config.ts tests/web/p4a.test.tsx -t states what a case|selects authority for evaluation|without a route cannot select
+      × the case page states what a case, a link and a selection are — and shows no authority badge
+      × a case without a route cannot select authority; the page says why
+      × selects authority for evaluation: explicit chain only, nothing preselected, frozen coverage of this route that records the signer
+      FAIL  tests/web/p4a.test.tsx > P4A cases UI > the case page states what a case, a link and a selection are — and shows no authority badge
+      FAIL  tests/web/p4a.test.tsx > P4A cases UI > a case without a route cannot select authority; the page says why
+      FAIL  tests/web/p4a.test.tsx > P4A cases UI > selects authority for evaluation: explicit chain only, nothing preselected, frozen coverage of this route that records the signer
+[NC-12] CAUGHT · restored byte-identical · UI isolation: the case page is rebuilt per case (no state of case A shown for B)
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · npx vitest run --config vitest.config.ts tests/web/p4a.test.tsx -t switching from case A to case B
+      × switching from case A to case B shows only B: no link, selection, message, dialog or entered text of A carries over
+      FAIL  tests/web/p4a.test.tsx > P4A cases UI > switching from case A to case B shows only B: no link, selection, message, dialog or entered text of A carries over
+[NC-12b] CAUGHT · restored byte-identical · UI isolation: the link-source form is rebuilt per case (no source chosen for A offered as B’s)
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · npx vitest run --config vitest.config.ts tests/web/p4a.test.tsx -t switching from case A to case B
+      × switching from case A to case B shows only B: no link, selection, message, dialog or entered text of A carries over
+      FAIL  tests/web/p4a.test.tsx > P4A cases UI > switching from case A to case B shows only B: no link, selection, message, dialog or entered text of A carries over
+[NC-13] CAUGHT · restored byte-identical · Delete safety: any reference blocks deletion; nothing is deleted to make room
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t delete: only an unused
+      × delete: only an unused, unbound case; every reference blocks it and nothing is deleted to make room
+      FAIL  tests/db/p4a-http.test.ts > ARCHIVE, RESTORE AND DELETE — administrative flags; history is never removed to make room > delete: only an unused, unbound case; every reference blocks it and nothing is deleted to make room
+[NC-14] CAUGHT · restored byte-identical · Case scope on createSource: every named case must exist
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p3a-http.test.ts -t create refuses unknown fields, unknown cases
+      × create refuses unknown fields, unknown cases, incomplete hashes and unattributed review
+      FAIL  tests/db/p3a-http.test.ts > SOURCES — capture metadata, not evidence > create refuses unknown fields, unknown cases, incomplete hashes and unattributed review
+[NC-14b] CAUGHT · restored byte-identical · Case scope on createSource: a named case must not be archived
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t createSource names only
+      × createSource names only existing, unarchived cases, and an agency’s own source only its own agency’s cases; nothing is written on refusal
+      FAIL  tests/db/p4a-http.test.ts > CASE SOURCES — an explicit association of one source with one case; not proof > createSource names only existing, unarchived cases, and an agency’s own source only its own agency’s cases; nothing is written on refusal
+[NC-14c] CAUGHT · restored byte-identical · Case scope on createSource: an agency’s own source names only its own agency’s cases
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4a-http.test.ts -t createSource names only
+      × createSource names only existing, unarchived cases, and an agency’s own source only its own agency’s cases; nothing is written on refusal
+      FAIL  tests/db/p4a-http.test.ts > CASE SOURCES — an explicit association of one source with one case; not proof > createSource names only existing, unarchived cases, and an agency’s own source only its own agency’s cases; nothing is written on refusal
+[NC-15] CAUGHT · restored byte-identical · UI (browser finding F1): the route-binding dialog takes focus before its options load
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · npx vitest run --config vitest.config.ts tests/web/p4a.test.tsx -t binds a route: only the case agency
+      × binds a route: only the case agency’s linked routes can be chosen; the case ETag is sent; nothing is selected
+      FAIL  tests/web/p4a.test.tsx > P4A cases UI > binds a route: only the case agency’s linked routes can be chosen; the case ETag is sent; nothing is selected
+[NC-16] CAUGHT · restored byte-identical · UI (browser finding F2): the link form names its source field "Source to link"
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · npx vitest run --config vitest.config.ts tests/web/p4a.test.tsx -t links a source: only sources whose scope
+      × links a source: only sources whose scope includes this case are offered; the exact revision and the case ETag are sent
+      FAIL  tests/web/p4a.test.tsx > P4A cases UI > links a source: only sources whose scope includes this case are offered; the exact revision and the case ETag are sent
+[NC-17] CAUGHT · restored byte-identical · UI (browser finding F3): no hidden header escapes the table scroll frame (390px)
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · npx vitest run --config vitest.config.ts tests/web/p4a.test.tsx -t changes a link state with the link
+      × changes a link state with the link’s own ETag; an outdated link shows a conflict and saves nothing
+      FAIL  tests/web/p4a.test.tsx > P4A cases UI > changes a link state with the link’s own ETag; an outdated link shows a conflict and saves nothing
+24 controls, 24 caught and restored, 0 problems

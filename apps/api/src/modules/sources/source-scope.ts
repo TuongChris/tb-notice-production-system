@@ -1,13 +1,15 @@
-// Which SourceReference may support which record (P3A, extended in P3B). One rule set for every
-// place a write cites a source: field attributions, Signer identity/delegation sources, the
+// Which SourceReference may support which record (P3A, extended in P3B and P4A). One rule set for
+// every place a write cites a source: field attributions, Signer identity/delegation sources, the
 // OwnerSubject link source, the canonical bindings of Agency, Owner, LegalSubject, Signer, Route and
-// Mandate, and the representation-authority citations (P3B):
+// Mandate, the representation-authority citations (P3B) and the case citations (P4A):
 //   mandate context (target Agency = the mandate's agency): a MandateVersion's primary source,
 //     additional sources and signed-date sources, and a whole-mandate AuthorityEvent's source —
 //     the mandate belongs to one agency and is not restricted to one owner;
 //   route context (target Route = the coverage's route: agency + owner + legal subject): a
 //     MandateCoverage's basis source, a CoverageSigner's source and a coverage-scoped
-//     AuthorityEvent's source.
+//     AuthorityEvent's source;
+//   case context (target Case): a CaseSource link, a case's canonical binding source and packet
+//     source, and a CaseAuthoritySelection's basis source.
 //
 // A SourceReference is a pointer with capture metadata, not evidence, permission or authority. Its
 // applicability comes only from its recorded scope (INVARIANTS §3: "A source is authorized for this
@@ -35,10 +37,24 @@
 //     (CROSS_OWNER_REFERENCE; R6 interpretation 7, enforced conservatively until an explicit
 //     owner-scope model exists). Mandate-context citations are agency material and are neither
 //     owner material nor owner-checked.
-//   case dimension
-//     Case scope does not exist before the Case phase: a case-scoped source applies to nothing here.
+//   case dimension (P4A; target Case = one case, its agency and — once bound — its route's owner
+//   and legal subject: a case source link, the case's canonical and packet sources, an authority
+//   selection's basis source)
+//     A case-scoped source (scopeBindings.caseIds) applies only to the cases it names
+//     (CROSS_CASE_REFERENCE for any other case) and to no directory, route or authority record.
+//     Naming the case is explicit scope for its agency; otherwise the agency dimension is that of an
+//     agency record. A subject-scoped source needs a bound route whose subject it names — without a
+//     route the case has no subject to check it against (CASE_SUBJECT_UNBOUND). With a bound route
+//     the owner dimension is that route's owner. A case link does not itself make a source any
+//     owner's material (the owner-material definition above is unchanged).
 import { Prisma } from '../../../generated/prisma/client.js';
 import { apiErrors } from '../../infrastructure/http/api-error.js';
+
+/** The owner and legal subject a case has through its bound route (null while it has none). */
+export interface CaseRouteContext {
+  readonly ownerId: string;
+  readonly legalSubjectId: string;
+}
 
 /** The record a source would support, with the scope dimensions that record has. */
 export type SourceTarget =
@@ -51,7 +67,13 @@ export type SourceTarget =
     }
   | { readonly kind: 'LegalSubject'; readonly legalSubjectId: string }
   | { readonly kind: 'Owner'; readonly ownerId: string }
-  | { readonly kind: 'OwnerSubject'; readonly ownerId: string; readonly legalSubjectId: string };
+  | { readonly kind: 'OwnerSubject'; readonly ownerId: string; readonly legalSubjectId: string }
+  | {
+      readonly kind: 'Case';
+      readonly caseId: string;
+      readonly agencyId: string;
+      readonly route: CaseRouteContext | null;
+    };
 
 export interface SourceUse {
   /** Request path of the id, reported back on failure (e.g. `fieldAttributions.0.sourceIds.1`). */
@@ -88,6 +110,7 @@ export function scopeBindingsOf(value: Prisma.JsonValue | null | undefined): Sco
 /** Why a source does not apply to a target (null when it applies). */
 export type ScopeProblem =
   | { readonly code: 'CROSS_AGENCY_REFERENCE' }
+  | { readonly code: 'CROSS_CASE_REFERENCE' }
   | {
       readonly code: 'SOURCE_SCOPE_UNRESOLVED';
       readonly reason:
@@ -97,7 +120,8 @@ export type ScopeProblem =
         | 'AGENCY_RESTRICTED_SOURCE'
         | 'NOT_SCOPED_TO_SUBJECT'
         | 'SCOPED_TO_OTHER_SUBJECT'
-        | 'SUBJECT_SPECIFIC_SOURCE';
+        | 'SUBJECT_SPECIFIC_SOURCE'
+        | 'CASE_SUBJECT_UNBOUND';
     };
 
 export interface ScopedSource {
@@ -110,9 +134,18 @@ export function scopeProblem(source: ScopedSource, target: SourceTarget): ScopeP
   const scope = scopeBindingsOf(source.scopeBindings);
   const unresolved = (reason: Extract<ScopeProblem, { reason: unknown }>['reason']) =>
     ({ code: 'SOURCE_SCOPE_UNRESOLVED', reason }) as const;
-  if (scope.caseIds.length > 0) return unresolved('CASE_SCOPED_SOURCE');
-
-  if (target.kind === 'Agency' || target.kind === 'Route') {
+  if (scope.caseIds.length > 0) {
+    if (target.kind !== 'Case') return unresolved('CASE_SCOPED_SOURCE');
+    if (!scope.caseIds.includes(target.caseId)) return { code: 'CROSS_CASE_REFERENCE' };
+    // Naming the case is explicit scope for its agency; an agency's own source stays its own, and
+    // an agency restriction that leaves out the case's agency is not overridden by the case id.
+    if (source.agencyId !== null && source.agencyId !== target.agencyId) {
+      return { code: 'CROSS_AGENCY_REFERENCE' };
+    }
+    if (scope.agencyIds.length > 0 && !scope.agencyIds.includes(target.agencyId)) {
+      return unresolved('NOT_SCOPED_TO_AGENCY');
+    }
+  } else if (target.kind === 'Agency' || target.kind === 'Route' || target.kind === 'Case') {
     if (source.agencyId !== null) {
       if (source.agencyId !== target.agencyId) return { code: 'CROSS_AGENCY_REFERENCE' };
     } else if (!scope.agencyIds.includes(target.agencyId)) {
@@ -141,6 +174,14 @@ export function scopeProblem(source: ScopedSource, target: SourceTarget): ScopeP
     case 'Owner':
       if (scope.legalSubjectIds.length > 0) return unresolved('SUBJECT_SPECIFIC_SOURCE');
       break;
+    case 'Case':
+      if (scope.legalSubjectIds.length > 0) {
+        if (target.route === null) return unresolved('CASE_SUBJECT_UNBOUND');
+        if (!scope.legalSubjectIds.includes(target.route.legalSubjectId)) {
+          return unresolved('SCOPED_TO_OTHER_SUBJECT');
+        }
+      }
+      break;
     case 'Agency':
       break;
   }
@@ -148,9 +189,10 @@ export function scopeProblem(source: ScopedSource, target: SourceTarget): ScopeP
 }
 
 function ownerOf(target: SourceTarget): string | null {
-  return target.kind === 'Owner' || target.kind === 'OwnerSubject' || target.kind === 'Route'
-    ? target.ownerId
-    : null;
+  if (target.kind === 'Owner' || target.kind === 'OwnerSubject' || target.kind === 'Route') {
+    return target.ownerId;
+  }
+  return target.kind === 'Case' ? (target.route?.ownerId ?? null) : null;
 }
 
 /**
@@ -208,10 +250,10 @@ export interface UsableSource {
 
 /**
  * Checks every cited source: it exists (422 REFERENCE_NOT_FOUND) and applies to the target record
- * (422 CROSS_AGENCY_REFERENCE / SOURCE_SCOPE_UNRESOLVED / CROSS_OWNER_REFERENCE). The source rows
- * are locked — FOR UPDATE when the target has an Owner, so two concurrent uses of one source for
- * two different Owners are serialized — and SourceReference sorts last in the lock order. Returns
- * the sources in the order of `uses`.
+ * (422 CROSS_AGENCY_REFERENCE / CROSS_CASE_REFERENCE / SOURCE_SCOPE_UNRESOLVED /
+ * CROSS_OWNER_REFERENCE). The source rows are locked — FOR UPDATE when the target has an Owner, so
+ * two concurrent uses of one source for two different Owners are serialized — and SourceReference
+ * sorts last in the lock order. Returns the sources in the order of `uses`.
  */
 export async function assertSourcesUsable(
   tx: Prisma.TransactionClient,
@@ -242,6 +284,7 @@ export async function assertSourcesUsable(
     if (!source) throw apiErrors.referenceNotFound(use.field);
     const problem = scopeProblem(source, target);
     if (problem?.code === 'CROSS_AGENCY_REFERENCE') throw apiErrors.crossAgencyReference(use.field);
+    if (problem?.code === 'CROSS_CASE_REFERENCE') throw apiErrors.crossCaseReference(use.field);
     if (problem?.code === 'SOURCE_SCOPE_UNRESOLVED') {
       throw apiErrors.sourceScopeUnresolved(use.field, problem.reason);
     }

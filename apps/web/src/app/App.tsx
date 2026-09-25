@@ -3,6 +3,9 @@ import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router';
 import type { ApiClient } from './api/client.js';
 import { createDirectoryApi } from './api/directory.js';
 import { SessionProvider, useSession } from './auth/session.js';
+import { SelectAuthorityPage, SelectionDetailPage } from './cases/authority-selection.js';
+import { LinkCaseSourcePage } from './cases/case-sources.js';
+import { CaseDetailPage, CaseListPage, EditCasePage, NewCasePage } from './cases/cases.js';
 import {
   AgencyDetailPage,
   AgencyListPage,
@@ -59,8 +62,9 @@ import {
 } from './sources/sources.js';
 
 /**
- * Web app: Login, session check, the protected shell, the Directory, Sources and the Representation
- * pages (routes, mandates, versions, coverage, coverage signers and authority events).
+ * Web app: Login, session check, the protected shell, the Directory, Sources, the Representation
+ * pages (routes, mandates, versions, coverage, coverage signers and authority events) and Cases
+ * (case records, linked sources and authority selected for evaluation).
  */
 export function App({ api }: { api: ApiClient }) {
   const directory = useMemo(() => createDirectoryApi(api), [api]);
@@ -116,6 +120,19 @@ export function App({ api }: { api: ApiClient }) {
                   <Route path="coverages/:id/edit" element={<EditCoveragePage />} />
                   <Route path="coverages/:id/signers/new" element={<NewCoverageSignerPage />} />
                 </Route>
+                <Route path="cases" element={<CaseListPage />} />
+                <Route path="cases/new" element={<NewCasePage />} />
+                <Route path="cases/:id" element={<CaseDetailPage />} />
+                <Route path="cases/:id/edit" element={<EditCasePage />} />
+                <Route path="cases/:id/sources/new" element={<LinkCaseSourcePage />} />
+                <Route
+                  path="cases/:id/authority-selections/new"
+                  element={<SelectAuthorityPage />}
+                />
+                <Route
+                  path="cases/:id/authority-selections/:selectionId"
+                  element={<SelectionDetailPage />}
+                />
               </Route>
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />

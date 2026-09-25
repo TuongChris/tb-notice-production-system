@@ -1,6 +1,7 @@
-// P3A pure source rules: which recorded scope applies to which record (source-scope.ts), and the
-// capture / revision checks of a SourceReference (source-rules.ts). Database behaviour of the same
-// rules is covered over HTTP in tests/db/p3a-http.test.ts.
+// P3A pure source rules: which recorded scope applies to which record (source-scope.ts, with the
+// case dimension of P4A), and the capture / revision checks of a SourceReference (source-rules.ts).
+// Database behaviour of the same rules is covered over HTTP in tests/db/p3a-http.test.ts and
+// tests/db/p4a-http.test.ts.
 import { describe, expect, it } from 'vitest';
 import type { CreateSource } from '../../packages/contracts/src/index.js';
 import {
@@ -19,12 +20,21 @@ const B = '00000000-0000-4000-8000-00000000000b';
 const L = '00000000-0000-4000-8000-0000000000c1';
 const M = '00000000-0000-4000-8000-0000000000c2';
 const X = '00000000-0000-4000-8000-0000000000d1';
+const C1 = '00000000-0000-4000-8000-0000000000e1';
+const C2 = '00000000-0000-4000-8000-0000000000e2';
 
 const agency: SourceTarget = { kind: 'Agency', agencyId: A };
 const route: SourceTarget = { kind: 'Route', agencyId: A, ownerId: X, legalSubjectId: L };
 const subject: SourceTarget = { kind: 'LegalSubject', legalSubjectId: L };
 const owner: SourceTarget = { kind: 'Owner', ownerId: X };
 const association: SourceTarget = { kind: 'OwnerSubject', ownerId: X, legalSubjectId: L };
+const unboundCase: SourceTarget = { kind: 'Case', caseId: C1, agencyId: A, route: null };
+const boundCase: SourceTarget = {
+  kind: 'Case',
+  caseId: C1,
+  agencyId: A,
+  route: { ownerId: X, legalSubjectId: L },
+};
 
 const source = (agencyId: string | null, scopeBindings: unknown = null) => ({
   agencyId,
@@ -98,25 +108,85 @@ describe('scopeProblem — the recorded-scope applicability matrix', () => {
       'SCOPED_TO_OTHER_SUBJECT',
     ],
     ['agency source → OwnerSubject', source(A), association, 'AGENCY_OWNED_SOURCE'],
-    // no case scope before the Case phase — for every target
-    ['case-scoped → Agency', source(A, { caseIds: [M] }), agency, 'CASE_SCOPED_SOURCE'],
-    ['case-scoped → Owner', source(null, { caseIds: [M] }), owner, 'CASE_SCOPED_SOURCE'],
+    // a case-scoped source supports only the cases it names — no directory, route or authority
+    // record (P4A)
+    ['case-scoped → Agency', source(A, { caseIds: [C1] }), agency, 'CASE_SCOPED_SOURCE'],
+    ['case-scoped → Route', source(A, { caseIds: [C1] }), route, 'CASE_SCOPED_SOURCE'],
+    ['case-scoped → Owner', source(null, { caseIds: [C1] }), owner, 'CASE_SCOPED_SOURCE'],
     [
       'case-scoped → LegalSubject',
-      source(null, { caseIds: [M], legalSubjectIds: [L] }),
+      source(null, { caseIds: [C1], legalSubjectIds: [L] }),
       subject,
       'CASE_SCOPED_SOURCE',
     ],
+    // case targets (P4A): the case, agency and subject dimensions
+    ['own agency source → Case', source(A), unboundCase, null],
+    ['other agency source → Case', source(B), unboundCase, 'CROSS_AGENCY_REFERENCE'],
+    ['unscoped public source → Case', source(null), unboundCase, 'NOT_SCOPED_TO_AGENCY'],
+    ['shared with A → Case of A', source(null, { agencyIds: [A] }), unboundCase, null],
+    [
+      'shared with B → Case of A',
+      source(null, { agencyIds: [B] }),
+      unboundCase,
+      'NOT_SCOPED_TO_AGENCY',
+    ],
+    ['agency-less, scoped to this case → Case', source(null, { caseIds: [C1] }), unboundCase, null],
+    ['own agency, scoped to this case → Case', source(A, { caseIds: [C1] }), unboundCase, null],
+    [
+      'this case, restricted to agency A → Case of A',
+      source(null, { caseIds: [C1], agencyIds: [A] }),
+      unboundCase,
+      null,
+    ],
+    [
+      'this case, restricted to agency B → Case of A',
+      source(null, { caseIds: [C1], agencyIds: [B] }),
+      unboundCase,
+      'NOT_SCOPED_TO_AGENCY',
+    ],
+    [
+      'scoped to another case → Case',
+      source(null, { caseIds: [C2] }),
+      unboundCase,
+      'CROSS_CASE_REFERENCE',
+    ],
+    [
+      'own agency, scoped to another case → Case',
+      source(A, { caseIds: [C2] }),
+      unboundCase,
+      'CROSS_CASE_REFERENCE',
+    ],
+    [
+      'other agency, naming this case → Case',
+      source(B, { caseIds: [C1] }),
+      unboundCase,
+      'CROSS_AGENCY_REFERENCE',
+    ],
+    [
+      'subject-scoped → Case without a route',
+      source(A, { legalSubjectIds: [L] }),
+      unboundCase,
+      'CASE_SUBJECT_UNBOUND',
+    ],
+    ['subject L → Case bound to L', source(A, { legalSubjectIds: [L] }), boundCase, null],
+    [
+      'subject M → Case bound to L',
+      source(A, { legalSubjectIds: [M] }),
+      boundCase,
+      'SCOPED_TO_OTHER_SUBJECT',
+    ],
+    [
+      'this case, subject M → Case bound to L',
+      source(null, { caseIds: [C1], legalSubjectIds: [M] }),
+      boundCase,
+      'SCOPED_TO_OTHER_SUBJECT',
+    ],
+    ['own agency source → Case bound to a route', source(A), boundCase, null],
   ];
   for (const [label, candidate, target, expected] of cases) {
     it(label, () => {
       const problem = scopeProblem(candidate, target);
-      const actual =
-        problem === null
-          ? null
-          : problem.code === 'CROSS_AGENCY_REFERENCE'
-            ? problem.code
-            : problem.reason;
+      const actual = problem === null ? null : 'reason' in problem ? problem.reason : problem.code;
       expect(actual).toBe(expected);
     });
   }
@@ -153,10 +223,14 @@ describe('captureProblem — request-only capture checks', () => {
       captureProblem(capture({ reportedProvenance: 'DOCUMENT_REVIEWED', reviewedByLabel: 'R' })),
     ).toBeNull();
     expect(captureProblem(capture({ agencyId: A, scopeBindings: { agencyIds: [A] } }))).toBeNull();
+    // P4A: case scope is recorded as supplied; the named cases are checked in the database.
+    expect(captureProblem(capture({ scopeBindings: { caseIds: [C1] } }))).toBeNull();
+    expect(
+      captureProblem(capture({ agencyId: A, scopeBindings: { caseIds: [C1, C2] } })),
+    ).toBeNull();
   });
 
   it.each([
-    [{ scopeBindings: { caseIds: [A] } }, 'CASE_SCOPE_UNAVAILABLE', 'scopeBindings.caseIds'],
     [{ contentSha256: 'a'.repeat(64) }, 'CONTENT_HASH_INCOMPLETE', 'hashTarget'],
     [{ hashTarget: 'OTHER' }, 'CONTENT_HASH_INCOMPLETE', 'contentSha256'],
     [{ reportedProvenance: 'DOCUMENT_REVIEWED' }, 'REVIEW_UNATTRIBUTED', 'reviewedByLabel'],
@@ -180,7 +254,8 @@ describe('captureProblem — request-only capture checks', () => {
     const paths = (extra: Partial<CreateSource>) => {
       const problem = captureProblem(capture(extra));
       expect(problem?.code).toBe('VALIDATION_FAILED');
-      return (problem?.details['issues'] as Array<{ path: string }>).map((issue) => issue.path);
+      const issues = (problem?.details['issues'] ?? []) as Array<{ path: string }>;
+      return issues.map((issue) => issue.path);
     };
     expect(
       paths({ observedAt: '2016-12-31T23:59:60Z', reviewedAt: '2025-06-30T10:15:00.123456Z' }),
