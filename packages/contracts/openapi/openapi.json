@@ -2,7 +2,7 @@
   "openapi": "3.1.1",
   "info": {
     "title": "TB Notice Production System — API Contract v1",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "description": "LOCAL-FIRST contract, not a deployed API. Terminal product: unsigned candidate. Technical validation does not certify rights/G1-G6. No send, signature, G7 or raw evidence export route."
   },
   "servers": [
@@ -11740,6 +11740,99 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GetCaseFactResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "x-precondition-target": null,
+        "x-idempotent-write": false
+      }
+    },
+    "/cases/{caseId}/facts/{id}/sources": {
+      "get": {
+        "operationId": "getCaseFactSources",
+        "tags": [
+          "Fact"
+        ],
+        "summary": "Read the exact FactSource rows recorded for one fact revision of this case; a stored historical record, not proof or a finding.",
+        "parameters": [
+          {
+            "name": "caseId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 36,
+              "minLength": 36,
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 36,
+              "minLength": 36,
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; source-based truth and human gates remain separate.",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Strong entity row-version ETag when the resource is mutable."
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetCaseFactSourcesResponse"
                 }
               }
             }
@@ -32560,6 +32653,47 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/CaseFact"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "CaseFactSourcesView": {
+        "type": "object",
+        "properties": {
+          "factId": {
+            "type": "string",
+            "maxLength": 36,
+            "minLength": 36,
+            "format": "uuid"
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FactSource"
+            },
+            "minItems": 0,
+            "maxItems": 100
+          }
+        },
+        "required": [
+          "factId",
+          "sources"
+        ],
+        "additionalProperties": false,
+        "description": "The exact stored FactSource rows recorded for one CaseFact revision (factId) of this Case, in ascending createdAt, then id order; an empty list means only that no FactSource row was recorded for that revision. A historical record only: never proof or truth of the fact, a document review, SUPPORTED_FOR_SCOPE, an infringement, ownership, permission or exception finding, G1–G7 or readiness."
+      },
+      "GetCaseFactSourcesResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CaseFactSourcesView"
           },
           "meta": {
             "$ref": "#/components/schemas/ResponseMeta"

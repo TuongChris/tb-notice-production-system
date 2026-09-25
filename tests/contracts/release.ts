@@ -1,33 +1,57 @@
-// The active wire-contract release TB-SCHEMA-API-v1.1.0 (ADR-0004) = the frozen TB-SCHEMA-API-v1.0.0
-// reference (docs/reference/database-api-v1/…, never edited) + the reviewed additive amendment
-// (docs/contracts/TB-SCHEMA-API-v1.1.0/amendment.json). `releaseBaseline()` rebuilds the release
-// documents from exactly those two inputs: every frozen schema and operation is copied unchanged, the
-// amendment's schemas and operation are inserted at their declared places and the OpenAPI document
-// version becomes the release's. The parity tests require the generated artifacts to equal the result
-// byte for byte, which proves that the active source changes the frozen contract by exactly the
-// amendment — nothing removed, renamed or altered.
+// The active wire-contract release TB-SCHEMA-API-v1.2.0 (ADR-0005) = the frozen TB-SCHEMA-API-v1.0.0
+// reference (docs/reference/database-api-v1/…, never edited) + the reviewed additive amendments, in
+// release order: TB-SCHEMA-API-v1.1.0 (ADR-0004) and TB-SCHEMA-API-v1.2.0 (ADR-0005), each recorded
+// once in docs/contracts/<release>/amendment.json and never edited. `releaseDocuments(release)`
+// rebuilds the documents of a release from exactly those inputs: every earlier schema and operation
+// is copied unchanged, each amendment's schemas and operation are inserted at their declared places
+// and the OpenAPI document version becomes the release's. The parity tests require the generated
+// artifacts to equal the active release byte for byte, which proves that the active source changes
+// the frozen contract by exactly the amendments — nothing removed, renamed or altered — and that an
+// earlier release is still reproduced exactly, to the digests recorded when it was accepted.
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { stringify } from 'yaml';
 import { FROZEN_CONTRACTS, repoRoot, type JsonSchemaBundle } from './oracle.js';
 
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 export type JsonObject = { [key: string]: Json };
 
-export const RELEASE_DIR = path.join(repoRoot, 'docs/contracts/TB-SCHEMA-API-v1.1.0');
-export const AMENDMENT_FILE = path.join(RELEASE_DIR, 'amendment.json');
+/** The frozen reference every release extends. */
+export const FROZEN_RELEASE = 'TB-SCHEMA-API-v1.0.0';
+/** The additive releases, in order; the last is the active one. */
+export const RELEASES = ['TB-SCHEMA-API-v1.1.0', 'TB-SCHEMA-API-v1.2.0'] as const;
+export type Release = (typeof RELEASES)[number];
+export const ACTIVE_RELEASE: Release = 'TB-SCHEMA-API-v1.2.0';
+
+export const releaseDir = (release: Release): string =>
+  path.join(repoRoot, 'docs/contracts', release);
+export const amendmentFile = (release: Release): string =>
+  path.join(releaseDir(release), 'amendment.json');
+
+/** The base of the first release: the frozen pack, identified by its manifest and files. */
+export interface FrozenBase {
+  readonly release: string;
+  readonly path: string;
+  readonly manifestSha256: string;
+  readonly files: Readonly<Record<string, string>>;
+}
+
+/** The base of a later release: the previous release, identified by its record and documents. */
+export interface ReleaseBase {
+  readonly release: string;
+  readonly path: string;
+  readonly amendmentSha256: string;
+  /** The previous release's documents (its `result.files`), reproduced by composition. */
+  readonly files: Readonly<Record<string, string>>;
+}
 
 export interface Amendment {
   readonly release: string;
   readonly kind: 'ADDITIVE';
   readonly decision: string;
   readonly summary: string;
-  readonly base: {
-    readonly release: string;
-    readonly path: string;
-    readonly manifestSha256: string;
-    readonly files: Readonly<Record<string, string>>;
-  };
+  readonly base: FrozenBase | ReleaseBase;
   readonly openApiInfoVersion: { readonly from: string; readonly to: string };
   readonly schemas: {
     readonly refForm: string;
@@ -48,8 +72,10 @@ export interface Amendment {
 export const sha256 = (bytes: Buffer | string): string =>
   createHash('sha256').update(bytes).digest('hex');
 
-export const amendmentBytes = (): Buffer => readFileSync(AMENDMENT_FILE);
-export const readAmendment = (): Amendment => JSON.parse(amendmentBytes().toString('utf8'));
+export const amendmentBytes = (release: Release = ACTIVE_RELEASE): Buffer =>
+  readFileSync(amendmentFile(release));
+export const readAmendment = (release: Release = ACTIVE_RELEASE): Amendment =>
+  JSON.parse(amendmentBytes(release).toString('utf8'));
 
 export const frozenBundleRaw = (): string =>
   readFileSync(path.join(FROZEN_CONTRACTS, 'api-schemas.json'), 'utf8');
@@ -94,12 +120,18 @@ export interface ReleaseDocuments {
   readonly openApi: JsonObject;
 }
 
-/** The release documents: the frozen v1.0.0 documents plus exactly the amendment. */
-export function releaseBaseline(amendment: Amendment = readAmendment()): ReleaseDocuments {
-  const frozenBundle = JSON.parse(frozenBundleRaw()) as JsonObject;
-  const frozenOpenApi = JSON.parse(frozenOpenApiRaw()) as JsonObject;
+/** The frozen v1.0.0 documents, exactly as parsed from the frozen pack. */
+export function frozenDocuments(): ReleaseDocuments {
+  return {
+    bundle: JSON.parse(frozenBundleRaw()) as JsonSchemaBundle & JsonObject,
+    openApi: JSON.parse(frozenOpenApiRaw()) as JsonObject,
+  };
+}
+
+/** `base` plus exactly one amendment (the base documents are not changed). */
+export function applyAmendment(base: ReleaseDocuments, amendment: Amendment): ReleaseDocuments {
   const bundle: JsonObject = {};
-  for (const [key, value] of Object.entries(frozenBundle)) {
+  for (const [key, value] of Object.entries(base.bundle as JsonObject)) {
     bundle[key] =
       key === '$defs'
         ? insertAfter(value as JsonObject, amendment.schemas.insertAfter, amendment.schemas.added)
@@ -112,7 +144,7 @@ export function releaseBaseline(amendment: Amendment = readAmendment()): Release
     ]),
   );
   const openApi: JsonObject = {};
-  for (const [key, value] of Object.entries(frozenOpenApi)) {
+  for (const [key, value] of Object.entries(base.openApi)) {
     if (key === 'info') {
       const info = value as JsonObject;
       if (info['version'] !== amendment.openApiInfoVersion.from) {
@@ -140,6 +172,45 @@ export function releaseBaseline(amendment: Amendment = readAmendment()): Release
     }
   }
   return { bundle: bundle as JsonSchemaBundle & JsonObject, openApi };
+}
+
+/**
+ * The documents of `release`: the frozen v1.0.0 documents plus every amendment up to and including
+ * that release, each applied to the release it names as its base.
+ */
+export function releaseDocuments(release: Release = ACTIVE_RELEASE): ReleaseDocuments {
+  let documents = frozenDocuments();
+  let previous: string = FROZEN_RELEASE;
+  for (const name of RELEASES.slice(0, RELEASES.indexOf(release) + 1)) {
+    const amendment = readAmendment(name);
+    if (amendment.release !== name || amendment.base.release !== previous) {
+      throw new Error(`${name}: expected a release extending ${previous}`);
+    }
+    documents = applyAmendment(documents, amendment);
+    previous = name;
+  }
+  return documents;
+}
+
+/** The active release (TB-SCHEMA-API-v1.2.0): what the generated artifacts must equal. */
+export const releaseBaseline = (): ReleaseDocuments => releaseDocuments(ACTIVE_RELEASE);
+
+/** YAML serialization options of the generator (scripts/contracts/render.ts), pinned by a test. */
+export const YAML_OPTIONS = {
+  aliasDuplicateObjects: false,
+  lineWidth: 0,
+  minContentWidth: 0,
+  indent: 2,
+  sortMapEntries: false,
+} as const;
+
+/** The three artifacts of a release, serialized exactly as `yarn contracts:generate` writes them. */
+export function renderDocuments(documents: ReleaseDocuments): Record<string, string> {
+  return {
+    'packages/contracts/schemas/api-schemas.json': JSON.stringify(documents.bundle, null, 2),
+    'packages/contracts/openapi/openapi.json': JSON.stringify(documents.openApi, null, 2),
+    'packages/contracts/openapi/openapi.yaml': stringify(documents.openApi, YAML_OPTIONS),
+  };
 }
 
 /** Every `METHOD path` of an OpenAPI document, in document order. */

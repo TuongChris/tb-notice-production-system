@@ -9,7 +9,8 @@
 // port is provenance only and must not be re-run over it. Build wire schemas with the `tb`
 // builders only — the JSON Schema/OpenAPI lowering rejects anything else.
 // Amended additively by TB-SCHEMA-API-v1.1.0 (ADR-0004, docs/contracts/TB-SCHEMA-API-v1.1.0): the
-// operation getCaseAuthoritySelection after listCaseAuthoritySelections.
+// operation getCaseAuthoritySelection after listCaseAuthoritySelections; and by TB-SCHEMA-API-v1.2.0
+// (ADR-0005, docs/contracts/TB-SCHEMA-API-v1.2.0): the operation getCaseFactSources after getCaseFact.
 
 import { tb } from '../primitives/wire.js';
 import type { OperationSpec } from './operation-types.js';
@@ -83,6 +84,7 @@ import {
   GetCandidateResponseSchema,
   GetCaseAuthoritySelectionResponseSchema,
   GetCaseFactResponseSchema,
+  GetCaseFactSourcesResponseSchema,
   GetCaseResponseSchema,
   GetCaseSourceResponseSchema,
   GetCaseWorkResponseSchema,
@@ -2991,6 +2993,37 @@ export const operations = [
       },
     ],
     success: { status: '200', schema: GetCaseFactResponseSchema },
+    errors: ['400', '401', '403', '404', '409', '413', '422', '429', '500'],
+    security: 'session',
+    preconditionTarget: null,
+    idempotentWrite: false,
+  },
+  // TB-SCHEMA-API-v1.2.0 (ADR-0005, additive): the read-back of the exact FactSource rows recorded
+  // for one fact revision of this case. Same shape as getCaseFact (`/cases/{caseId}/facts/{id}`, the
+  // {data, meta} envelope, no ETag for an append-only record); every row of the revision in one
+  // response (0–100), never a page.
+  {
+    operationId: 'getCaseFactSources',
+    method: 'get',
+    path: '/cases/{caseId}/facts/{id}/sources',
+    tags: ['Fact'],
+    summary:
+      'Read the exact FactSource rows recorded for one fact revision of this case; a stored historical record, not proof or a finding.',
+    parameters: [
+      {
+        name: 'caseId',
+        in: 'path',
+        required: true,
+        schema: tb.string({ maxLength: 36, minLength: 36, format: 'uuid' }),
+      },
+      {
+        name: 'id',
+        in: 'path',
+        required: true,
+        schema: tb.string({ maxLength: 36, minLength: 36, format: 'uuid' }),
+      },
+    ],
+    success: { status: '200', schema: GetCaseFactSourcesResponseSchema },
     errors: ['400', '401', '403', '404', '409', '413', '422', '429', '500'],
     security: 'session',
     preconditionTarget: null,

@@ -9,7 +9,8 @@
 // port is provenance only and must not be re-run over it. Build wire schemas with the `tb`
 // builders only — the JSON Schema/OpenAPI lowering rejects anything else.
 // Amended additively by TB-SCHEMA-API-v1.1.0 (ADR-0004, docs/contracts/TB-SCHEMA-API-v1.1.0): two
-// schemas after ListCaseAuthoritySelectionsResponse.
+// schemas after ListCaseAuthoritySelectionsResponse; and by TB-SCHEMA-API-v1.2.0 (ADR-0005,
+// docs/contracts/TB-SCHEMA-API-v1.2.0): two schemas after GetCaseFactResponse.
 
 import type { SchemaCatalog } from '../generation/artifacts.js';
 import * as schemas from './schemas/index.js';
@@ -269,6 +270,8 @@ export const apiSchemaCatalog = [
   ['ListCaseFactsResponse', schemas.ListCaseFactsResponseSchema],
   ['CreateCaseFactResponse', schemas.CreateCaseFactResponseSchema],
   ['GetCaseFactResponse', schemas.GetCaseFactResponseSchema],
+  ['CaseFactSourcesView', schemas.CaseFactSourcesViewSchema],
+  ['GetCaseFactSourcesResponse', schemas.GetCaseFactSourcesResponseSchema],
   ['ReviseCaseFactResponse', schemas.ReviseCaseFactResponseSchema],
   ['CorrespondenceSummary', schemas.CorrespondenceSummarySchema],
   ['CorrespondencePage', schemas.CorrespondencePageSchema],
