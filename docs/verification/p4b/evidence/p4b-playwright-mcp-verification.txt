@@ -1,0 +1,176 @@
+P4B — Playwright MCP browser verification (mission §27), home PC, 2026-09-25 (UTC)
+===================================================================================
+
+Target and isolation
+- `yarn ui:sandbox --password-file <scratchpad file outside the repository>`: the COMPILED API on the disposable
+  `tb_notice_test` schema plus the built web app (`vite preview`) on http://localhost:5173 (proxying /api), built
+  from the committed head `aa9ee2c` (route-level code splitting; entry chunk `index-CdyvQIQ5.js`) and rebuilt once
+  during the pass for the fix F1 (entry `index-CBAh7S6o.js`, below). Ports 3000 and 5173 were free before the start;
+  the operator's `yarn dev` and `tb_notice_dev` were never used.
+- Synthetic sandbox user p2-ui-sandbox@example.invalid with a disposable password in a scratchpad file (never
+  printed, never committed; the file was deleted at teardown and the sandbox revokes its sessions).
+- Browser: the Playwright MCP isolated headless Chromium profile (no personal profile, no real login session).
+- Prerequisites were created through the compiled API with the sandbox user (scratchpad script, not committed):
+  SYNTHETIC Agency Kappa; two agency source pointers — "SYNTHETIC Kappa intake packet" (OPERATOR_INPUT, operator
+  reported) and "SYNTHETIC Kappa reviewed licence copy" (CANONICAL_RECORD, DOCUMENT_REVIEWED with a reviewer label);
+  owner SYNTHETIC Brand Lambda with the legal subject SYNTHETIC Lambda Media LLC (LINKED) and the route Kappa·Lambda;
+  "SYNTHETIC Case Alpha" and "SYNTHETIC Case Beta", both bound to that one route; Alpha links the packet (PACKET) and
+  the licence copy (LICENCE), Beta links the packet (PACKET). The script's final logout returned an empty 204 that
+  the script did not expect, after every record had been created; the ids were then read back with a read-only
+  script (2 cases, 2 sources, 2 + 1 links — nothing created twice). Every intake record — reported items, works,
+  use mappings, facts — was created in the browser.
+- Forced requests (to check a server refusal the UI never sends) were same-origin fetches from the signed-in page
+  with the CSRF token, a fresh Idempotency-Key and the current If-Match. No token, cookie or password is recorded
+  here.
+- Pass window: 2026-09-25T05:47Z–06:08Z.
+- Teardown: SIGINT to the sandbox → "[ui:sandbox] sandbox rows deleted; tb_notice_test is empty again"; then
+  `yarn db:verify test --expect-empty` PASS ("domain rows total: 0"; 33/33 tables, 125/125 foreign keys, 30/30 CHECK
+  constraints); the password file deleted; ports 3000 and 5173 released.
+
+Results — 27/27 executed; 27 PASS, with one part of scenario 15 BLOCKED by the reported contract gap
+(fact supports cannot be read back, P4B_CASE_INTAKE.md §1.2). One UI finding (F1) was found, fixed, re-verified.
+------------------------------------------------------------------------------------------------------------------
+ 1 Open a Case intake page — PASS. Alpha's page (reached through the Cases list; the cases chunk loads lazily) shows
+   the four sections Reported items, Works, Use mappings and Facts, each with its neutral meaning ("It is not a
+   finding of infringement, and nothing is fetched from YouTube", "It does not establish ownership, authorship,
+   registration or any right", "shown as recorded, not as an infringement verdict", "Nothing is inferred from
+   silence, similarity, an address or a source's existence", "Nothing here computes readiness, a G1–G7 decision, an
+   infringement finding or whether a notice can be sent"). "Add a use mapping" is visible but unavailable with its
+   reason while the case has no work or reported item. Screenshot p4b-01-case-intake-sections.png.
+ 2 Create ReportedItem — PASS. A channel address (https://www.youtube.com/@…) is refused on the field: 422
+   REPORTED_URL_UNSUPPORTED reason NOT_A_VIDEO_URL shown as "That is not the address of one video (for example a
+   channel, playlist or search page). Enter the video's own address. Nothing was fetched."; focus on the field,
+   aria-invalid, described by hint + error; nothing recorded. Then the mobile address
+   https://m.youtube.com/watch?feature=share&v=SyNtH_Et1c-&t=7s with a title and an observation time:
+   "Reported item recorded."; video id SyNtH_Et1c- (mixed case preserved), normalized
+   https://www.youtube.com/watch?v=SyNtH_Et1c-. Screenshot p4b-02-reported-item-recorded.png.
+ 3 Reload and read it — PASS. After a full reload the page shows exactly the stored values (the flash is not
+   repeated). The API returns the same record: rawUrl exactly as entered, observedAt 2026-09-24T03:30:00.000Z,
+   ETag "ReportedItem:…:v1", Cache-Control no-store.
+ 4 Edit ReportedItem — PASS. Only the title changed: the PATCH body was {displayTitle} alone with If-Match v1;
+   "Reported item updated.", v2; the raw URL and the observation time unchanged.
+ 5 Archive/restore ReportedItem — PASS. The archive dialog states the no-cascade meaning and takes focus in Reason;
+   archived with a reason: "Archived" stamp, only "Restore" offered (Edit gone), focus back on Restore, the notice
+   "Archiving is administrative: the record stays exactly as it is, nothing that names it changes, and archiving is
+   not a finding about it." Restored: v4, title kept. The case moved create → edit → archive → restore to
+   v7 / context revision 7 (each material change exactly once). Screenshot p4b-03-reported-item-archived.png.
+ 6 Create CaseWork — PASS. "SYNTHETIC Lambda Theme (studio recording)", music recording, an external id and a
+   source URL: "Work recorded."; the page says a work does not establish ownership, authorship, registration or any
+   right. Screenshot p4b-04-work-recorded.png.
+ 7 Edit CaseWork — PASS. A notes-only PATCH ({"notes": …}) → work v2, the case stays v8 / context revision 8 (notes
+   are not case context); a title change → the case moves to v9 / context revision 9.
+ 8 Archive/restore CaseWork — PASS. Archived with a reason (v4). While archived, the new-mapping form lists the work
+   as "(archived)" and disabled; a forced createUseMapping naming it → 409 RECORD_STATE_CONFLICT {record: CaseWork,
+   archived: true, operation: createUseMapping, field: caseWorkId}; the case unchanged (v10 / ctx 10 before and
+   after). Restored → v5, title and notes unchanged.
+ 9 Create UseMapping from exact Work + ReportedItem — PASS. The form offers only Alpha's work and item. Source
+   start typed as the clock text "25:01:01.001" and converted by the explicit "Use … ms" button to 90061001;
+   source end 90065000; reported start "0:12.04" → 12040; reported end 16040; HALF_OPEN; "Document reviewed" is
+   unavailable until a basis source is chosen — the reviewed licence copy was chosen as basis, then that
+   provenance. "Use mapping recorded." Screenshot p4b-05-mapping-recorded-exact-times.png.
+10 Timecodes round-trip exactly — PASS. Stored and returned exactly: sourceStartMs "90061001", sourceEndMs
+   "90065000", reportedStartMs "12040", reportedEndMs "16040"; rawTimecodes {sourceStart "25:01:01.001",
+   reportedStart "0:12.04"} as stated (MySQL's JSON type returns the object keys in its own order; every value is
+   exact); rendered "25:01:01.001 (90061001 ms) — as stated: "25:01:01.001"", "0:00:12.040 (12040 ms) — as stated:
+   "0:12.04"". Identical after a reload.
+11 Invalid / cross-case Work or ReportedItem refused — PASS. In Beta (same agency and route) the same video was
+   recorded as Beta's own, independent reported item, plus Beta's own work; Beta's mapping form offers only Beta's
+   records. Forced requests against Beta with its current ETag: Alpha's work → 422 CROSS_CASE_REFERENCE
+   {field: caseWorkId}; Alpha's item → 422 CROSS_CASE_REFERENCE {field: reportedItemId}; an unknown work → 422
+   REFERENCE_NOT_FOUND; end not after start → 422 TIME_RANGE_INVALID {fields: [sourceStartMs, sourceEndMs]};
+   9007199254740992 → 422 VALIDATION_FAILED ("Must be at most 9007199254740991 milliseconds"); a Beta fact scoped
+   to Alpha's work → 422 CROSS_CASE_REFERENCE; a Beta fact supported by Alpha's source link → 422
+   CROSS_CASE_REFERENCE {field: sources.0.caseSourceId}; a CASE-scoped fact naming a work → 422 FACT_SCOPE_INVALID
+   {reason: TARGET_NOT_ALLOWED}; Beta stayed v4 / context revision 4. In the UI, the same work + item + occurrence
+   again in Alpha → 409 shown as a focused alert with a link "Open the existing mapping"; an end equal to its start
+   is refused on the form (focus, aria-invalid, "A known end must be after its start.") and no request is sent.
+   Screenshot p4b-06-duplicate-mapping-refused.png.
+12 Edit mapping — PASS. The edit form is prefilled with exactly the stored values and shows work, item and
+   occurrence as fixed. Changed the reported end ("0:16.5" → 16500) and the limitations: the PATCH body was
+   {reportedEndMs, rawTimecodes, limitations} with the mapping's own If-Match; "Use mapping updated.", v2.
+13 Archive/restore mapping — PASS. Archived (v3) with a reason; the work (v5) and the reported item (v4) unchanged —
+   nothing cascades. Restored (v4) with every value unchanged.
+14 Create CaseFact — PASS. An empty submit shows five field errors and focuses "Fact type". A RIGHTS_BASIS fact
+   scoped to the work: only Alpha's work offered as target; only Alpha's two LINKED source links offered as supports
+   (not Beta's); "Document reviewed" unavailable until the reviewed licence link is chosen as a support. Basis
+   ASSIGNMENT "as stated", asserted by a label, asserted as of a time, resolution Unassessed. "Fact recorded.",
+   "Current revision", revision 1.
+15 Source support/provenance displayed exactly — PASS for the provenance: "Recorded provenance: Document reviewed",
+   "Provenance as stated: Not recorded", "Resolution state (as recorded): Unassessed", the asserted-by label and time
+   exactly as entered. BLOCKED for the supports: no contracted operation returns a fact's FactSource rows (contract
+   gap, §1.2), so the page cannot show them after a reload and says so: "…has no read that returns them, so they
+   cannot be shown here". Nothing is remembered in the browser to fake it. Screenshot
+   p4b-07-fact-recorded-provenance-support-gap.png.
+16 Revise CaseFact — PASS. The revision form keeps fact type, scope and target fixed (disabled) and is prefilled
+   from revision 1. A revision recorded as "Document reviewed" without a reviewed support → 422 REVIEW_UNSUPPORTED,
+   shown as a focused alert ("needs at least one supporting linked source that records who reviewed the document").
+   With the reviewed support: "Revision 2 recorded." with the case's If-Match; basis EXCLUSIVE_LICENCE; the
+   untouched "asserted as of" was sent back exactly (2026-09-20T02:00:00.000Z). The history lists revision 2
+   (current) and revision 1. Screenshot p4b-08-fact-revision-2-history.png.
+17 Previous revision remains readable — PASS. Revision 1 by its own address: "Superseded revision", "This is an
+   earlier revision, kept exactly as it was recorded. The current revision is revision 2.", its value unchanged
+   (ASSIGNMENT); "Record a new revision" is unavailable with the reason. A forced revision of revision 1 → 409
+   REVISION_NOT_HEAD {headId: revision 2}; the case unchanged. The revise address of revision 1 shows the not-head
+   notice with a link to revision 2 and no form. Screenshot p4b-09-fact-revision-1-readable.png.
+18 Source revision does not repoint the historical Fact — PASS. Revision 2 of the reviewed licence copy recorded
+   through the source form (the sources chunk loaded lazily behind "Loading page…"). Afterwards the case source
+   link and the mapping basis still cite revision 1 (the mapping page: "This record cites revision 1; the source now
+   has revision 2."), and both fact revisions are unchanged. DB check (read-only SELECT through the allowlisted
+   helper): every FactSource row of both fact revisions reaches source revision 1 through its link. Screenshot
+   p4b-10-newer-source-revision-not-followed.png.
+19 Case A material does not appear in Case B — PASS. Alpha shows its item, work, mapping and one fact row (the
+   current revision 2). Moving to Beta inside the app shows only Beta's same-video item, Beta's work, no mapping and
+   no fact; no Alpha text anywhere. Back and forward (Beta → Cases → Alpha) work across the lazily loaded pages.
+   Screenshot p4b-11-case-beta-shows-only-beta.png.
+20 Direct cross-case child URL → safe not-found — PASS. Alpha's reported item, work, mapping (detail and edit) and
+   fact (detail and revise) addressed under Beta's case path show "This case has no … with this id. A … is shown only
+   under the case it belongs to." with nothing of the record; the API answers 404 NOT_FOUND for Alpha's fact and
+   mapping under Beta exactly like unknown ids. Screenshot p4b-12-cross-case-address-not-found.png.
+21 Mapping copy does NOT claim infringement — PASS. The intake page, the mapping detail and the work detail were
+   searched for verdict phrases: the only hit ("infringement is proven") is inside the P4A negation "Linking does
+   not mean … that infringement is proven"; the stamps are only workflow/link states; the mapping page carries
+   "shown as recorded, not as an infringement verdict" and "similarity alone is never infringement".
+22 Work copy does NOT claim ownership — PASS. The work page says it does not establish ownership, authorship,
+   registration or any right; no owner, rights holder or "owned" wording; it lists what names it ("Use mapping,
+   occurrence 1", "Fact: Rights basis (revision 2)").
+23 Permission/AV facts do not create readiness/G1–G7 state — PASS. A PERMISSION fact (OPERATOR_REPORTED) and an
+   AV_COMPARISON fact on the mapping (ANALYSIS) recorded; the case stays workflow INTAKE with no readiness key
+   (its keys are exactly the contracted Case fields); every fact stays UNASSESSED as entered; GET readiness,
+   production-context and notice-candidates and POST g1 / readiness → 404 (not routed). Screenshot
+   p4b-13-av-comparison-fact-no-readiness.png.
+24 Stale ETag UX — PASS. The reported item's edit form was loaded at v4, the item changed from another tab (v5);
+   saving → 412, focused conflict notice "This reported item changed after you opened it… Nothing was saved.";
+   "Load latest version" loads v5 and clears the notice. A new work with an outdated case ETag → 412 as well; there
+   the notice stayed after "Load latest version" (finding F1, below). Screenshot p4b-14-stale-etag-conflict.png.
+25 Keyboard/focus — PASS. The skip link moves focus to main; the tab order runs breadcrumbs, Edit, Archive; Enter
+   on Archive opens the modal dialog with focus in Reason (the page behind is inert); Escape closes it, nothing is
+   written, focus returns to Archive. Selects are operable with ArrowDown.
+26 390px viewport — PASS. The case intake page, the mapping page and the fact form have no horizontal page scroll
+   (scrollWidth 390); the four intake tables scroll inside their own frames (overflow-x: auto). Screenshots
+   p4b-15-390-case-intake.png, p4b-16-390-mapping-detail.png, p4b-17-390-fact-form.png.
+27 Sign out → Login — PASS. "You have signed out."; the session read and an intake read answer 401; a protected
+   intake address opens Login, loading only the entry chunk and its CSS (no page module, no record).
+   Screenshot p4b-18-signed-out.png.
+
+Finding F1 (found in scenario 24; fixed in f952b73; re-verified in the browser)
+- New reported item / work / use mapping with an outdated case ETag: after "Load latest version" the case was
+  reloaded and the typed entries kept, but the conflict notice stayed (the submission's conflict flag was never
+  cleared). On the new-fact and new-revision pages the reload unmounted the form and lost what was typed.
+- Fix: the create pages clear the submission state on reload; the fact pages keep the loaded context while the
+  case reloads (the form stays mounted). Two web tests; each fails when its half of the fix is undone (negative
+  controls NC-P4B-17a/b).
+- Re-verified on the rebuilt bundle (index-CBAh7S6o.js): new work — notice gone after "Load latest version", typed
+  title kept, saved with the new case ETag ("Work recorded."); new fact — every typed field kept (type, scope,
+  target, value, provenance, scope text, change reason), notice gone, "Fact recorded." with provenance Missing and
+  resolution Unassessed as chosen.
+
+Console
+- 35 entries over the pass, all "Failed to load resource" for expected 4xx responses (the initial 401 session
+  check, the forced refusals, the cross-case 404s, the 412 conflicts, the 401s after sign-out). No script error,
+  no warning from the app.
+
+Observations (not failures)
+- The P4A "Link a source" page has the same notice-persistence pattern as F1 (a stale case ETag, then "Load latest
+  version" keeps the notice). Out of P4B's scope; recorded for a later fix.
+- MySQL's JSON type returns object keys in its own order (rawTimecodes); the values are exact and the UI reads them
+  by name.

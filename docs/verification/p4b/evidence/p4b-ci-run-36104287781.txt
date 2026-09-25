@@ -1,0 +1,162 @@
+P4B — CI evidence for the code head (GitHub Actions, workflow "CI")
+===================================================================
+Run:      36104287781 — https://github.com/TuongChris/tb-notice-production-system/actions/runs/36104287781
+Event:    push to feature/p4b-case-intake
+Head:     35cf55277a72e35acafb26a636f4d631adf594c7 (f952b73 F1 fix, 900c0ea tests, 35cf552 comment — on aa9ee2c)
+Created:  2026-09-25T06:45:05Z   Completed: 2026-09-25T06:49:20Z
+Result:   completed / success
+Jobs:
+  107973259735 Non-DB checks (cold install)            success 06:45:09Z → 06:47:22Z
+  107973259948 Database, seed and smoke (MySQL 8.4.11) success 06:45:08Z → 06:49:19Z
+Logs were read with the authenticated `gh api …/actions/jobs/<id>/logs`; key lines below (timestamps UTC).
+
+Earlier runs of this branch (all push, all success, both jobs):
+  36094782736  1d91c41  the branch created from the post-merge main head (2026-09-25T04:31:20Z–04:36:12Z)
+  36095162287  e77f809  the R8 closeout checkpoint, documentation only (04:37:01Z–04:41:17Z)
+  36097731802  e2ce11d  the API (99e6907), the CI smoke:p4b (b3a948c) and the ui:sandbox guard (e2ce11d)
+                        (05:14:32Z–05:19:10Z): smoke:p4b PASS (54 checks)
+  36099915631  aa9ee2c  the UI (64c33d4) and route-level code splitting (aa9ee2c) (05:45:41Z–05:50:46Z)
+A commit cannot record its own run: the run of the R9 submission (documentation) commit is reported with the
+R9 report.
+
+Non-DB job
+----------
+06:45:24Z [reference:check] pinned identity (REFERENCE_BASELINE.json): 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c matches
+06:45:24Z [reference:check] OK — frozen references intact.
+06:45:25Z [reference:helper-tests] frozen helper tests: pass 27, fail 0; exit 0
+06:45:25Z [reference:helper-tests] references after run: intact
+06:45:28Z [contracts:check] OK — 3 generated outputs match the active source.
+06:45:44Z Found 0 warnings and 0 errors.
+06:45:52Z All matched files use Prettier code style!
+06:47:10Z  Test Files  36 passed (36)
+06:47:10Z       Tests  1326 passed (1326)
+06:47:18Z dist/assets/index-DOsoL7EN.css                17.39 kB │ gzip:  4.47 kB
+06:47:18Z dist/assets/index-CBAh7S6o.js                319.26 kB │ gzip: 99.57 kB
+06:47:19Z [reference:check] pinned identity (REFERENCE_BASELINE.json): 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c matches
+06:47:19Z [reference:check] OK — frozen references intact.
+(no "(!) Some chunks are larger than 500 kB" advisory: the entry chunk is 319.26 kB after route-level splitting)
+
+Database job
+------------
+06:45:55Z Database schema is up to date!
+06:45:55Z [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+06:45:55Z [verify] domain rows total: 0
+06:45:55Z [verify] PASS: metadata matches the reviewed inventory.
+06:47:49Z  Test Files  9 passed (9)
+06:47:49Z       Tests  333 passed (333)
+06:47:56Z [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+06:47:56Z [verify] domain rows total: 0
+06:47:56Z [verify] PASS: metadata matches the reviewed inventory.
+06:48:01Z [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+06:48:01Z [verify] domain rows total: 0
+06:48:01Z [verify] PASS: metadata matches the reviewed inventory.
+06:48:01Z [db:seed] canonical digest 0ee26dc3ee5f3a1030fb78a6cadaf4dabef1f5a296b58163248584e1e0bfb775 (identical on every PC)
+06:48:01Z [db:seed] canonical digest 0ee26dc3ee5f3a1030fb78a6cadaf4dabef1f5a296b58163248584e1e0bfb775 (identical on every PC)
+06:48:02Z [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+06:48:02Z [verify] domain rows total: 1
+06:48:02Z [verify] PASS: metadata matches the reviewed inventory.
+06:48:06Z -- This is an empty migration.
+06:48:07Z -- This is an empty migration.
+06:48:14Z dist/assets/index-DOsoL7EN.css                17.39 kB │ gzip:  4.47 kB
+06:48:14Z dist/assets/index-CBAh7S6o.js                319.26 kB │ gzip: 99.57 kB
+06:48:15Z [smoke] PASS (41 checks)
+06:48:16Z [admin:create] guard: tb_dev@127.0.0.1:3307/tb_notice_dev (local runtime account)
+06:48:19Z [admin:create] target tb_dev@127.0.0.1:3307/tb_notice_dev (password not shown)
+06:48:19Z [admin:create] created enabled application user ec07b2c2-d00f-434b-bfeb-e6e20f93726f
+06:48:19Z [admin:create]   email:        p1-ci-admin@example.invalid
+06:48:19Z [admin:create]   display name: P1 CI synthetic admin (disposable)
+06:48:19Z [admin:create]   password:     Argon2id hash stored; the password itself was not stored or printed
+06:48:19Z [admin:create] Application login state only: no Signer, authority or business record was changed, and this confers no legal authority.
+06:48:24Z [smoke:auth] PASS (4 checks)
+06:48:25Z [smoke:directory] PASS (14 checks)
+06:48:27Z [smoke:p3a] PASS (24 checks)
+06:48:30Z [smoke:p3b] PASS (36 checks)
+06:48:32Z [smoke:p4a] PASS (50 checks)
+06:48:34Z [smoke:p4b] PASS (54 checks)
+06:48:34Z [admin:revoke-sessions] guard: tb_dev@127.0.0.1:3307/tb_notice_dev (local runtime account)
+06:48:37Z [admin:revoke-sessions] target tb_dev@127.0.0.1:3307/tb_notice_dev (password not shown)
+06:48:37Z [admin:revoke-sessions] 0 active session(s) revoked for application user ec07b2c2-d00f-434b-bfeb-e6e20f93726f (p1-ci-admin@example.invalid); session epoch 1 → 2 (every earlier session is unusable).
+06:48:37Z [admin:revoke-sessions] Application login state only: no Signer, authority or business record was changed, and this confers no legal authority.
+06:48:38Z [admin:disable] guard: tb_dev@127.0.0.1:3307/tb_notice_dev (local runtime account)
+06:48:41Z [admin:disable] target tb_dev@127.0.0.1:3307/tb_notice_dev (password not shown)
+06:48:41Z [admin:disable] disabled application user ec07b2c2-d00f-434b-bfeb-e6e20f93726f (p1-ci-admin@example.invalid); session epoch 2 → 3; 0 active session(s) revoked. The user row is kept.
+06:48:41Z [admin:disable] Application login state only: no Signer, authority or business record was changed, and this confers no legal authority.
+06:48:42Z [smoke:auth] PASS (1 checks)
+06:48:43Z [admin:disable] guard: tb_dev@127.0.0.1:3307/tb_notice_dev (local runtime account)
+06:48:45Z [admin:disable] target tb_dev@127.0.0.1:3307/tb_notice_dev (password not shown)
+06:48:46Z [admin:disable] application user ec07b2c2-d00f-434b-bfeb-e6e20f93726f (p1-ci-admin@example.invalid) is already disabled; nothing changed.
+06:48:46Z [admin:disable] Application login state only: no Signer, authority or business record was changed, and this confers no legal authority.
+06:48:46Z [admin:enable] guard: tb_dev@127.0.0.1:3307/tb_notice_dev (local runtime account)
+06:48:49Z [admin:enable] target tb_dev@127.0.0.1:3307/tb_notice_dev (password not shown)
+06:48:49Z [admin:enable] enabled application user ec07b2c2-d00f-434b-bfeb-e6e20f93726f (p1-ci-admin@example.invalid); session epoch 3 → 4 (sessions from before stay unusable); 0 active session(s) revoked.
+06:48:49Z [admin:enable] Application login state only: no Signer, authority or business record was changed, and this confers no legal authority.
+06:48:51Z [smoke:auth] PASS (4 checks)
+06:48:51Z [admin:password] guard: tb_dev@127.0.0.1:3307/tb_notice_dev (local runtime account)
+06:48:54Z [admin:password] target tb_dev@127.0.0.1:3307/tb_notice_dev (password not shown)
+06:48:54Z [admin:password] password replaced for application user ec07b2c2-d00f-434b-bfeb-e6e20f93726f (p1-ci-admin@example.invalid); session epoch 4 → 5; 0 active session(s) revoked.
+06:48:54Z [admin:password] The account stays enabled; the new password was not stored or printed.
+06:48:54Z [admin:password] Application login state only: no Signer, authority or business record was changed, and this confers no legal authority.
+06:48:55Z [smoke:auth] PASS (1 checks)
+06:48:57Z [smoke:auth] PASS (4 checks)
+06:49:01Z [db:seed] canonical digest 0ee26dc3ee5f3a1030fb78a6cadaf4dabef1f5a296b58163248584e1e0bfb775 (identical on every PC)
+06:49:17Z [verify-dev] PASS (4/4 scenarios)
+06:49:17Z [reference:check] pinned identity (REFERENCE_BASELINE.json): 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c matches
+06:49:17Z [reference:check] OK — frozen references intact.
+
+smoke:p4b (compiled API on CI's disposable tb_notice_dev; synthetic records; no external request)
+-----------------------------------------------------------------------------------------------------
+[smoke:p4b] PASS login → 200 with a session cookie and CSRF token
+[smoke:p4b] PASS POST /agencies → 201
+[smoke:p4b] PASS POST /sources (agency material) → 201
+[smoke:p4b] PASS POST /owners → 201
+[smoke:p4b] PASS POST /legal-subjects → 201
+[smoke:p4b] PASS POST /owners/{id}/subjects (link) → 201
+[smoke:p4b] PASS POST /routes → 201
+[smoke:p4b] PASS POST /cases (bound to the route) → 201
+[smoke:p4b] PASS POST /cases/{caseId}/reported-items → 201
+[smoke:p4b] PASS reported item: raw URL kept, video id derived with its case, observedAt exact
+[smoke:p4b] PASS GET /cases/{caseId} → 200
+[smoke:p4b] PASS the case context revision moved once
+[smoke:p4b] PASS GET /cases/{caseId} → 200
+[smoke:p4b] PASS POST /cases/{caseId}/works → 201
+[smoke:p4b] PASS GET /cases/{caseId} → 200
+[smoke:p4b] PASS POST /cases/{caseId}/mappings → 201
+[smoke:p4b] PASS use mapping: millisecond strings round-trip exactly (beyond 24 h and at the bound)
+[smoke:p4b] PASS GET /cases/{caseId}/mappings/{id} → 200
+[smoke:p4b] PASS GET /cases/{caseId} → 200
+[smoke:p4b] PASS POST /cases/{caseId}/sources → 201
+[smoke:p4b] PASS GET /cases/{caseId} → 200
+[smoke:p4b] PASS POST /cases/{caseId}/facts → 201
+[smoke:p4b] PASS case fact: stored exactly; MISSING stays MISSING; no ETag
+[smoke:p4b] PASS GET /cases/{caseId} → 200
+[smoke:p4b] PASS POST /cases/{caseId}/facts/{id}/revisions → 201
+[smoke:p4b] PASS fact revision 2 supersedes revision 1 in the same chain
+[smoke:p4b] PASS GET /cases/{caseId}/facts/{id} (historical revision) → 200
+[smoke:p4b] PASS the historical revision reads back unchanged
+[smoke:p4b] PASS GET /cases/{caseId}/facts → 200
+[smoke:p4b] PASS the fact list shows the current head only
+[smoke:p4b] PASS POST /sources/{id}/revisions → 201
+[smoke:p4b] PASS GET /case-sources/{id} → 200
+[smoke:p4b] PASS GET /cases/{caseId}/facts/{id} → 200
+[smoke:p4b] PASS a newer source revision re-points neither the link nor the fact
+[smoke:p4b] PASS PATCH /cases/{caseId}/reported-items/{id} → 200
+[smoke:p4b] PASS PATCH /cases/{caseId}/reported-items/{id} with a stale ETag → 412
+[smoke:p4b] PASS POST /cases/{caseId}/reported-items/{id}/archive → 200
+[smoke:p4b] PASS POST /cases/{caseId}/reported-items/{id}/restore → 200
+[smoke:p4b] PASS GET /cases/{caseId}/reported-items → 200
+[smoke:p4b] PASS GET /cases/{caseId}/works → 200
+[smoke:p4b] PASS GET /cases/{caseId}/mappings → 200
+[smoke:p4b] PASS POST /cases (a second case on the same route) → 201
+[smoke:p4b] PASS POST /cases/{caseId}/reported-items (the same video in the second case) → 201
+[smoke:p4b] PASS GET /cases/{caseId}/reported-items/{id} through another case → 404
+[smoke:p4b] PASS GET /cases/{caseId} (second case) → 200
+[smoke:p4b] PASS POST /cases/{caseId}/mappings with another case’s work → 422
+[smoke:p4b] PASS POST /cases/{caseId}/reported-items with a channel address → 422
+[smoke:p4b] PASS GET /cases/{caseId} → 200
+[smoke:p4b] PASS POST /cases/{caseId}/facts/{id}/revisions of a superseded revision → 409
+[smoke:p4b] PASS GET /cases/{caseId}/readiness (not routed) → 404
+[smoke:p4b] PASS GET /cases/{caseId}/production-context (not routed) → 404
+[smoke:p4b] PASS POST /cases/{caseId}/correspondence-bindings (not routed) → 404
+[smoke:p4b] PASS POST /cases/{caseId}/g1 (not routed) → 404
+[smoke:p4b] PASS logout → 204
+[smoke:p4b] PASS (54 checks)
