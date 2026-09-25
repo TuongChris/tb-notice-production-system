@@ -1,0 +1,194 @@
+P4C Correspondence — CI evidence (GitHub Actions, workflow "CI")
+===============================================================
+Logs were read with the authenticated `gh api repos/TuongChris/tb-notice-production-system/actions/jobs/<id>/logs`
+and the run metadata with `gh run view <id> --json …`; key lines below (timestamps UTC, ANSI codes removed). A commit
+cannot record its own run: the run of the documentation commit that adds this file is reported with the R10 report.
+
+1. The code head b9fcaf2 (mission §42 for the code; every P4C code commit is in it)
+----------------------------------------------------------------------------------
+Run:      36139089683 — https://github.com/TuongChris/tb-notice-production-system/actions/runs/36139089683
+Event:    push to feature/p4c-correspondence
+Head:     b9fcaf2924d268b4c2b2d5b726e2e576cf330afa
+Created:  2026-09-25T13:08:30Z   Completed: 2026-09-25T13:18:39Z
+Result:   completed / success
+Jobs:
+  108084212531 Database, seed and smoke (MySQL 8.4.11)  success 13:08:32Z → 13:18:39Z
+  108084212905 Non-DB checks (cold install)             success 13:08:32Z → 13:10:50Z
+Commits on the post-merge main d2b6f00: abad3ee (R9 closeout checkpoint, documentation only), fa4f98e (API, DB and
+unit tests), 9514769 (smoke:p4c), 48ceebd (ui:sandbox), 0038c56 (UI, web tests), b9fcaf2 (web test).
+
+Non-DB job
+13:08:46Z [reference:check] pinned identity (REFERENCE_BASELINE.json): 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c matches
+13:08:46Z [reference:check] OK — frozen references intact.
+13:08:47Z [reference:helper-tests] frozen helper tests: pass 27, fail 0; exit 0
+13:08:47Z [reference:helper-tests] references after run: intact
+13:08:50Z [contracts:check] OK — 3 generated outputs match the active source.
+13:09:07Z Found 0 warnings and 0 errors.
+13:09:16Z All matched files use Prettier code style!
+13:10:38Z  Test Files  39 passed (39)
+13:10:38Z       Tests  1377 passed (1377)
+13:10:46Z dist/assets/index-BRof7Lmh.css                18.09 kB │ gzip:   4.58 kB
+13:10:46Z dist/assets/correspondence-ui-DM3LAw7B.js      4.17 kB │ gzip:   1.83 kB
+13:10:46Z dist/assets/case-correspondence-DVsemc2a.js   17.22 kB │ gzip:   5.50 kB
+13:10:46Z dist/assets/correspondence-CbKIQzeh.js        18.83 kB │ gzip:   5.76 kB
+13:10:46Z dist/assets/index-Cbv12950.js                323.25 kB │ gzip: 100.69 kB
+13:10:47Z [reference:check] pinned identity (REFERENCE_BASELINE.json): 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c matches
+13:10:47Z [reference:check] OK — frozen references intact.
+(no "(!) Some chunks are larger than 500 kB" advisory)
+
+Database job
+13:10:13Z Database schema is up to date!
+13:10:14Z [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+13:10:14Z [verify] domain rows total: 0
+13:10:14Z [verify] PASS: metadata matches the reviewed inventory.
+13:16:06Z  Test Files  10 passed (10)
+13:16:06Z       Tests  380 passed (380)
+13:16:36Z No pending migrations to apply.
+13:16:36Z [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+13:16:36Z [verify] domain rows total: 0
+13:16:36Z [verify] PASS: metadata matches the reviewed inventory.
+13:16:57Z [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+13:16:57Z [verify] domain rows total: 0
+13:16:57Z [verify] PASS: metadata matches the reviewed inventory.
+13:16:58Z [db:seed] canonical digest 0ee26dc3ee5f3a1030fb78a6cadaf4dabef1f5a296b58163248584e1e0bfb775 (identical on every PC)
+13:16:58Z [db:seed] canonical digest 0ee26dc3ee5f3a1030fb78a6cadaf4dabef1f5a296b58163248584e1e0bfb775 (identical on every PC)
+13:16:58Z [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+13:16:58Z [verify] domain rows total: 1
+13:16:58Z [verify] PASS: metadata matches the reviewed inventory.
+13:17:20Z -- This is an empty migration.
+13:17:21Z -- This is an empty migration.
+13:17:28Z dist/assets/index-BRof7Lmh.css                18.09 kB │ gzip:   4.58 kB
+13:17:28Z dist/assets/correspondence-ui-DM3LAw7B.js      4.17 kB │ gzip:   1.83 kB
+13:17:28Z dist/assets/case-correspondence-DVsemc2a.js   17.22 kB │ gzip:   5.50 kB
+13:17:28Z dist/assets/correspondence-CbKIQzeh.js        18.83 kB │ gzip:   5.76 kB
+13:17:28Z dist/assets/index-Cbv12950.js                323.25 kB │ gzip: 100.69 kB
+13:17:29Z [smoke] PASS (46 checks)
+13:17:33Z [admin:create] created enabled application user 6f834628-6a0f-4b3c-b029-fef9a92eeb38
+13:17:38Z [smoke:auth] PASS (4 checks)
+13:17:40Z [smoke:directory] PASS (14 checks)
+13:17:43Z [smoke:p3a] PASS (24 checks)
+13:17:45Z [smoke:p3b] PASS (36 checks)
+13:17:49Z [smoke:p4a] PASS (50 checks)
+13:17:52Z [smoke:p4b] PASS (64 checks)
+13:17:55Z [smoke:p4c] PASS (62 checks)
+13:17:58Z [admin:revoke-sessions] 0 active session(s) revoked for application user 6f834628-6a0f-4b3c-b029-fef9a92eeb38 (p1-ci-admin@example.invalid); session epoch 1 → 2 (every earlier session is unusable).
+13:18:01Z [admin:disable] disabled application user 6f834628-6a0f-4b3c-b029-fef9a92eeb38 (p1-ci-admin@example.invalid); session epoch 2 → 3; 0 active session(s) revoked. The user row is kept.
+13:18:02Z [smoke:auth] PASS (1 checks)
+13:18:08Z [admin:enable] enabled application user 6f834628-6a0f-4b3c-b029-fef9a92eeb38 (p1-ci-admin@example.invalid); session epoch 3 → 4 (sessions from before stay unusable); 0 active session(s) revoked.
+13:18:10Z [smoke:auth] PASS (4 checks)
+13:18:13Z [admin:password] password replaced for application user 6f834628-6a0f-4b3c-b029-fef9a92eeb38 (p1-ci-admin@example.invalid); session epoch 4 → 5; 0 active session(s) revoked.
+13:18:14Z [smoke:auth] PASS (1 checks)
+13:18:16Z [smoke:auth] PASS (4 checks)
+13:18:20Z [db:seed] canonical digest 0ee26dc3ee5f3a1030fb78a6cadaf4dabef1f5a296b58163248584e1e0bfb775 (identical on every PC)
+13:18:36Z [verify-dev] PASS (4/4 scenarios)
+13:18:36Z [reference:check] pinned identity (REFERENCE_BASELINE.json): 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c matches
+13:18:36Z [reference:check] OK — frozen references intact.
+
+smoke:p4c on b9fcaf2 (compiled API on CI's disposable tb_notice_dev; synthetic example.invalid records; nothing sent,
+no mailbox, no external request)
+------------------------------------------------------------------------------------------------------------------
+[smoke:p4c] PASS login → 200 with a session cookie and CSRF token
+[smoke:p4c] PASS POST /agencies (A) → 201
+[smoke:p4c] PASS POST /sources (A raw message file) → 201
+[smoke:p4c] PASS POST /agencies (B) → 201
+[smoke:p4c] PASS POST /cases (A) → 201
+[smoke:p4c] PASS GET /cases/{caseId} → 200
+[smoke:p4c] PASS POST /cases/{caseId}/reported-items → 201
+[smoke:p4c] PASS GET /cases/{caseId} → 200
+[smoke:p4c] PASS POST /cases/{caseId}/reported-items → 201
+[smoke:p4c] PASS POST /cases (another case of A) → 201
+[smoke:p4c] PASS GET /cases/{caseId} → 200
+[smoke:p4c] PASS POST /cases/{caseId}/reported-items → 201
+[smoke:p4c] PASS GET /cases/{caseId} → 200
+[smoke:p4c] PASS POST /correspondence (inbound NMI, copied full text) → 201
+[smoke:p4c] PASS inbound capture: exact text, body hash of the recorded text, raw header date not parsed
+[smoke:p4c] PASS POST /correspondence (outbound historical transmission, raw source) → 201
+[smoke:p4c] PASS POST /correspondence (inbound decision on two videos) → 201
+[smoke:p4c] PASS POST /correspondence (agency B) → 201
+[smoke:p4c] PASS POST /correspondence (RAW_SOURCE without a raw source) → 422
+[smoke:p4c] PASS GET /cases/{caseId}/correspondence-bindings (after capture) → 200
+[smoke:p4c] PASS GET /cases/{caseId} → 200
+[smoke:p4c] PASS capture created no binding and changed no case
+[smoke:p4c] PASS GET /cases/{caseId} → 200
+[smoke:p4c] PASS POST /cases/{caseId}/correspondence-bindings (NMI) → 201
+[smoke:p4c] PASS GET /cases/{caseId} → 200
+[smoke:p4c] PASS NMI bound explicitly; the case context revision moved once
+[smoke:p4c] PASS GET /cases/{caseId} → 200
+[smoke:p4c] PASS POST /cases/{caseId}/correspondence-bindings (INITIAL_AS_SENT, explicit) → 201
+[smoke:p4c] PASS GET /cases/{caseId} → 200
+[smoke:p4c] PASS POST /cases/{caseId}/correspondence-bindings (INITIAL_AS_SENT, explicit) → 201
+[smoke:p4c] PASS one outbound message bound explicitly as INITIAL_AS_SENT to two items
+[smoke:p4c] PASS GET /cases/{caseId} → 200
+[smoke:p4c] PASS POST /cases/{caseId}/correspondence-bindings (OUTCOME A) → 201
+[smoke:p4c] PASS GET /cases/{caseId} → 200
+[smoke:p4c] PASS POST /cases/{caseId}/correspondence-bindings (OUTCOME B) → 201
+[smoke:p4c] PASS mixed outcomes recorded per item (A REMOVED, B REJECTED)
+[smoke:p4c] PASS GET /cases/{caseId} → 200
+[smoke:p4c] PASS POST /cases/{caseId}/correspondence-bindings (correction supersedes the NMI binding) → 201
+[smoke:p4c] PASS GET /cases/{caseId} → 200
+[smoke:p4c] PASS POST /cases/{caseId}/correspondence-bindings (second correction of one binding) → 409
+[smoke:p4c] PASS GET /cases/{caseId}/correspondence-bindings (history) → 200
+[smoke:p4c] PASS history kept: 6 bindings, the superseded one unchanged; one message, two bindings
+[smoke:p4c] PASS GET /correspondence/{id} → 200
+[smoke:p4c] PASS GET /correspondence?agencyId (agency A) → 200
+[smoke:p4c] PASS three captures for agency A, no body in the list; bindings did not multiply messages
+[smoke:p4c] PASS GET /cases/{caseId} → 200
+[smoke:p4c] PASS POST /cases/{caseId}/correspondence-bindings (OUTCOME without a reported item) → 422
+[smoke:p4c] PASS GET /cases/{caseId} → 200
+[smoke:p4c] PASS POST /cases/{caseId}/correspondence-bindings (agency B's message in A's case) → 422
+[smoke:p4c] PASS GET /cases/{caseId} → 200
+[smoke:p4c] PASS POST /cases/{caseId}/correspondence-bindings (another case's reported item) → 422
+[smoke:p4c] PASS POST /cases/{caseId}/correspondence-bindings (stale case ETag) → 412
+[smoke:p4c] PASS GET /cases/{caseId} → 200
+[smoke:p4c] PASS refusals wrote nothing: the case moved only with the five recorded bindings
+[smoke:p4c] PASS POST /correspondence/{id}/send (not routed) → 404
+[smoke:p4c] PASS POST /correspondence/{id}/reply (not routed) → 404
+[smoke:p4c] PASS PATCH /correspondence/{id} (not routed) → 404
+[smoke:p4c] PASS DELETE /correspondence/{id} (not routed) → 404
+[smoke:p4c] PASS GET /cases/{caseId}/readiness (not routed) → 404
+[smoke:p4c] PASS GET /cases/{caseId}/production-context (not routed) → 404
+[smoke:p4c] PASS POST /cases/{caseId}/prompts (not routed) → 404
+[smoke:p4c] PASS logout → 204
+[smoke:p4c] PASS (62 checks)
+
+2. Earlier runs of this branch (all success, both jobs)
+------------------------------------------------------
+Run:      36129072727 — https://github.com/TuongChris/tb-notice-production-system/actions/runs/36129072727
+Event:    push to feature/p4c-correspondence
+Head:     d2b6f0030f9b7e53b612eaf1fa6dffffb98e4395
+Created:  2026-09-25T11:22:58Z   Completed: 2026-09-25T11:28:13Z
+Result:   completed / success
+Jobs:
+  108051882357 Non-DB checks (cold install)             success 11:23:01Z → 11:25:21Z
+  108051882556 Database, seed and smoke (MySQL 8.4.11)  success 11:23:00Z → 11:28:12Z
+The branch at creation = the post-merge main d2b6f00 (P4B_CASE_INTAKE.md §26).
+
+Run:      36129721720 — https://github.com/TuongChris/tb-notice-production-system/actions/runs/36129721720
+Event:    push to feature/p4c-correspondence
+Head:     abad3eea6964f13a3af061ddd15b40673da79b90
+Created:  2026-09-25T11:30:05Z   Completed: 2026-09-25T11:35:21Z
+Result:   completed / success
+Jobs:
+  108053950047 Database, seed and smoke (MySQL 8.4.11)  success 11:30:08Z → 11:35:20Z
+  108053950394 Non-DB checks (cold install)             success 11:30:08Z → 11:32:22Z
+The R9 closeout checkpoint abad3ee (documentation only; the run the P4B record says is reported here).
+
+Run:      36133062817 — https://github.com/TuongChris/tb-notice-production-system/actions/runs/36133062817
+Event:    push to feature/p4c-correspondence
+Head:     48ceebd06bf4e68d81a19a9ba8059afc1e967f8e
+Created:  2026-09-25T12:06:32Z   Completed: 2026-09-25T12:12:02Z
+Result:   completed / success
+Jobs:
+  108064573508 Database, seed and smoke (MySQL 8.4.11)  success 12:06:35Z → 12:12:01Z
+  108064573754 Non-DB checks (cold install)             success 12:06:35Z → 12:08:53Z
+The API (fa4f98e), the compiled smoke:p4c (9514769, first run: 62 checks) and the ui:sandbox guards (48ceebd), pushed together.
+
+Run:      36135445880 — https://github.com/TuongChris/tb-notice-production-system/actions/runs/36135445880
+Event:    push to feature/p4c-correspondence
+Head:     0038c560250d8773c212db25184f2fe5f1479f8e
+Created:  2026-09-25T12:31:50Z   Completed: 2026-09-25T12:44:17Z
+Result:   completed / success
+Jobs:
+  108072296715 Non-DB checks (cold install)             success 12:31:53Z → 12:34:12Z
+  108072296719 Database, seed and smoke (MySQL 8.4.11)  success 12:31:53Z → 12:44:16Z
+The UI (0038c56); the browser pass (evidence/p4c-playwright-mcp-verification.txt) used the same bundle names.
