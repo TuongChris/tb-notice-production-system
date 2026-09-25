@@ -195,18 +195,25 @@ export const apiErrors = {
       'DOCUMENT_REVIEWED is only recorded with the reviewer who reviewed the document.',
       { field },
     ),
-  revisionNotHead: (headId: string | null) =>
+  revisionNotHead: (headId: string | null, subject: 'source' | 'fact' = 'source') =>
     new ApiError(
       409,
       'REVISION_NOT_HEAD',
-      'Only the current revision of a source can be revised.',
+      {
+        source: 'Only the current revision of a source can be revised.',
+        fact: 'Only the current revision of a case fact can be revised.',
+      }[subject],
       headId === null ? {} : { headId },
     ),
-  revisionScopeChange: (fields: readonly string[]) =>
+  revisionScopeChange: (fields: readonly string[], subject: 'source' | 'fact' = 'source') =>
     new ApiError(
       422,
       'REVISION_SCOPE_CHANGE',
-      "A revision keeps the source's agency and scope; a different scope needs a new source.",
+      {
+        source:
+          "A revision keeps the source's agency and scope; a different scope needs a new source.",
+        fact: "A revision keeps the fact's type and scope; a different type or scope needs a new fact.",
+      }[subject],
       { fields },
     ),
   sourceNotCurrent: (field: string, currentSourceId: string) =>
@@ -327,11 +334,14 @@ export const apiErrors = {
 
   // Case core and case authority selection (P4A). CROSS_CASE_REFERENCE is a frozen stable code
   // (API_CONTRACT_v1 §5); DUPLICATE_CASE_SOURCE is an operation-specific code (R6 interpretation 10).
-  crossCaseReference: (field: string) =>
+  crossCaseReference: (field: string, subject: 'source' | 'record' = 'source') =>
     new ApiError(
       422,
       'CROSS_CASE_REFERENCE',
-      'The referenced source is scoped to another case, so it cannot support this case.',
+      {
+        source: 'The referenced source is scoped to another case, so it cannot support this case.',
+        record: 'The referenced record belongs to another case.',
+      }[subject],
       { field },
     ),
   duplicateCaseSource: (caseSourceId: string | null) =>
@@ -340,5 +350,41 @@ export const apiErrors = {
       'DUPLICATE_CASE_SOURCE',
       'This source is already linked to this case in this role. Change the existing link instead.',
       caseSourceId === null ? {} : { caseSourceId },
+    ),
+
+  // Case intake material (P4B): operation-specific codes in the free-string `code` field with the
+  // contracted statuses (R6 interpretation 10); CROSS_CASE_REFERENCE and REVISION_NOT_HEAD above
+  // are reused.
+  reportedUrlUnsupported: (field: string, reason: string) =>
+    new ApiError(
+      422,
+      'REPORTED_URL_UNSUPPORTED',
+      'Only a YouTube video address (youtube.com/watch?v=…, youtu.be/…, youtube.com/shorts/… or youtube.com/live/…) can be recorded as a reported item. Nothing was fetched.',
+      { field, reason },
+    ),
+  duplicateReportedItem: (reportedItemId: string | null) =>
+    new ApiError(
+      409,
+      'DUPLICATE_REPORTED_ITEM',
+      'This case already has a reported item for this video. Use the existing reported item.',
+      reportedItemId === null ? {} : { reportedItemId },
+    ),
+  duplicateUseMapping: (useMappingId: string | null) =>
+    new ApiError(
+      409,
+      'DUPLICATE_USE_MAPPING',
+      'This work, reported item and occurrence are already mapped. Use the existing mapping or another occurrence number.',
+      useMappingId === null ? {} : { useMappingId },
+    ),
+  timeRangeInvalid: (fields: readonly string[]) =>
+    new ApiError(422, 'TIME_RANGE_INVALID', 'A known end time must be after its start time.', {
+      fields,
+    }),
+  factScopeInvalid: (field: string, scopeKind: string, reason: string) =>
+    new ApiError(
+      422,
+      'FACT_SCOPE_INVALID',
+      'A fact names exactly the record of its scope: none for CASE, the work for WORK, the reported item for REPORTED_ITEM, the mapping for USE.',
+      { field, scopeKind, reason },
     ),
 } as const;

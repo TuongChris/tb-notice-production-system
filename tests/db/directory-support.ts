@@ -3,7 +3,8 @@
 // guard with a real synthetic session, CSRF token and allowlisted Origin. All data is synthetic,
 // the suite refuses to start unless the tables it touches are empty, and every test deletes what it
 // created (foreign-key order; the agencies ⇄ source_references, routes ⇄ mandate_coverages and
-// cases ⇄ case_authority_selections cycles and the self-references are broken first).
+// cases ⇄ case_authority_selections cycles and the self-references — case_facts' supersedes chain
+// included — are broken first).
 import { randomUUID } from 'node:crypto';
 import { expect } from 'vitest';
 import type { PrismaClient } from '../../apps/api/generated/prisma/client.js';
@@ -23,6 +24,12 @@ import {
 export const DIRECTORY_SUITE_TABLES = [
   'idempotency_records',
   'audit_events',
+  // P4B case intake material (children before parents).
+  'fact_sources',
+  'case_facts',
+  'use_mappings',
+  'case_works',
+  'reported_items',
   // P4A case records (children before the case).
   'case_authority_coverages',
   'case_authority_selections',
@@ -76,6 +83,7 @@ export async function cleanSuiteTables(prisma: PrismaClient): Promise<void> {
   await prisma.$executeRawUnsafe('UPDATE `mandates` SET `canonical_source_id` = NULL');
   await prisma.$executeRawUnsafe('UPDATE `owner_subjects` SET `source_id` = NULL');
   await prisma.$executeRawUnsafe('UPDATE `source_references` SET `supersedes_source_id` = NULL');
+  await prisma.$executeRawUnsafe('UPDATE `case_facts` SET `supersedes_fact_id` = NULL');
   for (const table of DIRECTORY_SUITE_TABLES) {
     await prisma.$executeRawUnsafe(`DELETE FROM \`${table}\``);
   }

@@ -13,10 +13,10 @@
 //     without a session → 401, proxied session check → 401 without CORS headers. Every response is
 //     a valid contract OperationError with Cache-Control: no-store.
 //  6. Business boundary of the compiled API, read-only: every directory (P2), source and route
-//     (P3A), representation-authority (P3B) and case (P4A) collection is routed and
-//     session-protected (no cookie → 401, also through the web proxy), unsafe writes without
+//     (P3A), representation-authority (P3B), case (P4A) and case intake (P4B) collection is routed
+//     and session-protected (no cookie → 401, also through the web proxy), unsafe writes without
 //     Origin → 403 before any handler, canonical bindings and freezes are session-protected, and
-//     later case phases (reported items onward) are not routed (404).
+//     later case phases (correspondence onward) are not routed (404).
 //  7. Terminate both processes (SIGTERM, bounded wait, SIGKILL fallback) and verify ports 3000 and
 //     5173 are released. Any failure exits non-zero.
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
@@ -424,10 +424,39 @@ async function checkBusinessBoundary(): Promise<void> {
       401,
       'SESSION_REQUIRED',
     ],
-    // Reported items and every later case record are later phases: not routed at all.
+    // P4B: the case intake material is behind the same guard (session, Origin).
     [
-      'POST /cases/{caseId}/reported-items (later phase, not routed)',
+      'GET /cases/{caseId}/reported-items without a session',
       `${api}/cases/${id}/reported-items`,
+      {},
+      401,
+      'SESSION_REQUIRED',
+    ],
+    [
+      'POST /cases/{caseId}/works without Origin',
+      `${api}/cases/${id}/works`,
+      { method: 'POST', headers: json, body: '{}' },
+      403,
+      'ORIGIN_REJECTED',
+    ],
+    [
+      'GET /cases/{caseId}/mappings/{id} without a session',
+      `${api}/cases/${id}/mappings/${id}`,
+      {},
+      401,
+      'SESSION_REQUIRED',
+    ],
+    [
+      'POST /cases/{caseId}/facts/{id}/revisions without Origin',
+      `${api}/cases/${id}/facts/${id}/revisions`,
+      { method: 'POST', headers: json, body: '{}' },
+      403,
+      'ORIGIN_REJECTED',
+    ],
+    // Correspondence and every later case record are later phases: not routed at all.
+    [
+      'POST /cases/{caseId}/correspondence-bindings (later phase, not routed)',
+      `${api}/cases/${id}/correspondence-bindings`,
       { method: 'POST', headers: { ...json, Origin: origin }, body: '{}' },
       404,
       'NOT_FOUND',

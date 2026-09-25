@@ -3614,14 +3614,9 @@ describe('SECURITY / CONTRACT', () => {
   it('later case phases, readiness, signing and sending stay unrouted', async () => {
     const { case: created } = await caseWorld();
     const id = created.data.id;
+    // The case intake material (reported items, works, mappings, facts) is routed since P4B
+    // (tests/db/p4b-http.test.ts); correspondence and everything after it are not.
     const paths: Array<['GET' | 'POST' | 'PATCH' | 'DELETE', string]> = [
-      ['GET', `/cases/${id}/reported-items`],
-      ['POST', `/cases/${id}/reported-items`],
-      ['GET', `/cases/${id}/works`],
-      ['POST', `/cases/${id}/works`],
-      ['GET', `/cases/${id}/mappings`],
-      ['POST', `/cases/${id}/facts`],
-      ['GET', `/cases/${id}/facts`],
       ['POST', `/cases/${id}/correspondence-bindings`],
       ['GET', `/cases/${id}/production-context`],
       ['POST', `/cases/${id}/prompts`],
