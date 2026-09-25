@@ -4,20 +4,22 @@ Mission TB_R9_POST_MERGE_CLOSEOUT_AND_P4C_CORRESPONDENCE_TO_R10 on `feature/p4c-
 
 **R10 result (operator, 2026-09-25): PASS.** P4C = **VERIFIED_COMPLETE**; the active wire contract stays **TB-SCHEMA-API-v1.2.0**. P4C is authorized for merge to `main` by a normal merge commit (mission TB_R10_CLOSEOUT_MERGE_AND_P4D_PRODUCTION_CONTEXT_TO_R11; §29). P4D is **NOT_STARTED** at this record.
 
+**Merged (2026-09-25):** `P4C = MERGED_TO_MAIN` — pull request #6, merge commit `ed5b3d7` (parents `d2b6f00` and the closeout head `edebb80`); `main` push CI run 36153127772 success (§30).
+
 ## Status by scope (not collapsed)
 
 | Scope | Status | Basis |
 |---|---|---|
 | **R9_CLOSEOUT** | **RECORDED** — R9 final = PASS, P4B = VERIFIED_COMPLETE, ADR-0005 = ACCEPTED, TB-SCHEMA-API-v1.2.0 active; pull request #5 and `main` reconciled with `git` and authenticated `gh`; checkpoint `abad3ee` (documentation only, before any P4C code; push run 36129721720 success) | §2; `P4B_CASE_INTAKE.md` §26 |
 | **P4C_FIRST_PC** | **PASS** — `yarn test` 1377 in 39 files, `yarn test:db` 380 in 10 files; regression sweep 21/21 on the code head `b9fcaf2` | §21, `evidence/p4c-first-pc-sweep.txt`; lint **0 warnings** |
-| **P4C_CI** | **PASS** for the branch at creation `d2b6f00` (push run 36129072727), the R9 closeout checkpoint `abad3ee` (push run 36129721720), the API with the new compiled `smoke:p4c` `48ceebd` (push run 36133062817; `smoke:p4c` 62 checks), the UI `0038c56` (push run 36135445880), the code head `b9fcaf2` (push run 36139089683), the R10 submission head `1b2e27b` (push run 36140515842) and the accepted head `d6cd152` (push run 36141175731), all success, both jobs. A commit cannot record its own run: the run of the closeout head is reported with the merge | §21, §29, `evidence/p4c-ci-run-36139089683.txt`; CI runs `yarn test`, `yarn test:db`, `smoke:local`, `smoke:auth`, `smoke:directory`, `smoke:p3a`, `smoke:p3b`, `smoke:p4a`, `smoke:p4b` and the new `smoke:p4c` |
+| **P4C_CI** | **PASS** for the branch at creation `d2b6f00` (push run 36129072727), the R9 closeout checkpoint `abad3ee` (push run 36129721720), the API with the new compiled `smoke:p4c` `48ceebd` (push run 36133062817; `smoke:p4c` 62 checks), the UI `0038c56` (push run 36135445880), the code head `b9fcaf2` (push run 36139089683), the R10 submission head `1b2e27b` (push run 36140515842), the accepted head `d6cd152` (push run 36141175731), the R10 closeout head `edebb80` (push run 36151228476; pull_request run 36152011037) and the post-merge `main` `ed5b3d7` (push run 36153127772), all success, both jobs | §21, §29, §30, `evidence/p4c-ci-run-36139089683.txt`; CI runs `yarn test`, `yarn test:db`, `smoke:local`, `smoke:auth`, `smoke:directory`, `smoke:p3a`, `smoke:p3b`, `smoke:p4a`, `smoke:p4b` and the new `smoke:p4c` |
 | **P4C_BROWSER (Playwright MCP)** | **PASS** 29/29 (every item of mission §31); no finding | §19, `evidence/p4c-playwright-mcp-verification.txt` |
 | **P4C_NEGATIVE_CONTROLS** | **PASS** 38/38 in the final run — all 21 control kinds of mission §36 plus one extra (run 1: 36/37, one defect of a control, not of a protection; §20) | Every disabled protection made its responsible tests fail; files restored byte-identically; working tree identical before and after; `tb_notice_test` empty afterwards (`evidence/p4c-negative-controls.txt`) |
 | **P4C_CONTRACT** | **NO WIRE CHANGE** — TB-SCHEMA-API-v1.2.0 stays the active contract; no release record, generated artefact or frozen reference changed; no contract gap found | §24; `contracts:check` OK |
 | **P4C_DATABASE** | **NO MIGRATION** — both tables and all their keys exist in the initial schema | §23; `db:verify`, both drift diffs |
 | **R10 review** | **PASS** (operator, 2026-09-25) | §29 |
 | **P4C_STATUS** | **VERIFIED_COMPLETE** (the five contracted correspondence operations) | §3–§22, §29 |
-| **P4C_MERGE** | **NOT_MERGED at this record — AUTHORIZED_FOR_MERGE** (pull request `feature/p4c-correspondence` → `main`, normal merge commit, after the closeout head's CI is green) | §29 |
+| **P4C_MERGE** | **MERGED_TO_MAIN** — pull request #6, merge commit `ed5b3d7` (method: merge commit), merged 2026-09-25T15:17:05Z; `main` push CI run 36153127772 success | §30 |
 | **P1_WINDOWS_BROWSER** | **NOT_RUN** (not reported) | Unchanged |
 | **P0_SECOND_PC** / **P0_TWO_PC_ACCEPTANCE** / **P0_SINGLE_PC_BASELINE** / **P0_OVERALL** | **DEFERRED_BY_OPERATOR** / **NOT_COMPLETED** / **VERIFIED** / **NOT_COMPLETE** against the original two-PC contract | ADR-0003; unchanged by P4C |
 
@@ -560,3 +562,34 @@ Pre-flight on `d6cd152`, after `git fetch origin`:
 - `reference:check` and `contracts:check` OK.
 
 This commit changes documentation only: this report, `CURRENT_STATE.md` and `CLAUDE.md`. P4C made no contract decision, so no ADR or release README changes. Both `amendment.json` records, `docs/reference/**`, code, tests, migrations and the lockfile are untouched.
+
+## 30. R10 closeout — merge reconciliation (2026-09-25, home PC)
+
+Mission TB_R10_CLOSEOUT_MERGE_AND_P4D_PRODUCTION_CONTEXT_TO_R11, recorded on `feature/p4d-production-context` after the merge. `P4C = MERGED_TO_MAIN`. Sections 1–29 keep the state at their time (for example "not merged at this record" in §29).
+
+### 30.1 Merge reconciliation (verified with `git` and authenticated `gh`, not assumed)
+
+| Item | Observed value |
+|---|---|
+| `P4C_ACCEPTED_CODE_HEAD` | `d6cd152e27a6ecb51c1038ebddcfe3af2ac1139e` (as named by the operator) |
+| `P4C_R10_CLOSEOUT_HEAD` | `edebb80182156abeb597ea7a81c976687cc81944` — the R10 record (§29), documentation only; push run [36151228476](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36151228476) (2026-09-25T15:00:01Z–15:05:48Z) success: "Non-DB checks (cold install)" (job 108124720871) and "Database, seed and smoke (MySQL 8.4.11)" (job 108124721299) — `reference:check` and `contracts:check` OK, lint "Found 0 warnings and 0 errors.", `yarn test` 1377 / 39 files, `yarn test:db` 380 / 10 files, both drift diffs empty, `smoke:local` 46, `smoke:auth` 4, `smoke:directory` 14, `smoke:p3a` 24, `smoke:p3b` 36, `smoke:p4a` 50, `smoke:p4b` 64, `smoke:p4c` 62 |
+| Pull request | [#6](https://github.com/TuongChris/tb-notice-production-system/pull/6) `feature/p4c-correspondence` → `main`, "P4C: Correspondence capture and case bindings — R10", opened 2026-09-25T15:06:57Z. `headRefOid` = `edebb80` (9 commits); `main` unchanged at `d2b6f00` since the branch was created. pull_request run [36152011037](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36152011037) (15:07:01Z–15:12:48Z) success, both jobs (108127330975, 108127331260). All four check runs on `edebb80` completed with success; merge state CLEAN. `main` has no branch protection and no rulesets |
+| `P4C_MERGE_METHOD` | **merge commit** — `gh pr merge 6 --merge --match-head-commit edebb80…`. Not squash, not rebase, no `--admin`, branch not deleted. `ed5b3d7` has two parents, `d2b6f00` (previous `main`) and `edebb80`. Message "Merge pull request #6 from TuongChris/feature/p4c-correspondence", committed by GitHub, merged 2026-09-25T15:17:05Z by the repository owner's authenticated account |
+| `P4C_MERGED_MAIN_HEAD` | `ed5b3d743c8c64dc1c54b38e2e13bd9aa80d5921` |
+| Ancestry / content | `git merge-base --is-ancestor edebb80 origin/main` → exit 0. The previous `main` `d2b6f00` is an ancestor of `edebb80` (the branch started there), so the merge introduced nothing else: the trees of `ed5b3d7` and `edebb80` are identical (`7b26e6febfd43a92eba10b8b7ca145e07027ce01`; `git diff edebb80 ed5b3d7` empty), and `git log edebb80..origin/main` lists only the merge commit |
+| `MAIN_POST_P4C_CI` | **PASS** — push run [36153127772](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36153127772) on `ed5b3d7`, 2026-09-25T15:17:08Z–15:22:43Z: "Non-DB checks (cold install)" (job 108131078809) and "Database, seed and smoke (MySQL 8.4.11)" (job 108131079013) both success. Results: `reference:check` and `contracts:check` OK; lint "Found 0 warnings and 0 errors."; `yarn test` 1377 / 39 files; `yarn test:db` 380 / 10 files; `db:verify` PASS; seed digest `0ee26dc3…b775` unchanged; both drift diffs empty; build entry 323.25 kB with no bundle advisory; smokes `smoke:local` 46, `smoke:auth` 4, `smoke:directory` 14, `smoke:p3a` 24, `smoke:p3b` 36, `smoke:p4a` 50, `smoke:p4b` 64, `smoke:p4c` 62; the P1.1 recovery checks |
+
+### 30.2 History preserved
+
+Nothing was amended, rebased, rewritten or force-pushed, and no tag or release was created. `feature/p4c-correspondence` stays at `edebb80` (local and origin); every earlier phase branch is unchanged. The local `main` was fast-forwarded to `origin/main`; no commit was made on it.
+
+### 30.3 Status
+
+| Scope | Status |
+|---|---|
+| R10 review | **PASS** (operator, 2026-09-25) |
+| P4C_STATUS | **VERIFIED_COMPLETE** |
+| P4C_MERGE | **MERGED_TO_MAIN** — PR #6, merge commit `ed5b3d7` (method: merge commit), merged 2026-09-25T15:17:05Z; `main` push CI run 36153127772 success |
+| Active contract | **TB-SCHEMA-API-v1.2.0** (ADR-0004 and ADR-0005 ACCEPTED; frozen historical reference TB-SCHEMA-API-v1.0.0; PFC wire id `PFC-YT-EMAIL-v1.1`) |
+| Database / dependencies | **No change** — `20260923103912_initial_schema` is still the only migration; lockfile unchanged |
+| P4D | Branch `feature/p4d-production-context` created from the exact `origin/main` `ed5b3d7` (not from `feature/p4c-correspondence`) and pushed with upstream. At creation local and origin pointed at `ed5b3d7`, the worktree was clean, and `reference:check` and `contracts:check` passed. **P4D implementation = NOT_STARTED** at this checkpoint; `docs/verification/p4d/` will record it when written |
