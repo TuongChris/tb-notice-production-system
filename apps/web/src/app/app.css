@@ -1322,6 +1322,23 @@ code.hash {
   margin-top: 0.2rem;
 }
 
+/* A selection read back (R8): the coverage rows it pinned, one ruled entry each with its own
+   application scope — a record list, not a timeline (it has no "when" column). */
+.pinned-coverage {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.pinned-coverage > li {
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--rule);
+}
+
+.pinned-coverage > li:first-child {
+  border-top: 0;
+}
+
 @media (max-width: 48rem) {
   .shell-body {
     grid-template-columns: 1fr;

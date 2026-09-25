@@ -776,6 +776,13 @@ describe('P4A cases UI', () => {
     const shown = all('[data-testid="pinned-scope"]').map((element) => element.textContent);
     expect(shown).toEqual([...scopes.keys()].sort().map((id) => scopes.get(id)));
     expect(detail()).not.toContain('SYNTHETIC coverage of another signer');
+    // F4 (R8 browser pass): the pinned rows are a record list. A timeline entry is a two-column
+    // grid (when | body); an entry without its "when" column squeezed its body into the narrow
+    // first column at desktop widths, one character per line.
+    expect(q('[data-testid="pinned-coverages"]')?.classList.contains('timeline')).toBe(false);
+    for (const item of all('.timeline-item')) {
+      expect(item.querySelector(':scope > .timeline-when')).not.toBeNull();
+    }
     for (const stamp of stampTexts()) expect(stamp).not.toMatch(FORBIDDEN_STAMPS);
     expect(detail()).not.toMatch(
       /\b(authorized|approved|g1 pass|eligible|ready to sign|archived)\b/i,

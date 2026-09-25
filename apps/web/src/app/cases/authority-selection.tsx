@@ -283,7 +283,7 @@ function SelectionDetail({ caseId, selectionId }: { caseId: string; selectionId:
           entered; nothing is combined. A newer version, coverage or preferred coverage never
           replaces what was pinned.
         </p>
-        <ol className="timeline" aria-label="Pinned coverage" data-testid="pinned-coverages">
+        <ol className="pinned-coverage" aria-label="Pinned coverage" data-testid="pinned-coverages">
           {coverages.map((row) => (
             <PinnedCoverageItem key={row.id} row={row} />
           ))}
@@ -298,21 +298,19 @@ function SelectionDetail({ caseId, selectionId }: { caseId: string; selectionId:
 
 function PinnedCoverageItem({ row }: { row: CaseAuthorityCoverage }) {
   return (
-    <li className="timeline-item" data-testid="pinned-coverage">
-      <div className="timeline-body">
-        <Details
-          rows={[
-            ['Coverage', <RecordName kind="coverage" id={row.coverageId} />],
-            ['Coverage id', <code data-testid="pinned-coverage-id">{row.coverageId}</code>],
-            [
-              'Application scope for this case',
-              <p className="prose" data-testid="pinned-scope">
-                {row.applicationScope}
-              </p>,
-            ],
-          ]}
-        />
-      </div>
+    <li data-testid="pinned-coverage">
+      <Details
+        rows={[
+          ['Coverage', <RecordName kind="coverage" id={row.coverageId} />],
+          ['Coverage id', <code data-testid="pinned-coverage-id">{row.coverageId}</code>],
+          [
+            'Application scope for this case',
+            <p className="prose" data-testid="pinned-scope">
+              {row.applicationScope}
+            </p>,
+          ],
+        ]}
+      />
     </li>
   );
 }
