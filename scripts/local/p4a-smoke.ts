@@ -13,12 +13,14 @@
 //   Case (only the supplied fields; no route, selection or canonical id inferred) → PATCH →
 //   route binding (the preferred coverage is NOT selected) → case source link → its state paused
 //   and linked again with the link's own ETag → canonical case id → authority selection (pins the
-//   chain for evaluation; no ETag; the case points to it) → lists → workflow → expected refusals:
-//   another agency's route (422 CROSS_AGENCY_REFERENCE), another case's source (422
-//   CROSS_CASE_REFERENCE), the application User as signer (422 REFERENCE_NOT_FOUND), a stale case
-//   ETag (412) and a link on an archived case (409) → archive / restore → deletion of an unused
-//   case → provenance unchanged → later case phases are not routed (404) → logout. Nothing here is
-//   authority, a G1–G7 decision, readiness, a signature or an external action.
+//   chain for evaluation; no ETag; the case points to it) → its read-back with the exact pinned
+//   coverage row (TB-SCHEMA-API-v1.1.0, ADR-0004) → lists → workflow → expected refusals: another
+//   agency's route (422 CROSS_AGENCY_REFERENCE), another case's source (422 CROSS_CASE_REFERENCE),
+//   the selection read through another case (404), the application User as signer (422
+//   REFERENCE_NOT_FOUND), a stale case ETag (412) and a link on an archived case (409) → archive /
+//   restore → deletion of an unused case → provenance unchanged → later case phases are not routed
+//   (404) → logout. Nothing here is authority, a G1–G7 decision, readiness, a signature or an
+//   external action.
 import { spawn, type ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
@@ -434,6 +436,33 @@ async function main(): Promise<void> {
     fail('the case points to the selection it recorded');
   }
   pass('the selection pins the chosen chain for evaluation; nothing else changed state');
+  // TB-SCHEMA-API-v1.1.0 (ADR-0004): the selection reads back with exactly the row it pinned.
+  const readBack = await call(
+    'GET /cases/{id}/authority-selections/{id} (read-back)',
+    'GET',
+    `/cases/${caseId}/authority-selections/${selection.data.id}`,
+    200,
+    contracts.GetCaseAuthoritySelectionResponseSchema,
+  );
+  if (readBack.etag !== null) fail('the read-back of an append-only selection carries no ETag');
+  const pinned = readBack.data as unknown as {
+    selection: Data;
+    coverages: Array<Record<string, unknown>>;
+  };
+  if (JSON.stringify(pinned.selection) !== JSON.stringify(selection.data)) {
+    fail('the read-back returns the stored selection exactly');
+  }
+  const [pinnedRow, ...morePinned] = pinned.coverages;
+  if (
+    morePinned.length > 0 ||
+    pinnedRow?.['coverageId'] !== coverage.data.id ||
+    pinnedRow['applicationScope'] !== 'P4A CI synthetic scope' ||
+    pinnedRow['selectionId'] !== selection.data.id ||
+    pinnedRow['caseId'] !== caseId
+  ) {
+    fail('the read-back returns the one pinned coverage row exactly as stored');
+  }
+  pass('the selection reads back with the exact coverage and application scope it pinned');
 
   const lists: Array<[string, string, Parser]> = [
     [
@@ -506,6 +535,14 @@ async function main(): Promise<void> {
     contracts.CreateCaseResponseSchema,
     { body: { agencyId: agency.data.id, intakeLabel: `P4A CI synthetic sibling ${tag}` } },
   );
+  const throughSibling = await call(
+    'the selection read through another case (expected refusal)',
+    'GET',
+    `/cases/${sibling.data.id}/authority-selections/${selection.data.id}`,
+    404,
+    null,
+  );
+  if (throughSibling.code !== 'NOT_FOUND') fail(`cross-case read code ${throughSibling.code}`);
   const siblingSource = await call(
     'POST /sources (scoped to the sibling case)',
     'POST',

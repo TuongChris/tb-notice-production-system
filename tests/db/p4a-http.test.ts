@@ -15,7 +15,10 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { Prisma, type PrismaClient } from '../../apps/api/generated/prisma/client.js';
 import type {
   Agency,
+  AuthorityEvent,
+  CaseAuthorityCoverage,
   CaseAuthoritySelection,
+  CaseAuthoritySelectionView,
   CaseRecord,
   CaseSource,
   CoverageSigner,
@@ -44,6 +47,7 @@ import {
   cleanSuiteTables,
   countRows,
   dataOf,
+  DIRECTORY_SUITE_TABLES,
   DirectoryClient,
   errorOf,
   etagOf,
@@ -87,6 +91,12 @@ afterAll(async () => {
 
 // ---------------------------------------------------------------------------------------------
 // helpers
+
+/**
+ * TB-SCHEMA-API-v1.1.0 (ADR-0004, R8 remediation): the read-back of one selection with the exact
+ * CaseAuthorityCoverage rows it pinned.
+ */
+const R8_OPERATIONS = ['getCaseAuthoritySelection'] as const;
 
 /** The 16 P4A operations of TB-SCHEMA-API-v1, capitalisation exactly as contracted. */
 const P4A_OPERATIONS = [
@@ -604,6 +614,65 @@ const pinnedCoverages = (selectionId: string) =>
     where: { selectionId },
     orderBy: [{ coverageId: 'asc' }],
   });
+
+/** getCaseAuthoritySelection (TB-SCHEMA-API-v1.1.0): the stored selection and its pinned rows. */
+const readSelection = (caseId: string, id: string) =>
+  client.get('getCaseAuthoritySelection', `/cases/${caseId}/authority-selections/${id}`);
+const getSelection = async (caseId: string, id: string) =>
+  immutable<CaseAuthoritySelectionView>(await readSelection(caseId, id), 200);
+
+/** The stored CaseAuthorityCoverage rows of a selection in their wire form. */
+async function storedPinned(selectionId: string): Promise<CaseAuthorityCoverage[]> {
+  return (await pinnedCoverages(selectionId)).map((row) => ({
+    id: row.id,
+    selectionId: row.selectionId,
+    caseId: row.caseId,
+    agencyId: row.agencyId,
+    routeId: row.routeId,
+    coverageId: row.coverageId,
+    applicationScope: row.applicationScope,
+    createdAt: row.createdAt.toISOString(),
+    createdById: row.createdById,
+  }));
+}
+
+/** Every row of every table the suite writes, to prove that a read wrote nothing. */
+async function tableDump(): Promise<Record<string, string[]>> {
+  const dump: Record<string, string[]> = {};
+  for (const table of DIRECTORY_SUITE_TABLES) {
+    const rows = await prisma.$queryRawUnsafe<Array<Record<string, unknown>>>(
+      `SELECT * FROM \`${table}\``,
+    );
+    dump[table] = rows
+      .map((row) =>
+        JSON.stringify(row, (_key, value: unknown) =>
+          typeof value === 'bigint' ? value.toString() : value,
+        ),
+      )
+      .sort();
+  }
+  return dump;
+}
+
+async function recordEvent(mandateId: string, body: Record<string, unknown>) {
+  const mandate = await getMandate(mandateId);
+  return immutable<AuthorityEvent>(
+    await client.write(
+      'recordAuthorityEvent',
+      'POST',
+      `/mandates/${mandateId}/events`,
+      {
+        eventType: 'TERMINATION',
+        provenance: 'OPERATOR_REPORTED',
+        scopeText: 'SYNTHETIC whole mandate',
+        interpretation: 'SYNTHETIC operator reading',
+        ...body,
+      },
+      { ifMatch: mandate.etag },
+    ),
+    201,
+  );
+}
 
 // ---------------------------------------------------------------------------------------------
 
@@ -2494,6 +2563,324 @@ describe('AUTHORITY SELECTION — pins the chain to evaluate for this case; not 
 
 // ---------------------------------------------------------------------------------------------
 
+describe('SELECTION READ-BACK (TB-SCHEMA-API-v1.1.0, R8) — the exact chain pinned for evaluation in this case', () => {
+  /** An error body without its per-request id: equal bodies are indistinguishable refusals. */
+  const refusal = (result: HttpResult) => {
+    const {
+      code: errorCode,
+      message,
+      details,
+    } = (result.json as { error: { code: string; message: string; details: unknown } }).error;
+    return { code: errorCode, message, details };
+  };
+
+  it('one coverage: reads back exactly the stored selection and its one pinned row; no ETag, no precondition, nothing written', async () => {
+    const { w, a, case: created } = await caseWorld();
+    const result = await postSelection(
+      created.data.id,
+      created.etag,
+      choose(w, [a.coverage.data.id], { basisSourceId: w.source.id }),
+    );
+    const selection = immutable<CaseAuthoritySelection>(result, 201);
+    const pinnedIds = (affectedOf(result) as Array<{ type: string; id: string }>)
+      .filter((entry) => entry.type === 'CaseAuthorityCoverage')
+      .map((entry) => entry.id);
+    expect(pinnedIds).toHaveLength(1);
+    const before = await tableDump();
+    const read = await readSelection(created.data.id, selection.id);
+    const view = immutable<CaseAuthoritySelectionView>(read, 200);
+    expect(view).toEqual({
+      selection,
+      coverages: [
+        {
+          id: pinnedIds[0],
+          selectionId: selection.id,
+          caseId: created.data.id,
+          agencyId: w.agency.data.id,
+          routeId: w.route.data.id,
+          coverageId: a.coverage.data.id,
+          applicationScope: 'SYNTHETIC application scope 1',
+          createdAt: selection.createdAt,
+          createdById: client.session.userId,
+        },
+      ],
+    });
+    expect(view.coverages).toEqual(await storedPinned(selection.id));
+    expect(affectedOf(read)).toEqual([]);
+    // Read-only: sent without If-Match or Idempotency-Key, repeatable, and nothing changed — no
+    // row, version, audit event or idempotency record anywhere.
+    expect(await getSelection(created.data.id, selection.id)).toEqual(view);
+    expect(await tableDump()).toEqual(before);
+    expect((await getCase(created.data.id)).data).toMatchObject({
+      rowVersion: 2,
+      contextRevision: 2,
+      currentAuthoritySelectionId: selection.id,
+    });
+    // Session-protected like every business read.
+    const anonymous = await http(
+      t.port,
+      'GET',
+      `/api/v1/cases/${created.data.id}/authority-selections/${selection.id}`,
+    );
+    expect([anonymous.status, code(anonymous)]).toEqual([401, 'SESSION_REQUIRED']);
+  });
+
+  it('several coverages: every pinned row reads back in ascending coverageId order, each with its own application scope exactly as entered', async () => {
+    const { w, a, case: created } = await caseWorld();
+    const b = await authority(w, { label: 'second mandate' });
+    const c = await authority(w, { label: 'third mandate' });
+    const prefix = 'SYNTHETIC-SCOPE-C ';
+    const scopes = new Map([
+      [a.coverage.data.id, '  SYNTHETIC-SCOPE-A leading and trailing spaces  '],
+      [
+        b.coverage.data.id,
+        'SYNTHETIC-SCOPE-B line one\r\nline two\ttab — “quotes” \\ {"json": true} café / café',
+      ],
+      [c.coverage.data.id, `${prefix}${'𝄞'.repeat(6000 - codePoints(prefix))}`],
+    ]);
+    expect(codePoints(scopes.get(c.coverage.data.id) ?? '')).toBe(6000);
+    // Submitted in descending coverageId order: the read order is the stored order, not the request's.
+    const ascending = [...scopes.keys()].sort();
+    const selection = await select(created.data.id, {
+      ...choose(w, []),
+      coverages: [...ascending].reverse().map((coverageId) => ({
+        coverageId,
+        applicationScope: scopes.get(coverageId),
+      })),
+    });
+    const view = await getSelection(created.data.id, selection.id);
+    expect(view.selection).toEqual(selection);
+    expect(view.coverages.map((row) => row.coverageId)).toEqual(ascending);
+    for (const row of view.coverages) {
+      // Each coverage keeps its own scope, byte for byte: nothing trimmed, normalized or combined.
+      expect(row.applicationScope).toBe(scopes.get(row.coverageId));
+      expect(row).toMatchObject({
+        selectionId: selection.id,
+        caseId: created.data.id,
+        agencyId: w.agency.data.id,
+        routeId: w.route.data.id,
+        createdById: client.session.userId,
+      });
+    }
+    expect(new Set(view.coverages.map((row) => row.id)).size).toBe(3);
+    expect(view.coverages).toEqual(await storedPinned(selection.id));
+    // Deterministic: every read returns the same rows in the same order.
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      expect(await getSelection(created.data.id, selection.id)).toEqual(view);
+    }
+  });
+
+  it('historical pinning: a new preferred coverage, newer authority records, newer source revisions and an archived mandate leave the read-back unchanged', async () => {
+    const { w, a, case: created } = await caseWorld();
+    const selection = await select(
+      created.data.id,
+      choose(w, [a.coverage.data.id], { basisSourceId: w.source.id }),
+    );
+    const before = await readSelection(created.data.id, selection.id);
+    const pinnedBefore = immutable<CaseAuthoritySelectionView>(before, 200);
+    // Present-day authority state moves on. A newer frozen version of the same mandate, with its own
+    // coverage of the route recording the same signer:
+    const successor = await createVersion(a.mandate.data.id, {
+      changeKind: 'AMENDMENT',
+      predecessorId: a.version.data.id,
+      primarySourceId: w.source.id,
+      documentState: 'SIGNED_APPEARING',
+    });
+    const successorCoverage = await createCoverage(successor.data.id, {
+      routeId: w.route.data.id,
+      basisSourceId: a.basis.id,
+      coverageLabel: 'SYNTHETIC successor coverage',
+    });
+    await addCoverageSigner(successorCoverage.data.id, {
+      signerId: w.signer.data.id,
+      sourceId: a.basis.id,
+    });
+    await freeze(successor.data.id);
+    // another mandate's coverage becomes the route's preferred coverage, with a new default signer;
+    const preferred = await authority(w, { label: 'later preference' });
+    const otherSigner = await createSigner(w.agency.data.id, 'SYNTHETIC Default Person');
+    const route = await getRoute(w.route.data.id);
+    versioned(
+      await patchRoute(route.data.id, route.etag, {
+        preferredCoverageId: preferred.coverage.data.id,
+        defaultSignerId: otherSigner.data.id,
+      }),
+      200,
+    );
+    // the basis source and the coverage basis get newer revisions;
+    const revised = await reviseSource(w.source.id, {
+      agencyId: w.agency.data.id,
+      title: 'SYNTHETIC agency record rev 2',
+    });
+    await reviseSource(a.basis.id, {
+      agencyId: w.agency.data.id,
+      title: 'SYNTHETIC coverage basis rev 2',
+    });
+    // a later event is reported for the mandate, and the mandate is archived.
+    await recordEvent(a.mandate.data.id, { sourceId: revised.id });
+    const mandate = await getMandate(a.mandate.data.id);
+    versioned(
+      await command('archiveMandate', `/mandates/${mandate.data.id}/archive`, mandate.etag),
+      200,
+    );
+    t.clock.advance(60_000);
+    // The historical selection reads back byte for byte as before: no substitution, no following.
+    const after = await readSelection(created.data.id, selection.id);
+    expect(immutable<CaseAuthoritySelectionView>(after, 200)).toEqual(pinnedBefore);
+    expect(JSON.stringify(dataOf(after))).toBe(JSON.stringify(dataOf(before)));
+    expect(pinnedBefore.selection.basisSourceId).toBe(w.source.id);
+    expect(revised.supersedesSourceId).toBe(w.source.id);
+    expect(pinnedBefore.coverages.map((row) => row.coverageId)).toEqual([a.coverage.data.id]);
+    expect(pinnedBefore.coverages.map((row) => row.coverageId)).not.toContain(
+      successorCoverage.data.id,
+    );
+    expect(pinnedBefore.coverages.map((row) => row.coverageId)).not.toContain(
+      preferred.coverage.data.id,
+    );
+    expect(pinnedBefore.selection.signerId).toBe(w.signer.data.id);
+    expect((await getCase(created.data.id)).data.currentAuthoritySelectionId).toBe(selection.id);
+  });
+
+  it('case isolation: another case’s selection is 404 through this case, exactly like an unknown selection or case; each case reads only its own', async () => {
+    const { w, a, case: caseA } = await caseWorld();
+    const caseB = await createCase(w.agency.data.id, { routeId: w.route.data.id });
+    const selectionA = await select(
+      caseA.data.id,
+      choose(w, [a.coverage.data.id], { selectionNote: 'SYNTHETIC-A-ONLY selection note' }),
+    );
+    const selectionB = await select(
+      caseB.data.id,
+      choose(w, [a.coverage.data.id], { selectionNote: 'SYNTHETIC-B-ONLY selection note' }),
+    );
+    const other = await caseWorld('Other');
+    const selectionC = await select(
+      other.case.data.id,
+      choose(other.w, [other.a.coverage.data.id]),
+    );
+    const unknown = refusal(await readSelection(caseA.data.id, randomUUID()));
+    expect(unknown).toEqual({
+      code: 'NOT_FOUND',
+      message: 'The requested resource does not exist.',
+      details: {},
+    });
+    for (const [caseId, id] of [
+      [caseB.data.id, selectionA.id],
+      [caseA.data.id, selectionB.id],
+      [caseA.data.id, selectionC.id],
+      [other.case.data.id, selectionA.id],
+      [randomUUID(), selectionA.id],
+      [caseA.data.id, caseA.data.id],
+      [caseA.data.id, 'not-a-selection-id'],
+    ] as const) {
+      const refused = await readSelection(caseId, id);
+      expect(refused.status, `${caseId} ${id}`).toBe(404);
+      expect(refusal(refused), `${caseId} ${id}`).toEqual(unknown);
+      expect(refused.text).not.toContain('SYNTHETIC-A-ONLY');
+      expect(refused.text).not.toContain('SYNTHETIC-B-ONLY');
+    }
+    // Each case reads its own selection and only its own pinned rows.
+    const viewA = await getSelection(caseA.data.id, selectionA.id);
+    const viewB = await getSelection(caseB.data.id, selectionB.id);
+    expect(viewA.selection.selectionNote).toBe('SYNTHETIC-A-ONLY selection note');
+    expect(viewB.selection.selectionNote).toBe('SYNTHETIC-B-ONLY selection note');
+    expect(viewA.coverages.map((row) => [row.caseId, row.selectionId])).toEqual([
+      [caseA.data.id, selectionA.id],
+    ]);
+    expect(viewB.coverages.map((row) => [row.caseId, row.selectionId])).toEqual([
+      [caseB.data.id, selectionB.id],
+    ]);
+    expect(viewA.coverages[0]?.id).not.toBe(viewB.coverages[0]?.id);
+    expect(JSON.stringify(viewB)).not.toContain(selectionA.id);
+  });
+
+  it('adds no G1, readiness or currentness field, and the list is unchanged: selection rows only, newest first', async () => {
+    const { w, a, case: created } = await caseWorld();
+    const b = await authority(w, { label: 'second mandate' });
+    const first = await select(created.data.id, choose(w, [a.coverage.data.id]));
+    t.clock.advance(1000);
+    const second = await select(
+      created.data.id,
+      choose(w, [a.coverage.data.id, b.coverage.data.id], { taskType: 'NMI_REPLY' }),
+    );
+    const view = await getSelection(created.data.id, second.id);
+    expect(Object.keys(view)).toEqual(['selection', 'coverages']);
+    expect(Object.keys(view.selection).sort()).toEqual(
+      [
+        'id',
+        'caseId',
+        'agencyId',
+        'routeId',
+        'signerId',
+        'taskType',
+        'intendedFromEmail',
+        'basisSourceId',
+        'selectionNote',
+        'createdAt',
+        'createdById',
+      ].sort(),
+    );
+    for (const row of view.coverages) {
+      expect(Object.keys(row).sort()).toEqual(
+        [
+          'id',
+          'selectionId',
+          'caseId',
+          'agencyId',
+          'routeId',
+          'coverageId',
+          'applicationScope',
+          'createdAt',
+          'createdById',
+        ].sort(),
+      );
+    }
+    expect(JSON.stringify(view)).not.toMatch(
+      /"(g[1-7]\w*|ready\w*|readiness|eligib\w*|authori[sz]ed\w*|current\w*|isCurrent\w*|valid\w*|approved\w*|verified\w*|status)"\s*:/i,
+    );
+    // The list is backward compatible: the same response as before, selection rows only.
+    const history = await listOf<CaseAuthoritySelection>(
+      'listCaseAuthoritySelections',
+      `/cases/${created.data.id}/authority-selections`,
+    );
+    expect(history.items).toEqual([second, first]);
+    for (const item of history.items) {
+      expect(Object.keys(item)).not.toContain('coverages');
+      expect((await getSelection(created.data.id, item.id)).selection).toEqual(item);
+    }
+    expect(
+      (await getSelection(created.data.id, first.id)).coverages.map((row) => row.coverageId),
+    ).toEqual([a.coverage.data.id]);
+    expect(
+      (await getSelection(created.data.id, second.id)).coverages.map((row) => row.coverageId),
+    ).toEqual([a.coverage.data.id, b.coverage.data.id].sort());
+  });
+
+  it('a stored selection without its pinned rows is never shown as a chain: 500, nothing invented', async () => {
+    const { w, case: created } = await caseWorld();
+    const bare = randomUUID();
+    // Not reachable through the API (a selection and its rows are one transaction): a direct insert.
+    await prisma.caseAuthoritySelection.create({
+      data: {
+        id: bare,
+        caseId: created.data.id,
+        agencyId: w.agency.data.id,
+        routeId: w.route.data.id,
+        signerId: w.signer.data.id,
+        taskType: 'INITIAL',
+        intendedFromEmail: 'synthetic-sender@example.invalid',
+        basisSourceId: null,
+        selectionNote: 'SYNTHETIC integrity probe',
+        createdAt: new Date(t.clock.ms),
+        createdById: client.session.userId,
+      },
+    });
+    expect(outcome(await readSelection(created.data.id, bare))).toEqual([500, 'INTERNAL_ERROR']);
+    expect(await prisma.caseAuthorityCoverage.count()).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+
 describe('CONTAMINATION — nothing crosses from one case to another, or from another agency', () => {
   it('two cases on one route: links, selections, canonical ids, workflow and archive stay with their own case', async () => {
     const { w, a, case: caseA } = await caseWorld();
@@ -3253,15 +3640,16 @@ describe('SECURITY / CONTRACT', () => {
     await expectNoLaterPhaseRecords();
   });
 
-  it('every collected response matches its operation: declared status, contract schema, ETag rules, no readiness vocabulary; all 16 P4A operations were exercised', () => {
+  it('every collected response matches its operation: declared status, contract schema, ETag rules, no readiness vocabulary; all 16 P4A operations and the v1.1.0 read were exercised', () => {
     const byId = new Map<string, (typeof operations)[number]>(
       operations.map((operation) => [operation.operationId, operation]),
     );
+    const CASE_OPERATIONS: readonly string[] = [...P4A_OPERATIONS, ...R8_OPERATIONS];
     const contracted = operations
-      .filter((operation) => (P4A_OPERATIONS as readonly string[]).includes(operation.operationId))
+      .filter((operation) => CASE_OPERATIONS.includes(operation.operationId))
       .map((operation) => operation.operationId)
       .sort();
-    expect(contracted).toEqual([...P4A_OPERATIONS].sort());
+    expect(contracted).toEqual([...CASE_OPERATIONS].sort());
     const seen = new Set<string>();
     const forbiddenKey =
       /"(g[1-7]\w*|ready\w*|eligib\w*|authori[sz]ed\w*|currentAuthority|isCurrent\w*|approved\w*|verified\w*)"\s*:/i;
@@ -3281,10 +3669,11 @@ describe('SECURITY / CONTRACT', () => {
         if (typeof data?.rowVersion === 'number') {
           expect(result.headers['etag'], label).toMatch(/^"[A-Za-z]+:[0-9a-f-]{36}:v\d+"$/);
         } else {
-          // Lists, 204, SourceReferences and CaseAuthoritySelections carry no ETag.
+          // Lists, 204, SourceReferences and CaseAuthoritySelections (with their pinned rows)
+          // carry no ETag.
           expect(result.headers['etag'], label).toBeUndefined();
         }
-        if ((P4A_OPERATIONS as readonly string[]).includes(operationId)) {
+        if (CASE_OPERATIONS.includes(operationId)) {
           expect(result.text, label).not.toMatch(forbiddenKey);
         }
       } else {
@@ -3293,6 +3682,6 @@ describe('SECURITY / CONTRACT', () => {
       }
       expect(result.headers['cache-control'], label).toBe('no-store');
     }
-    expect(P4A_OPERATIONS.filter((operationId) => !seen.has(operationId))).toEqual([]);
+    expect(CASE_OPERATIONS.filter((operationId) => !seen.has(operationId))).toEqual([]);
   });
 });

@@ -29,7 +29,13 @@ import {
   parsePathParam,
   parseQuery,
 } from '../../infrastructure/write/request-parsing.js';
-import { entityReply, pageReply, requesterOf, writeReply } from '../directory/directory-http.js';
+import {
+  entityReply,
+  pageReply,
+  requesterOf,
+  resourceReply,
+  writeReply,
+} from '../directory/directory-http.js';
 import { CaseAuthorityService } from './case-authority.service.js';
 import { CaseSourcesService } from './case-sources.service.js';
 import { CasesService } from './cases.service.js';
@@ -51,12 +57,15 @@ const op = {
   setSourceLinkState: contractOperation('setCaseSourceLinkState'),
   select: contractOperation('selectCaseAuthority'),
   listSelections: contractOperation('listCaseAuthoritySelections'),
+  getSelection: contractOperation('getCaseAuthoritySelection'),
 };
 
 /**
  * Case operations of TB-SCHEMA-API-v1 (P4A): the case record, its source links and its authority
- * selections. A case is the boundary of every case-specific record; none of these operations is a
- * legal finding, a G1–G7 decision, readiness, a signature or an external action.
+ * selections, plus the read-back of one selection with the coverages it pinned
+ * (getCaseAuthoritySelection, TB-SCHEMA-API-v1.1.0, ADR-0004). A case is the boundary of every
+ * case-specific record; none of these operations is a legal finding, a G1–G7 decision, readiness, a
+ * signature or an external action.
  */
 @Controller('cases')
 export class CasesController {
@@ -238,6 +247,20 @@ export class CasesController {
   ) {
     const id = parsePathParam(op.listSelections, 'caseId', caseId);
     return pageReply(request, await this.authority.list(id, parseQuery(op.listSelections, query)));
+  }
+
+  /** One selection of this case with its pinned coverage rows, as stored (no ETag: append-only). */
+  @Get(':caseId/authority-selections/:id')
+  async getSelection(
+    @Param('caseId') caseId: string,
+    @Param('id') id: string,
+    @Req() request: HttpRequest,
+  ) {
+    const data = await this.authority.get(
+      parsePathParam(op.getSelection, 'caseId', caseId),
+      parsePathParam(op.getSelection, 'id', id),
+    );
+    return resourceReply(request, data);
   }
 
   @Post(':caseId/authority-selections')

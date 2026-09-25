@@ -28,13 +28,23 @@
 //     highest version), the ActionScope vocabulary against taskType (no mapping is defined) and any
 //     G1–G7 or readiness question. taskType and intendedFromEmail are stored as supplied.
 //   list    the history of one case, newest first; every selection stays readable.
+//   get     GET /cases/{caseId}/authority-selections/{id} (getCaseAuthoritySelection,
+//           TB-SCHEMA-API-v1.1.0, ADR-0004): one selection of THIS case with the exact
+//           CaseAuthorityCoverage rows it pinned — the stored rows only, read-only (no If-Match, no
+//           Idempotency-Key, no write). The selection is found by its id and this case, so another
+//           case's selection is 404 exactly like an unknown one; its coverage rows by the same
+//           selection and case, in ascending coverageId order (unique within a selection; the
+//           request order is not stored). Nothing is resolved against present-day route or
+//           authority records: no preferred coverage, newer version or newer source revision is
+//           followed, scopes are not combined, and nothing current, valid or ready is stated.
 // Lock order: Agency (share) → LegalSubject → Owner → OwnerSubject → Route (share) → Signer (share) →
 // Mandate (share) → MandateVersion (share) → MandateCoverage (share) → CaseRecord (update) →
 // CaseAuthoritySelection (insert) → SourceReference.
 import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import type {
-  CaseAuthoritySelection as CaseAuthoritySelectionView,
+  CaseAuthoritySelection as SelectionWire,
+  CaseAuthoritySelectionView,
   SelectAuthority,
 } from '@tb/contracts';
 import { codePointLength } from '@tb/contracts';
@@ -70,11 +80,13 @@ import {
   lockCase,
   lockParties,
 } from './case-rules.js';
-import { toSelectionView } from './case-views.js';
+import { toPinnedCoverageView, toSelectionView } from './case-views.js';
 
 const ENTITY = 'CaseAuthoritySelection';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const TASK_TYPES = new Set(['INITIAL', 'NMI_REPLY']);
+/** A selection pins 1–20 coverages (SelectAuthority.coverages, CaseAuthoritySelectionView.coverages). */
+const PINNED_COVERAGES = { min: 1, max: 20 } as const;
 
 /** Request-only check: each coverage is chosen once (the unique key is the backstop). */
 export function duplicateCoverageProblem(body: SelectAuthority) {
@@ -108,7 +120,7 @@ export class CaseAuthorityService {
   async list(
     caseId: string,
     query: QueryValues,
-  ): Promise<{ items: CaseAuthoritySelectionView[]; nextCursor: string | null }> {
+  ): Promise<{ items: SelectionWire[]; nextCursor: string | null }> {
     const owner = await this.prisma.caseRecord.findUnique({
       where: { id: caseId },
       select: { id: true },
@@ -148,6 +160,29 @@ export class CaseAuthorityService {
       where: { id: { in: ids.map((row) => row.id) } },
     });
     return toPage(inIdOrder(ids, rows), page, this.cursors, toSelectionView);
+  }
+
+  /**
+   * One selection of this case and the coverage rows it pinned, exactly as stored (404 for an
+   * unknown case, an unknown selection or a selection of another case — indistinguishably).
+   */
+  async get(caseId: string, id: string): Promise<CaseAuthoritySelectionView> {
+    const selection = await this.prisma.caseAuthoritySelection.findFirst({ where: { id, caseId } });
+    if (!selection) throw apiErrors.notFound();
+    const coverages = await this.prisma.caseAuthorityCoverage.findMany({
+      where: { selectionId: selection.id, caseId },
+      orderBy: [{ coverageId: 'asc' }, { id: 'asc' }],
+    });
+    // Every selection is written with its 1–20 rows in one transaction. A stored selection without
+    // them cannot be shown as a chain: nothing is invented, and the response never breaks the
+    // contract (500, not a partial chain).
+    if (coverages.length < PINNED_COVERAGES.min || coverages.length > PINNED_COVERAGES.max) {
+      throw apiErrors.internal();
+    }
+    return {
+      selection: toSelectionView(selection),
+      coverages: coverages.map(toPinnedCoverageView),
+    };
   }
 
   /** Appends one explicit selection that pins exactly the chosen records for this case. */

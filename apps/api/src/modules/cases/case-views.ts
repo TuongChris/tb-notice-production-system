@@ -1,12 +1,15 @@
 // Contract wire views of the case records (strict objects): timestamps as ISO 8601 UTC strings.
-// A CaseAuthoritySelection is append-only: no row version, so no ETag. The CaseAuthorityCoverage
-// rows a selection pins have no contracted read view (see P4A_CASE_CORE.md §1.1).
+// A CaseAuthoritySelection and the CaseAuthorityCoverage rows it pins are append-only: no row
+// version, so no ETag. The pinned rows are read back only with their selection
+// (getCaseAuthoritySelection, TB-SCHEMA-API-v1.1.0, ADR-0004), exactly as stored.
 import type {
-  CaseAuthoritySelection as CaseAuthoritySelectionView,
+  CaseAuthorityCoverage as PinnedCoverageWire,
+  CaseAuthoritySelection as SelectionWire,
   CaseRecord as CaseRecordView,
   CaseSource as CaseSourceView,
 } from '@tb/contracts';
 import type {
+  CaseAuthorityCoverage,
   CaseAuthoritySelection,
   CaseRecord,
   CaseSource,
@@ -60,7 +63,7 @@ export function toCaseSourceView(row: CaseSource): CaseSourceView {
   };
 }
 
-export function toSelectionView(row: CaseAuthoritySelection): CaseAuthoritySelectionView {
+export function toSelectionView(row: CaseAuthoritySelection): SelectionWire {
   return {
     id: row.id,
     caseId: row.caseId,
@@ -71,6 +74,21 @@ export function toSelectionView(row: CaseAuthoritySelection): CaseAuthoritySelec
     intendedFromEmail: row.intendedFromEmail,
     basisSourceId: row.basisSourceId,
     selectionNote: row.selectionNote,
+    createdAt: row.createdAt.toISOString(),
+    createdById: row.createdById,
+  };
+}
+
+/** One CaseAuthorityCoverage row exactly as stored: the coverage id and application scope pinned. */
+export function toPinnedCoverageView(row: CaseAuthorityCoverage): PinnedCoverageWire {
+  return {
+    id: row.id,
+    selectionId: row.selectionId,
+    caseId: row.caseId,
+    agencyId: row.agencyId,
+    routeId: row.routeId,
+    coverageId: row.coverageId,
+    applicationScope: row.applicationScope,
     createdAt: row.createdAt.toISOString(),
     createdById: row.createdById,
   };

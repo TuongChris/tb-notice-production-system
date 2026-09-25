@@ -409,6 +409,14 @@ async function checkBusinessBoundary(): Promise<void> {
       403,
       'ORIGIN_REJECTED',
     ],
+    // TB-SCHEMA-API-v1.1.0 (ADR-0004): the selection read-back is behind the same guard.
+    [
+      'GET /cases/{caseId}/authority-selections/{id} without a session',
+      `${api}/cases/${id}/authority-selections/${id}`,
+      {},
+      401,
+      'SESSION_REQUIRED',
+    ],
     [
       'GET /case-sources/{id} through the web proxy without a session',
       `http://localhost:${WEB_PORT}/api/v1/case-sources/${id}`,
