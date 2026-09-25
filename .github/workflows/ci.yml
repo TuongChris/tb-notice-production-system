@@ -25,6 +25,13 @@
 # unused-case deletion flow with expected refusals (cross-agency route, another case's source, the
 # application User as signer, stale ETag, archived case), leaving synthetic records in the
 # disposable CI tb_notice_dev only (it refuses to run outside CI). No external action.
+# P4B: smoke:local also checks the compiled case intake routes and that correspondence onward stays
+# unrouted; smoke:p4b runs a compiled Case → ReportedItem (raw URL kept, video id derived; nothing
+# fetched) → CaseWork → UseMapping → case source → CaseFact → revision → historical read-back →
+# source-revision pinning → archive/restore flow with expected refusals (another case's item and
+# work, a non-video address, stale ETag, a superseded fact revision) and no readiness, G1–G7,
+# production or correspondence route, leaving synthetic records in the disposable CI
+# tb_notice_dev only (it refuses to run outside CI). Nothing in it is a finding or an external action.
 name: CI
 
 on:
@@ -169,6 +176,8 @@ jobs:
         run: yarn smoke:p3b --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"
       - name: P4A compiled case → route binding → case source → canonical id → authority selection (yarn smoke:p4a, synthetic)
         run: yarn smoke:p4a --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"
+      - name: P4B compiled case intake → reported item → work → mapping → fact → revision (yarn smoke:p4b, synthetic)
+        run: yarn smoke:p4b --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"
       - name: P1.1 recovery commands (synthetic account; P0 actor untouched)
         run: |
           E=p1-ci-admin@example.invalid

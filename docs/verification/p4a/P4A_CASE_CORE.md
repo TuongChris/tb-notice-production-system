@@ -6,6 +6,8 @@ Mission TB_P4A_CASE_CORE_AND_AUTHORITY_SELECTION_TO_R8 on `feature/p4a-case-core
 
 **R8 final result (operator, 2026-09-25): PASS.** P4A = **VERIFIED_COMPLETE**; ADR-0004 = **ACCEPTED**; the active wire contract is **TB-SCHEMA-API-v1.1.0**. P4A is authorized for merge to `main` by a normal merge commit (mission TB_R8_MERGE_CLOSEOUT_AND_P4B_CASE_INTAKE_TO_R9; §22). P4B is **NOT_STARTED** at this record.
 
+**Merged (2026-09-25):** `P4A = MERGED_TO_MAIN` — pull request #3, merge commit `1d91c41` (parents `3649bef` and the closeout head `602f0da`); `main` push CI run 36094428857 success (§23).
+
 ## Status by scope (not collapsed)
 
 | Scope | Status | Basis |
@@ -15,7 +17,8 @@ Mission TB_P4A_CASE_CORE_AND_AUTHORITY_SELECTION_TO_R8 on `feature/p4a-case-core
 | **P4A_BROWSER (Playwright MCP)** | **PASS** 23/23 (mission §34); three UI findings found and fixed (F1–F3, §12). R8 read-back **PASS** 12/12; one layout finding found and fixed (F4, §21.9) | Isolated test browser against the compiled API on the disposable `tb_notice_test` (`evidence/p4a-playwright-mcp-verification.txt`, `evidence/r8-playwright-mcp-verification.txt`) |
 | **P4A_NEGATIVE_CONTROLS** | **PASS** 24/24; R8 **PASS** 17/17, and the 24 P4A controls again 24/24 on the final code (§21.10) | Every disabled protection made its responsible tests fail; files restored byte-identically (§13, `evidence/p4a-negative-controls.txt`, `evidence/r8-negative-controls.txt`) |
 | **R8 review** | **PASS** (operator, 2026-09-25, R8 final) — first **PASS_WITH_ONE_CONTRACT_REMEDIATION**; the remediation was **IMPLEMENTED AND VERIFIED** (§21) and accepted with ADR-0004 | §21, §22 |
-| **P4A_STATUS** | **VERIFIED_COMPLETE** — authorized for merge to `main` (normal merge commit); not merged at this record | §22 |
+| **P4A_STATUS** | **VERIFIED_COMPLETE** | §22 |
+| **P4A_MERGE** | **MERGED_TO_MAIN** — PR #3, merge commit `1d91c41` (method: merge commit), merged 2026-09-25T04:26:08Z; `main` push CI run 36094428857 success | §23 |
 | **P1_WINDOWS_BROWSER** | **NOT_RUN** (not reported) | Unchanged |
 | **P0_SECOND_PC** / **P0_TWO_PC_ACCEPTANCE** / **P0_SINGLE_PC_BASELINE** / **P0_OVERALL** | **DEFERRED_BY_OPERATOR** / **NOT_COMPLETED** / **VERIFIED** / **NOT_COMPLETE** against the original two-PC contract | ADR-0003; unchanged by P4A |
 
@@ -607,3 +610,34 @@ Mission TB_R8_MERGE_CLOSEOUT_AND_P4B_CASE_INTAKE_TO_R9. This section records the
 ### 22.3 Closeout checks (this commit)
 
 Pre-flight on `eeb94ce`: branch in sync with origin, worktree clean, `origin/main` = `3649bef4d83feeec3bcf6b8293757354af739ae4` (unchanged since R8), no P4A pull request yet, `main` without branch protection or rulesets, `reference:check` and `contracts:check` OK. This commit changes documentation only (ADR-0004 status, the release README's decision line, this report, `CURRENT_STATE.md`, `CLAUDE.md`); `amendment.json`, `docs/reference/**`, code, tests, migrations and the lockfile are untouched.
+
+## 23. R8 closeout — merge reconciliation (2026-09-25, home PC)
+
+Mission TB_R8_MERGE_CLOSEOUT_AND_P4B_CASE_INTAKE_TO_R9, recorded on `feature/p4b-case-intake` after the merge. `P4A = MERGED_TO_MAIN`. Sections 1–22 keep the state at their time (for example "not merged at this record" in §22).
+
+### 23.1 Merge reconciliation (verified with `git` and authenticated `gh`, not assumed)
+
+| Item | Observed value |
+|---|---|
+| `P4A_ACCEPTED_CODE_HEAD` | `eeb94ce573dad9b2da71e01922f1db02e734437a` (as named by the operator) |
+| `P4A_R8_CLOSEOUT_HEAD` | `602f0daf23d6f3d3fb6eae290302c23951489a62` — the R8 final record (§22), documentation only; push run [36093677700](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36093677700) success (both jobs; lint "Found 0 warnings and 0 errors.", `yarn test` 1247 / 33 files, `yarn test:db` 301 / 8 files, `smoke:p4a` 50) |
+| Pull request | [#3](https://github.com/TuongChris/tb-notice-production-system/pull/3) `feature/p4a-case-core` → `main`, "P4A: Case core and authority selection — R8", opened 2026-09-25T04:20:41Z; `headRefOid` = `602f0da` (14 commits); pull_request run [36094064653](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36094064653) success (both jobs); all four check runs on `602f0da` completed / success; merge state CLEAN; `main` unchanged at `3649bef` since the R8 review |
+| `P4A_MERGE_METHOD` | **merge commit** — `gh pr merge 3 --merge --match-head-commit 602f0da…` (not squash, not rebase, no `--admin`, branch not deleted): `1d91c41` has two parents, `3649bef` (previous `main`) and `602f0da`; message "Merge pull request #3 from TuongChris/feature/p4a-case-core"; committed by GitHub; merged 2026-09-25T04:26:08Z by the repository owner's authenticated account |
+| `P4A_MERGED_MAIN_HEAD` | `1d91c41ec480aed3579122e86485df1e73fbb741` |
+| Ancestry / content | `git merge-base --is-ancestor 602f0da origin/main` → exit 0; the previous `main` `3649bef` is an ancestor of `602f0da` (the branch started there), so the merge introduced nothing else: the trees of `1d91c41` and `602f0da` are identical (`14f69e71b6a4030aa19ca5d48927b7ef6fe9731d`; `git diff 602f0da 1d91c41` empty), and `git log 602f0da..origin/main` lists only the merge commit |
+| `MAIN_POST_P4A_CI` | **PASS** — push run [36094428857](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36094428857) on `1d91c41`, 2026-09-25T04:26:10Z–04:30:51Z: "Non-DB checks (cold install)" (job 107943555383) and "Database, seed and smoke (MySQL 8.4.11)" (job 107943555540) both success — lint "Found 0 warnings and 0 errors.", `yarn test` 1247 / 33 files, `yarn test:db` 301 / 8 files, build 552.78 kB (the advisory, §21.13), `smoke:local` 37, `smoke:auth` 4, `smoke:directory` 14, `smoke:p3a` 24, `smoke:p3b` 36, `smoke:p4a` 50, the P1.1 recovery checks |
+
+### 23.2 History preserved
+
+Nothing was amended, rebased, rewritten or force-pushed, and no tag or release was created. `feature/p4a-case-core` stays at `602f0da` (local and origin); every earlier phase branch is unchanged. The local `main` was fast-forwarded to `origin/main`; no commit was made on it.
+
+### 23.3 Status
+
+| Scope | Status |
+|---|---|
+| R8 review | **PASS** (operator, 2026-09-25) |
+| P4A_STATUS | **VERIFIED_COMPLETE** |
+| P4A_MERGE | **MERGED_TO_MAIN** — PR #3, merge commit `1d91c41` (method: merge commit), merged 2026-09-25T04:26:08Z; `main` push CI run 36094428857 success |
+| ADR-0004 / active contract | **ACCEPTED** / **TB-SCHEMA-API-v1.1.0** (frozen historical reference TB-SCHEMA-API-v1.0.0; PFC wire id `PFC-YT-EMAIL-v1.1`) |
+| Database / dependencies | **No change** — `20260923103912_initial_schema` is still the only migration; lockfile unchanged |
+| P4B | Branch `feature/p4b-case-intake` created from the exact `origin/main` `1d91c41` (not from `feature/p4a-case-core`) and pushed with upstream; at creation local and origin pointed at `1d91c41`, the worktree was clean, `reference:check` and `contracts:check` passed. **P4B implementation = NOT_STARTED** at this checkpoint (`docs/verification/p4b/`, when written, records it) |

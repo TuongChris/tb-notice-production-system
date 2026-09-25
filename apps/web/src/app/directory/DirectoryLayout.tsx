@@ -1,4 +1,6 @@
+import { Suspense } from 'react';
 import { NavLink, Outlet } from 'react-router';
+import { LoadingNotice } from './ui.js';
 
 /** The Directory section: its record types as a sub-navigation above the current page. */
 export function DirectoryLayout() {
@@ -20,7 +22,9 @@ export function DirectoryLayout() {
           </li>
         </ul>
       </nav>
-      <Outlet />
+      <Suspense fallback={<LoadingNotice label="Loading page…" />}>
+        <Outlet />
+      </Suspense>
     </div>
   );
 }

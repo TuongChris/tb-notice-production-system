@@ -51,6 +51,7 @@ import {
 import { SourceCitation, SourceSelect } from '../representation/authority-ui.js';
 import type { SourceTarget } from '../sources/scope.js';
 import { AuthoritySelectionSection } from './authority-selection.js';
+import { CaseIntakeSections } from './case-intake.js';
 import { CaseSourcesSection } from './case-sources.js';
 import {
   CANONICAL_CASE_MEANING,
@@ -86,7 +87,7 @@ export function CaseListPage() {
     <DirectoryList<CaseRecord>
       title="Cases"
       noun="cases"
-      intro="Each case holds its own records: its route binding, linked sources and the authority materials selected for evaluation. A case is not a legal verdict."
+      intro="Each case holds its own records: its route binding, linked sources, the authority materials selected for evaluation and its intake (reported items, works, use mappings and facts). A case is not a legal verdict."
       searchLabel="Search intake label or canonical case id"
       newLabel="New case"
       newTo="/cases/new"
@@ -295,6 +296,7 @@ function CaseDetail({ id }: { id: string }) {
       />
       <CaseSourcesSection caseRecord={item} onCaseChanged={page.reloadWith} />
       <AuthoritySelectionSection caseRecord={item} />
+      <CaseIntakeSections caseRecord={item} />
       <Section title="Notes">
         {item.notes ? <p className="prose">{item.notes}</p> : <Absent />}
       </Section>
@@ -310,7 +312,8 @@ function CaseDetail({ id }: { id: string }) {
         />
         <p className="hint">
           The context revision moves with every change to what the case relies on: its route,
-          canonical id, linked sources, authority selection, owner hint, packet source and folder.
+          canonical id, linked sources, authority selection, owner hint, packet source and folder,
+          and its reported items, works, use mappings and facts.
         </p>
       </Section>
     </article>
@@ -411,8 +414,9 @@ function CaseActions({
         title="Archive this case"
         description={
           <p>
-            Archiving keeps the case, its route binding, linked sources and authority selections
-            unchanged but makes all of them read-only. Nothing is revoked, deleted or sent.
+            Archiving keeps the case, its route binding, linked sources, authority selections and
+            intake records unchanged but makes all of them read-only. Nothing is revoked, deleted or
+            sent.
           </p>
         }
         confirmLabel="Archive"
@@ -458,8 +462,8 @@ function CaseActions({
         description={
           <p>
             Only a case that nothing refers to can be deleted, and deletion can’t be undone. If any
-            source is linked, any authority selection was recorded or anything else refers to it,
-            the server refuses and you can archive it instead.
+            source is linked, any authority selection or intake record was recorded or anything else
+            refers to it, the server refuses and you can archive it instead.
           </p>
         }
         confirmLabel="Delete case"

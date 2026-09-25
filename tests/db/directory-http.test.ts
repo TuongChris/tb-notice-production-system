@@ -2660,7 +2660,7 @@ describe('SECURITY / VALIDATION / CONTRACT', () => {
     expect(await countRows(prisma, 'source_references')).toBe(0);
   });
 
-  it('exposes exactly the P1 routes plus the 76 directory, source, route and authority operations and the 17 case operations', async () => {
+  it('exposes exactly the P1 routes plus the 76 directory, source, route and authority operations and the 39 case operations', async () => {
     const express = t.app.getHttpAdapter().getInstance() as {
       router: { stack: Array<{ route?: { path: string; methods: Record<string, boolean> } }> };
     };
@@ -2675,7 +2675,8 @@ describe('SECURITY / VALIDATION / CONTRACT', () => {
     // P2: the 36 directory operations; P3A: the 4 canonical bindings, 4 source and 9 route
     // operations; P3B: the 23 Mandate-tagged operations; P4A: the 16 Case, CaseSource and
     // CaseAuthoritySelection operations, plus the read-back getCaseAuthoritySelection of
-    // TB-SCHEMA-API-v1.1.0 (ADR-0004, R8). No other case operation, production or validation is
+    // TB-SCHEMA-API-v1.1.0 (ADR-0004, R8); P4B: the 22 ReportedItem, CaseWork, UseMapping and
+    // CaseFact operations. No other case operation, correspondence, production or validation is
     // routed.
     const directory = operations
       .filter((operation) =>
@@ -2706,6 +2707,28 @@ describe('SECURITY / VALIDATION / CONTRACT', () => {
       'selectCaseAuthority',
       'listCaseAuthoritySelections',
       'getCaseAuthoritySelection',
+      'listCaseReportedItems',
+      'createReportedItem',
+      'getReportedItem',
+      'patchReportedItem',
+      'archiveReportedItem',
+      'restoreReportedItem',
+      'listCaseCaseWorks',
+      'createCaseWork',
+      'getCaseWork',
+      'patchCaseWork',
+      'archiveCaseWork',
+      'restoreCaseWork',
+      'listCaseUseMappings',
+      'createUseMapping',
+      'getUseMapping',
+      'patchUseMapping',
+      'archiveUseMapping',
+      'restoreUseMapping',
+      'listCaseFacts',
+      'createCaseFact',
+      'getCaseFact',
+      'reviseCaseFact',
     ]);
     const cases = operations
       .filter((operation) => caseOperations.has(operation.operationId))
@@ -2713,7 +2736,7 @@ describe('SECURITY / VALIDATION / CONTRACT', () => {
         (operation) =>
           `${operation.method.toUpperCase()} /api/v1${operation.path.replace(/\{([A-Za-z]+)\}/g, ':$1')}`,
       );
-    expect(cases).toHaveLength(17);
+    expect(cases).toHaveLength(39);
     expect(
       operations.filter((operation) => (operation.tags as readonly string[]).includes('Mandate')),
     ).toHaveLength(23);

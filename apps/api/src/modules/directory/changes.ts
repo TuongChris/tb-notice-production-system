@@ -12,7 +12,9 @@
 // an authority event's scope text, interpretation and raw effective text may quote the authority
 // document, so the audit trail keeps only their length. The case records' free text (P4A) — a case
 // source's scope note, a selection's note and each selected coverage's application scope — may
-// quote case material and is redacted the same way.
+// quote case material and is redacted the same way, as is the intake material's (P4B): a work's
+// notes, a mapping's limitations, a fact's scope text, limitations and change reason and each fact
+// support's supported assertion (a fact's typed value is redacted to its length by its service).
 import { codePointLength } from '@tb/contracts';
 import { Prisma } from '../../../generated/prisma/client.js';
 import { canonicalJson } from '../../infrastructure/write/request-digest.js';
@@ -35,6 +37,7 @@ const REDACTED_FIELDS = new Set([
   'scopeNote',
   'selectionNote',
   'applicationScope',
+  'supportedAssertion',
 ]);
 
 function comparable(value: unknown): unknown {

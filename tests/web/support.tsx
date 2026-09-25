@@ -9,7 +9,12 @@
 // read-only archived cases, route binding only to a linked route of the case's agency, and
 // append-only selections of frozen coverage that records the chosen signer; a selection is read back
 // only under its own case, with its stored coverage rows in ascending coverageId order
-// (getCaseAuthoritySelection, TB-SCHEMA-API-v1.1.0). All data is synthetic.
+// (getCaseAuthoritySelection, TB-SCHEMA-API-v1.1.0). Case intake (P4B) follows the rules the intake
+// pages rely on: children found only under their own case (404 otherwise), the case's ETag for new
+// children and fact revisions, the child's own ETag for edits and archive/restore, YouTube video
+// addresses only, this case's unarchived works and items for a mapping, exact millisecond strings,
+// immutable fact revisions (current revisions in lists, REVISION_NOT_HEAD for an earlier one) and
+// fact supports stored but — as in the contract — never returned. All data is synthetic.
 import { act, StrictMode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter, useNavigate } from 'react-router';
@@ -31,7 +36,10 @@ export type Kind =
   | 'MandateCoverage'
   | 'CoverageSigner'
   | 'CaseRecord'
-  | 'CaseSource';
+  | 'CaseSource'
+  | 'ReportedItem'
+  | 'CaseWork'
+  | 'UseMapping';
 export type Row = Record<string, unknown> & { id: string; rowVersion: number };
 
 export interface RecordedRequest {
@@ -107,6 +115,52 @@ const SUMMARY_FIELDS = [
   'createdAt',
 ];
 
+/** Fields of a CaseFactSummary (list DTO): no value, texts or supports. */
+const FACT_SUMMARY_FIELDS = [
+  'id',
+  'caseId',
+  'factGroupId',
+  'revision',
+  'supersedesFactId',
+  'factType',
+  'scopeKind',
+  'caseWorkId',
+  'reportedItemId',
+  'mappingId',
+  'provenance',
+  'resolutionState',
+  'createdAt',
+];
+
+/** Case intake path segments (P4B) and the record kind each one holds. */
+const INTAKE_SEGMENTS = new Map<string, Kind | 'CaseFact'>([
+  ['reported-items', 'ReportedItem'],
+  ['works', 'CaseWork'],
+  ['mappings', 'UseMapping'],
+  ['facts', 'CaseFact'],
+]);
+
+/** The YouTube video id of an address, or the refusal reason (the server's recognize-or-reject). */
+function videoIdOf(rawUrl: string): { id: string } | { reason: string } {
+  let url: URL;
+  try {
+    url = new URL(rawUrl);
+  } catch {
+    return { reason: 'UNPARSEABLE' };
+  }
+  const id =
+    url.hostname === 'youtu.be'
+      ? url.pathname.slice(1)
+      : ['youtube.com', 'www.youtube.com', 'm.youtube.com'].includes(url.hostname)
+        ? url.pathname === '/watch'
+          ? (url.searchParams.get('v') ?? '')
+          : (/^\/(shorts|live)\/([^/]*)$/.exec(url.pathname)?.[2] ?? '')
+        : null;
+  if (id === null) return { reason: 'NOT_YOUTUBE' };
+  if (id === '') return { reason: 'NOT_A_VIDEO_URL' };
+  return /^[A-Za-z0-9_-]{11}$/.test(id) ? { id } : { reason: 'INVALID_VIDEO_ID' };
+}
+
 /** Synthetic backend with the directory's request rules. */
 export class FakeDirectory {
   readonly csrfToken = 'synthetic-csrf-token-000000000000000000000';
@@ -124,7 +178,14 @@ export class FakeDirectory {
     CoverageSigner: new Map(),
     CaseRecord: new Map(),
     CaseSource: new Map(),
+    ReportedItem: new Map(),
+    CaseWork: new Map(),
+    UseMapping: new Map(),
   };
+  /** Immutable case fact revisions (no ETag, no row version), in recording order. */
+  readonly facts: Array<Record<string, unknown> & { id: string }> = [];
+  /** The supports each fact revision was recorded with: stored, never returned (contract gap). */
+  readonly factSupports = new Map<string, unknown[]>();
   /** Append-only case authority selections (no ETag, no row version), in recording order. */
   readonly selections: Array<Record<string, unknown> & { id: string }> = [];
   /** The CaseAuthorityCoverage rows each selection pinned, as the contract returns them. */
@@ -320,6 +381,36 @@ export class FakeDirectory {
         linkState: 'LINKED',
         stateReason: null,
       },
+      ReportedItem: {
+        caseId: '',
+        rawUrl: 'https://www.youtube.com/watch?v=SYNTHETIC00',
+        normalizedUrl: 'https://www.youtube.com/watch?v=SYNTHETIC00',
+        externalItemId: 'SYNTHETIC00',
+        displayTitle: null,
+        observedAt: null,
+      },
+      CaseWork: {
+        caseId: '',
+        title: 'x',
+        sourceUrl: null,
+        externalWorkId: null,
+        workType: null,
+      },
+      UseMapping: {
+        caseId: '',
+        caseWorkId: '',
+        reportedItemId: '',
+        occurrence: 1,
+        sourceStartMs: null,
+        sourceEndMs: null,
+        reportedStartMs: null,
+        reportedEndMs: null,
+        rawTimecodes: null,
+        boundaryConvention: 'UNKNOWN',
+        provenance: 'MISSING',
+        basisSourceId: null,
+        limitations: null,
+      },
     };
     const row = { ...base, ...defaults[kind], ...fields } as Row;
     if (
@@ -331,8 +422,13 @@ export class FakeDirectory {
     ) {
       for (const key of NOT_ON_CHILDREN) delete row[key];
     }
-    if (kind === 'CaseRecord') {
+    if (kind === 'CaseRecord' || kind === 'CaseWork') {
       for (const key of ['canonicalCode', 'canonicalSourceId', 'bindingState']) delete row[key];
+    }
+    if (kind === 'ReportedItem' || kind === 'UseMapping') {
+      for (const key of ['canonicalCode', 'canonicalSourceId', 'bindingState', 'notes']) {
+        delete row[key];
+      }
     }
     this.rows[kind].set(id, row);
     return row;
@@ -370,6 +466,37 @@ export class FakeDirectory {
       ...fields,
     };
     this.sources.set(id, row);
+    return row;
+  }
+
+  /** A synthetic case fact revision (defaults: revision 1 of a new chain about the whole case). */
+  seedFact(fields: Record<string, unknown>): Record<string, unknown> & { id: string } {
+    const id = this.id();
+    const row = {
+      id,
+      caseId: '',
+      factGroupId: this.id(),
+      revision: 1,
+      supersedesFactId: null,
+      factType: 'WORK_IDENTIFICATION',
+      scopeKind: 'CASE',
+      caseWorkId: null,
+      reportedItemId: null,
+      mappingId: null,
+      value: { description: 'SYNTHETIC description', limitations: '' },
+      provenance: 'OPERATOR_REPORTED',
+      rawProvenance: null,
+      resolutionState: 'UNASSESSED',
+      assertedByLabel: null,
+      assertedAsOf: null,
+      scopeText: 'SYNTHETIC scope',
+      limitations: null,
+      changeReason: 'SYNTHETIC reason',
+      createdAt: NOW,
+      createdById: USER_ID,
+      ...fields,
+    };
+    this.facts.push(row);
     return row;
   }
 
@@ -445,8 +572,11 @@ export class FakeDirectory {
       if (!headers['Idempotency-Key']) return failure(400, 'IDEMPOTENCY_KEY_REQUIRED');
     }
     const parts = url.pathname.replace('/api/v1/', '').split('/');
-    const [collection, id, action, childId] = parts;
+    const [collection, id, action, childId, childAction] = parts;
     if (collection === 'sources') return this.sourceRequest(method, id, action, url, body);
+    if (collection === 'cases' && id && action && INTAKE_SEGMENTS.has(action)) {
+      return this.intakeRequest(method, id, action, childId, childAction, url, headers, body);
+    }
     if (collection === 'cases') {
       return this.caseRequest(method, id, action, url, headers, body, childId);
     }
@@ -1380,6 +1510,291 @@ export class FakeDirectory {
     }
   }
 
+  /** Current fact revisions (no successor) of one case, newest first. */
+  private factHeads(caseId: string) {
+    return this.facts
+      .filter((fact) => fact['caseId'] === caseId)
+      .filter((fact) => !this.facts.some((other) => other['supersedesFactId'] === fact.id))
+      .reverse();
+  }
+
+  /** A body reference to a case child: 422 unknown / another case's, 409 archived. */
+  private childRefusal(kind: Kind, caseId: string, id: unknown, field: string): Response | null {
+    const row = this.rows[kind].get(String(id));
+    if (!row) return failure(422, 'REFERENCE_NOT_FOUND', { field });
+    if (row['caseId'] !== caseId) return failure(422, 'CROSS_CASE_REFERENCE', { field });
+    if (row['archivedAt'] !== null) {
+      return failure(409, 'RECORD_STATE_CONFLICT', { record: kind, archived: true, field });
+    }
+    return null;
+  }
+
+  /** Case intake (P4B): reported items, works, use mappings and fact revisions of one case. */
+  private intakeRequest(
+    method: string,
+    caseId: string,
+    segment: string,
+    childId: string | undefined,
+    childAction: string | undefined,
+    url: URL,
+    headers: Record<string, string>,
+    body: unknown,
+  ): Response | Promise<Response> {
+    const kind = INTAKE_SEGMENTS.get(segment) ?? 'CaseFact';
+    const owner = this.rows.CaseRecord.get(caseId);
+    if (!owner) return failure(404, 'NOT_FOUND');
+    const request = (body ?? {}) as Record<string, unknown>;
+    const meta = { requestId: 'r', affectedResources: [] };
+    if (kind === 'CaseFact') {
+      if (method === 'GET' && childId === undefined) {
+        if (this.failLists) return failure(500, 'INTERNAL_ERROR');
+        const factType = url.searchParams.get('factType');
+        const text = url.searchParams.get('q');
+        const items = this.factHeads(caseId)
+          .filter((fact) => !factType || fact['factType'] === factType)
+          .filter(
+            (fact) =>
+              !text ||
+              [
+                fact.id,
+                fact['factGroupId'],
+                fact['caseWorkId'],
+                fact['reportedItemId'],
+                fact['mappingId'],
+              ].includes(text) ||
+              String(fact['scopeText']).toLowerCase().includes(text.toLowerCase()),
+          )
+          .map((fact) =>
+            Object.fromEntries(FACT_SUMMARY_FIELDS.map((field) => [field, fact[field]])),
+          );
+        return this.page(items);
+      }
+      const fact =
+        childId === undefined
+          ? null
+          : (this.facts.find((row) => row.id === childId && row['caseId'] === caseId) ?? null);
+      if (childId !== undefined && !fact) return failure(404, 'NOT_FOUND');
+      if (method === 'GET') return json(200, { data: fact, meta });
+      const precondition = this.precondition('CaseRecord', owner, headers);
+      if (precondition) return precondition;
+      if (owner['archivedAt'] !== null) {
+        return failure(409, 'RECORD_STATE_CONFLICT', { record: 'CaseRecord', archived: true });
+      }
+      if (fact && childAction !== 'revisions') return failure(404, 'NOT_FOUND');
+      return this.recordFact(owner, request, fact);
+    }
+    if (method === 'GET' && childId === undefined) {
+      const text = url.searchParams.get('q');
+      const rows = [...this.rows[kind].values()]
+        .filter((row) => row['caseId'] === caseId)
+        .filter(
+          (row) =>
+            !text ||
+            row.id === text ||
+            row['caseWorkId'] === text ||
+            row['reportedItemId'] === text ||
+            (kind !== 'UseMapping' &&
+              JSON.stringify(row).toLowerCase().includes(text.toLowerCase())),
+        )
+        .reverse();
+      return this.page(rows);
+    }
+    const child =
+      childId === undefined
+        ? null
+        : [...this.rows[kind].values()].find(
+            (row) => row.id === childId && row['caseId'] === caseId,
+          );
+    if (childId !== undefined && !child) return failure(404, 'NOT_FOUND');
+    if (method === 'GET') return this.reply(200, kind, child as Row);
+    const precondition = child
+      ? this.precondition(kind, child, headers)
+      : this.precondition('CaseRecord', owner, headers);
+    if (precondition) return precondition;
+    if (owner['archivedAt'] !== null) {
+      return failure(409, 'RECORD_STATE_CONFLICT', { record: 'CaseRecord', archived: true });
+    }
+    if (child) {
+      if (childAction === 'archive' || childAction === 'restore') {
+        const archiving = childAction === 'archive';
+        if ((child['archivedAt'] !== null) === archiving) {
+          return failure(409, 'RECORD_STATE_CONFLICT', { archived: !archiving });
+        }
+        Object.assign(child, {
+          archivedAt: archiving ? NOW : null,
+          archiveReason: archiving ? request['reason'] : null,
+          rowVersion: child.rowVersion + 1,
+          updatedAt: NOW,
+        });
+        this.touchCase(owner, true);
+        return this.reply(200, kind, child);
+      }
+      if (method !== 'PATCH' || childAction !== undefined) return failure(404, 'NOT_FOUND');
+      if (child['archivedAt'] !== null) {
+        return failure(409, 'RECORD_STATE_CONFLICT', { record: kind, archived: true });
+      }
+      if (kind === 'UseMapping') {
+        const refused = this.mappingRefusal({ ...child, ...request });
+        if (refused) return refused;
+      }
+      Object.assign(child, request, { rowVersion: child.rowVersion + 1, updatedAt: NOW });
+      const material =
+        kind !== 'CaseWork' || Object.keys(request).some((field) => field !== 'notes');
+      if (material) this.touchCase(owner, true);
+      return this.reply(200, kind, child);
+    }
+    if (kind === 'ReportedItem') {
+      const video = videoIdOf(String(request['rawUrl']));
+      if ('reason' in video) {
+        return failure(422, 'REPORTED_URL_UNSUPPORTED', { field: 'rawUrl', reason: video.reason });
+      }
+      const duplicate = [...this.rows.ReportedItem.values()].find(
+        (row) => row['caseId'] === caseId && row['externalItemId'] === video.id,
+      );
+      if (duplicate)
+        return failure(409, 'DUPLICATE_REPORTED_ITEM', { reportedItemId: duplicate.id });
+      const row = this.seed('ReportedItem', {
+        ...request,
+        caseId,
+        externalItemId: video.id,
+        normalizedUrl: `https://www.youtube.com/watch?v=${video.id}`,
+      });
+      this.touchCase(owner, true);
+      return this.reply(201, 'ReportedItem', row);
+    }
+    if (kind === 'UseMapping') {
+      const refused =
+        this.childRefusal('CaseWork', caseId, request['caseWorkId'], 'caseWorkId') ??
+        this.childRefusal('ReportedItem', caseId, request['reportedItemId'], 'reportedItemId') ??
+        this.mappingRefusal(request);
+      if (refused) return refused;
+      const duplicate = [...this.rows.UseMapping.values()].find(
+        (row) =>
+          row['caseWorkId'] === request['caseWorkId'] &&
+          row['reportedItemId'] === request['reportedItemId'] &&
+          row['occurrence'] === request['occurrence'],
+      );
+      if (duplicate) return failure(409, 'DUPLICATE_USE_MAPPING', { useMappingId: duplicate.id });
+    }
+    const row = this.seed(kind, { ...request, caseId });
+    this.touchCase(owner, true);
+    return this.reply(201, kind, row);
+  }
+
+  /** Mapping value rules: a known end after its start; a review needs a reviewed basis source. */
+  private mappingRefusal(mapping: Record<string, unknown>): Response | null {
+    for (const [start, end] of [
+      ['sourceStartMs', 'sourceEndMs'],
+      ['reportedStartMs', 'reportedEndMs'],
+    ] as const) {
+      const a = mapping[start];
+      const b = mapping[end];
+      if (typeof a === 'string' && typeof b === 'string' && BigInt(b) <= BigInt(a)) {
+        return failure(422, 'TIME_RANGE_INVALID', { fields: [start, end] });
+      }
+    }
+    if (mapping['provenance'] === 'DOCUMENT_REVIEWED') {
+      const basis = this.sources.get(String(mapping['basisSourceId']));
+      if (!basis) return failure(422, 'REVIEW_UNSUPPORTED', { reason: 'NO_BASIS_SOURCE' });
+      if (basis['reportedProvenance'] !== 'DOCUMENT_REVIEWED') {
+        return failure(422, 'REVIEW_UNSUPPORTED', { reason: 'SOURCE_NOT_REVIEWED' });
+      }
+    }
+    return null;
+  }
+
+  /** A new fact (revision 1) or a new revision of the current one, with its stored supports. */
+  private recordFact(
+    owner: Row,
+    request: Record<string, unknown>,
+    head: (Record<string, unknown> & { id: string }) | null,
+  ): Response {
+    const caseId = owner.id;
+    const targets = {
+      WORK: 'caseWorkId',
+      REPORTED_ITEM: 'reportedItemId',
+      USE: 'mappingId',
+    } as const;
+    const scopeKind = String(request['scopeKind']) as keyof typeof targets | 'CASE';
+    for (const field of ['caseWorkId', 'reportedItemId', 'mappingId']) {
+      const wanted = scopeKind !== 'CASE' && targets[scopeKind] === field;
+      const given = typeof request[field] === 'string';
+      if (wanted !== given) {
+        return failure(422, 'FACT_SCOPE_INVALID', {
+          field,
+          scopeKind,
+          reason: wanted ? 'TARGET_REQUIRED' : 'TARGET_NOT_ALLOWED',
+        });
+      }
+    }
+    if (head) {
+      if (this.facts.some((other) => other['supersedesFactId'] === head.id)) {
+        const current = this.factHeads(caseId).find(
+          (fact) => fact['factGroupId'] === head['factGroupId'],
+        );
+        return failure(409, 'REVISION_NOT_HEAD', { headId: current?.id });
+      }
+      const changed = ['factType', 'scopeKind', 'caseWorkId', 'reportedItemId', 'mappingId'].filter(
+        (field) => (request[field] ?? null) !== head[field],
+      );
+      if (changed.length > 0) return failure(422, 'REVISION_SCOPE_CHANGE', { fields: changed });
+    }
+    if (scopeKind !== 'CASE') {
+      const field = targets[scopeKind];
+      const kind = (
+        { caseWorkId: 'CaseWork', reportedItemId: 'ReportedItem', mappingId: 'UseMapping' } as const
+      )[field];
+      const refused = this.childRefusal(kind, caseId, request[field], field);
+      if (refused) return refused;
+    }
+    const supports = (request['sources'] ?? []) as Array<{ caseSourceId: string }>;
+    let reviewed = false;
+    for (const [index, support] of supports.entries()) {
+      const field = `sources.${index}.caseSourceId`;
+      const link = this.rows.CaseSource.get(support.caseSourceId);
+      if (!link) return failure(422, 'REFERENCE_NOT_FOUND', { field });
+      if (link['caseId'] !== caseId) return failure(422, 'CROSS_CASE_REFERENCE', { field });
+      if (link['linkState'] !== 'LINKED') {
+        return failure(409, 'RECORD_STATE_CONFLICT', {
+          record: 'CaseSource',
+          linkState: link['linkState'],
+          field,
+        });
+      }
+      const source = this.sources.get(String(link['sourceId']));
+      if (source?.['reportedProvenance'] === 'DOCUMENT_REVIEWED') reviewed = true;
+    }
+    if (request['provenance'] === 'DOCUMENT_REVIEWED' && !reviewed) {
+      return failure(422, 'REVIEW_UNSUPPORTED', {
+        field: 'provenance',
+        reason: 'NO_REVIEWED_SOURCE',
+      });
+    }
+    const { sources, ...fields } = request;
+    const fact = this.seedFact({
+      caseWorkId: null,
+      reportedItemId: null,
+      mappingId: null,
+      rawProvenance: null,
+      resolutionState: 'UNASSESSED',
+      assertedByLabel: null,
+      assertedAsOf: null,
+      limitations: null,
+      ...fields,
+      caseId,
+      ...(head
+        ? {
+            factGroupId: head['factGroupId'],
+            revision: Number(head['revision']) + 1,
+            supersedesFactId: head.id,
+          }
+        : {}),
+    });
+    this.factSupports.set(fact.id, (sources ?? []) as unknown[]);
+    this.touchCase(owner, true);
+    return json(201, { data: fact, meta: { requestId: 'r', affectedResources: [] } });
+  }
+
   private caseSourceRequest(
     method: string,
     id: string,
@@ -1440,12 +1855,21 @@ export class FakeDirectory {
 let root: Root | undefined;
 let container: HTMLElement | undefined;
 let navigateTo: ((path: string) => void) | undefined;
+let navigateBy: ((delta: number) => void) | undefined;
 
 /** Captures the router's navigate function so a test can move between URLs in the same app. */
 function NavigationProbe() {
   const navigate = useNavigate();
   navigateTo = (path: string) => void navigate(path);
+  navigateBy = (delta: number) => void navigate(delta);
   return null;
+}
+
+/** History back (-1) or forward (+1), as the browser buttons do. */
+export async function history(delta: number): Promise<void> {
+  if (!navigateBy) throw new Error('nothing rendered');
+  const navigate = navigateBy;
+  await act(async () => navigate(delta));
 }
 
 /**
@@ -1481,6 +1905,7 @@ export async function unmount(): Promise<void> {
   root = undefined;
   container = undefined;
   navigateTo = undefined;
+  navigateBy = undefined;
 }
 
 afterEach(unmount);

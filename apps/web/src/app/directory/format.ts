@@ -126,6 +126,112 @@ export const TASK_TYPE_LABEL = {
   NMI_REPLY: 'Reply to a request for more information',
 } as const;
 
+/**
+ * Case intake (P4B). A fact type names what a structured case fact is about; the fact records what
+ * was stated or reviewed, never a conclusion the application reached.
+ */
+export const FACT_TYPE_LABEL = {
+  RIGHTS_BASIS: 'Rights basis',
+  RIGHTS_SCOPE: 'Rights scope',
+  PERMISSION: 'Permission',
+  AV_COMPARISON: 'Audio-visual comparison',
+  EXCEPTION_REVIEW: 'Exception review',
+  WORK_IDENTIFICATION: 'Work identification',
+  REPORTED_IDENTIFICATION: 'Reported item identification',
+  DUPLICATE_REVIEW: 'Duplicate review',
+  AUTHORITY_CURRENTNESS: 'Authority currentness (as reported)',
+} as const;
+export const SCOPE_KIND_LABEL = {
+  CASE: 'The whole case',
+  WORK: 'One work',
+  REPORTED_ITEM: 'One reported item',
+  USE: 'One use mapping',
+} as const;
+/** A state the operator records for a fact; nothing computes it from sources or matching. */
+export const RESOLUTION_STATE_LABEL = {
+  UNASSESSED: 'Unassessed',
+  SUPPORTED_FOR_SCOPE: 'Recorded as supported for its scope',
+  CONFLICT: 'Conflict',
+  WITHDRAWN: 'Withdrawn',
+} as const;
+export const RIGHTS_BASIS_LABEL = {
+  CREATOR_ORIGIN: 'Creator origin (as stated)',
+  ASSIGNMENT: 'Assignment (as stated)',
+  TRANSFER: 'Transfer (as stated)',
+  EMPLOYMENT: 'Employment (as stated)',
+  EXCLUSIVE_LICENCE: 'Exclusive licence (as stated)',
+  OTHER: 'Other',
+  UNKNOWN: 'Unknown',
+} as const;
+/** Permission is never inferred from silence: "no permission reported" is only what was reported. */
+export const PERMISSION_FINDING_LABEL = {
+  NO_PERMISSION_REPORTED: 'No permission reported',
+  PERMISSION_GRANTED: 'Permission granted (as reported)',
+  UNKNOWN: 'Unknown',
+  CONFLICT: 'Conflict',
+} as const;
+export const AV_FINDING_LABEL = {
+  HUMAN_REVIEW_REPORTED: 'Human review reported',
+  PRIMARY_EVIDENCE_REVIEWED: 'Primary evidence reviewed (as reported)',
+  UNREVIEWED: 'Unreviewed',
+  CONFLICT: 'Conflict',
+} as const;
+export const EXCEPTION_FINDING_LABEL = {
+  REVIEW_RECORDED: 'Review recorded',
+  UNREVIEWED: 'Unreviewed',
+  LEGAL_REVIEW_REQUIRED: 'Legal review required',
+  CONFLICT: 'Conflict',
+} as const;
+export const DUPLICATE_FINDING_LABEL = {
+  UNCHECKED: 'Unchecked',
+  POSSIBLE_OVERLAP: 'Possible overlap',
+  REVIEWED_DISTINCT: 'Reviewed as distinct',
+  EXISTING_MATTER: 'Existing matter',
+} as const;
+/** What a source reports about authority; the application never computes currentness. */
+export const CURRENTNESS_FINDING_LABEL = {
+  REPORTED_CURRENT: 'Reported as current by the source (not computed)',
+  UNKNOWN: 'Unknown',
+  CONFLICT: 'Conflict',
+  ENDED: 'Reported as ended',
+} as const;
+/** How a mapping's start and end times are to be read, as the source states them. */
+export const BOUNDARY_CONVENTION_LABEL: Record<string, string> = {
+  UNKNOWN: 'Unknown',
+  HALF_OPEN: 'Start included, end excluded',
+  INCLUSIVE: 'Start and end included',
+};
+
+/** Why a reported item address was refused (REPORTED_URL_UNSUPPORTED reasons). */
+const REPORTED_URL_REASON_TEXT: Record<string, string> = {
+  UNPARSEABLE: 'That text could not be read as a web address.',
+  CREDENTIALS_IN_URL: 'The address contains a user name or password. Remove them.',
+  PORT_IN_URL: 'The address names a port. Use the plain YouTube address.',
+  NOT_YOUTUBE: 'Only a YouTube video address can be recorded as a reported item.',
+  NOT_A_VIDEO_URL:
+    'That is not the address of one video (for example a channel, playlist or search page). Enter the video’s own address.',
+  AMBIGUOUS_VIDEO_ID: 'The address names more than one video. Enter an address with exactly one.',
+  INVALID_VIDEO_ID:
+    'The video id in the address is not a YouTube video id (11 letters, digits, hyphens or underscores).',
+};
+
+/** The case child a refusal names (RECORD_STATE_CONFLICT `record`). */
+const INTAKE_RECORD_TEXT: Record<string, string> = {
+  CaseWork: 'That work',
+  ReportedItem: 'That reported item',
+  UseMapping: 'That use mapping',
+};
+
+/** Case-child reference fields: a CROSS_CASE_REFERENCE on them names a record of another case. */
+function isCaseRecordField(field: string): boolean {
+  return (
+    field === 'caseWorkId' ||
+    field === 'reportedItemId' ||
+    field === 'mappingId' ||
+    field.startsWith('sources.')
+  );
+}
+
 export type Tone = 'draft' | 'active' | 'archived' | 'paused' | 'ended' | 'frozen';
 
 export const RECORD_STATE_TONE: Record<keyof typeof RECORD_STATE_LABEL, Tone> = {
@@ -297,6 +403,12 @@ export function describeError(error: unknown, recordLabel = 'record'): string {
       if (record === 'CaseRecord') {
         return 'This case is archived, so it and everything under it are read-only until it is restored.';
       }
+      if (record !== null && INTAKE_RECORD_TEXT[record] !== undefined) {
+        return `${INTAKE_RECORD_TEXT[record]} is archived, so nothing new can name it. Restore it first.`;
+      }
+      if (record === 'CaseSource') {
+        return 'That linked source is paused or unlinked, so it cannot support a fact. Link it again first.';
+      }
       if (record === 'Route') {
         return typeof details['linkState'] === 'string'
           ? 'That route is paused or unlinked, so no case can be bound to it or select authority under it.'
@@ -376,7 +488,25 @@ export function describeError(error: unknown, recordLabel = 'record'): string {
       }
       return 'That source is already recorded as another owner’s material, so it cannot be used for this owner.';
     case 'CROSS_CASE_REFERENCE':
+      if (isCaseRecordField(typeof details['field'] === 'string' ? details['field'] : '')) {
+        return 'That record belongs to another case. A case uses only its own works, reported items, use mappings and linked sources.';
+      }
       return 'That source is scoped to another case, so it cannot support this case.';
+    case 'REPORTED_URL_UNSUPPORTED':
+      return `${
+        REPORTED_URL_REASON_TEXT[String(details['reason'])] ??
+        'Only a YouTube video address can be recorded as a reported item.'
+      } Nothing was fetched.`;
+    case 'DUPLICATE_REPORTED_ITEM':
+      return 'This case already has a reported item for this video. Open the existing reported item instead.';
+    case 'DUPLICATE_USE_MAPPING':
+      return 'This work, reported item and occurrence are already mapped in this case. Open the existing mapping or use another occurrence number.';
+    case 'TIME_RANGE_INVALID':
+      return 'A known end time must be after its start time. Check both times exactly as the source states them.';
+    case 'FACT_SCOPE_INVALID':
+      return details['reason'] === 'TARGET_NOT_ALLOWED'
+        ? 'A fact names only the record of its scope: none for the whole case, the work, reported item or use mapping otherwise.'
+        : 'Choose the record this fact is about: the work, reported item or use mapping of its scope.';
     case 'DUPLICATE_CASE_SOURCE':
       return 'This source is already linked to this case in that role. Change the existing link’s state instead.';
     case 'SOURCE_NOT_CURRENT':
@@ -393,8 +523,14 @@ export function describeError(error: unknown, recordLabel = 'record'): string {
     case 'DUPLICATE_ROUTE':
       return 'A route for this agency, association and platform already exists. Open that route instead.';
     case 'REVISION_NOT_HEAD':
+      if (recordLabel === 'fact') {
+        return 'A newer revision of this fact exists. Only the current revision can be revised: open it and revise that one.';
+      }
       return 'A newer revision of this source exists. Only the current revision can be revised.';
     case 'REVISION_SCOPE_CHANGE':
+      if (recordLabel === 'fact') {
+        return 'A revision keeps the fact’s type and scope. A different type or scope needs a new fact.';
+      }
       return 'A revision keeps the source’s agency and scope. A different scope needs a new source record.';
     case 'CONTENT_HASH_INCOMPLETE':
       return 'Enter both the SHA-256 value and what it was computed from, or neither.';
@@ -443,9 +579,16 @@ export function describeError(error: unknown, recordLabel = 'record'): string {
     case 'DOCUMENT_STATE_UNSUPPORTED':
       return '“Draft document” and “Appears signed” describe a document: choose the primary source first.';
     case 'REVIEW_UNSUPPORTED':
-      return details['reason'] === 'SOURCE_NOT_REVIEWED'
-        ? '“Document reviewed” needs a source that records who reviewed the document.'
-        : '“Reviewed with limits” needs a cited primary or additional source that records who reviewed the document.';
+      switch (details['reason']) {
+        case 'SOURCE_NOT_REVIEWED':
+          return '“Document reviewed” needs a source that records who reviewed the document.';
+        case 'NO_BASIS_SOURCE':
+          return '“Document reviewed” needs a basis source that records who reviewed the document.';
+        case 'NO_REVIEWED_SOURCE':
+          return '“Document reviewed” needs at least one supporting linked source that records who reviewed the document.';
+        default:
+          return '“Reviewed with limits” needs a cited primary or additional source that records who reviewed the document.';
+      }
     case 'DUPLICATE_COVERAGE':
       return 'This version already has a coverage with that label for that route.';
     case 'DUPLICATE_COVERAGE_SIGNER':

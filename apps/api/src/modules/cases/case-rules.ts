@@ -239,9 +239,9 @@ export async function historyBlockers(
 
 /**
  * Every source the case already relies on — its LINKED and PAUSED source links, its canonical
- * binding source and its packet source — must still apply after its route changes (the new owner,
- * legal subject and case scope). A refusal names `routeId` (the request field) and the conflicting
- * source; nothing is written.
+ * binding source, its packet source and (P4B) the basis source of each unarchived use mapping —
+ * must still apply after its route changes (the new owner, legal subject and case scope). A refusal
+ * names `routeId` (the request field) and the conflicting source; nothing is written.
  */
 export async function assertCaseSourcesFit(
   tx: Prisma.TransactionClient,
@@ -254,6 +254,11 @@ export async function assertCaseSourcesFit(
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     select: { id: true, sourceId: true },
   });
+  const mappings = await tx.useMapping.findMany({
+    where: { caseId: row.id, archivedAt: null, basisSourceId: { not: null } },
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    select: { id: true, basisSourceId: true },
+  });
   const uses: Array<{ readonly conflict: string; readonly sourceId: string }> = [];
   if (row.canonicalBindingSourceId !== null) {
     uses.push({ conflict: 'canonicalBindingSourceId', sourceId: row.canonicalBindingSourceId });
@@ -263,6 +268,11 @@ export async function assertCaseSourcesFit(
   }
   for (const link of links)
     uses.push({ conflict: `caseSource:${link.id}`, sourceId: link.sourceId });
+  for (const mapping of mappings) {
+    if (mapping.basisSourceId !== null) {
+      uses.push({ conflict: `useMapping:${mapping.id}`, sourceId: mapping.basisSourceId });
+    }
+  }
   for (const use of uses) {
     try {
       await assertSourcesUsable(tx, [{ field: 'routeId', sourceId: use.sourceId }], target);

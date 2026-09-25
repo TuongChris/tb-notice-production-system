@@ -7,7 +7,10 @@
 //      LegalSubject, Owner, OwnerSubject, Route, Signer;
 //   2. the authority aggregate parent before child — Mandate, MandateVersion, MandateCoverage,
 //      CoverageSigner (P3B);
-//   3. CaseRecord, then its children — CaseSource, CaseAuthoritySelection (P4A);
+//   3. CaseRecord, then its children — CaseSource, CaseAuthoritySelection (P4A), then the intake
+//      material (P4B) parent before child: CaseWork, ReportedItem, UseMapping, CaseFact (a mapping
+//      names a work and an item; a fact names a work, an item or a mapping). Every P4B write locks
+//      its CaseRecord FOR UPDATE first, so the writes of one case are serialized;
 //   4. SourceReference last.
 // Rows of one type are locked in id order, and a transaction never locks a type that comes before
 // one it already holds. Immutable columns (a version's mandate, a coverage's version and route, a
@@ -35,7 +38,11 @@ export type RecordEntity =
   | 'CoverageSigner'
   | 'CaseRecord'
   | 'CaseSource'
-  | 'CaseAuthoritySelection';
+  | 'CaseAuthoritySelection'
+  | 'CaseWork'
+  | 'ReportedItem'
+  | 'UseMapping'
+  | 'CaseFact';
 
 /** Table of every lockable record type (directory, representation, authority and case records). */
 export const DIRECTORY_TABLES: Readonly<Record<RecordEntity, string>> = {
@@ -52,6 +59,10 @@ export const DIRECTORY_TABLES: Readonly<Record<RecordEntity, string>> = {
   CaseRecord: 'cases',
   CaseSource: 'case_sources',
   CaseAuthoritySelection: 'case_authority_selections',
+  CaseWork: 'case_works',
+  ReportedItem: 'reported_items',
+  UseMapping: 'use_mappings',
+  CaseFact: 'case_facts',
 };
 
 export interface ColumnReference {
@@ -120,6 +131,20 @@ export const DIRECT_REFERENCES: Readonly<Record<RecordEntity, readonly ColumnRef
     { table: 'case_authority_coverages', column: 'selection_id' },
     { table: 'cases', column: 'current_authority_selection_id' },
     { table: 'prompt_snapshots', column: 'authority_selection_id' },
+  ],
+  CaseWork: [
+    { table: 'case_facts', column: 'case_work_id' },
+    { table: 'use_mappings', column: 'case_work_id' },
+  ],
+  ReportedItem: [
+    { table: 'case_facts', column: 'reported_item_id' },
+    { table: 'correspondence_bindings', column: 'reported_item_id' },
+    { table: 'use_mappings', column: 'reported_item_id' },
+  ],
+  UseMapping: [{ table: 'case_facts', column: 'mapping_id' }],
+  CaseFact: [
+    { table: 'case_facts', column: 'supersedes_fact_id' },
+    { table: 'fact_sources', column: 'fact_id' },
   ],
 };
 

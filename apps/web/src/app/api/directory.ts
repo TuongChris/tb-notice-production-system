@@ -3,7 +3,9 @@
 // again. SourceReferences, AuthorityEvents and CaseAuthoritySelections are immutable: they carry no
 // ETag (a source changes only through a new revision, an event is superseded by a later event, a
 // selection is followed by a later selection). A selection is read back with the exact coverage rows
-// it pinned through getCaseAuthoritySelection (TB-SCHEMA-API-v1.1.0, ADR-0004).
+// it pinned through getCaseAuthoritySelection (TB-SCHEMA-API-v1.1.0, ADR-0004). Case intake (P4B):
+// reported items, works and use mappings are versioned children of one case; a case fact is an
+// immutable revision (no ETag) that changes only through a new revision of its chain.
 import type {
   Agency,
   ArchiveRequest,
@@ -12,22 +14,29 @@ import type {
   CanonicalBindingRequest,
   CaseAuthoritySelection,
   CaseAuthoritySelectionView,
+  CaseFact,
+  CaseFactSummary,
   CaseRecord,
   CaseSource,
+  CaseWork,
   CaseWorkflowRequest,
   CoverageSigner,
   CreateAgency,
   CreateAuthorityEvent,
   CreateCase,
+  CreateCaseWork,
   CreateCoverage,
   CreateCoverageSigner,
+  CreateFact,
   CreateLegalSubject,
   CreateMandate,
   CreateMandateVersion,
   CreateOwner,
+  CreateReportedItem,
   CreateRoute,
   CreateSigner,
   CreateSource,
+  CreateUseMapping,
   LegalSubject,
   LinkCaseSource,
   LinkOwnerSubject,
@@ -39,14 +48,19 @@ import type {
   OwnerSubject,
   PatchAgency,
   PatchCase,
+  PatchCaseWork,
   PatchCoverage,
   PatchLegalSubject,
   PatchMandate,
   PatchMandateVersion,
   PatchOwner,
+  PatchReportedItem,
   PatchRoute,
   PatchSigner,
+  PatchUseMapping,
   RecordStateRequest,
+  ReportedItem,
+  ReviseFact,
   ReviseSource,
   Route,
   SelectAuthority,
@@ -54,6 +68,7 @@ import type {
   SignerStateRequest,
   SourceReference,
   SourceReferenceSummary,
+  UseMapping,
 } from '@tb/contracts';
 import { ApiError, type ApiClient, type ApiResult } from './client.js';
 
@@ -73,6 +88,8 @@ export interface ListQuery {
   readonly routeId?: string;
   /** listCases only. */
   readonly workflowState?: string;
+  /** listCaseFacts only. */
+  readonly factType?: string;
 }
 
 export interface Page<T> {
@@ -100,6 +117,7 @@ function queryString(query: ListQuery): string {
   if (query.agencyId) params.set('agencyId', query.agencyId);
   if (query.routeId) params.set('routeId', query.routeId);
   if (query.workflowState) params.set('workflowState', query.workflowState);
+  if (query.factType) params.set('factType', query.factType);
   if (query.limit !== undefined) params.set('limit', String(query.limit));
   if (query.cursor) params.set('cursor', query.cursor);
   const text = params.toString();
@@ -428,6 +446,12 @@ export function createAuthorityApi(api: ApiClient) {
  * link's own ETag. A selection is "the authority chain selected/pinned for evaluation in this
  * specific Case" — never a G1 decision, current authority, signer eligibility or readiness — and
  * has no ETag: it is never edited, only followed by a later selection.
+ *
+ * Case intake (P4B): reported items, works and use mappings are read and changed only under their
+ * own case (another case's record is 404). A new one carries the case's ETag, an edit, archive or
+ * restore the record's own. A fact revision is immutable: create and revise carry the case's ETag,
+ * and a fact is never edited. None of these records is an infringement, ownership, permission or
+ * readiness finding.
  */
 export function createCasesApi(api: ApiClient) {
   const base = '/api/v1/cases';
@@ -440,6 +464,49 @@ export function createCasesApi(api: ApiClient) {
           ...writeHeaders(auth, ifMatch),
         }),
       );
+  const child = <T, Create, Patch>(segment: string) => {
+    const path = (caseId: string, id?: string, action?: string) =>
+      [base, caseId, segment, id, action].filter((part) => part !== undefined).join('/');
+    return {
+      list: async (caseId: string, query: ListQuery = {}) =>
+        (await api.request<Page<T>>('GET', `${path(caseId)}${queryString(query)}`)).data,
+      get: (caseId: string, id: string) => versioned(api.request<T>('GET', path(caseId, id))),
+      /** Precondition target: the case's ETag. */
+      create: (caseId: string, body: Create, caseEtag: string, auth: WriteAuth) =>
+        versioned(api.request<T>('POST', path(caseId), { body, ...writeHeaders(auth, caseEtag) })),
+      /** Precondition target: the record's own ETag. */
+      patch: (caseId: string, id: string, body: Patch, ifMatch: string, auth: WriteAuth) =>
+        versioned(
+          api.request<T>('PATCH', path(caseId, id), { body, ...writeHeaders(auth, ifMatch) }),
+        ),
+      archive: (
+        caseId: string,
+        id: string,
+        body: ArchiveRequest,
+        ifMatch: string,
+        auth: WriteAuth,
+      ) =>
+        versioned(
+          api.request<T>('POST', path(caseId, id, 'archive'), {
+            body,
+            ...writeHeaders(auth, ifMatch),
+          }),
+        ),
+      restore: (
+        caseId: string,
+        id: string,
+        body: ArchiveRequest,
+        ifMatch: string,
+        auth: WriteAuth,
+      ) =>
+        versioned(
+          api.request<T>('POST', path(caseId, id, 'restore'), {
+            body,
+            ...writeHeaders(auth, ifMatch),
+          }),
+        ),
+    };
+  };
   return {
     list: async (query: ListQuery = {}) =>
       (await api.request<Page<CaseRecord>>('GET', `${base}${queryString(query)}`)).data,
@@ -514,6 +581,44 @@ export function createCasesApi(api: ApiClient) {
             `${base}/${caseId}/authority-selections`,
             { body, ...writeHeaders(auth, caseEtag) },
           )
+        ).data,
+    },
+    reportedItems: child<ReportedItem, CreateReportedItem, PatchReportedItem>('reported-items'),
+    works: child<CaseWork, CreateCaseWork, PatchCaseWork>('works'),
+    mappings: child<UseMapping, CreateUseMapping, PatchUseMapping>('mappings'),
+    facts: {
+      /** Current revisions (chain heads) only; `q` = a fact group id finds its chain's head. */
+      list: async (caseId: string, query: ListQuery = {}) =>
+        (
+          await api.request<Page<CaseFactSummary>>(
+            'GET',
+            `${base}/${caseId}/facts${queryString(query)}`,
+          )
+        ).data,
+      /** Any revision of this case by id (another case's fact is 404). No ETag: it never changes. */
+      get: async (caseId: string, id: string) =>
+        (await api.request<CaseFact>('GET', `${base}/${caseId}/facts/${id}`)).data,
+      /** Precondition target: the case's ETag. */
+      create: async (caseId: string, body: CreateFact, caseEtag: string, auth: WriteAuth) =>
+        (
+          await api.request<CaseFact>('POST', `${base}/${caseId}/facts`, {
+            body,
+            ...writeHeaders(auth, caseEtag),
+          })
+        ).data,
+      /** Only the chain's current revision; precondition target: the case's ETag. */
+      revise: async (
+        caseId: string,
+        id: string,
+        body: ReviseFact,
+        caseEtag: string,
+        auth: WriteAuth,
+      ) =>
+        (
+          await api.request<CaseFact>('POST', `${base}/${caseId}/facts/${id}/revisions`, {
+            body,
+            ...writeHeaders(auth, caseEtag),
+          })
         ).data,
     },
   };

@@ -1,4 +1,6 @@
+import { Suspense } from 'react';
 import { NavLink, Outlet } from 'react-router';
+import { LoadingNotice } from '../directory/ui.js';
 
 /**
  * The Representation section: routes (operational paths) and mandates with their versions,
@@ -18,7 +20,9 @@ export function RepresentationLayout() {
           </li>
         </ul>
       </nav>
-      <Outlet />
+      <Suspense fallback={<LoadingNotice label="Loading page…" />}>
+        <Outlet />
+      </Suspense>
     </div>
   );
 }

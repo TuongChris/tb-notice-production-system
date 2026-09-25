@@ -1,0 +1,858 @@
+P4B — negative controls (mission §33), home PC, 2026-09-25 (UTC)
+=================================================================
+
+Method (scratchpad runner outside Git, the P4A/R8 method): each control disables exactly one protection by an
+exact text replacement (or injects the forbidden behaviour), runs every responsible test command — each must
+FAIL with a non-zero exit AND name at least one failed test; the first failure messages are recorded to show
+that the failure is the test's assertion, not a crash of a broken mutation — then restores every mutated file
+and verifies it byte-identical by SHA-256. Every anchor is checked to occur exactly once before a control
+runs. DB commands run on the disposable tb_notice_test only (synthetic records; every test cleans up). The
+working tree is fingerprinted (git diff HEAD + SHA-256 of every untracked file) before and after a run.
+
+Final run (run 3): 2026-09-25T06:36:27.313Z – 2026-09-25T06:40:06.363Z, head f952b731ab554d17ebfe34f273bbd83bf14771f4 plus the uncommitted test
+changes the controls rely on (committed unchanged right after this run; P4B_CASE_INTAKE.md §2), runner exit 0.
+  63 controls, 63 caught and restored.
+  Working-tree fingerprint before and after: d326abb345a958245520eb4fc1aa0fe11e8379540f8a1df826e80c390c78274c (identical)
+  Afterwards `yarn db:verify test --expect-empty`: [verify] domain rows total: 0; [verify] PASS: metadata matches the reviewed inventory.
+  Unmutated baseline right before it: tests/db/p4b-http.test.ts 32/32; tests/web/p4b.test.tsx,
+  tests/web/routing.test.tsx and tests/api/intake-rules.test.ts 79/79.
+
+RESULT: 63/63 — every responsible command failed and named its test; every file restored byte-identically.
+
+History (nothing hidden; every run kept in the scratchpad)
+- Before any run, writing the controls showed tests that could not have failed: nothing asserted that an
+  instant is written through the exact-instant path rather than V8's or Prisma's string parser (the stored
+  spellings were ones both parse correctly), that a reviewed support or basis leaves provenance and resolution
+  as supplied, that a newer source revision leaves a mapping's basis pinned, or that the UI sends the
+  provenance and resolution chosen. Those assertions were added first — DB: every admitted instant spelling
+  round-trips exactly (an hour-only offset V8 refuses; ±HH / ±HHMM offsets and TAB / ideographic-space
+  separators Prisma's parser refuses; a local year 0999 that is 1000 in UTC; the highest instant), a reviewed
+  support or basis upgrades nothing, the pinning test covers a mapping basis; web: "a reviewed source upgrades
+  nothing" — and the unmutated baseline was run green (32/32, 79/79).
+- Run 1: 2026-09-25T06:26:09.105Z – 2026-09-25T06:29:47.849Z, head f952b731ab554d17ebfe34f273bbd83bf14771f4, fingerprint c58938406fe30a5bf7ca2d7d7514ab4c10612816c9d0cb26a2547d26b65e197f (identical
+  after), runner exit 0: 63 controls, 63 caught and restored, 0 problems. Afterwards db:verify test: [verify] domain rows total: 0; [verify] PASS: metadata matches the reviewed inventory.
+- Run 2: 2026-09-25T06:30:39.608Z – 2026-09-25T06:34:18.105Z, same head and tree, with the first failure messages captured:
+  63 controls, 63 caught and restored. 22 controls first failed on something other than an AssertionError: web
+  tests waiting for an element that never appeared ("timed out waiting for …", the web tests' assertion
+  style) and, in the DB suite, the helpers code() / detailsOf() / refusalOf() reading the error body of a
+  response that the mutation had turned into a success (a TypeError instead of "expected 201 to be 422"). The
+  P4B DB helpers were then made to describe a success ("(no error: HTTP 201)") — diagnostics only, nothing
+  that passes changed — and the baseline was re-run green (32/32, 79/79). Afterwards db:verify test:
+  [verify] domain rows total: 0; [verify] PASS: metadata matches the reviewed inventory.
+- Run 3 (final, above) on that final test code: 3 controls first fail on something other
+  than an AssertionError, all of them web tests waiting for an element that never appears.
+- F1 (browser finding, mission §27): its two controls (NC-P4B-17a/b) were first run by hand when the fix was
+  made (2026-09-25T06:06Z; both tests failed, files restored byte-identically) and are part of every run.
+
+Mission §33 coverage
+- child case filter: NC-P4B-01a, NC-P4B-01b, NC-P4B-01c, NC-P4B-01d, NC-P4B-01e, NC-P4B-01f, NC-P4B-01g, NC-P4B-01h, NC-P4B-01i
+- cross-case mapping: NC-P4B-02a, NC-P4B-02b, NC-P4B-02c
+- URL normalization: NC-P4B-03a, NC-P4B-03b, NC-P4B-03c, NC-P4B-03d
+- timestamp storability: NC-P4B-04a, NC-P4B-04b, NC-P4B-04c, NC-P4B-04d, NC-P4B-04e, NC-P4B-04f
+- millisecond bounds/order: NC-P4B-05a, NC-P4B-05b, NC-P4B-05c, NC-P4B-05d
+- provenance auto-upgrade: NC-P4B-06a, NC-P4B-06b, NC-P4B-06c, NC-P4B-06d, NC-P4B-06e, NC-P4B-06f, NC-P4B-06g
+- DOCUMENT_REVIEWED support check: NC-P4B-07a, NC-P4B-07b, NC-P4B-07c, NC-P4B-07d
+- fact scope/target mismatch: NC-P4B-08a, NC-P4B-08b, NC-P4B-08c
+- fact history overwrite: NC-P4B-09a, NC-P4B-09b, NC-P4B-09c, NC-P4B-09d
+- source revision auto-follow: NC-P4B-10a, NC-P4B-10b
+- ETag: NC-P4B-11a, NC-P4B-11b, NC-P4B-11c, NC-P4B-11d
+- idempotency: NC-P4B-12a, NC-P4B-12b
+- audit rollback: NC-P4B-13a, NC-P4B-13b
+- contextRevision: NC-P4B-14a, NC-P4B-14b, NC-P4B-14c
+- “UseMapping = infringement” UI wording guard: NC-P4B-15a, NC-P4B-15b
+- UI Case A/B state contamination: NC-P4B-16a, NC-P4B-16b
+- browser finding F1: NC-P4B-17a, NC-P4B-17b
+
+Controls (replacement shown shortened; "must fail" = the responsible commands)
+------------------------------------------------------------------------------
+NC-P4B-01a — [child case filter] getReportedItem finds the item only under the case of the path
+  file: apps/api/src/modules/cases/reported-items.service.ts
+  replace: "    const row = await this.prisma.reportedItem.findFirst({ where: { id, caseId } });\n"
+  with:    "    const row = await this.prisma.reportedItem.findFirst({ where: { id } });\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t list and get: one case’s items only
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t two cases on one agency and route
+NC-P4B-01b — [child case filter] getCaseWork finds the work only under the case of the path
+  file: apps/api/src/modules/cases/case-works.service.ts
+  replace: "    const row = await this.prisma.caseWork.findFirst({ where: { id, caseId } });\n"
+  with:    "    const row = await this.prisma.caseWork.findFirst({ where: { id } });\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t two cases on one agency and route
+NC-P4B-01c — [child case filter] getUseMapping finds the mapping only under the case of the path
+  file: apps/api/src/modules/cases/use-mappings.service.ts
+  replace: "    const row = await this.prisma.useMapping.findFirst({ where: { id, caseId } });\n"
+  with:    "    const row = await this.prisma.useMapping.findFirst({ where: { id } });\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t list and get: one case’s mappings only
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t two cases on one agency and route
+NC-P4B-01d — [child case filter] getCaseFact finds the revision only under the case of the path
+  file: apps/api/src/modules/cases/case-facts.service.ts
+  replace: "    const row = await this.prisma.caseFact.findFirst({ where: { id, caseId } });\n"
+  with:    "    const row = await this.prisma.caseFact.findFirst({ where: { id } });\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t list and get: heads of this case only
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t two cases on one agency and route
+NC-P4B-01e — [child case filter] item/work writes (patch, archive, restore) lock the child only under the case of the path
+  file: apps/api/src/modules/cases/intake-rules.ts
+  replace: "  if ((await childCase(tx, entity, id)) !== caseId) throw apiErrors.notFound();\n"
+  with:    ""
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t two cases on one agency and route
+NC-P4B-01f — [child case filter] mapping writes (patch, archive, restore) lock the mapping only under the case of the path
+  file: apps/api/src/modules/cases/use-mappings.service.ts
+  replace: "    if ((await childCase(tx, 'UseMapping', id)) !== caseId) throw apiErrors.notFound();\n"
+  with:    ""
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t two cases on one agency and route
+NC-P4B-01g — [child case filter] reviseCaseFact revises only a fact of the case of the path
+  file: apps/api/src/modules/cases/case-facts.service.ts
+  replace: "        if ((await childCase(tx, ENTITY, id)) !== caseId) throw apiErrors.notFound();\n"
+  with:    ""
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t revisions: only the current head
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t two cases on one agency and route
+NC-P4B-01h — [child case filter] listCaseReportedItems lists only the case of the path
+  file: apps/api/src/modules/cases/reported-items.service.ts
+  replace: "Prisma.sql`SELECT r.id FROM reported_items r WHERE r.case_id = ${caseId} ${match}\n"
+  with:    "Prisma.sql`SELECT r.id FROM reported_items r WHERE 1 = 1 ${match}\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t list and get: one case’s items only
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t two cases on one agency and route
+NC-P4B-01i — [child case filter] listCaseFacts lists only the heads of the case of the path
+  file: apps/api/src/modules/cases/case-facts.service.ts
+  replace: "Prisma.sql`SELECT f.id FROM case_facts f WHERE f.case_id = ${caseId}\n"
+  with:    "Prisma.sql`SELECT f.id FROM case_facts f WHERE 1 = 1\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t list and get: heads of this case only
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t two cases on one agency and route
+NC-P4B-02a — [cross-case mapping] a work, item or mapping named in a body (mapping parties, fact scope) must be of this case
+  file: apps/api/src/modules/cases/intake-rules.ts
+  replace: "  if (owner !== caseId) throw apiErrors.crossCaseReference(field, 'record');\n"
+  with:    ""
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t refuses another case’s or an unknown work or item
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t scope: CASE names no record
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t two cases on one agency and route
+NC-P4B-02b — [cross-case mapping] a fact support names a CaseSource of this case only
+  file: apps/api/src/modules/cases/case-facts.service.ts
+  replace: "      if (link.caseId !== caseId) throw apiErrors.crossCaseReference(field, 'record');\n"
+  with:    ""
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t source support: a LINKED case source
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t two cases on one agency and route
+NC-P4B-02c — [cross-case mapping] one item per video within a case only — never a global uniqueness that links cases
+  file: apps/api/src/modules/cases/reported-items.service.ts
+  replace: "          where: { caseId, externalItemId: url.externalItemId },\n"
+  with:    "          where: { externalItemId: url.externalItemId },\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t refuses addresses that are not a YouTube video item
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t two cases on one agency and route
+NC-P4B-03a — [URL normalization] only youtube.com, www.youtube.com, m.youtube.com and youtu.be are recognized
+  file: apps/api/src/modules/cases/reported-url.ts
+  replace: "  } else if (HOSTS.has(host)) {\n"
+  with:    "  } else if (host.includes('youtube')) {\n"
+  must fail: npx vitest run --config vitest.config.ts tests/api/intake-rules.test.ts -t reported item URL normalization
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t refuses addresses that are not a YouTube video item
+NC-P4B-03b — [URL normalization] the video id keeps its character case
+  file: apps/api/src/modules/cases/reported-url.ts
+  replace: "    externalItemId: id,\n    normalizedUrl: `https://www.youtube.com/watch?v=${id}`,\n"
+  with:    "    externalItemId: id.toLowerCase(),\n    normalizedUrl: `https://www.youtube.com/watch?v=${id.toLowerCase()}`,\n"
+  must fail: npx vitest run --config vitest.config.ts tests/api/intake-rules.test.ts -t reported item URL normalization
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t create: the raw URL exactly as supplied
+NC-P4B-03c — [URL normalization] more than one v parameter is ambiguous and refused (never the first one guessed)
+  file: apps/api/src/modules/cases/reported-url.ts
+  replace: "      if (decoded.length > 1 || literal.length !== 1) {\n"
+  with:    "      if (literal.length === 0) {\n"
+  must fail: npx vitest run --config vitest.config.ts tests/api/intake-rules.test.ts -t reported item URL normalization
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t refuses addresses that are not a YouTube video item
+NC-P4B-03d — [URL normalization] the raw URL is stored exactly as supplied (not replaced by the normalized one)
+  file: apps/api/src/modules/cases/reported-items.service.ts
+  replace: "              rawUrl: body.rawUrl,\n"
+  with:    "              rawUrl: url.normalizedUrl,\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t create: the raw URL exactly as supplied
+NC-P4B-04a — [timestamp storability] observedAt: an unstorable instant is refused before anything is written
+  file: apps/api/src/modules/cases/reported-items.service.ts
+  replace: "    const problem = storabilityProblem(body, [], ['observedAt']);\n    if (problem) throw problem;\n    const url = normalizeReportedUrl(body.rawUrl);\n"
+  with:    "    const url = normalizeReportedUrl(body.rawUrl);\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t observedAt is stored exactly
+NC-P4B-04b — [timestamp storability] observedAt (create) is written as the exact instant, not V8’s reading of the string
+  file: apps/api/src/modules/cases/reported-items.service.ts
+  replace: "              observedAt: typeof body.observedAt === 'string' ? toDbInstant(body.observedAt) : null,\n"
+  with:    "              observedAt: typeof body.observedAt === 'string' ? new Date(body.observedAt) : null,\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t observedAt is stored exactly
+NC-P4B-04c — [timestamp storability] observedAt (create) is written as the exact instant, not the request string passed to Prisma
+  file: apps/api/src/modules/cases/reported-items.service.ts
+  replace: "              observedAt: typeof body.observedAt === 'string' ? toDbInstant(body.observedAt) : null,\n"
+  with:    "              observedAt: typeof body.observedAt === 'string' ? body.observedAt : null,\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t observedAt is stored exactly
+NC-P4B-04d — [timestamp storability] observedAt (patch) is written as the exact instant
+  file: apps/api/src/modules/cases/reported-items.service.ts
+  replace: "            typeof body.observedAt === 'string' ? toDbInstant(body.observedAt) : null;\n"
+  with:    "            typeof body.observedAt === 'string' ? new Date(body.observedAt) : null;\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t observedAt is stored exactly
+NC-P4B-04e — [timestamp storability] assertedAsOf: an unstorable instant is refused before anything is written
+  file: apps/api/src/modules/cases/case-facts.service.ts
+  replace: "  const storability = storabilityProblem(body, [], ['assertedAsOf']);\n  if (storability) return storability;\n"
+  with:    ""
+  must fail: npx vitest run --config vitest.config.ts tests/api/intake-rules.test.ts -t request-only checks
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t assertedAsOf is stored exactly
+NC-P4B-04f — [timestamp storability] assertedAsOf is written as the exact instant, not V8’s reading of the string
+  file: apps/api/src/modules/cases/case-facts.service.ts
+  replace: "            typeof body.assertedAsOf === 'string' ? toDbInstant(body.assertedAsOf) : null,\n"
+  with:    "            typeof body.assertedAsOf === 'string' ? new Date(body.assertedAsOf) : null,\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t assertedAsOf is stored exactly
+NC-P4B-05a — [millisecond bounds/order] milliseconds above 9007199254740991 are refused (422, before the CHECK backstop)
+  file: apps/api/src/modules/cases/intake-rules.ts
+  replace: "    if (typeof value === 'string' && BigInt(value) > MAX_MILLISECONDS) {\n"
+  with:    "    if (typeof value === 'string' && BigInt(value) > MAX_MILLISECONDS * 2000n) {\n"
+  must fail: npx vitest run --config vitest.config.ts tests/api/intake-rules.test.ts -t accepts the contract pattern up to 9007199254740991
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t refuses another case’s or an unknown work or item
+NC-P4B-05b — [millisecond bounds/order] a known end must exceed its known start (equal is refused)
+  file: apps/api/src/modules/cases/intake-rules.ts
+  replace: "    if (from !== null && to !== null && BigInt(to) <= BigInt(from)) {\n"
+  with:    "    if (from !== null && to !== null && BigInt(to) < BigInt(from)) {\n"
+  must fail: npx vitest run --config vitest.config.ts tests/api/intake-rules.test.ts -t a known end must exceed its known start
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t refuses another case’s or an unknown work or item
+NC-P4B-05c — [millisecond bounds/order] a mapping PATCH checks the order on the merged state
+  file: apps/api/src/modules/cases/use-mappings.service.ts
+  replace: "        const range = intervalProblem(millisecondsOf(merged));\n        if (range) throw range;\n"
+  with:    ""
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t ordering checked on the merged state
+NC-P4B-05d — [millisecond bounds/order] UI: the mapping form refuses an end that is not after its start before sending
+  file: apps/web/src/app/cases/mappings.tsx
+  replace: "    if (MILLISECONDS.test(a) && MILLISECONDS.test(b) && BigInt(b) <= BigInt(a)) {\n"
+  with:    "    if (MILLISECONDS.test(a) && MILLISECONDS.test(b) && BigInt(b) < BigInt(a)) {\n"
+  must fail: npx vitest run --config vitest.config.ts tests/web/p4b.test.tsx -t a mapping whose end is not after its start
+NC-P4B-06a — [provenance auto-upgrade] a fact’s provenance is stored as supplied, never upgraded by a reviewed support
+  file: apps/api/src/modules/cases/case-facts.service.ts
+  replace: "    const id = randomUUID();\n    const row = await tx.caseFact\n"
+  with:    "    const reviewedSupports = await tx.sourceReference.count({\n      where: { id: { in: sources.map((source) => source.id) }, reportedProvenance: 'DOCUMENT_REVIEWED' },..."
+  file: apps/api/src/modules/cases/case-facts.service.ts
+  replace: "          provenance: body.provenance,\n"
+  with:    "          provenance: reviewedSupports > 0 ? 'DOCUMENT_REVIEWED' : body.provenance,\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t source support: a LINKED case source
+NC-P4B-06b — [provenance auto-upgrade] no automatic SUPPORTED_FOR_SCOPE: the resolution state is supplied or UNASSESSED
+  file: apps/api/src/modules/cases/case-facts.service.ts
+  replace: "          resolutionState: body.resolutionState ?? 'UNASSESSED',\n"
+  with:    "          resolutionState: body.resolutionState ?? (body.sources.length > 0 ? 'SUPPORTED_FOR_SCOPE' : 'UNASSESSED'),\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t source support: a LINKED case source
+NC-P4B-06c — [provenance auto-upgrade] a mapping’s provenance is stored as supplied (or MISSING), never upgraded by a reviewed basis
+  file: apps/api/src/modules/cases/use-mappings.service.ts
+  replace: "              ...mappingData(body as unknown as Record<string, unknown>, CREATE_FIELDS),\n"
+  with:    "              ...mappingData(body as unknown as Record<string, unknown>, CREATE_FIELDS),\n              ...((await tx.sourceReference.findFirst({\n                where:..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t basis source and provenance
+NC-P4B-06d — [provenance auto-upgrade] citing a source in a fact support never upgrades the source’s own provenance
+  file: apps/api/src/modules/cases/case-facts.service.ts
+  replace: "    const touched = await touchCaseFor(context, caseRow);\n    const view = toCaseFactView(row);\n"
+  with:    "    await tx.sourceReference.updateMany({\n      where: { id: { in: sources.map((source) => source.id) } },\n      data: { reportedProvenance: 'DOCUMENT_REVIEWED', revie..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t source support: a LINKED case source
+NC-P4B-06e — [provenance auto-upgrade] UI: the fact form sends the provenance chosen, never upgraded by a reviewed support
+  file: apps/web/src/app/cases/facts.tsx
+  replace: "      provenance,\n      ...(rawProvenance.trim() === '' ? {} : { rawProvenance: rawProvenance.trim() }),\n"
+  with:    "      provenance: reviewedSupport ? 'DOCUMENT_REVIEWED' : provenance,\n      ...(rawProvenance.trim() === '' ? {} : { rawProvenance: rawProvenance.trim() }),\n"
+  must fail: npx vitest run --config vitest.config.ts tests/web/p4b.test.tsx -t a reviewed source upgrades nothing
+NC-P4B-06f — [provenance auto-upgrade] UI: the fact form sends the resolution chosen, never SUPPORTED_FOR_SCOPE because supports exist
+  file: apps/web/src/app/cases/facts.tsx
+  replace: "      resolutionState: resolution,\n"
+  with:    "      resolutionState: supports.length > 0 ? 'SUPPORTED_FOR_SCOPE' : resolution,\n"
+  must fail: npx vitest run --config vitest.config.ts tests/web/p4b.test.tsx -t a reviewed source upgrades nothing
+  must fail: npx vitest run --config vitest.config.ts tests/web/p4b.test.tsx -t records a case fact exactly as entered
+NC-P4B-06g — [provenance auto-upgrade] UI: the mapping form sends the provenance chosen, never upgraded by a basis source
+  file: apps/web/src/app/cases/mappings.tsx
+  replace: "      boundaryConvention,\n      provenance,\n      ...(basisSourceId === '' ? {} : { basisSourceId }),\n"
+  with:    "      boundaryConvention,\n      provenance: basisSourceId === '' ? provenance : 'DOCUMENT_REVIEWED',\n      ...(basisSourceId === '' ? {} : { basisSourceId }),\n"
+  must fail: npx vitest run --config vitest.config.ts tests/web/p4b.test.tsx -t a reviewed source upgrades nothing
+NC-P4B-07a — [DOCUMENT_REVIEWED support check] a DOCUMENT_REVIEWED fact needs a supporting source that records an attributed review
+  file: apps/api/src/modules/cases/case-facts.service.ts
+  replace: "      if (reviewed === 0) throw apiErrors.reviewUnsupported('provenance', 'NO_REVIEWED_SOURCE');\n"
+  with:    ""
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t source support: a LINKED case source
+NC-P4B-07b — [DOCUMENT_REVIEWED support check] a DOCUMENT_REVIEWED mapping needs a basis source
+  file: apps/api/src/modules/cases/use-mappings.service.ts
+  replace: "    if (basisSourceId === null) throw apiErrors.reviewUnsupported('provenance', 'NO_BASIS_SOURCE');\n"
+  with:    "    if (basisSourceId === null) return;\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t basis source and provenance
+NC-P4B-07c — [DOCUMENT_REVIEWED support check] a DOCUMENT_REVIEWED mapping’s basis source must itself record an attributed review
+  file: apps/api/src/modules/cases/use-mappings.service.ts
+  replace: "    const problem = eventReviewProblem(provenance, source.reportedProvenance);\n    if (problem) throw problem;\n"
+  with:    "    void eventReviewProblem;\n    void source;\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t basis source and provenance
+NC-P4B-07d — [DOCUMENT_REVIEWED support check] UI: “Document reviewed” is unavailable until a reviewed supporting source is chosen
+  file: apps/web/src/app/cases/facts.tsx
+  replace: "              disabled: value === 'DOCUMENT_REVIEWED' && !reviewedSupport && provenance !== value,\n"
+  with:    "              disabled: false,\n"
+  must fail: npx vitest run --config vitest.config.ts tests/web/p4b.test.tsx -t records a case fact exactly as entered
+NC-P4B-08a — [fact scope/target mismatch] a WORK / REPORTED_ITEM / USE fact must name its record (TARGET_REQUIRED)
+  file: apps/api/src/modules/cases/intake-rules.ts
+  replace: "    if (field === required && targets[field] === null) {\n"
+  with:    "    if (field === required && targets[field] === null && false) {\n"
+  must fail: npx vitest run --config vitest.config.ts tests/api/intake-rules.test.ts -t each scope kind names exactly its record
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t scope: CASE names no record
+NC-P4B-08b — [fact scope/target mismatch] a fact names no record other than its scope’s own (TARGET_NOT_ALLOWED)
+  file: apps/api/src/modules/cases/intake-rules.ts
+  replace: "    if (field !== required && targets[field] !== null) {\n"
+  with:    "    if (field !== required && targets[field] !== null && false) {\n"
+  must fail: npx vitest run --config vitest.config.ts tests/api/intake-rules.test.ts -t each scope kind names exactly its record
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t scope: CASE names no record
+NC-P4B-08c — [fact scope/target mismatch] a revision keeps the fact type and scope of its chain (REVISION_SCOPE_CHANGE)
+  file: apps/api/src/modules/cases/case-facts.service.ts
+  replace: "        if (changedChain.length > 0) throw apiErrors.revisionScopeChange(changedChain, 'fact');\n"
+  with:    ""
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t revisions: only the current head
+NC-P4B-09a — [fact history overwrite] a revision never changes the revision it supersedes (value, provenance)
+  file: apps/api/src/modules/cases/case-facts.service.ts
+  replace: "    const supports: Array<{ id: string; caseSourceId: string; sourceId: string } & FactSupport> =\n"
+  with:    "    if (head !== null) {\n      await tx.caseFact.update({\n        where: { id: head.id },\n        data: { value: body.value as Prisma.InputJsonValue, provenance: body...."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t revisions: only the current head
+NC-P4B-09b — [fact history overwrite] a revision never removes the supports of the revision it supersedes
+  file: apps/api/src/modules/cases/case-facts.service.ts
+  replace: "    const supports: Array<{ id: string; caseSourceId: string; sourceId: string } & FactSupport> =\n"
+  with:    "    if (head !== null) await tx.factSource.deleteMany({ where: { factId: head.id } });\n    const supports: Array<{ id: string; caseSourceId: string; sourceId: string }..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t revisions: only the current head
+NC-P4B-09c — [fact history overwrite] only the current head is revised: REVISION_NOT_HEAD names the head (no fork of the history)
+  file: apps/api/src/modules/cases/case-facts.service.ts
+  replace: "        if (successor) {\n"
+  with:    "        if (successor && false) {\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t revisions: only the current head
+NC-P4B-09d — [fact history overwrite] UI: an earlier revision offers no revision form
+  file: apps/web/src/app/cases/facts.tsx
+  replace: "      ) : !current && head !== null ? (\n"
+  with:    "      ) : false ? (\n"
+  must fail: npx vitest run --config vitest.config.ts tests/web/p4b.test.tsx -t revises the current fact with the case ETag
+NC-P4B-10a — [source revision auto-follow] a new SourceReference revision never re-points a case source link (and the fact supports through it)
+  file: apps/api/src/modules/sources/sources.service.ts
+  replace: "        await context.audit({\n          action: 'SOURCE_REVISED',\n"
+  with:    "        await tx.caseSource.updateMany({\n          where: { sourceId: target.id },\n          data: { sourceId: revisionId },\n        });\n        await context.audit({\n..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t pinning: a newer SourceReference revision
+NC-P4B-10b — [source revision auto-follow] a new SourceReference revision never re-points a mapping’s basis source
+  file: apps/api/src/modules/sources/sources.service.ts
+  replace: "        await context.audit({\n          action: 'SOURCE_REVISED',\n"
+  with:    "        await tx.useMapping.updateMany({\n          where: { basisSourceId: target.id },\n          data: { basisSourceId: revisionId },\n        });\n        await contex..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t pinning: a newer SourceReference revision
+NC-P4B-11a — [ETag] patchReportedItem checks the item’s own If-Match
+  file: apps/api/src/modules/cases/reported-items.service.ts
+  replace: "        const current = await tx.reportedItem.findUniqueOrThrow({ where: { id } });\n        context.checkPrecondition({ entityType: ENTITY, id, rowVersion: current.row..."
+  with:    "        const current = await tx.reportedItem.findUniqueOrThrow({ where: { id } });\n        assertCaseWritable(caseRow, 'patchReportedItem');\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t every conditional P4B write
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t two tabs and concurrent writers
+NC-P4B-11b — [ETag] createCaseWork checks the case’s If-Match
+  file: apps/api/src/modules/cases/case-works.service.ts
+  replace: "        const current = await lockCase(tx, caseId);\n        context.checkPrecondition({\n          entityType: CASE_ENTITY,\n          id: caseId,\n          rowVersion: ..."
+  with:    "        const current = await lockCase(tx, caseId);\n        assertCaseWritable(current, 'createCaseWork');\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t every conditional P4B write
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t two tabs and concurrent writers
+NC-P4B-11c — [ETag] mapping patch/archive/restore check the mapping’s own If-Match
+  file: apps/api/src/modules/cases/use-mappings.service.ts
+  replace: "    context.checkPrecondition({ entityType: ENTITY, id, rowVersion: current.rowVersion });\n    return { caseRow, current };\n"
+  with:    "    return { caseRow, current };\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t every conditional P4B write
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t two tabs and concurrent writers
+NC-P4B-11d — [ETag] reviseCaseFact checks the case’s If-Match
+  file: apps/api/src/modules/cases/case-facts.service.ts
+  replace: "        const current = await lockCase(tx, caseId);\n        context.checkPrecondition({\n          entityType: CASE_ENTITY,\n          id: caseId,\n          rowVersion: ..."
+  with:    "        const current = await lockCase(tx, caseId);\n        assertCaseWritable(current, 'reviseCaseFact');\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t every conditional P4B write
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t two tabs and concurrent writers
+NC-P4B-12a — [idempotency] an exact replay returns the stored result and never repeats the write
+  file: apps/api/src/infrastructure/write/write-executor.ts
+  replace: "    if (claim.kind === 'replay') return replay(claim, requester.requestId);\n"
+  with:    "    if (claim.kind === 'replay' && false) return replay(claim, requester.requestId);\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t Idempotency-Key for every P4B write family
+NC-P4B-12b — [idempotency] a refused request releases its claim and is never stored
+  file: apps/api/src/infrastructure/write/write-executor.ts
+  replace: "        await this.release(claim);\n        if (retryable) throw apiErrors.retryableTransactionConflict();\n"
+  with:    "        if (retryable) throw apiErrors.retryableTransactionConflict();\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t Idempotency-Key for every P4B write family
+NC-P4B-13a — [audit rollback] a failing audit rolls back a fact create/revision (with its supports)
+  file: apps/api/src/modules/cases/case-facts.service.ts
+  replace: "await context.audit({\n      action: head === null ? 'CASE_FACT_CREATED' : 'CASE_FACT_REVISED',\n"
+  with:    "await (async (entry: Parameters<typeof context.audit>[0]) => {\n      try {\n        await context.audit(entry);\n      } catch {\n        // NEGATIVE CONTROL: audit failu..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t a failing audit insert rolls back every P4B write
+NC-P4B-13b — [audit rollback] a failing audit rolls back a mapping create
+  file: apps/api/src/modules/cases/use-mappings.service.ts
+  replace: "        await context.audit({\n          action: 'USE_MAPPING_CREATED',\n"
+  with:    "        await (async (entry: Parameters<typeof context.audit>[0]) => {\n      try {\n        await context.audit(entry);\n      } catch {\n        // NEGATIVE CONTROL: aud..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t a failing audit insert rolls back every P4B write
+NC-P4B-14a — [contextRevision] a material intake change moves the case’s context revision
+  file: apps/api/src/modules/cases/intake-rules.ts
+  replace: "      contextRevision: { increment: 1 },\n"
+  with:    ""
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t each material create, edit, archive, restore and revision
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t create: the raw URL exactly as supplied
+NC-P4B-14b — [contextRevision] a work’s notes alone do not move the case
+  file: apps/api/src/modules/cases/case-works.service.ts
+  replace: "        const material = changed.some((field) => MATERIAL_FIELDS.includes(field));\n"
+  with:    "        const material = changed.length > 0;\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t each material create, edit, archive, restore and revision
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t create and patch: exactly the supplied fields
+NC-P4B-14c — [contextRevision] a no-op PATCH writes nothing and moves nothing
+  file: apps/api/src/modules/cases/reported-items.service.ts
+  replace: "        if (changed.length === 0) return unchanged(ENTITY, view);\n"
+  with:    ""
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t each material create, edit, archive, restore and revision
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t observedAt is stored exactly
+NC-P4B-15a — [“UseMapping = infringement” UI wording guard] the mapping meaning says it is shown as recorded, not as an infringement verdict
+  file: apps/web/src/app/cases/intake-ui.tsx
+  replace: "It is shown as recorded, not as an infringement verdict: similarity alone is never infringement."
+  with:    "It confirms the infringing video: the work infringes where it appears."
+  must fail: npx vitest run --config vitest.config.ts tests/web/p4b.test.tsx -t the case page shows the four intake sections
+  must fail: npx vitest run --config vitest.config.ts tests/web/p4b.test.tsx -t records a use mapping from this case
+NC-P4B-15b — [“UseMapping = infringement” UI wording guard] a mapping shows no verdict stamp (the neutral meaning kept, a verdict badge added)
+  file: apps/web/src/app/cases/mappings.tsx
+  replace: "        stamp={<ArchivedStamp archivedAt={mapping.archivedAt} />}\n"
+  with:    "        stamp={\n          <>\n            <ArchivedStamp archivedAt={mapping.archivedAt} />\n            <span className=\"stamp\">Infringement confirmed</span>\n          ..."
+  must fail: npx vitest run --config vitest.config.ts tests/web/p4b.test.tsx -t records a use mapping from this case
+NC-P4B-16a — [UI Case A/B state contamination] the new-mapping form is rebuilt per case (nothing chosen or typed for A offered in B)
+  file: apps/web/src/app/cases/mappings.tsx
+  replace: "  return <NewMapping key={id} caseId={id} />;\n"
+  with:    "  return <NewMapping caseId={id} />;\n"
+  must fail: npx vitest run --config vitest.config.ts tests/web/p4b.test.tsx -t switching from case A to case B
+NC-P4B-16b — [UI Case A/B state contamination] the new-fact form is rebuilt per case (A’s form and loaded context never shown for B)
+  file: apps/web/src/app/cases/facts.tsx
+  replace: "  return <NewFact key={id} caseId={id} />;\n"
+  with:    "  return <NewFact caseId={id} />;\n"
+  must fail: npx vitest run --config vitest.config.ts tests/web/p4b.test.tsx -t switching from case A to case B
+NC-P4B-17a — [browser finding F1] UI: “Load latest version” on a new record clears the conflict notice
+  file: apps/web/src/app/cases/works.tsx
+  replace: "                submission.reset();\n                reload();\n"
+  with:    "                reload();\n"
+  must fail: npx vitest run --config vitest.config.ts tests/web/p4b.test.tsx -t a new record with an outdated case version
+NC-P4B-17b — [browser finding F1] UI: the new-fact form stays mounted (typed values kept) while the case reloads
+  file: apps/web/src/app/cases/facts.tsx
+  replace: "  const [state, reload] = useLoad(`fact-new:${caseId}`, () => loadFormContext(api, caseId));\n  const context = useKept(state);\n"
+  with:    "  const [state, reload] = useLoad(`fact-new:${caseId}`, () => loadFormContext(api, caseId));\n  const context = state.status === 'ready' ? state.value : null;\n"
+  must fail: npx vitest run --config vitest.config.ts tests/web/p4b.test.tsx -t a new fact with an outdated case version
+
+Final run log (run 3)
+---------------------
+# P4B negative controls — start 2026-09-25T06:36:27.313Z — head f952b731ab554d17ebfe34f273bbd83bf14771f4 — tree fingerprint d326abb345a958245520eb4fc1aa0fe11e8379540f8a1df826e80c390c78274c
+[NC-P4B-01a] CAUGHT · restored byte-identical · [child case filter] getReportedItem finds the item only under the case of the path
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t list and get: one case’s items only
+      × list and get: one case’s items only, archived included, newest first; exact and literal search; 404 for an unknown case or item and for another case’s item
+      FAIL  tests/db/p4b-http.test.ts > REPORTED ITEMS — identification of reported material; not an infringement finding > list and get: one case’s items only, archived included, newest first; exact and literal search; 404 for an unknown case or item and for another case’s item
+        ↳ AssertionError: expected [ 200, { noError: 'HTTP 200' } ] to deeply equal [ 404, { code: 'NOT_FOUND', …(2) } ]
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t two cases on one agency and route
+      × two cases on one agency and route with the same video and work title: separate records; each child is reachable only through its own case; nothing of one case can be used or changed through the other
+      FAIL  tests/db/p4b-http.test.ts > CONTAMINATION — nothing crosses from one case to another > two cases on one agency and route with the same video and work title: separate records; each child is reachable only through its own case; nothing of one case can be used or changed through the other
+        ↳ AssertionError: expected [ 200, { noError: 'HTTP 200' } ] to deeply equal [ 404, { code: 'NOT_FOUND', …(2) } ]
+[NC-P4B-01b] CAUGHT · restored byte-identical · [child case filter] getCaseWork finds the work only under the case of the path
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t two cases on one agency and route
+      × two cases on one agency and route with the same video and work title: separate records; each child is reachable only through its own case; nothing of one case can be used or changed through the other
+      FAIL  tests/db/p4b-http.test.ts > CONTAMINATION — nothing crosses from one case to another > two cases on one agency and route with the same video and work title: separate records; each child is reachable only through its own case; nothing of one case can be used or changed through the other
+        ↳ AssertionError: expected [ 200, { noError: 'HTTP 200' } ] to deeply equal [ 404, { code: 'NOT_FOUND', …(2) } ]
+[NC-P4B-01c] CAUGHT · restored byte-identical · [child case filter] getUseMapping finds the mapping only under the case of the path
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t list and get: one case’s mappings only
+      × list and get: one case’s mappings only, newest first; exact-id search by mapping, work or item; another case’s mapping is 404 like an unknown one
+      FAIL  tests/db/p4b-http.test.ts > USE MAPPINGS — a recorded work ↔ reported item association within one case; not an infringement finding > list and get: one case’s mappings only, newest first; exact-id search by mapping, work or item; another case’s mapping is 404 like an unknown one
+        ↳ AssertionError: expected [ 200, { noError: 'HTTP 200' } ] to deeply equal [ 404, { code: 'NOT_FOUND', …(2) } ]
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t two cases on one agency and route
+      × two cases on one agency and route with the same video and work title: separate records; each child is reachable only through its own case; nothing of one case can be used or changed through the other
+      FAIL  tests/db/p4b-http.test.ts > CONTAMINATION — nothing crosses from one case to another > two cases on one agency and route with the same video and work title: separate records; each child is reachable only through its own case; nothing of one case can be used or changed through the other
+        ↳ AssertionError: expected [ 200, { noError: 'HTTP 200' } ] to deeply equal [ 404, { code: 'NOT_FOUND', …(2) } ]
+[NC-P4B-01d] CAUGHT · restored byte-identical · [child case filter] getCaseFact finds the revision only under the case of the path
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t list and get: heads of this case only
+      × list and get: heads of this case only, newest first; exact type filter (unknown 400), exact-id and literal scope-text search; another case’s fact is 404 like an unknown one
+      FAIL  tests/db/p4b-http.test.ts > CASE FACTS — explicit, attributed, case-specific assertions; revisions preserve history > list and get: heads of this case only, newest first; exact type filter (unknown 400), exact-id and literal scope-text search; another case’s fact is 404 like an unknown one
+        ↳ AssertionError: expected [ 200, { noError: 'HTTP 200' } ] to deeply equal [ 404, { code: 'NOT_FOUND', …(2) } ]
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t two cases on one agency and route
+      × two cases on one agency and route with the same video and work title: separate records; each child is reachable only through its own case; nothing of one case can be used or changed through the other
+      FAIL  tests/db/p4b-http.test.ts > CONTAMINATION — nothing crosses from one case to another > two cases on one agency and route with the same video and work title: separate records; each child is reachable only through its own case; nothing of one case can be used or changed through the other
+        ↳ AssertionError: expected [ 200, { noError: 'HTTP 200' } ] to deeply equal [ 404, { code: 'NOT_FOUND', …(2) } ]
+[NC-P4B-01e] CAUGHT · restored byte-identical · [child case filter] item/work writes (patch, archive, restore) lock the child only under the case of the path
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t two cases on one agency and route
+      × two cases on one agency and route with the same video and work title: separate records; each child is reachable only through its own case; nothing of one case can be used or changed through the other
+      FAIL  tests/db/p4b-http.test.ts > CONTAMINATION — nothing crosses from one case to another > two cases on one agency and route with the same video and work title: separate records; each child is reachable only through its own case; nothing of one case can be used or changed through the other
+        ↳ AssertionError: expected [ 200, '(no error: HTTP 200)' ] to deeply equal [ 404, 'NOT_FOUND' ]
+[NC-P4B-01f] CAUGHT · restored byte-identical · [child case filter] mapping writes (patch, archive, restore) lock the mapping only under the case of the path
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t two cases on one agency and route
+      × two cases on one agency and route with the same video and work title: separate records; each child is reachable only through its own case; nothing of one case can be used or changed through the other
+      FAIL  tests/db/p4b-http.test.ts > CONTAMINATION — nothing crosses from one case to another > two cases on one agency and route with the same video and work title: separate records; each child is reachable only through its own case; nothing of one case can be used or changed through the other
+        ↳ AssertionError: expected [ 200, '(no error: HTTP 200)' ] to deeply equal [ 404, 'NOT_FOUND' ]
+[NC-P4B-01g] CAUGHT · restored byte-identical · [child case filter] reviseCaseFact revises only a fact of the case of the path
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t revisions: only the current head
+      × revisions: only the current head, same fact type and scope; revision + 1 superseding it; earlier revisions and their supports never change; the list shows heads, history stays readable
+      FAIL  tests/db/p4b-http.test.ts > CASE FACTS — explicit, attributed, case-specific assertions; revisions preserve history > revisions: only the current head, same fact type and scope; revision + 1 superseding it; earlier revisions and their supports never change; the list shows heads, history stays readable
+        ↳ AssertionError: expected [ 201, { noError: 'HTTP 201' } ] to deeply equal [ 404, { …(3) } ]
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t two cases on one agency and route
+      × two cases on one agency and route with the same video and work title: separate records; each child is reachable only through its own case; nothing of one case can be used or changed through the other
+      FAIL  tests/db/p4b-http.test.ts > CONTAMINATION — nothing crosses from one case to another > two cases on one agency and route with the same video and work title: separate records; each child is reachable only through its own case; nothing of one case can be used or changed through the other
+        ↳ AssertionError: expected [ 422, 'REVISION_SCOPE_CHANGE' ] to deeply equal [ 404, 'NOT_FOUND' ]
+[NC-P4B-01h] CAUGHT · restored byte-identical · [child case filter] listCaseReportedItems lists only the case of the path
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t list and get: one case’s items only
+      × list and get: one case’s items only, archived included, newest first; exact and literal search; 404 for an unknown case or item and for another case’s item
+      FAIL  tests/db/p4b-http.test.ts > REPORTED ITEMS — identification of reported material; not an infringement finding > list and get: one case’s items only, archived included, newest first; exact and literal search; 404 for an unknown case or item and for another case’s item
+        ↳ AssertionError: expected [ …(3) ] to deeply equal [ …(2) ]
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t two cases on one agency and route
+      × two cases on one agency and route with the same video and work title: separate records; each child is reachable only through its own case; nothing of one case can be used or changed through the other
+      FAIL  tests/db/p4b-http.test.ts > CONTAMINATION — nothing crosses from one case to another > two cases on one agency and route with the same video and work title: separate records; each child is reachable only through its own case; nothing of one case can be used or changed through the other
+        ↳ AssertionError: expected [ …(2) ] to deeply equal [ Array(1) ]
+[NC-P4B-01i] CAUGHT · restored byte-identical · [child case filter] listCaseFacts lists only the heads of the case of the path
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t list and get: heads of this case only
+      × list and get: heads of this case only, newest first; exact type filter (unknown 400), exact-id and literal scope-text search; another case’s fact is 404 like an unknown one
+      FAIL  tests/db/p4b-http.test.ts > CASE FACTS — explicit, attributed, case-specific assertions; revisions preserve history > list and get: heads of this case only, newest first; exact type filter (unknown 400), exact-id and literal scope-text search; another case’s fact is 404 like an unknown one
+        ↳ AssertionError: expected [ …(3) ] to deeply equal [ …(2) ]
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t two cases on one agency and route
+      × two cases on one agency and route with the same video and work title: separate records; each child is reachable only through its own case; nothing of one case can be used or changed through the other
+      FAIL  tests/db/p4b-http.test.ts > CONTAMINATION — nothing crosses from one case to another > two cases on one agency and route with the same video and work title: separate records; each child is reachable only through its own case; nothing of one case can be used or changed through the other
+        ↳ AssertionError: expected [ { …(13) } ] to deeply equal []
+[NC-P4B-02a] CAUGHT · restored byte-identical · [cross-case mapping] a work, item or mapping named in a body (mapping parties, fact scope) must be of this case
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t refuses another case’s or an unknown work or item
+      × refuses another case’s or an unknown work or item, archived parties, a duplicate occurrence, a known end not after its start, values beyond the bound and unknown conventions; nothing is written
+      FAIL  tests/db/p4b-http.test.ts > USE MAPPINGS — a recorded work ↔ reported item association within one case; not an infringement finding > refuses another case’s or an unknown work or item, archived parties, a duplicate occurrence, a known end not after its start, values beyond the bound and unknown conventions; nothing is written
+        ↳ AssertionError: {"caseWorkId":"ddece683-2361-499b-92ba-2392cb783e33","reportedItemId":"13017ae5-6be6-4c08-a451-83f91fc764f8","occurrence":2}: expected [ 500, 'INTERNAL_ERROR' ] to deeply equal [ 422, 'CROSS_CASE_REFERENC
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t scope: CASE names no record
+      × scope: CASE names no record; WORK, REPORTED_ITEM and USE name exactly their record of this case; mismatches, other cases’ and archived records are refused
+      FAIL  tests/db/p4b-http.test.ts > CASE FACTS — explicit, attributed, case-specific assertions; revisions preserve history > scope: CASE names no record; WORK, REPORTED_ITEM and USE name exactly their record of this case; mismatches, other cases’ and archived records are refused
+        ↳ AssertionError: {"scopeKind":"WORK","caseWorkId":"8b855844-02f3-415b-bd86-2ce955c1dd69"}: expected [ 500, 'INTERNAL_ERROR', {} ] to deeply equal [ 422, 'CROSS_CASE_REFERENCE', …(1) ]
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t two cases on one agency and route
+      × two cases on one agency and route with the same video and work title: separate records; each child is reachable only through its own case; nothing of one case can be used or changed through the other
+      FAIL  tests/db/p4b-http.test.ts > CONTAMINATION — nothing crosses from one case to another > two cases on one agency and route with the same video and work title: separate records; each child is reachable only through its own case; nothing of one case can be used or changed through the other
+        ↳ AssertionError: caseWorkId: expected [ 500, 'INTERNAL_ERROR', {} ] to deeply equal [ 422, 'CROSS_CASE_REFERENCE', …(1) ]
+[NC-P4B-02b] CAUGHT · restored byte-identical · [cross-case mapping] a fact support names a CaseSource of this case only
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t source support: a LINKED case source
+      × source support: a LINKED case source of this case, each once per role, stored exactly; other cases’, unknown, paused and unlinked links are refused; DOCUMENT_REVIEWED needs a reviewed source; nothing is upgraded
+      FAIL  tests/db/p4b-http.test.ts > CASE FACTS — explicit, attributed, case-specific assertions; revisions preserve history > source support: a LINKED case source of this case, each once per role, stored exactly; other cases’, unknown, paused and unlinked links are refused; DOCUMENT_REVIEWED needs a reviewed source; nothing is upgraded
+        ↳ AssertionError: expected [ 422, 'CROSS_AGENCY_REFERENCE', …(1) ] to deeply equal [ 422, 'CROSS_CASE_REFERENCE', …(1) ]
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t two cases on one agency and route
+      × two cases on one agency and route with the same video and work title: separate records; each child is reachable only through its own case; nothing of one case can be used or changed through the other
+      FAIL  tests/db/p4b-http.test.ts > CONTAMINATION — nothing crosses from one case to another > two cases on one agency and route with the same video and work title: separate records; each child is reachable only through its own case; nothing of one case can be used or changed through the other
+        ↳ AssertionError: sources.0.caseSourceId: expected [ 201, '(no error: HTTP 201)', {} ] to deeply equal [ 422, 'CROSS_CASE_REFERENCE', …(1) ]
+[NC-P4B-02c] CAUGHT · restored byte-identical · [cross-case mapping] one item per video within a case only — never a global uniqueness that links cases
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t refuses addresses that are not a YouTube video item
+      × refuses addresses that are not a YouTube video item (422 REPORTED_URL_UNSUPPORTED) before anything is written; one item per video in a case; the same video in another case is its own record
+      FAIL  tests/db/p4b-http.test.ts > REPORTED ITEMS — identification of reported material; not an infringement finding > refuses addresses that are not a YouTube video item (422 REPORTED_URL_UNSUPPORTED) before anything is written; one item per video in a case; the same video in another case is its own record
+        ↳ AssertionError: {"error":{"code":"DUPLICATE_REPORTED_ITEM","message":"This case already has a reported item for this video. Use the existing reported item.","details":{"reportedItemId":"57ea9c85-f31a-4fef-a628-8840c9c8bf
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t two cases on one agency and route
+      × two cases on one agency and route with the same video and work title: separate records; each child is reachable only through its own case; nothing of one case can be used or changed through the other
+      FAIL  tests/db/p4b-http.test.ts > CONTAMINATION — nothing crosses from one case to another > two cases on one agency and route with the same video and work title: separate records; each child is reachable only through its own case; nothing of one case can be used or changed through the other
+        ↳ AssertionError: {"error":{"code":"DUPLICATE_REPORTED_ITEM","message":"This case already has a reported item for this video. Use the existing reported item.","details":{"reportedItemId":"2cf2fe65-2a69-4ef0-a74f-6c6adc6919
+[NC-P4B-03a] CAUGHT · restored byte-identical · [URL normalization] only youtube.com, www.youtube.com, m.youtube.com and youtu.be are recognized
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯ · npx vitest run --config vitest.config.ts tests/api/intake-rules.test.ts -t reported item URL normalization
+      × https://music.youtube.com/watch?v=dQw4w9WgXcQ is refused (NOT_YOUTUBE)
+      × https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ is refused (NOT_YOUTUBE)
+      × https://www.youtube.com.evil.example.invalid/watch?v=dQw4w9WgXcQ is refused (NOT_YOUTUBE)
+      × https://youtube.com./watch?v=dQw4w9WgXcQ is refused (NOT_YOUTUBE)
+      FAIL  tests/api/intake-rules.test.ts > reported item URL normalization — deterministic, offline, recognize-or-reject > https://music.youtube.com/watch?v=dQw4w9WgXcQ is refused (NOT_YOUTUBE)
+      FAIL  tests/api/intake-rules.test.ts > reported item URL normalization — deterministic, offline, recognize-or-reject > https://www.youtube.com.evil.example.invalid/watch?v=dQw4w9WgXcQ is refused (NOT_YOUTUBE)
+      FAIL  tests/api/intake-rules.test.ts > reported item URL normalization — deterministic, offline, recognize-or-reject > https://youtube.com./watch?v=dQw4w9WgXcQ is refused (NOT_YOUTUBE)
+      FAIL  tests/api/intake-rules.test.ts > reported item URL normalization — deterministic, offline, recognize-or-reject > https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ is refused (NOT_YOUTUBE)
+        ↳ AssertionError: expected { ok: true, …(2) } to deeply equal { ok: false, reason: 'NOT_YOUTUBE' }
+        ↳ AssertionError: expected { Object (ok, reason) } to deeply equal { ok: false, reason: 'NOT_YOUTUBE' }
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t refuses addresses that are not a YouTube video item
+      × refuses addresses that are not a YouTube video item (422 REPORTED_URL_UNSUPPORTED) before anything is written; one item per video in a case; the same video in another case is its own record
+      FAIL  tests/db/p4b-http.test.ts > REPORTED ITEMS — identification of reported material; not an infringement finding > refuses addresses that are not a YouTube video item (422 REPORTED_URL_UNSUPPORTED) before anything is written; one item per video in a case; the same video in another case is its own record
+        ↳ AssertionError: https://music.youtube.com/watch?v=dQw4w9WgXcQ: expected [ 201, '(no error: HTTP 201)', {} ] to deeply equal [ 422, …(2) ]
+[NC-P4B-03b] CAUGHT · restored byte-identical · [URL normalization] the video id keeps its character case
+    exit 1 · ⎯⎯⎯⎯⎯⎯ Failed Tests 14 ⎯⎯⎯⎯⎯⎯⎯ · npx vitest run --config vitest.config.ts tests/api/intake-rules.test.ts -t reported item URL normalization
+      × https://www.youtube.com/watch?v=dQw4w9WgXcQ names the video dQw4w9WgXcQ; the normalized URL is the canonical watch URL
+      × https://youtube.com/watch?v=dQw4w9WgXcQ names the video dQw4w9WgXcQ; the normalized URL is the canonical watch URL
+      × https://m.youtube.com/watch?v=dQw4w9WgXcQ names the video dQw4w9WgXcQ; the normalized URL is the canonical watch URL
+      × http://www.youtube.com/watch?v=dQw4w9WgXcQ names the video dQw4w9WgXcQ; the normalized URL is the canonical watch URL
+      × https://WWW.YouTube.COM/watch?v=dQw4w9WgXcQ names the video dQw4w9WgXcQ; the normalized URL is the canonical watch URL
+      × https://www.youtube.com/watch?feature=share&v=dQw4w9WgXcQ&t=42s&list=PL1#t=5 names the video dQw4w9WgXcQ; the normalized URL is the canonical watch URL
+      × https://www.youtube.com:443/watch?v=dQw4w9WgXcQ names the video dQw4w9WgXcQ; the normalized URL is the canonical watch URL
+      × https://youtu.be/dQw4w9WgXcQ names the video dQw4w9WgXcQ; the normalized URL is the canonical watch URL
+        ↳ AssertionError: expected { ok: true, …(2) } to deeply equal { ok: true, …(2) }
+        ↳ AssertionError: expected false to be true // Object.is equality
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t create: the raw URL exactly as supplied
+      × create: the raw URL exactly as supplied; the normalized URL and video id derived deterministically, id case preserved; the case context moves; audited
+      FAIL  tests/db/p4b-http.test.ts > REPORTED ITEMS — identification of reported material; not an infringement finding > create: the raw URL exactly as supplied; the normalized URL and video id derived deterministically, id case preserved; the case context moves; audited
+        ↳ AssertionError: expected { …(14) } to deeply equal { …(14) }
+[NC-P4B-03c] CAUGHT · restored byte-identical · [URL normalization] more than one v parameter is ambiguous and refused (never the first one guessed)
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯ · npx vitest run --config vitest.config.ts tests/api/intake-rules.test.ts -t reported item URL normalization
+      × https://www.youtube.com/watch?v=dQw4w9WgXcQ&v=dQw4w9WgXcQ is refused (AMBIGUOUS_VIDEO_ID)
+      × https://www.youtube.com/watch?v=dQw4w9WgXcQ&%76=x is refused (AMBIGUOUS_VIDEO_ID)
+      FAIL  tests/api/intake-rules.test.ts > reported item URL normalization — deterministic, offline, recognize-or-reject > https://www.youtube.com/watch?v=dQw4w9WgXcQ&v=dQw4w9WgXcQ is refused (AMBIGUOUS_VIDEO_ID)
+      FAIL  tests/api/intake-rules.test.ts > reported item URL normalization — deterministic, offline, recognize-or-reject > https://www.youtube.com/watch?v=dQw4w9WgXcQ&%76=x is refused (AMBIGUOUS_VIDEO_ID)
+        ↳ AssertionError: expected { ok: true, …(2) } to deeply equal { ok: false, …(1) }
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t refuses addresses that are not a YouTube video item
+      × refuses addresses that are not a YouTube video item (422 REPORTED_URL_UNSUPPORTED) before anything is written; one item per video in a case; the same video in another case is its own record
+      FAIL  tests/db/p4b-http.test.ts > REPORTED ITEMS — identification of reported material; not an infringement finding > refuses addresses that are not a YouTube video item (422 REPORTED_URL_UNSUPPORTED) before anything is written; one item per video in a case; the same video in another case is its own record
+        ↳ AssertionError: https://www.youtube.com/watch?v=dQw4w9WgXcQ&v=dQw4w9WgXcQ: expected [ 201, '(no error: HTTP 201)', {} ] to deeply equal [ 422, …(2) ]
+[NC-P4B-03d] CAUGHT · restored byte-identical · [URL normalization] the raw URL is stored exactly as supplied (not replaced by the normalized one)
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t create: the raw URL exactly as supplied
+      × create: the raw URL exactly as supplied; the normalized URL and video id derived deterministically, id case preserved; the case context moves; audited
+      FAIL  tests/db/p4b-http.test.ts > REPORTED ITEMS — identification of reported material; not an infringement finding > create: the raw URL exactly as supplied; the normalized URL and video id derived deterministically, id case preserved; the case context moves; audited
+        ↳ AssertionError: expected { …(14) } to deeply equal { …(14) }
+[NC-P4B-04a] CAUGHT · restored byte-identical · [timestamp storability] observedAt: an unstorable instant is refused before anything is written
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t observedAt is stored exactly
+      × observedAt is stored exactly as the supplied instant or refused before anything is written (R7); a PATCH compares instants, not spellings
+      FAIL  tests/db/p4b-http.test.ts > REPORTED ITEMS — identification of reported material; not an infringement finding > observedAt is stored exactly as the supplied instant or refused before anything is written (R7); a PATCH compares instants, not spellings
+        ↳ AssertionError: 2026-09-20T23:59:60Z: expected [ 500, 'INTERNAL_ERROR', undefined ] to deeply equal [ 422, 'VALIDATION_FAILED', …(1) ]
+[NC-P4B-04b] CAUGHT · restored byte-identical · [timestamp storability] observedAt (create) is written as the exact instant, not V8’s reading of the string
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t observedAt is stored exactly
+      × observedAt is stored exactly as the supplied instant or refused before anything is written (R7); a PATCH compares instants, not spellings
+      FAIL  tests/db/p4b-http.test.ts > REPORTED ITEMS — identification of reported material; not an infringement finding > observedAt is stored exactly as the supplied instant or refused before anything is written (R7); a PATCH compares instants, not spellings
+        ↳ AssertionError: {"error":{"code":"INTERNAL_ERROR","message":"The server could not complete the request.","details":{},"requestId":"00c95871-1fda-4076-b3cc-fd2970d92b23"}}: expected 500 to be 201 // Object.is equality
+[NC-P4B-04c] CAUGHT · restored byte-identical · [timestamp storability] observedAt (create) is written as the exact instant, not the request string passed to Prisma
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t observedAt is stored exactly
+      × observedAt is stored exactly as the supplied instant or refused before anything is written (R7); a PATCH compares instants, not spellings
+      FAIL  tests/db/p4b-http.test.ts > REPORTED ITEMS — identification of reported material; not an infringement finding > observedAt is stored exactly as the supplied instant or refused before anything is written (R7); a PATCH compares instants, not spellings
+        ↳ AssertionError: {"error":{"code":"INTERNAL_ERROR","message":"The server could not complete the request.","details":{},"requestId":"93e465d9-23af-47a6-b008-c7497ca9ecb8"}}: expected 500 to be 201 // Object.is equality
+[NC-P4B-04d] CAUGHT · restored byte-identical · [timestamp storability] observedAt (patch) is written as the exact instant
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t observedAt is stored exactly
+      × observedAt is stored exactly as the supplied instant or refused before anything is written (R7); a PATCH compares instants, not spellings
+      FAIL  tests/db/p4b-http.test.ts > REPORTED ITEMS — identification of reported material; not an infringement finding > observedAt is stored exactly as the supplied instant or refused before anything is written (R7); a PATCH compares instants, not spellings
+        ↳ AssertionError: {"error":{"code":"INTERNAL_ERROR","message":"The server could not complete the request.","details":{},"requestId":"77c70400-0cf3-4260-bee0-1fb72e284e78"}}: expected 500 to be 200 // Object.is equality
+[NC-P4B-04e] CAUGHT · restored byte-identical · [timestamp storability] assertedAsOf: an unstorable instant is refused before anything is written
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · npx vitest run --config vitest.config.ts tests/api/intake-rules.test.ts -t request-only checks
+      × request-only checks: storable assertedAsOf, each support once per role, other cases once
+      FAIL  tests/api/intake-rules.test.ts > case fact scope and request checks > request-only checks: storable assertedAsOf, each support once per role, other cases once
+        ↳ AssertionError: expected undefined to be 'VALIDATION_FAILED' // Object.is equality
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t assertedAsOf is stored exactly
+      × assertedAsOf is stored exactly as the supplied instant or refused before anything is written (R7); AUTHORITY_CURRENTNESS is a recorded assertion, never a computed currentness
+      FAIL  tests/db/p4b-http.test.ts > CASE FACTS — explicit, attributed, case-specific assertions; revisions preserve history > assertedAsOf is stored exactly as the supplied instant or refused before anything is written (R7); AUTHORITY_CURRENTNESS is a recorded assertion, never a computed currentness
+        ↳ AssertionError: expected [ 500, 'INTERNAL_ERROR' ] to deeply equal [ 422, 'VALIDATION_FAILED' ]
+[NC-P4B-04f] CAUGHT · restored byte-identical · [timestamp storability] assertedAsOf is written as the exact instant, not V8’s reading of the string
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t assertedAsOf is stored exactly
+      × assertedAsOf is stored exactly as the supplied instant or refused before anything is written (R7); AUTHORITY_CURRENTNESS is a recorded assertion, never a computed currentness
+      FAIL  tests/db/p4b-http.test.ts > CASE FACTS — explicit, attributed, case-specific assertions; revisions preserve history > assertedAsOf is stored exactly as the supplied instant or refused before anything is written (R7); AUTHORITY_CURRENTNESS is a recorded assertion, never a computed currentness
+        ↳ AssertionError: {"error":{"code":"INTERNAL_ERROR","message":"The server could not complete the request.","details":{},"requestId":"77a9e37d-f1a6-4b14-b764-d9606ee6e7e2"}}: expected 500 to be 201 // Object.is equality
+[NC-P4B-05a] CAUGHT · restored byte-identical · [millisecond bounds/order] milliseconds above 9007199254740991 are refused (422, before the CHECK backstop)
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · npx vitest run --config vitest.config.ts tests/api/intake-rules.test.ts -t accepts the contract pattern up to 9007199254740991
+      × accepts the contract pattern up to 9007199254740991 and refuses larger 16-digit values
+      FAIL  tests/api/intake-rules.test.ts > use mapping values — unsigned milliseconds, known intervals, boundary convention > accepts the contract pattern up to 9007199254740991 and refuses larger 16-digit values
+        ↳ AssertionError: expected null to be an instance of ApiError
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t refuses another case’s or an unknown work or item
+      × refuses another case’s or an unknown work or item, archived parties, a duplicate occurrence, a known end not after its start, values beyond the bound and unknown conventions; nothing is written
+      FAIL  tests/db/p4b-http.test.ts > USE MAPPINGS — a recorded work ↔ reported item association within one case; not an infringement finding > refuses another case’s or an unknown work or item, archived parties, a duplicate occurrence, a known end not after its start, values beyond the bound and unknown conventions; nothing is written
+        ↳ AssertionError: {"caseWorkId":"a4c336b2-710a-4be4-b825-accd351fd32b","reportedItemId":"c99c59ea-ce8e-46ac-b4da-c18d62217e1e","occurrence":2,"sourceEndMs":"9007199254740992"}: expected [ 500, 'INTERNAL_ERROR' ] to deeply 
+[NC-P4B-05b] CAUGHT · restored byte-identical · [millisecond bounds/order] a known end must exceed its known start (equal is refused)
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · npx vitest run --config vitest.config.ts tests/api/intake-rules.test.ts -t a known end must exceed its known start
+      × a known end must exceed its known start; unknown bounds are never compared
+      FAIL  tests/api/intake-rules.test.ts > use mapping values — unsigned milliseconds, known intervals, boundary convention > a known end must exceed its known start; unknown bounds are never compared
+        ↳ AssertionError: expected undefined to deeply equal { fields: [ 'sourceStartMs', …(1) ] }
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t refuses another case’s or an unknown work or item
+      × refuses another case’s or an unknown work or item, archived parties, a duplicate occurrence, a known end not after its start, values beyond the bound and unknown conventions; nothing is written
+      FAIL  tests/db/p4b-http.test.ts > USE MAPPINGS — a recorded work ↔ reported item association within one case; not an infringement finding > refuses another case’s or an unknown work or item, archived parties, a duplicate occurrence, a known end not after its start, values beyond the bound and unknown conventions; nothing is written
+        ↳ AssertionError: {"caseWorkId":"709e8338-81ab-489f-a03e-a042b100c296","reportedItemId":"b0fa0632-c588-4f6f-aea4-a59715bba832","occurrence":2,"sourceStartMs":"1000","sourceEndMs":"1000"}: expected [ 500, 'INTERNAL_ERROR' ]
+[NC-P4B-05c] CAUGHT · restored byte-identical · [millisecond bounds/order] a mapping PATCH checks the order on the merged state
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t ordering checked on the merged state
+      × patch, archive and restore: the mapping’s If-Match; ordering checked on the merged state; the case context moves; the work, item and occurrence never change; archived parties block editing and restoring
+      FAIL  tests/db/p4b-http.test.ts > USE MAPPINGS — a recorded work ↔ reported item association within one case; not an infringement finding > patch, archive and restore: the mapping’s If-Match; ordering checked on the merged state; the case context moves; the work, item and occurrence never change; archived parties block editing and restoring
+        ↳ AssertionError: expected [ 500, 'INTERNAL_ERROR' ] to deeply equal [ 422, 'TIME_RANGE_INVALID' ]
+[NC-P4B-05d] CAUGHT · restored byte-identical · [millisecond bounds/order] UI: the mapping form refuses an end that is not after its start before sending
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · npx vitest run --config vitest.config.ts tests/web/p4b.test.tsx -t a mapping whose end is not after its start
+      × a mapping whose end is not after its start, or whose milliseconds are not whole, is refused on the form and nothing is sent
+      FAIL  tests/web/p4b.test.tsx > P4B case intake UI > a mapping whose end is not after its start, or whose milliseconds are not whole, is refused on the form and nothing is sent
+        ↳ Error: timed out waiting for A known end must be after its start.
+[NC-P4B-06a] CAUGHT · restored byte-identical · [provenance auto-upgrade] a fact’s provenance is stored as supplied, never upgraded by a reviewed support
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t source support: a LINKED case source
+      × source support: a LINKED case source of this case, each once per role, stored exactly; other cases’, unknown, paused and unlinked links are refused; DOCUMENT_REVIEWED needs a reviewed source; nothing is upgraded
+      FAIL  tests/db/p4b-http.test.ts > CASE FACTS — explicit, attributed, case-specific assertions; revisions preserve history > source support: a LINKED case source of this case, each once per role, stored exactly; other cases’, unknown, paused and unlinked links are refused; DOCUMENT_REVIEWED needs a reviewed source; nothing is upgraded
+        ↳ AssertionError: OPERATOR_REPORTED: expected [ 'DOCUMENT_REVIEWED', 'UNASSESSED' ] to deeply equal [ 'OPERATOR_REPORTED', 'UNASSESSED' ]
+[NC-P4B-06b] CAUGHT · restored byte-identical · [provenance auto-upgrade] no automatic SUPPORTED_FOR_SCOPE: the resolution state is supplied or UNASSESSED
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t source support: a LINKED case source
+      × source support: a LINKED case source of this case, each once per role, stored exactly; other cases’, unknown, paused and unlinked links are refused; DOCUMENT_REVIEWED needs a reviewed source; nothing is upgraded
+      FAIL  tests/db/p4b-http.test.ts > CASE FACTS — explicit, attributed, case-specific assertions; revisions preserve history > source support: a LINKED case source of this case, each once per role, stored exactly; other cases’, unknown, paused and unlinked links are refused; DOCUMENT_REVIEWED needs a reviewed source; nothing is upgraded
+        ↳ AssertionError: expected [ 'OPERATOR_REPORTED', …(1) ] to deeply equal [ 'OPERATOR_REPORTED', 'UNASSESSED' ]
+[NC-P4B-06c] CAUGHT · restored byte-identical · [provenance auto-upgrade] a mapping’s provenance is stored as supplied (or MISSING), never upgraded by a reviewed basis
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t basis source and provenance
+      × basis source and provenance: the basis must apply to this case; DOCUMENT_REVIEWED needs a basis source recorded as reviewed; provenance is stored as supplied and never upgraded
+      FAIL  tests/db/p4b-http.test.ts > USE MAPPINGS — a recorded work ↔ reported item association within one case; not an infringement finding > basis source and provenance: the basis must apply to this case; DOCUMENT_REVIEWED needs a basis source recorded as reviewed; provenance is stored as supplied and never upgraded
+        ↳ AssertionError: expected [ 'DOCUMENT_REVIEWED', …(1) ] to deeply equal [ 'MISSING', 'OPERATOR_REPORTED' ]
+[NC-P4B-06d] CAUGHT · restored byte-identical · [provenance auto-upgrade] citing a source in a fact support never upgrades the source’s own provenance
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t source support: a LINKED case source
+      × source support: a LINKED case source of this case, each once per role, stored exactly; other cases’, unknown, paused and unlinked links are refused; DOCUMENT_REVIEWED needs a reviewed source; nothing is upgraded
+      FAIL  tests/db/p4b-http.test.ts > CASE FACTS — explicit, attributed, case-specific assertions; revisions preserve history > source support: a LINKED case source of this case, each once per role, stored exactly; other cases’, unknown, paused and unlinked links are refused; DOCUMENT_REVIEWED needs a reviewed source; nothing is upgraded
+        ↳ AssertionError: expected [ 201, '(no error: HTTP 201)', {} ] to deeply equal [ 422, 'REVIEW_UNSUPPORTED', …(1) ]
+[NC-P4B-06e] CAUGHT · restored byte-identical · [provenance auto-upgrade] UI: the fact form sends the provenance chosen, never upgraded by a reviewed support
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · npx vitest run --config vitest.config.ts tests/web/p4b.test.tsx -t a reviewed source upgrades nothing
+      × a reviewed source upgrades nothing: a fact and a use mapping are sent with the provenance and resolution exactly as chosen
+      FAIL  tests/web/p4b.test.tsx > P4B case intake UI > a reviewed source upgrades nothing: a fact and a use mapping are sent with the provenance and resolution exactly as chosen
+        ↳ AssertionError: expected { …(8) } to match object { …(3) }
+[NC-P4B-06f] CAUGHT · restored byte-identical · [provenance auto-upgrade] UI: the fact form sends the resolution chosen, never SUPPORTED_FOR_SCOPE because supports exist
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · npx vitest run --config vitest.config.ts tests/web/p4b.test.tsx -t a reviewed source upgrades nothing
+      × a reviewed source upgrades nothing: a fact and a use mapping are sent with the provenance and resolution exactly as chosen
+      FAIL  tests/web/p4b.test.tsx > P4B case intake UI > a reviewed source upgrades nothing: a fact and a use mapping are sent with the provenance and resolution exactly as chosen
+        ↳ AssertionError: expected { …(8) } to match object { …(3) }
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · npx vitest run --config vitest.config.ts tests/web/p4b.test.tsx -t records a case fact exactly as entered
+      × records a case fact exactly as entered: explicit type and scope, typed value, provenance as chosen and the supports; the supports cannot be read back and the page says so
+      FAIL  tests/web/p4b.test.tsx > P4B case intake UI > records a case fact exactly as entered: explicit type and scope, typed value, provenance as chosen and the supports; the supports cannot be read back and the page says so
+        ↳ AssertionError: expected { factType: 'PERMISSION', …(8) } to deeply equal { factType: 'PERMISSION', …(8) }
+[NC-P4B-06g] CAUGHT · restored byte-identical · [provenance auto-upgrade] UI: the mapping form sends the provenance chosen, never upgraded by a basis source
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · npx vitest run --config vitest.config.ts tests/web/p4b.test.tsx -t a reviewed source upgrades nothing
+      × a reviewed source upgrades nothing: a fact and a use mapping are sent with the provenance and resolution exactly as chosen
+      FAIL  tests/web/p4b.test.tsx > P4B case intake UI > a reviewed source upgrades nothing: a fact and a use mapping are sent with the provenance and resolution exactly as chosen
+        ↳ AssertionError: expected { …(6) } to match object { provenance: 'MISSING', …(1) }
+[NC-P4B-07a] CAUGHT · restored byte-identical · [DOCUMENT_REVIEWED support check] a DOCUMENT_REVIEWED fact needs a supporting source that records an attributed review
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t source support: a LINKED case source
+      × source support: a LINKED case source of this case, each once per role, stored exactly; other cases’, unknown, paused and unlinked links are refused; DOCUMENT_REVIEWED needs a reviewed source; nothing is upgraded
+      FAIL  tests/db/p4b-http.test.ts > CASE FACTS — explicit, attributed, case-specific assertions; revisions preserve history > source support: a LINKED case source of this case, each once per role, stored exactly; other cases’, unknown, paused and unlinked links are refused; DOCUMENT_REVIEWED needs a reviewed source; nothing is upgraded
+        ↳ AssertionError: expected [ 201, '(no error: HTTP 201)', {} ] to deeply equal [ 422, 'REVIEW_UNSUPPORTED', …(1) ]
+[NC-P4B-07b] CAUGHT · restored byte-identical · [DOCUMENT_REVIEWED support check] a DOCUMENT_REVIEWED mapping needs a basis source
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t basis source and provenance
+      × basis source and provenance: the basis must apply to this case; DOCUMENT_REVIEWED needs a basis source recorded as reviewed; provenance is stored as supplied and never upgraded
+      FAIL  tests/db/p4b-http.test.ts > USE MAPPINGS — a recorded work ↔ reported item association within one case; not an infringement finding > basis source and provenance: the basis must apply to this case; DOCUMENT_REVIEWED needs a basis source recorded as reviewed; provenance is stored as supplied and never upgraded
+        ↳ AssertionError: {"caseWorkId":"6aaa733c-d2b6-420c-9558-e8df01805905","reportedItemId":"bd76ee48-677d-41af-a841-a1b72b3446ae","provenance":"DOCUMENT_REVIEWED"}: expected [ 201, '(no error: HTTP 201)', {} ] to deeply equal
+[NC-P4B-07c] CAUGHT · restored byte-identical · [DOCUMENT_REVIEWED support check] a DOCUMENT_REVIEWED mapping’s basis source must itself record an attributed review
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t basis source and provenance
+      × basis source and provenance: the basis must apply to this case; DOCUMENT_REVIEWED needs a basis source recorded as reviewed; provenance is stored as supplied and never upgraded
+      FAIL  tests/db/p4b-http.test.ts > USE MAPPINGS — a recorded work ↔ reported item association within one case; not an infringement finding > basis source and provenance: the basis must apply to this case; DOCUMENT_REVIEWED needs a basis source recorded as reviewed; provenance is stored as supplied and never upgraded
+        ↳ AssertionError: {"caseWorkId":"e72fd366-f5d5-4167-9b9c-2c5b1ffb6119","reportedItemId":"29bbc0c5-6004-492a-81d3-cccbc2af6d1a","provenance":"DOCUMENT_REVIEWED","basisSourceId":"9646a242-b3fa-42ba-be84-47e2b8f10754"}: expec
+[NC-P4B-07d] CAUGHT · restored byte-identical · [DOCUMENT_REVIEWED support check] UI: “Document reviewed” is unavailable until a reviewed supporting source is chosen
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · npx vitest run --config vitest.config.ts tests/web/p4b.test.tsx -t records a case fact exactly as entered
+      × records a case fact exactly as entered: explicit type and scope, typed value, provenance as chosen and the supports; the supports cannot be read back and the page says so
+      FAIL  tests/web/p4b.test.tsx > P4B case intake UI > records a case fact exactly as entered: explicit type and scope, typed value, provenance as chosen and the supports; the supports cannot be read back and the page says so
+        ↳ AssertionError: expected false to be true // Object.is equality
+[NC-P4B-08a] CAUGHT · restored byte-identical · [fact scope/target mismatch] a WORK / REPORTED_ITEM / USE fact must name its record (TARGET_REQUIRED)
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · npx vitest run --config vitest.config.ts tests/api/intake-rules.test.ts -t each scope kind names exactly its record
+      × each scope kind names exactly its record
+      FAIL  tests/api/intake-rules.test.ts > case fact scope and request checks > each scope kind names exactly its record
+        ↳ AssertionError: expected undefined to be an instance of ApiError
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t scope: CASE names no record
+      × scope: CASE names no record; WORK, REPORTED_ITEM and USE name exactly their record of this case; mismatches, other cases’ and archived records are refused
+      FAIL  tests/db/p4b-http.test.ts > CASE FACTS — explicit, attributed, case-specific assertions; revisions preserve history > scope: CASE names no record; WORK, REPORTED_ITEM and USE name exactly their record of this case; mismatches, other cases’ and archived records are refused
+        ↳ AssertionError: {"scopeKind":"WORK"}: expected [ 201, '(no error: HTTP 201)', {} ] to deeply equal [ 422, 'FACT_SCOPE_INVALID', …(1) ]
+[NC-P4B-08b] CAUGHT · restored byte-identical · [fact scope/target mismatch] a fact names no record other than its scope’s own (TARGET_NOT_ALLOWED)
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · npx vitest run --config vitest.config.ts tests/api/intake-rules.test.ts -t each scope kind names exactly its record
+      × each scope kind names exactly its record
+      FAIL  tests/api/intake-rules.test.ts > case fact scope and request checks > each scope kind names exactly its record
+        ↳ AssertionError: expected undefined to be an instance of ApiError
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t scope: CASE names no record
+      × scope: CASE names no record; WORK, REPORTED_ITEM and USE name exactly their record of this case; mismatches, other cases’ and archived records are refused
+      FAIL  tests/db/p4b-http.test.ts > CASE FACTS — explicit, attributed, case-specific assertions; revisions preserve history > scope: CASE names no record; WORK, REPORTED_ITEM and USE name exactly their record of this case; mismatches, other cases’ and archived records are refused
+        ↳ AssertionError: {"scopeKind":"CASE","caseWorkId":"250502dd-4f83-42c6-9add-c57f233ccfb2"}: expected [ 201, '(no error: HTTP 201)', {} ] to deeply equal [ 422, 'FACT_SCOPE_INVALID', …(1) ]
+[NC-P4B-08c] CAUGHT · restored byte-identical · [fact scope/target mismatch] a revision keeps the fact type and scope of its chain (REVISION_SCOPE_CHANGE)
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t revisions: only the current head
+      × revisions: only the current head, same fact type and scope; revision + 1 superseding it; earlier revisions and their supports never change; the list shows heads, history stays readable
+      FAIL  tests/db/p4b-http.test.ts > CASE FACTS — explicit, attributed, case-specific assertions; revisions preserve history > revisions: only the current head, same fact type and scope; revision + 1 superseding it; earlier revisions and their supports never change; the list shows heads, history stays readable
+        ↳ AssertionError: {"factType":"AV_COMPARISON","scopeKind":"WORK","caseWorkId":"d1f9d98b-0f83-4a83-8b49-1460068e8478"}: expected [ 201, '(no error: HTTP 201)', {} ] to deeply equal [ 422, 'REVISION_SCOPE_CHANGE', …(1) ]
+[NC-P4B-09a] CAUGHT · restored byte-identical · [fact history overwrite] a revision never changes the revision it supersedes (value, provenance)
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t revisions: only the current head
+      × revisions: only the current head, same fact type and scope; revision + 1 superseding it; earlier revisions and their supports never change; the list shows heads, history stays readable
+      FAIL  tests/db/p4b-http.test.ts > CASE FACTS — explicit, attributed, case-specific assertions; revisions preserve history > revisions: only the current head, same fact type and scope; revision + 1 superseding it; earlier revisions and their supports never change; the list shows heads, history stays readable
+        ↳ AssertionError: expected { …(21) } to deeply equal { …(21) }
+[NC-P4B-09b] CAUGHT · restored byte-identical · [fact history overwrite] a revision never removes the supports of the revision it supersedes
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t revisions: only the current head
+      × revisions: only the current head, same fact type and scope; revision + 1 superseding it; earlier revisions and their supports never change; the list shows heads, history stays readable
+      FAIL  tests/db/p4b-http.test.ts > CASE FACTS — explicit, attributed, case-specific assertions; revisions preserve history > revisions: only the current head, same fact type and scope; revision + 1 superseding it; earlier revisions and their supports never change; the list shows heads, history stays readable
+        ↳ AssertionError: expected [] to deeply equal [ { …(4) } ]
+[NC-P4B-09c] CAUGHT · restored byte-identical · [fact history overwrite] only the current head is revised: REVISION_NOT_HEAD names the head (no fork of the history)
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t revisions: only the current head
+      × revisions: only the current head, same fact type and scope; revision + 1 superseding it; earlier revisions and their supports never change; the list shows heads, history stays readable
+      FAIL  tests/db/p4b-http.test.ts > CASE FACTS — explicit, attributed, case-specific assertions; revisions preserve history > revisions: only the current head, same fact type and scope; revision + 1 superseding it; earlier revisions and their supports never change; the list shows heads, history stays readable
+        ↳ AssertionError: expected [ 409, 'REVISION_NOT_HEAD', {} ] to deeply equal [ 409, 'REVISION_NOT_HEAD', …(1) ]
+[NC-P4B-09d] CAUGHT · restored byte-identical · [fact history overwrite] UI: an earlier revision offers no revision form
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · npx vitest run --config vitest.config.ts tests/web/p4b.test.tsx -t revises the current fact with the case ETag
+      × revises the current fact with the case ETag: type and scope fixed; the earlier revision stays readable, marked as earlier, and cannot be revised
+      FAIL  tests/web/p4b.test.tsx > P4B case intake UI > revises the current fact with the case ETag: type and scope fixed; the earlier revision stays readable, marked as earlier, and cannot be revised
+        ↳ Error: timed out waiting for not head
+[NC-P4B-10a] CAUGHT · restored byte-identical · [source revision auto-follow] a new SourceReference revision never re-points a case source link (and the fact supports through it)
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t pinning: a newer SourceReference revision
+      × pinning: a newer SourceReference revision re-points neither the case source link, the fact support nor the mapping basis that cites it
+      FAIL  tests/db/p4b-http.test.ts > CASE FACTS — explicit, attributed, case-specific assertions; revisions preserve history > pinning: a newer SourceReference revision re-points neither the case source link, the fact support nor the mapping basis that cites it
+        ↳ AssertionError: expected '4e79b05d-8d1b-4c96-99bb-0b4589aef15a' to be 'bf59bcfb-400d-460c-97d8-21ac9097bff2' // Object.is equality
+[NC-P4B-10b] CAUGHT · restored byte-identical · [source revision auto-follow] a new SourceReference revision never re-points a mapping’s basis source
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t pinning: a newer SourceReference revision
+      × pinning: a newer SourceReference revision re-points neither the case source link, the fact support nor the mapping basis that cites it
+      FAIL  tests/db/p4b-http.test.ts > CASE FACTS — explicit, attributed, case-specific assertions; revisions preserve history > pinning: a newer SourceReference revision re-points neither the case source link, the fact support nor the mapping basis that cites it
+        ↳ AssertionError: expected { …(21) } to deeply equal { …(21) }
+[NC-P4B-11a] CAUGHT · restored byte-identical · [ETag] patchReportedItem checks the item’s own If-Match
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t every conditional P4B write
+      × every conditional P4B write: 428 without If-Match, 412 for a stale, foreign or parent/child ETag; nothing is written; with the current ETag it succeeds
+      FAIL  tests/db/p4b-http.test.ts > SHARED WRITE LAYER — If-Match, Idempotency-Key, atomic audit > every conditional P4B write: 428 without If-Match, 412 for a stale, foreign or parent/child ETag; nothing is written; with the current ETag it succeeds
+        ↳ AssertionError: patchReportedItem "ReportedItem:f979e3d2-bc7f-41c9-8336-8cff1f1d83a5:v8": expected [ 500, 'INTERNAL_ERROR' ] to deeply equal [ 412, 'RECORD_VERSION_CONFLICT' ]
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t two tabs and concurrent writers
+      × two tabs and concurrent writers: one ETag, one winner; competing fact revisions keep one head; a case change and a child creation never interleave
+      FAIL  tests/db/p4b-http.test.ts > SHARED WRITE LAYER — If-Match, Idempotency-Key, atomic audit > two tabs and concurrent writers: one ETag, one winner; competing fact revisions keep one head; a case change and a child creation never interleave
+        ↳ AssertionError: expected [ 500, 500 ] to deeply equal [ 200, 412 ]
+[NC-P4B-11b] CAUGHT · restored byte-identical · [ETag] createCaseWork checks the case’s If-Match
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t every conditional P4B write
+      × every conditional P4B write: 428 without If-Match, 412 for a stale, foreign or parent/child ETag; nothing is written; with the current ETag it succeeds
+      FAIL  tests/db/p4b-http.test.ts > SHARED WRITE LAYER — If-Match, Idempotency-Key, atomic audit > every conditional P4B write: 428 without If-Match, 412 for a stale, foreign or parent/child ETag; nothing is written; with the current ETag it succeeds
+        ↳ AssertionError: {"error":{"code":"INTERNAL_ERROR","message":"The server could not complete the request.","details":{},"requestId":"772fb286-f381-4e27-9c7f-ba3e68bb0d4c"}}: expected 500 to be 201 // Object.is equality
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t two tabs and concurrent writers
+      × two tabs and concurrent writers: one ETag, one winner; competing fact revisions keep one head; a case change and a child creation never interleave
+      FAIL  tests/db/p4b-http.test.ts > SHARED WRITE LAYER — If-Match, Idempotency-Key, atomic audit > two tabs and concurrent writers: one ETag, one winner; competing fact revisions keep one head; a case change and a child creation never interleave
+        ↳ AssertionError: {"error":{"code":"INTERNAL_ERROR","message":"The server could not complete the request.","details":{},"requestId":"919f304b-07d6-4bf2-9701-b2927f2c5d86"}}: expected 500 to be 201 // Object.is equality
+[NC-P4B-11c] CAUGHT · restored byte-identical · [ETag] mapping patch/archive/restore check the mapping’s own If-Match
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t every conditional P4B write
+      × every conditional P4B write: 428 without If-Match, 412 for a stale, foreign or parent/child ETag; nothing is written; with the current ETag it succeeds
+      FAIL  tests/db/p4b-http.test.ts > SHARED WRITE LAYER — If-Match, Idempotency-Key, atomic audit > every conditional P4B write: 428 without If-Match, 412 for a stale, foreign or parent/child ETag; nothing is written; with the current ETag it succeeds
+        ↳ AssertionError: {"error":{"code":"INTERNAL_ERROR","message":"The server could not complete the request.","details":{},"requestId":"52292708-66a6-4356-8b03-aef8fa629897"}}: expected 500 to be 200 // Object.is equality
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t two tabs and concurrent writers
+      × two tabs and concurrent writers: one ETag, one winner; competing fact revisions keep one head; a case change and a child creation never interleave
+      FAIL  tests/db/p4b-http.test.ts > SHARED WRITE LAYER — If-Match, Idempotency-Key, atomic audit > two tabs and concurrent writers: one ETag, one winner; competing fact revisions keep one head; a case change and a child creation never interleave
+        ↳ AssertionError: expected [ 500, 500 ] to deeply equal [ 200, 412 ]
+[NC-P4B-11d] CAUGHT · restored byte-identical · [ETag] reviseCaseFact checks the case’s If-Match
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t every conditional P4B write
+      × every conditional P4B write: 428 without If-Match, 412 for a stale, foreign or parent/child ETag; nothing is written; with the current ETag it succeeds
+      FAIL  tests/db/p4b-http.test.ts > SHARED WRITE LAYER — If-Match, Idempotency-Key, atomic audit > every conditional P4B write: 428 without If-Match, 412 for a stale, foreign or parent/child ETag; nothing is written; with the current ETag it succeeds
+        ↳ AssertionError: reviseCaseFact "CaseRecord:5e50f320-302f-4757-ac7a-dfc577fe387a:v19": expected [ 500, 'INTERNAL_ERROR' ] to deeply equal [ 412, 'RECORD_VERSION_CONFLICT' ]
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t two tabs and concurrent writers
+      × two tabs and concurrent writers: one ETag, one winner; competing fact revisions keep one head; a case change and a child creation never interleave
+      FAIL  tests/db/p4b-http.test.ts > SHARED WRITE LAYER — If-Match, Idempotency-Key, atomic audit > two tabs and concurrent writers: one ETag, one winner; competing fact revisions keep one head; a case change and a child creation never interleave
+        ↳ AssertionError: expected [ 500, 500, 500 ] to deeply equal [ 201, 412, 412 ]
+[NC-P4B-12a] CAUGHT · restored byte-identical · [idempotency] an exact replay returns the stored result and never repeats the write
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t Idempotency-Key for every P4B write family
+      × Idempotency-Key for every P4B write family: required; an exact replay returns the stored result once; the same key with another body is 409; a refused request is never stored
+      FAIL  tests/db/p4b-http.test.ts > SHARED WRITE LAYER — If-Match, Idempotency-Key, atomic audit > Idempotency-Key for every P4B write family: required; an exact replay returns the stored result once; the same key with another body is 409; a refused request is never stored
+        ↳ AssertionError: expected [ Array(4) ] to deeply equal [ 201, { …(14) }, …(2) ]
+[NC-P4B-12b] CAUGHT · restored byte-identical · [idempotency] a refused request releases its claim and is never stored
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t Idempotency-Key for every P4B write family
+      × Idempotency-Key for every P4B write family: required; an exact replay returns the stored result once; the same key with another body is 409; a refused request is never stored
+      FAIL  tests/db/p4b-http.test.ts > SHARED WRITE LAYER — If-Match, Idempotency-Key, atomic audit > Idempotency-Key for every P4B write family: required; an exact replay returns the stored result once; the same key with another body is 409; a refused request is never stored
+        ↳ AssertionError: expected 1 to be +0 // Object.is equality
+[NC-P4B-13a] CAUGHT · restored byte-identical · [audit rollback] a failing audit rolls back a fact create/revision (with its supports)
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t a failing audit insert rolls back every P4B write
+      × a failing audit insert rolls back every P4B write: no row, no version or context change, no support row, no idempotency record
+      FAIL  tests/db/p4b-http.test.ts > SHARED WRITE LAYER — If-Match, Idempotency-Key, atomic audit > a failing audit insert rolls back every P4B write: no row, no version or context change, no support row, no idempotency record
+        ↳ AssertionError: createCaseFact: expected [ 201, '(no error: HTTP 201)' ] to deeply equal [ 500, 'INTERNAL_ERROR' ]
+[NC-P4B-13b] CAUGHT · restored byte-identical · [audit rollback] a failing audit rolls back a mapping create
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t a failing audit insert rolls back every P4B write
+      × a failing audit insert rolls back every P4B write: no row, no version or context change, no support row, no idempotency record
+      FAIL  tests/db/p4b-http.test.ts > SHARED WRITE LAYER — If-Match, Idempotency-Key, atomic audit > a failing audit insert rolls back every P4B write: no row, no version or context change, no support row, no idempotency record
+        ↳ AssertionError: createUseMapping: expected [ 201, '(no error: HTTP 201)' ] to deeply equal [ 500, 'INTERNAL_ERROR' ]
+[NC-P4B-14a] CAUGHT · restored byte-identical · [contextRevision] a material intake change moves the case’s context revision
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t each material create, edit, archive, restore and revision
+      × each material create, edit, archive, restore and revision moves the case’s version and context revision exactly once; reads, no-ops and a work’s notes do not
+      FAIL  tests/db/p4b-http.test.ts > CONTEXT REVISION — material intake changes move the case context; reads and no-ops do not > each material create, edit, archive, restore and revision moves the case’s version and context revision exactly once; reads, no-ops and a work’s notes do not
+        ↳ AssertionError: patchReportedItem: expected [ 6, 2 ] to deeply equal [ 6, 3 ]
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t create: the raw URL exactly as supplied
+      × create: the raw URL exactly as supplied; the normalized URL and video id derived deterministically, id case preserved; the case context moves; audited
+      FAIL  tests/db/p4b-http.test.ts > REPORTED ITEMS — identification of reported material; not an infringement finding > create: the raw URL exactly as supplied; the normalized URL and video id derived deterministically, id case preserved; the case context moves; audited
+        ↳ AssertionError: expected [ 2, 1 ] to deeply equal [ 2, 2 ]
+[NC-P4B-14b] CAUGHT · restored byte-identical · [contextRevision] a work’s notes alone do not move the case
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t each material create, edit, archive, restore and revision
+      × each material create, edit, archive, restore and revision moves the case’s version and context revision exactly once; reads, no-ops and a work’s notes do not
+      FAIL  tests/db/p4b-http.test.ts > CONTEXT REVISION — material intake changes move the case context; reads and no-ops do not > each material create, edit, archive, restore and revision moves the case’s version and context revision exactly once; reads, no-ops and a work’s notes do not
+        ↳ AssertionError: patchCaseWork notes only: expected [ 7, 7 ] to deeply equal [ 6, 6 ]
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t create and patch: exactly the supplied fields
+      × create and patch: exactly the supplied fields; no owner, subject or rights holder inferred; notes alone leave the case context unchanged
+      FAIL  tests/db/p4b-http.test.ts > CASE WORKS — recorded work identification; not ownership, authorship or standing > create and patch: exactly the supplied fields; no owner, subject or rights holder inferred; notes alone leave the case context unchanged
+        ↳ AssertionError: expected { …(24) } to deeply equal { …(24) }
+[NC-P4B-14c] CAUGHT · restored byte-identical · [contextRevision] a no-op PATCH writes nothing and moves nothing
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t each material create, edit, archive, restore and revision
+      × each material create, edit, archive, restore and revision moves the case’s version and context revision exactly once; reads, no-ops and a work’s notes do not
+      FAIL  tests/db/p4b-http.test.ts > CONTEXT REVISION — material intake changes move the case context; reads and no-ops do not > each material create, edit, archive, restore and revision moves the case’s version and context revision exactly once; reads, no-ops and a work’s notes do not
+        ↳ AssertionError: patchReportedItem no-op: expected [ 7, 7 ] to deeply equal [ 6, 6 ]
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t observedAt is stored exactly
+      × observedAt is stored exactly as the supplied instant or refused before anything is written (R7); a PATCH compares instants, not spellings
+      FAIL  tests/db/p4b-http.test.ts > REPORTED ITEMS — identification of reported material; not an infringement finding > observedAt is stored exactly as the supplied instant or refused before anything is written (R7); a PATCH compares instants, not spellings
+        ↳ AssertionError: expected { …(14) } to deeply equal { …(14) }
+[NC-P4B-15a] CAUGHT · restored byte-identical · [“UseMapping = infringement” UI wording guard] the mapping meaning says it is shown as recorded, not as an infringement verdict
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · npx vitest run --config vitest.config.ts tests/web/p4b.test.tsx -t the case page shows the four intake sections
+      × the case page shows the four intake sections as recorded, in neutral words, with no verdict badge
+      FAIL  tests/web/p4b.test.tsx > P4B case intake UI > the case page shows the four intake sections as recorded, in neutral words, with no verdict badge
+        ↳ AssertionError: expected 'Skip to contentTB Notice Production S…' to contain 'It is shown as recorded, not as an in…'
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · npx vitest run --config vitest.config.ts tests/web/p4b.test.tsx -t records a use mapping from this case
+      × records a use mapping from this case’s own work and reported item; times are exact milliseconds next to the text as stated
+      FAIL  tests/web/p4b.test.tsx > P4B case intake UI > records a use mapping from this case’s own work and reported item; times are exact milliseconds next to the text as stated
+        ↳ AssertionError: expected 'Skip to contentTB Notice Production S…' to contain 'not as an infringement verdict'
+[NC-P4B-15b] CAUGHT · restored byte-identical · [“UseMapping = infringement” UI wording guard] a mapping shows no verdict stamp (the neutral meaning kept, a verdict badge added)
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · npx vitest run --config vitest.config.ts tests/web/p4b.test.tsx -t records a use mapping from this case
+      × records a use mapping from this case’s own work and reported item; times are exact milliseconds next to the text as stated
+      FAIL  tests/web/p4b.test.tsx > P4B case intake UI > records a use mapping from this case’s own work and reported item; times are exact milliseconds next to the text as stated
+        ↳ AssertionError: expected 'Infringement confirmed' not to match /\b(infring\w*|owned|owner|verified|a…/i
+[NC-P4B-16a] CAUGHT · restored byte-identical · [UI Case A/B state contamination] the new-mapping form is rebuilt per case (nothing chosen or typed for A offered in B)
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · npx vitest run --config vitest.config.ts tests/web/p4b.test.tsx -t switching from case A to case B
+      × switching from case A to case B shows only B’s intake: nothing loaded or entered for A carries over
+      FAIL  tests/web/p4b.test.tsx > P4B case intake UI > switching from case A to case B shows only B’s intake: nothing loaded or entered for A carries over
+        ↳ AssertionError: expected 'SYNTHETIC-A-ONLY time' to be '' // Object.is equality
+[NC-P4B-16b] CAUGHT · restored byte-identical · [UI Case A/B state contamination] the new-fact form is rebuilt per case (A’s form and loaded context never shown for B)
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · npx vitest run --config vitest.config.ts tests/web/p4b.test.tsx -t switching from case A to case B
+      × switching from case A to case B shows only B’s intake: nothing loaded or entered for A carries over
+      FAIL  tests/web/p4b.test.tsx > P4B case intake UI > switching from case A to case B shows only B’s intake: nothing loaded or entered for A carries over
+        ↳ AssertionError: expected 'SYNTHETIC-A-ONLY scope' to be '' // Object.is equality
+[NC-P4B-17a] CAUGHT · restored byte-identical · [browser finding F1] UI: “Load latest version” on a new record clears the conflict notice
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · npx vitest run --config vitest.config.ts tests/web/p4b.test.tsx -t a new record with an outdated case version
+      × a new record with an outdated case version: "Load latest version" keeps what was typed, clears the notice and saves with the new case version
+      FAIL  tests/web/p4b.test.tsx > P4B case intake UI > a new record with an outdated case version: "Load latest version" keeps what was typed, clears the notice and saves with the new case version
+        ↳ Error: timed out waiting for notice cleared
+[NC-P4B-17b] CAUGHT · restored byte-identical · [browser finding F1] UI: the new-fact form stays mounted (typed values kept) while the case reloads
+    exit 1 · ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯ · npx vitest run --config vitest.config.ts tests/web/p4b.test.tsx -t a new fact with an outdated case version
+      × a new fact with an outdated case version keeps what was typed after "Load latest version"
+      FAIL  tests/web/p4b.test.tsx > P4B case intake UI > a new fact with an outdated case version keeps what was typed after "Load latest version"
+        ↳ AssertionError: expected '' to be 'SYNTHETIC scope typed before the conf…' // Object.is equality
+# end 2026-09-25T06:40:06.363Z — tree fingerprint d326abb345a958245520eb4fc1aa0fe11e8379540f8a1df826e80c390c78274c (identical)
+63 controls, 63 caught and restored, 0 problems
+runner exit 0
