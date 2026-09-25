@@ -1,6 +1,6 @@
 // yarn ui:sandbox --password-file <path> — a disposable local UI sandbox for manual or browser-
-// automation checks of the Directory, Sources, Routes, representation-authority, Case and case
-// intake pages (P2, P3A, P3B, P4A, P4B) WITHOUT touching tb_notice_dev.
+// automation checks of the Directory, Sources, Routes, representation-authority, Case, case
+// intake and Correspondence pages (P2, P3A, P3B, P4A, P4B, P4C) WITHOUT touching tb_notice_dev.
 //
 //  1. Guards: the target is the allowlisted disposable tb_notice_test schema (tooling account,
 //     loopback port 3307, never tb_notice_dev); every table the sandbox can write must be empty
@@ -12,7 +12,8 @@
 //     given file (mode 600, outside the repository); it is never printed.
 //  4. On Ctrl+C / SIGTERM (or any failure) both servers stop and every row the sandbox could have
 //     written is deleted in foreign-key order; the tables are verified empty again.
-// No external request is made. The account is a synthetic sandbox login, not a Signer.
+// No external request is made (captured correspondence is only recorded; nothing is sent). The
+// account is a synthetic sandbox login, not a Signer.
 import 'reflect-metadata';
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
@@ -30,14 +31,16 @@ const SANDBOX_EMAIL = 'p2-ui-sandbox@example.invalid';
  * Every table the running app can write (P2 directory, P3A sources and routes, P3B mandates,
  * versions, coverage, coverage signers and authority events, P4A cases, case sources and authority
  * selections with their pinned coverage, P4B reported items, works, use mappings, case facts and
- * their supports), in foreign-key deletion order. Source references and the records that point at
- * them reference each other (canonical bindings, revision chains, citations), routes ⇄ coverage,
- * cases ⇄ selections and the version / coverage / event / fact chains point at their own tables, so
- * those pointers are cleared first (see cleanup).
+ * their supports, P4C captured correspondence and its case bindings), in foreign-key deletion
+ * order. Source references and the records that point at them reference each other (canonical
+ * bindings, revision chains, citations), routes ⇄ coverage, cases ⇄ selections and the version /
+ * coverage / event / fact / binding chains point at their own tables, so those pointers are cleared
+ * first (see cleanup).
  */
 const TABLES = [
   'idempotency_records',
   'audit_events',
+  'correspondence_bindings',
   'fact_sources',
   'case_facts',
   'use_mappings',
@@ -47,6 +50,7 @@ const TABLES = [
   'case_authority_selections',
   'case_sources',
   'cases',
+  'correspondence',
   'authority_events',
   'coverage_signers',
   'mandate_coverages',
@@ -65,7 +69,8 @@ const TABLES = [
 
 /**
  * Pointers cleared before deleting rows (canonical bindings, citations, revision chains, preferred
- * coverage, version / coverage lineage, event and fact supersession and a case's selection pointer).
+ * coverage, version / coverage lineage, event, fact and binding supersession and a case's selection
+ * pointer).
  */
 const SOURCE_POINTERS = [
   'UPDATE `cases` SET `current_authority_selection_id` = NULL, `packet_source_id` = NULL, `canonical_binding_source_id` = NULL',
@@ -81,6 +86,7 @@ const SOURCE_POINTERS = [
   'UPDATE `owner_subjects` SET `source_id` = NULL',
   'UPDATE `source_references` SET `supersedes_source_id` = NULL',
   'UPDATE `case_facts` SET `supersedes_fact_id` = NULL',
+  'UPDATE `correspondence_bindings` SET `supersedes_binding_id` = NULL',
 ] as const;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
