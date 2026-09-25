@@ -207,6 +207,12 @@ export class FakeDirectory {
   readonly correspondence: Array<Record<string, unknown> & { id: string }> = [];
   /** Append-only case bindings of captured messages (no ETag), in recording order. */
   readonly bindings: Array<Record<string, unknown> & { id: string }> = [];
+  /**
+   * getProductionContext replies by case id (P4D). The fake assembles nothing: each test states the
+   * view (checked against the contract) or the refusal, and the query the page sent is recorded
+   * with the request. A case without a reply is 404; only GET is routed.
+   */
+  readonly contextReplies = new Map<string, (query: URLSearchParams) => Response>();
   /** First results of correspondence writes by Idempotency-Key (a retry replays them). */
   private readonly replays = new Map<string, { body: string; response: Record<string, unknown> }>();
   /** The next correspondence write is recorded, but its reply is lost (a 500 reaches the page). */
@@ -667,6 +673,10 @@ export class FakeDirectory {
     if (collection === 'sources') return this.sourceRequest(method, id, action, url, body);
     if (collection === 'correspondence') {
       return this.correspondenceRequest(method, id, action, url, headers, body);
+    }
+    if (collection === 'cases' && id && action === 'production-context' && !childId) {
+      const reply = method === 'GET' ? this.contextReplies.get(id) : undefined;
+      return reply ? reply(url.searchParams) : failure(404, 'NOT_FOUND');
     }
     if (collection === 'cases' && id && action === 'correspondence-bindings' && !childId) {
       return this.bindingRequest(method, id, url, headers, body);

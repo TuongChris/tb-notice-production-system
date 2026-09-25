@@ -28,7 +28,9 @@ export function HomePage() {
         evaluated — it is not a G1 decision. <Link to="/correspondence">Correspondence</Link>{' '}
         records captured messages exactly as entered and, on each case, explicit bindings of what a
         message is recorded as for that case. Capturing or binding sends, replies to and contacts
-        nothing. Production is not implemented yet.
+        nothing. Each case also has a production context: a read-only view of its recorded context
+        for one task. It determines nothing — no G1–G7 decision and no readiness. Prompts, notice
+        candidates and the rest of production are not implemented yet.
       </p>
       <dl>
         <dt>Session</dt>

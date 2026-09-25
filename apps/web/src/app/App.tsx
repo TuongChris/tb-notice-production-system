@@ -100,6 +100,9 @@ const ReviseFactPage = facts('ReviseFactPage');
 const BindCorrespondencePage = pagesOf(() => import('./cases/case-correspondence.js'))(
   'BindCorrespondencePage',
 );
+const ProductionContextPage = pagesOf(() => import('./cases/production-context.js'))(
+  'ProductionContextPage',
+);
 const correspondence = pagesOf(() => import('./correspondence/correspondence.js'));
 const CorrespondenceListPage = correspondence('CorrespondenceListPage');
 const NewCorrespondencePage = correspondence('NewCorrespondencePage');
@@ -109,8 +112,8 @@ const CorrespondenceDetailPage = correspondence('CorrespondenceDetailPage');
  * Web app: Login, session check, the protected shell, the Directory, Sources, the Representation
  * pages (routes, mandates, versions, coverage, coverage signers and authority events), Cases (case
  * records, linked sources, authority selected for evaluation, the case intake — reported items,
- * works, use mappings and facts — and correspondence bindings) and Correspondence (captured messages;
- * nothing is sent).
+ * works, use mappings and facts — correspondence bindings and the read-only production context of
+ * a case, which determines nothing) and Correspondence (captured messages; nothing is sent).
  */
 export function App({ api }: { api: ApiClient }) {
   const directory = useMemo(() => createDirectoryApi(api), [api]);
@@ -201,6 +204,7 @@ export function App({ api }: { api: ApiClient }) {
                   path="cases/:id/correspondence-bindings/new"
                   element={<BindCorrespondencePage />}
                 />
+                <Route path="cases/:id/production-context" element={<ProductionContextPage />} />
                 <Route path="correspondence" element={<CorrespondenceListPage />} />
                 <Route path="correspondence/new" element={<NewCorrespondencePage />} />
                 <Route path="correspondence/:id" element={<CorrespondenceDetailPage />} />

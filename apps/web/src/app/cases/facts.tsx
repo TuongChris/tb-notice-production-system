@@ -248,7 +248,7 @@ function ValueText({ spec, value }: { spec: ValueSpec; value: unknown }): ReactN
 }
 
 /** The structured value of one fact revision, exactly as recorded. */
-function FactValueDetails({ fact }: { fact: CaseFact }) {
+export function FactValueDetails({ fact }: { fact: CaseFact }) {
   const value = valueEntries(fact);
   const note = TYPE_NOTE[fact.factType];
   return (
@@ -264,7 +264,7 @@ function FactValueDetails({ fact }: { fact: CaseFact }) {
   );
 }
 
-function ProvenanceText({ provenance }: { provenance: Provenance }) {
+export function ProvenanceText({ provenance }: { provenance: Provenance }) {
   return (
     <span className={`provenance provenance-${provenance.toLowerCase()}`}>
       {PROVENANCE_LABEL[provenance]}
