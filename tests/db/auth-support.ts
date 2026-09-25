@@ -29,6 +29,11 @@ import {
   type LoginThrottleSettings,
 } from '../../apps/api/src/modules/auth/login-throttle.js';
 import { PasswordHasher } from '../../apps/api/src/modules/auth/password-hasher.js';
+import {
+  CONTEXT_READ_OBSERVER,
+  NO_CONTEXT_READ_OBSERVER,
+  type ContextReadObserver,
+} from '../../apps/api/src/modules/production/context-read-observer.js';
 import { AuditWriter } from '../../apps/api/src/infrastructure/write/audit-writer.js';
 import { driverConfig, loadRootEnv, resolveTarget } from '../../scripts/db/lib/targets.mjs';
 
@@ -146,6 +151,8 @@ export async function startTestApp(
     throttle?: Partial<LoginThrottleSettings>;
     clock?: TestClock;
     auditWriter?: AuditWriter;
+    /** Called inside the production-context snapshot (P4D snapshot test); a no-op otherwise. */
+    contextObserver?: ContextReadObserver;
   } = {},
 ): Promise<TestApp> {
   const clock = overrides.clock ?? new TestClock();
@@ -162,6 +169,8 @@ export async function startTestApp(
     .useValue(hasher)
     .overrideProvider(AuditWriter)
     .useValue(overrides.auditWriter ?? new AuditWriter())
+    .overrideProvider(CONTEXT_READ_OBSERVER)
+    .useValue(overrides.contextObserver ?? NO_CONTEXT_READ_OBSERVER)
     .compile();
   const app = moduleRef.createNestApplication<NestExpressApplication>({
     bodyParser: false,
