@@ -15,6 +15,9 @@
 // quote case material and is redacted the same way, as is the intake material's (P4B): a work's
 // notes, a mapping's limitations, a fact's scope text, limitations and change reason and each fact
 // support's supported assertion (a fact's typed value is redacted to its length by its service).
+// Captured correspondence (P4C) is private communication: its subject, body, Message-ID and
+// In-Reply-To, the mailbox and message addresses, the raw header date, its limitations and a
+// binding's interpretation are recorded only as their length (INVARIANTS §7: no full private body).
 import { codePointLength } from '@tb/contracts';
 import { Prisma } from '../../../generated/prisma/client.js';
 import { canonicalJson } from '../../infrastructure/write/request-digest.js';
@@ -38,6 +41,15 @@ const REDACTED_FIELDS = new Set([
   'selectionNote',
   'applicationScope',
   'supportedAssertion',
+  'subject',
+  'bodyText',
+  'messageId',
+  'inReplyTo',
+  'mailboxAddress',
+  'fromAddress',
+  'toAddress',
+  'replyToAddress',
+  'headerDateRaw',
 ]);
 
 function comparable(value: unknown): unknown {

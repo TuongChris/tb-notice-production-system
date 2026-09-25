@@ -13,11 +13,11 @@
 //     without a session → 401, proxied session check → 401 without CORS headers. Every response is
 //     a valid contract OperationError with Cache-Control: no-store.
 //  6. Business boundary of the compiled API, read-only: every directory (P2), source and route
-//     (P3A), representation-authority (P3B), case (P4A) and case intake (P4B) collection and the
-//     read-backs of TB-SCHEMA-API-v1.1.0 and v1.2.0 are routed and session-protected (no cookie →
-//     401, also through the web proxy), unsafe writes without Origin → 403 before any handler,
-//     canonical bindings and freezes are session-protected, and later case phases (correspondence
-//     onward) are not routed (404).
+//     (P3A), representation-authority (P3B), case (P4A), case intake (P4B) and correspondence (P4C)
+//     collection and the read-backs of TB-SCHEMA-API-v1.1.0 and v1.2.0 are routed and
+//     session-protected (no cookie → 401, also through the web proxy), unsafe writes without Origin
+//     → 403 before any handler, canonical bindings and freezes are session-protected, and later
+//     case phases (production context, prompts, candidates onward) are not routed (404).
 //  7. Terminate both processes (SIGTERM, bounded wait, SIGKILL fallback) and verify ports 3000 and
 //     5173 are released. Any failure exits non-zero.
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
@@ -462,10 +462,33 @@ async function checkBusinessBoundary(): Promise<void> {
       401,
       'SESSION_REQUIRED',
     ],
-    // Correspondence and every later case record are later phases: not routed at all.
+    // P4C: correspondence capture and case bindings are behind the same guard (session, Origin).
+    ['GET /correspondence without a session', `${api}/correspondence`, {}, 401, 'SESSION_REQUIRED'],
     [
-      'POST /cases/{caseId}/correspondence-bindings (later phase, not routed)',
+      'POST /correspondence without Origin',
+      `${api}/correspondence`,
+      { method: 'POST', headers: json, body: '{}' },
+      403,
+      'ORIGIN_REJECTED',
+    ],
+    [
+      'POST /cases/{caseId}/correspondence-bindings without a session',
       `${api}/cases/${id}/correspondence-bindings`,
+      { method: 'POST', headers: { ...json, Origin: origin }, body: '{}' },
+      401,
+      'SESSION_REQUIRED',
+    ],
+    [
+      'GET /correspondence/{id} through the web proxy without a session',
+      `http://localhost:${WEB_PORT}/api/v1/correspondence/${id}`,
+      {},
+      401,
+      'SESSION_REQUIRED',
+    ],
+    // Production context, prompts and every later case record are later phases: not routed.
+    [
+      'POST /cases/{caseId}/prompts (later phase, not routed)',
+      `${api}/cases/${id}/prompts`,
       { method: 'POST', headers: { ...json, Origin: origin }, body: '{}' },
       404,
       'NOT_FOUND',

@@ -3651,12 +3651,11 @@ describe('SECURITY / CONTRACT', () => {
     expect(await intakeDump()).toEqual(before);
   });
 
-  it('correspondence, production, prompts, candidates, readiness, signing and sending stay unrouted; P4B creates no later-phase record', async () => {
+  it('production, prompts, candidates, readiness, signing and sending stay unrouted; P4B creates no later-phase record', async () => {
     const { w } = await intakeWorld();
     const id = w.case.data.id;
+    // Correspondence is routed since P4C (tests/db/p4c-http.test.ts); P4B still records none.
     const paths: Array<['GET' | 'POST' | 'PATCH' | 'DELETE', string]> = [
-      ['POST', `/cases/${id}/correspondence-bindings`],
-      ['GET', `/cases/${id}/correspondence-bindings`],
       ['GET', `/cases/${id}/production-context`],
       ['POST', `/cases/${id}/prompts`],
       ['POST', `/cases/${id}/candidates`],
@@ -3668,7 +3667,6 @@ describe('SECURITY / CONTRACT', () => {
       ['DELETE', `/cases/${id}/reported-items/${randomUUID()}`],
       ['DELETE', `/cases/${id}/facts/${randomUUID()}`],
       ['PATCH', `/cases/${id}/facts/${randomUUID()}`],
-      ['GET', '/correspondence'],
     ];
     for (const [method, path] of paths) {
       const response = await unrouted(method, path);

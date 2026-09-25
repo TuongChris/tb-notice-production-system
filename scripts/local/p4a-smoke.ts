@@ -648,9 +648,9 @@ async function main(): Promise<void> {
   }
   pass('the source provenance is unchanged by link, canonical binding and selection');
   await call(
-    'POST /cases/{caseId}/correspondence-bindings (later phase, not routed)',
+    'POST /cases/{caseId}/prompts (later phase, not routed)',
     'POST',
-    `/cases/${caseId}/correspondence-bindings`,
+    `/cases/${caseId}/prompts`,
     404,
     null,
     { body: {} },

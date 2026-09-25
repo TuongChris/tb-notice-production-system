@@ -18,8 +18,8 @@
 //   expected refusals: another case's item and fact supports through this case (404), a mapping
 //   with another case's work (422 CROSS_CASE_REFERENCE), a non-video address (422
 //   REPORTED_URL_UNSUPPORTED), a stale ETag (412), a revision of the old head (409
-//   REVISION_NOT_HEAD) → no readiness, G1–G7, production or correspondence route or field exists
-//   (404 / no such keys) → logout. Nothing here is an infringement, ownership, permission or
+//   REVISION_NOT_HEAD) → no readiness, G1–G7 or production route or field exists (404 / no such
+//   keys) → logout. Nothing here is an infringement, ownership, permission or
 //   exception finding, readiness, a notice, a signature or an external action.
 import { spawn, type ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
@@ -673,15 +673,12 @@ async function main(): Promise<void> {
   );
   if (oldHead.code !== 'REVISION_NOT_HEAD') fail('only the head of a fact chain can be revised');
 
-  // No readiness, G1–G7, production or correspondence route exists.
+  // No readiness, G1–G7 or production route exists (correspondence is routed since P4C and has its
+  // own smoke, smoke:p4c).
   for (const [label, method, suffix] of [
     ['GET /cases/{caseId}/readiness', 'GET', `/cases/${caseId}/readiness`],
     ['GET /cases/{caseId}/production-context', 'GET', `/cases/${caseId}/production-context`],
-    [
-      'POST /cases/{caseId}/correspondence-bindings',
-      'POST',
-      `/cases/${caseId}/correspondence-bindings`,
-    ],
+    ['POST /cases/{caseId}/prompts', 'POST', `/cases/${caseId}/prompts`],
     ['POST /cases/{caseId}/g1', 'POST', `/cases/${caseId}/g1`],
   ] as const) {
     const refused = await call(

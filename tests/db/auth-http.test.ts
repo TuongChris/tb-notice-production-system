@@ -827,10 +827,10 @@ describe('SECURITY', () => {
     // P2 adds the directory routes, P3A the source and route operations, P3B the mandate,
     // version, coverage and coverage-signer operations, P4A the case, case-source and authority
     // selection operations, R8 the selection read-back of TB-SCHEMA-API-v1.1.0, P4B the case intake
-    // operations and R9 the fact-source read-back of TB-SCHEMA-API-v1.2.0 (exact inventory:
-    // directory-http.test.ts); nothing else.
+    // operations, R9 the fact-source read-back of TB-SCHEMA-API-v1.2.0 and P4C the correspondence
+    // capture and case-binding operations (exact inventory: directory-http.test.ts); nothing else.
     const directory =
-      /^[A-Z]+ \/api\/v1\/(agencies|owners|legal-subjects|signers|owner-subjects|sources|routes|mandates|mandate-versions|coverages|coverage-signers|cases|case-sources)(\/|$)/;
+      /^[A-Z]+ \/api\/v1\/(agencies|owners|legal-subjects|signers|owner-subjects|sources|routes|mandates|mandate-versions|coverages|coverage-signers|cases|case-sources|correspondence)(\/|$)/;
     expect(routes.filter((route) => !directory.test(route))).toEqual([
       'GET /api/v1/auth/session',
       'GET /api/v1/health',
@@ -843,6 +843,8 @@ describe('SECURITY', () => {
       '/api/v1/users',
       '/api/v1/signers/00000000-0000-4000-8000-000000000001/sign',
       '/api/v1/candidates/00000000-0000-4000-8000-000000000001/send',
+      '/api/v1/correspondence/00000000-0000-4000-8000-000000000001/send',
+      '/api/v1/correspondence/00000000-0000-4000-8000-000000000001/reply',
       '/api/v1/coverage-signers/00000000-0000-4000-8000-000000000001/sign',
       '/api/v1/mandate-versions/00000000-0000-4000-8000-000000000001/approve',
     ]) {

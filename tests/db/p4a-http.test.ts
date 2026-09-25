@@ -3615,9 +3615,9 @@ describe('SECURITY / CONTRACT', () => {
     const { case: created } = await caseWorld();
     const id = created.data.id;
     // The case intake material (reported items, works, mappings, facts) is routed since P4B
-    // (tests/db/p4b-http.test.ts); correspondence and everything after it are not.
+    // (tests/db/p4b-http.test.ts) and correspondence since P4C (tests/db/p4c-http.test.ts);
+    // production and everything after it are not.
     const paths: Array<['GET' | 'POST' | 'PATCH' | 'DELETE', string]> = [
-      ['POST', `/cases/${id}/correspondence-bindings`],
       ['GET', `/cases/${id}/production-context`],
       ['POST', `/cases/${id}/prompts`],
       ['POST', `/cases/${id}/candidates`],
@@ -3626,7 +3626,6 @@ describe('SECURITY / CONTRACT', () => {
       ['POST', `/cases/${id}/sign`],
       ['POST', `/cases/${id}/send`],
       ['POST', `/cases/${id}/g1`],
-      ['GET', '/correspondence'],
     ];
     for (const [method, path] of paths) {
       const response = await unrouted(method, path);

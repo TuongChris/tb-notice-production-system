@@ -476,9 +476,9 @@ async function main(): Promise<void> {
   }
   pass('the source provenance is unchanged by version, coverage, freeze and event');
   await call(
-    'POST /cases/{caseId}/correspondence-bindings (later phase, not routed)',
+    'POST /cases/{caseId}/prompts (later phase, not routed)',
     'POST',
-    `/cases/${randomUUID()}/correspondence-bindings`,
+    `/cases/${randomUUID()}/prompts`,
     404,
     null,
     {
