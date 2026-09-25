@@ -15,14 +15,14 @@ Read this first in every session. It summarizes binding decisions; the documents
 1. `docs/architecture/ARCHITECTURE_RESOLUTIONS_v1.md` (precedence rules), then `docs/product/PRODUCT_DEFINITION_v1.md`, `docs/domain/DOMAIN_MODEL_v1.md`, `docs/contracts/PRODUCTION_FORM_CONTRACT_v1.md`, `docs/architecture/TECHNOLOGY_ARCHITECTURE_v1.md`, `REPOSITORY_BLUEPRINT_v1.md`, `P0_BOOTSTRAP_CONTRACT_v1.md`.
 2. Decisions: `docs/decisions/ADR-0001-mysql-manual-migration-semantics.md`, `ADR-0002-zod-first-contract-authoring.md`, `ADR-0003-single-pc-development-baseline.md` (all ACCEPTED); `ADR-0004-tb-schema-api-v1-1-0-case-authority-selection-read.md` (ACCEPTED at R8 final, 2026-09-25); `ADR-0005-tb-schema-api-v1-2-0-case-fact-sources-read.md` (ACCEPTED at R9 final, 2026-09-25).
 3. Frozen DB/API baseline `TB-SCHEMA-API-v1.0.0`: `docs/reference/database-api-v1/…/docs/INVARIANTS.md`, `API_CONTRACT_v1.md`. The active wire contract is `TB-SCHEMA-API-v1.2.0` = that frozen baseline + the additive amendments `docs/contracts/TB-SCHEMA-API-v1.1.0/` (ADR-0004) and `docs/contracts/TB-SCHEMA-API-v1.2.0/` (ADR-0005), applied in that order.
-4. State: `docs/CURRENT_STATE.md`; evidence: `docs/verification/p0/`, `docs/verification/p1/`, `docs/verification/p2/`, `docs/verification/p3a/`, `docs/verification/p3b/`, `docs/verification/p4a/`, `docs/verification/p4b/`, `docs/verification/p4c/`.
+4. State: `docs/CURRENT_STATE.md`; evidence: `docs/verification/p0/`, `docs/verification/p1/`, `docs/verification/p2/`, `docs/verification/p3a/`, `docs/verification/p3b/`, `docs/verification/p4a/`, `docs/verification/p4b/`, `docs/verification/p4c/`, `docs/verification/p4d/`.
 
 **Frozen trees — never edit, move, format, lint-fix or generate into:** `docs/reference/**`. Verify with `yarn reference:check`. Never run `docs/reference/…/tests/verify_contracts.py` (it writes files).
 
 ## Architecture (modular monolith)
 
 - `apps/web` (`@tb/web`): React 19 + Vite 8, `127.0.0.1:5173`, proxies `/api`.
-- `apps/api` (`@tb/api`): NestJS 12 + Express, REST `/api/v1`, `127.0.0.1:3000`. P1 exposes `GET /api/v1/health` (public) and `POST /api/v1/auth/login`, `GET /api/v1/auth/session`, `POST /api/v1/auth/logout`. P2 adds the 36 contracted directory operations (Agency, Owner, LegalSubject, OwnerSubject, Signer); P3A adds 17: the SourceReference registry (4), the four directory `bindCanonical*` operations and Route (9, including `bindCanonicalRoute`); P3B adds the 23 representation-authority operations (Mandate 8, MandateVersion 5, MandateCoverage 4, CoverageSigner 4, AuthorityEvent 2) — 76; P4A adds the 16 case operations (Case 10, CaseSource 4, CaseAuthoritySelection 2) — 92; the R8 remediation adds `getCaseAuthoritySelection` (TB-SCHEMA-API-v1.1.0) — 93; P4B adds the 22 case intake operations (ReportedItem 6, CaseWork 6, UseMapping 6, CaseFact 4) — 115; the R9 remediation adds `getCaseFactSources` (TB-SCHEMA-API-v1.2.0) — 116; P4C adds the 5 correspondence operations (Correspondence 3, CorrespondenceBinding 2; no wire change) — 121 business operations. Every later case operation (production context, prompts, candidates, validation, assessments, readiness, unsigned export) stays unrouted. A global guard makes every other route session-protected by default.
+- `apps/api` (`@tb/api`): NestJS 12 + Express, REST `/api/v1`, `127.0.0.1:3000`. P1 exposes `GET /api/v1/health` (public) and `POST /api/v1/auth/login`, `GET /api/v1/auth/session`, `POST /api/v1/auth/logout`. P2 adds the 36 contracted directory operations (Agency, Owner, LegalSubject, OwnerSubject, Signer); P3A adds 17: the SourceReference registry (4), the four directory `bindCanonical*` operations and Route (9, including `bindCanonicalRoute`); P3B adds the 23 representation-authority operations (Mandate 8, MandateVersion 5, MandateCoverage 4, CoverageSigner 4, AuthorityEvent 2) — 76; P4A adds the 16 case operations (Case 10, CaseSource 4, CaseAuthoritySelection 2) — 92; the R8 remediation adds `getCaseAuthoritySelection` (TB-SCHEMA-API-v1.1.0) — 93; P4B adds the 22 case intake operations (ReportedItem 6, CaseWork 6, UseMapping 6, CaseFact 4) — 115; the R9 remediation adds `getCaseFactSources` (TB-SCHEMA-API-v1.2.0) — 116; P4C adds the 5 correspondence operations (Correspondence 3, CorrespondenceBinding 2; no wire change) — 121; P4D adds the read `getProductionContext` (no wire change) — 122 business operations. Every later case operation (prompts, candidates, validation, assessments, readiness, unsigned export) stays unrouted. A global guard makes every other route session-protected by default.
 - `packages/contracts` (`@tb/contracts`): Zod wire schemas + operation metadata; depends on no app, Nest, React or Prisma.
 - One MySQL 8.4 container. Yarn Workspaces only. No Nx/Turborepo/Lerna, queues, Redis, GraphQL/tRPC, microservices, generic BaseCrud layers.
 
@@ -178,6 +178,51 @@ Implementation rules:
   - The binding form preselects no event and offers only this case's items and the agency's messages.
 - Error codes: P4C implementation codes `CAPTURE_POSTURE_UNSUPPORTED`, `OUTCOME_ITEM_REQUIRED` and `BINDING_ALREADY_SUPERSEDED` (free-string `code`, contracted statuses). `smoke:p4c` writes records and runs only in CI.
 
+## Production context (P4D, submitted for R11 — PENDING; details `docs/verification/p4d/P4D_PRODUCTION_CONTEXT.md`)
+
+Persistent rules (never weaken; UI copy follows them):
+
+- **Context = recorded input, not a legal conclusion.** `getProductionContext` assembles what a case records for one task. It is never a G1–G7 decision, READY_FOR_SIGNER, legal approval, an ownership, permission or infringement finding, current authority or signer eligibility.
+- **Exact case isolation.** Only the path case's own records; another case's selection or binding is 422 `CROSS_CASE_REFERENCE`; nothing of one case appears in, supports or changes another case's context.
+- **Exact authority pinning.** The authority block is exactly the named selection and the chain it pinned. Never the route's default signer or preferred coverage, a newer version, coverage or source revision, or a union.
+- **No latest/default substitution.** Nothing is chosen for an omitted selector: not the case's current selection, the latest NMI or any AS_SENT binding.
+- **MISSING stays missing; CONFLICT stays conflict.** A MISSING fact is listed as missing, never false or negative; recorded conflicts are listed, never resolved or dropped; nothing is filled in to close a gap.
+- **Correspondence posture stays visible; `*_AS_SENT` does not imply a verified package.** Capture mode, body role and attachment observations as recorded; OPERATOR_REPORTED keeps its limited posture.
+- **One consistent snapshot per read; a complete dependency closure; the digest is never merely `Case.rowVersion`.**
+- **No readiness, no writes, no external action.** A read writes nothing (no audit event, idempotency record, revision or row version) and sends, fetches, contacts, drafts or signs nothing.
+
+Implementation rules:
+
+- One REPEATABLE READ transaction per read (`modules/production`), the case row first (it fixes the snapshot); plain SELECTs only. The test seam `CONTEXT_READ_OBSERVER` (no-op in the app) runs right after the case row.
+- Query exactly as contracted: required `taskType` and `generationMode`; optional `authoritySelectionId` and `parentBindingId`; `priorBindingIds` repeated once per id (≤100, each once — 400). Refusals:
+  - INITIAL with a parent or priors: 422 `SELECTOR_NOT_FOR_TASK`.
+  - Unknown selector: 422 `REFERENCE_NOT_FOUND`; another case's: 422 `CROSS_CASE_REFERENCE`.
+  - A parent that is not NMI: 422 `REPLY_PARENT_REQUIRED` (NOT_NMI).
+  - A prior not `*_AS_SENT`: 422 `PRIOR_BINDING_NOT_AS_SENT` (direction never counts).
+  - A corrected binding: 409 `BINDING_ALREADY_SUPERSEDED` naming the correction, never used in its place.
+- Party: the agency from the case; owner and legal subject only through the bound route; the signer only from the named selection.
+- Intake: unarchived records in recording order; an archived one only when an included record names it (conflict `ARCHIVED_RECORD_REFERENCED`).
+- Facts: chain heads only; supports exactly as recorded for that revision, never re-pointed.
+- Sources: exactly the closure's revisions (never the registry, never a newer revision); `policySources` only POLICY_REFERENCE sources LINKED to the case; manifest text over 5,000 code points is not listed (missing item), never cut.
+- Authority events: whole-mandate and pinned-coverage events of the pinned mandates, whenever recorded, in recording order.
+- Correspondence: one row per selected message.
+- DRAFTING: refused while a blocking code is missing — `CASE_ROUTE_UNBOUND`, `AUTHORITY_SELECTION_NOT_SELECTED`, `REPORTED_ITEMS_ABSENT`, `WORKS_ABSENT`, `USE_MAPPINGS_ABSENT`, `REPLY_PARENT_NOT_SELECTED`, `PRIOR_AS_SENT_NOT_SELECTED`. The refusal is 422 `REPLY_PARENT_REQUIRED` (NOT_SELECTED) or `DRAFTING_INPUT_MISSING`, naming every blocking code. PREPARATION returns the same context with its gaps. Over a contracted bound: 409 `PRODUCTION_CONTEXT_TOO_LARGE`, never cut.
+- Dependencies: one per record of the closure, in `(entityType, entityId)` order.
+  - Fingerprint: SHA-256 of TB canonical JSON v1 (`infrastructure/integrity/tb-canonical-json.ts`, the frozen helper's port) of the record's semantic content. Operation metadata, archive reasons, a work's notes and the route's defaults are left out. The existence of a source's newer revision and of successor versions/coverages is included.
+  - `dependencyDigest`: SHA-256 of `{algorithm TB-PRODUCTION-CONTEXT-DIGEST-v1, contract, PFC version, scope (priors sorted), [entityType, entityId, fingerprint]}`.
+  - `rowVersion` is a diagnostic only.
+  - A new dependency kind of the context must join the closure and its tests.
+- No ETag, If-Match or Idempotency-Key; `Cache-Control: no-store`.
+- UI (`apps/web/src/app/cases/production-context.tsx`):
+  - The boundary statement.
+  - Nothing preselected; the pickers offer only this case's NMI bindings and bindings recorded as sent.
+  - Missing and conflict lists in their own neutral treatments.
+  - "Selected for evaluation; not a G1 decision."
+  - Posture beside each message and captured text as plain text.
+  - After a requested read, focus moves to its outcome.
+  - No generate, approve, ready, sign or send action.
+- Error codes: P4D implementation codes `SELECTOR_NOT_FOR_TASK`, `REPLY_PARENT_REQUIRED`, `PRIOR_BINDING_NOT_AS_SENT`, `DRAFTING_INPUT_MISSING`, `PRODUCTION_CONTEXT_TOO_LARGE` (free-string `code`, contracted statuses). `smoke:p4d` writes records and runs only in CI.
+
 ## Database safety
 
 - MySQL publishes on **127.0.0.1:3307 only**. Schemas: `tb_notice_dev` (app + seed), `tb_notice_shadow` (Prisma shadow), `tb_notice_test` (structural tests), `tb_notice_replay` (migration replay). Accounts: `tb_dev` (runtime DML on dev only), `tb_migrate` (tooling, those four schemas only). `root` is init-only; the app never uses it.
@@ -196,35 +241,36 @@ Implementation rules:
 
 ## Commands
 
-| Command                                                                                    | Purpose                                                                                      |
-| ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
-| `yarn install --immutable`                                                                 | Install from the committed lockfile                                                          |
-| `yarn env:init` / `yarn db:up`                                                             | Create or complete local `.env` (random secrets) / start MySQL                               |
-| `yarn db:migrate:deploy <test\|replay\|dev>` · `yarn db:status <t>` · `yarn db:verify <t>` | Apply committed migrations · status · metadata verification                                  |
-| `yarn db:seed`                                                                             | Idempotent synthetic seed (dev only; disabled synthetic actor)                               |
-| `yarn admin:create`                                                                        | Create one local application user (operator only; see above)                                 |
-| `yarn admin:password\|disable\|enable\|revoke-sessions --email <e>`                        | Local recovery of one application user (operator only; see above)                            |
-| `yarn reference:check` · `yarn reference:helper-tests`                                     | Frozen reference integrity · original 27 frozen Node helper tests                            |
-| `yarn contracts:generate` · `yarn contracts:check`                                         | Regenerate / verify generated contract artifacts                                             |
-| `yarn typecheck` · `yarn lint` · `yarn format:check`                                       | Static checks (format:check never rewrites)                                                  |
-| `yarn test`                                                                                | All non-database tests (contract parity, tooling, API units, UI)                             |
-| `yarn test:db`                                                                             | DB structural, P1 HTTP/CLI, P2, P3A, P3B, P4A, P4B and P4C HTTP tests (`tb_notice_test`)     |
-| `yarn build` · `yarn smoke:local`                                                          | Build everything · build + run API/web, health, shell, auth bounds                           |
-| `yarn smoke:auth --email <e> [--expect-rejected] < pw`                                     | Compiled login round trip (or expected rejection), CI synthetic                              |
-| `yarn smoke:directory --email <e> < pw`                                                    | Compiled directory round trip; refuses unless `CI=true`                                      |
-| `yarn smoke:p3a --email <e> < pw`                                                          | Compiled source → binding → route round trip; refuses unless `CI=true`                       |
-| `yarn smoke:p3b --email <e> < pw`                                                          | Compiled mandate → coverage → freeze → event; refuses unless `CI=true`                       |
-| `yarn smoke:p4a --email <e> < pw`                                                          | Compiled case → link → selection round trip; refuses unless `CI=true`                        |
-| `yarn smoke:p4b --email <e> < pw`                                                          | Compiled case → item → work → mapping → fact → revision → supports; refuses unless `CI=true` |
-| `yarn smoke:p4c --email <e> < pw`                                                          | Compiled capture → explicit bindings → item outcomes → correction; refuses unless `CI=true`  |
-| `yarn ui:sandbox --password-file <path outside repo>`                                      | Compiled API on `tb_notice_test` + built web, synthetic user                                 |
-| `yarn dev` · `yarn dev:verify-shutdown`                                                    | Dev servers (Ctrl+C stops both) · verify clean shutdown                                      |
+| Command                                                                                    | Purpose                                                                                                              |
+| ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| `yarn install --immutable`                                                                 | Install from the committed lockfile                                                                                  |
+| `yarn env:init` / `yarn db:up`                                                             | Create or complete local `.env` (random secrets) / start MySQL                                                       |
+| `yarn db:migrate:deploy <test\|replay\|dev>` · `yarn db:status <t>` · `yarn db:verify <t>` | Apply committed migrations · status · metadata verification                                                          |
+| `yarn db:seed`                                                                             | Idempotent synthetic seed (dev only; disabled synthetic actor)                                                       |
+| `yarn admin:create`                                                                        | Create one local application user (operator only; see above)                                                         |
+| `yarn admin:password\|disable\|enable\|revoke-sessions --email <e>`                        | Local recovery of one application user (operator only; see above)                                                    |
+| `yarn reference:check` · `yarn reference:helper-tests`                                     | Frozen reference integrity · original 27 frozen Node helper tests                                                    |
+| `yarn contracts:generate` · `yarn contracts:check`                                         | Regenerate / verify generated contract artifacts                                                                     |
+| `yarn typecheck` · `yarn lint` · `yarn format:check`                                       | Static checks (format:check never rewrites)                                                                          |
+| `yarn test`                                                                                | All non-database tests (contract parity, tooling, API units, UI)                                                     |
+| `yarn test:db`                                                                             | DB structural, P1 HTTP/CLI, P2, P3A, P3B, P4A, P4B, P4C and P4D HTTP tests (`tb_notice_test`)                        |
+| `yarn build` · `yarn smoke:local`                                                          | Build everything · build + run API/web, health, shell, auth bounds                                                   |
+| `yarn smoke:auth --email <e> [--expect-rejected] < pw`                                     | Compiled login round trip (or expected rejection), CI synthetic                                                      |
+| `yarn smoke:directory --email <e> < pw`                                                    | Compiled directory round trip; refuses unless `CI=true`                                                              |
+| `yarn smoke:p3a --email <e> < pw`                                                          | Compiled source → binding → route round trip; refuses unless `CI=true`                                               |
+| `yarn smoke:p3b --email <e> < pw`                                                          | Compiled mandate → coverage → freeze → event; refuses unless `CI=true`                                               |
+| `yarn smoke:p4a --email <e> < pw`                                                          | Compiled case → link → selection round trip; refuses unless `CI=true`                                                |
+| `yarn smoke:p4b --email <e> < pw`                                                          | Compiled case → item → work → mapping → fact → revision → supports; refuses unless `CI=true`                         |
+| `yarn smoke:p4c --email <e> < pw`                                                          | Compiled capture → explicit bindings → item outcomes → correction; refuses unless `CI=true`                          |
+| `yarn smoke:p4d --email <e> < pw`                                                          | Compiled production context: INITIAL/NMI_REPLY reads, pinning, digest, refusals, no writes; refuses unless `CI=true` |
+| `yarn ui:sandbox --password-file <path outside repo>`                                      | Compiled API on `tb_notice_test` + built web, synthetic user                                                         |
+| `yarn dev` · `yarn dev:verify-shutdown`                                                    | Dev servers (Ctrl+C stops both) · verify clean shutdown                                                              |
 
 Before any commit: `yarn reference:check && yarn contracts:check && yarn typecheck && yarn lint && yarn format:check && yarn test` (plus `yarn test:db` when DB code changes). Report actual results; a skipped command is never PASS.
 
 ## Git workflow
 
-- Branches: `bootstrap/p0-local` is the P0 branch and takes no P1 application code; P1/P1.1 are on `feature/p1-auth-shell` (accepted at R4.1, unchanged since); P2 work went on `feature/p2-directory`, branched from the accepted P1.1 head `8fe96ae`; P3A on `feature/p3a-sources-route` (from `31db581`), merged into `main` by PR #1 (merge commit `adea2bc`) after R6; P3B on `feature/p3b-representation-authority` (from that exact `main` head `adea2bc`, with the R7 remediation `ee31fa3`), merged into `main` by PR #2 (merge commit `3649bef`) after the R7 closeout; P4A on `feature/p4a-case-core` (from that exact `main` head `3649bef`, with the R8 remediation TB-SCHEMA-API-v1.1.0 and the R8 final closeout `602f0da`), merged into `main` by PR #3 (merge commit `1d91c41`) after R8 final = PASS; P4B on `feature/p4b-case-intake`, branched from that exact `main` head `1d91c41`, merged into `main` by the operator by PR #4 (merge commit `eb83b19`) after R9 = PASS_WITH_ONE_CONTRACT_REMEDIATION; the R9 remediation on `feature/r9-fact-support-readback`, branched from that exact `main` head `eb83b19`, merged into `main` by the operator by PR #5 (merge commit `d2b6f00`) after R9 final = PASS; P4C on `feature/p4c-correspondence`, branched from that exact `main` head `d2b6f00` (code head `b9fcaf2`, accepted head `d6cd152`), merged into `main` by PR #6 (merge commit `ed5b3d7`) after R10 = PASS and its R10 closeout head `edebb80`; P4D on `feature/p4d-production-context`, branched from that exact `main` head `ed5b3d7`. One active writer per branch; small, scoped commits; review `git diff --cached` before committing; never `git add .` blindly.
+- Branches: `bootstrap/p0-local` is the P0 branch and takes no P1 application code; P1/P1.1 are on `feature/p1-auth-shell` (accepted at R4.1, unchanged since); P2 work went on `feature/p2-directory`, branched from the accepted P1.1 head `8fe96ae`; P3A on `feature/p3a-sources-route` (from `31db581`), merged into `main` by PR #1 (merge commit `adea2bc`) after R6; P3B on `feature/p3b-representation-authority` (from that exact `main` head `adea2bc`, with the R7 remediation `ee31fa3`), merged into `main` by PR #2 (merge commit `3649bef`) after the R7 closeout; P4A on `feature/p4a-case-core` (from that exact `main` head `3649bef`, with the R8 remediation TB-SCHEMA-API-v1.1.0 and the R8 final closeout `602f0da`), merged into `main` by PR #3 (merge commit `1d91c41`) after R8 final = PASS; P4B on `feature/p4b-case-intake`, branched from that exact `main` head `1d91c41`, merged into `main` by the operator by PR #4 (merge commit `eb83b19`) after R9 = PASS_WITH_ONE_CONTRACT_REMEDIATION; the R9 remediation on `feature/r9-fact-support-readback`, branched from that exact `main` head `eb83b19`, merged into `main` by the operator by PR #5 (merge commit `d2b6f00`) after R9 final = PASS; P4C on `feature/p4c-correspondence`, branched from that exact `main` head `d2b6f00` (code head `b9fcaf2`, accepted head `d6cd152`), merged into `main` by PR #6 (merge commit `ed5b3d7`) after R10 = PASS and its R10 closeout head `edebb80`; P4D on `feature/p4d-production-context`, branched from that exact `main` head `ed5b3d7` (checkpoint `ca3d7cd`, code head `1b012bd`), submitted for R11 (not merged, no pull request). One active writer per branch; small, scoped commits; review `git diff --cached` before committing; never `git add .` blindly.
 - Development topology (ADR-0003): the home PC (the "first PC" of the records) is the primary development workstation; the second-PC reproduction is DEFERRED_BY_OPERATOR. GitHub is the source of truth for code, branches, committed migrations and CI verification. Never copy or synchronize local database volumes through Git; a workstation rebuilds its databases from committed migrations and the synthetic seed.
 - No merge to `main`, force-push, history rewrite, tags or releases without explicit operator approval.
 
@@ -237,7 +283,9 @@ Before any commit: `yarn reference:check && yarn contracts:check && yarn typeche
 - **P4C** — Correspondence (the five contracted operations: capture, list and read correspondence, bind it to a case, list a case's bindings; no migration, no wire change):
   - implemented by mission TB_R9_POST_MERGE_CLOSEOUT_AND_P4C_CORRESPONDENCE_TO_R10 on `feature/p4c-correspondence` from the exact post-merge `main` `d2b6f00`, code head `b9fcaf2`, accepted head `d6cd152` (final CI run 36141175731 green);
   - review gate **R10 = PASS** (operator, 2026-09-25): P4C VERIFIED_COMPLETE, merged to `main` (`ed5b3d7`, PR #6, merge commit; `main` CI run 36153127772 green; mission TB_R10_CLOSEOUT_MERGE_AND_P4D_PRODUCTION_CONTEXT_TO_R11).
-- **P4D** — Production context (`getProductionContext` only; read-only): authorized by the same mission, **NOT_STARTED** at this checkpoint. It is built on `feature/p4d-production-context` from the exact post-merge `main` `ed5b3d7` and stops at review gate R11. No prompts, PromptSnapshot, candidates, validation, assessments, readiness, G1–G7, READY_FOR_SIGNER, export, signature, sending, mailbox or Drive action.
+- **P4D** — Production context (`getProductionContext` only; read-only; no migration, no wire change):
+  - implemented by the same mission on `feature/p4d-production-context` from the exact post-merge `main` `ed5b3d7`, code head `1b012bd`;
+  - submitted for review gate **R11 (PENDING)** — wait for it: no P4D pull request or merge; no prompts, PromptSnapshot, candidates, validation, assessments, readiness, G1–G7, READY_FOR_SIGNER, export, signature, sending, mailbox or Drive action; and R11 is not passed until the operator says so.
 - Every later phase needs its own explicit approved mission. Prompts, candidates, validation, assessments and readiness come in phases after P4D (signing, sending and G7 never exist in the app — product boundary).
 - Stop and ask on: missing credentials/permissions, a package incompatibility needing an architecture change, any domain-semantic conflict, an unsafe or unrecognized database target, or any destructive plan.
 - Forbidden substitutions: MariaDB/SQLite/Postgres servers; `db push`; Zod built-in format validators or `z.toJSONSchema` for wire contracts; hand-edited generated contracts; Python in app/CI; Yarn Classic/PnP, npm or pnpm installs; binding services to `0.0.0.0`; writable readiness/signature fields.

@@ -1,0 +1,218 @@
+P4D — Playwright MCP browser verification of the production context (mission §40), home PC, 2026-09-25 (UTC)
+===========================================================================================================
+
+Target and isolation
+- `yarn ui:sandbox --password-file <scratchpad file outside the repository>`: the COMPILED API on the disposable
+  `tb_notice_test` schema plus the built web app (`vite preview`) on http://localhost:5173 (proxying /api).
+  Session 1 was built from the committed head `c7df48b` (entry `index-Dzk5z-Eq.js` 325.73 kB, gzip 101.57 kB;
+  `production-context-DKSbUuD2.js` 30.88 kB, gzip 7.98 kB — the same bundle names CI job 108162154213 built for
+  `c7df48b`). Session 2 (the keyboard re-check after the focus fix, item 30) was built from `6bbba3a` (entry
+  `index-CVay_OUk.js` 325.73 kB; `production-context-XnQjRTCV.js` 31.19 kB, gzip 8.12 kB — the same names CI job
+  108172408313 built for `6bbba3a`). Synthetic sandbox user p2-ui-sandbox@example.invalid; its password was typed
+  into the isolated browser's login form only, and each password file was deleted after its session.
+- Browser: the Playwright MCP isolated headless Chromium profile (no personal profile, no real login session;
+  network limited to http://localhost:* and http://127.0.0.1:*), 1280×800 unless noted. Never `tb_notice_dev`,
+  never the operator's `yarn dev`, never real case, owner, authority or correspondence data; every address is
+  @example.invalid or *.example.invalid.
+- Prerequisites of session 1, created through the compiled API with the sandbox user (scratchpad script, not
+  committed), 2026-09-25T16:50:38Z–16:50:40Z: agency "SYNTHETIC Agency P4D-A" (legal name "SYNTHETIC P4D-A Agency
+  Legal Name Ltd") with its canonical-record source, owner "SYNTHETIC Brand P4D-X", legal subject "SYNTHETIC
+  Subject P4D-L LLC", their LINKED association, a LINKED route, signer "SYNTHETIC P4D Signer Person"; two frozen
+  mandates ("SYNTHETIC P4D mandate one" / "mandate two"), each with one coverage of the route recording the
+  signer; cases "SYNTHETIC Case P4D-Gamma (bare)" (no route, nothing recorded), "SYNTHETIC Case P4D-Alpha" and
+  "SYNTHETIC Case P4D-Beta" (both bound to the route). Alpha: a linked evidence source, reported items A1
+  (SYNTHETICA1) and A2 (SYNTHETICA2, left unmapped), work W1, mapping W1 → A1, a RIGHTS_BASIS fact revised once
+  (revision 2 is the head; both revisions cite the linked source), a PERMISSION fact recorded as MISSING, an
+  AV_COMPARISON fact recorded as CONFLICT/CONFLICT, an inbound NMI message (copied full text, with markup in its
+  body) bound as NMI, an OUTBOUND message captured as OPERATOR_REPORTED (one attachment observation "mentioned in
+  copied text only") bound twice — INITIAL_AS_SENT (item A1) and SUPPLEMENT_AS_SENT — and another OUTBOUND
+  message bound as OTHER. Beta: its own item, PERMISSION fact, authority selection and NMI binding. Alpha's
+  authority selection, the route's preferred-coverage change, the later authority event, the source revision and
+  a new reported item were made in the browser.
+- Session 1: login 16:51:10Z – sign-out 17:07:45Z; session 2: 17:12:53Z – 17:13:57Z. Teardown after each (below).
+
+Ids (synthetic, tb_notice_test, deleted at teardown)
+  session 1: Gamma 5361818e-137d-4768-890b-856b0aade6c7 · Alpha 20f3138c-ed0b-4315-916b-714fa99041d5 · Beta
+  a6e4f246-60a6-47ca-b5cf-3c1afc68c266 · route c29990aa-242a-477e-912c-1e2619ae8e05 · coverage (mandate one)
+  9663d076-7629-4f09-aa94-34ddc3f30020 · coverage (mandate two) ded64c7a-9748-4496-b6a3-876706383173 · Alpha
+  selection (browser) 1379c45e-255b-4f9d-bc0b-89575f02e939 · evidence source 905046f1-b2b0-43c8-af63-c693932919de
+  (revision 2, browser: 126c8a78-635b-4213-abc2-4d3faa6d59a1) · items A1 e82d7b08-0c7a-4739-a051-bc1c16063f34, A2
+  16f971ef-f798-4778-962c-7560b1e02c37, browser item 27a71f3a-bcaa-4f06-9d23-939da58030a0 · facts: rights basis
+  revision 1 8ccd316d-ca3a-4d47-9cb5-4b852e077a91, revision 2 78bc2746-6432-4ba7-8201-fbfe20f9d2b0, permission
+  defc0b5c-f4e5-493b-8fa0-0d9af301d8b9, comparison 38241617-42bf-4eca-ae40-76090acb4d3b · messages: NMI
+  efa372a3-6317-4773-a0f0-596a820598d8, operator-reported notice 2a07954c-ea88-420f-abdc-198725ebf7c5 · bindings:
+  NMI 86e8d268-41c4-4733-864e-1482be85988b, INITIAL_AS_SENT ee7f1dab-f059-402b-a73c-149db7a80a0d,
+  SUPPLEMENT_AS_SENT c65e4c6d-af5c-4f84-b2fa-fde7d7de9a46, OUTBOUND + OTHER 7d473abe-1ea2-4697-bb0b-0f06f14a97bc,
+  Beta's NMI 1f02407d-540f-4285-a11c-8a8037fea038 · Beta selection b55163ab-9f75-4aa7-9012-f3daa7819c01
+  session 2: Alpha a3451303-5434-49c9-949d-6cd27cabfefe (the same seed, new ids)
+
+Result — 32/32 PASS (every item of mission §40), one finding fixed and re-verified (item 30)
+-------------------------------------------------------------------------------------------
+ 1 Open Production Context for a Case — PASS. Gamma's case page → "Open the production context" →
+   /cases/<Gamma>/production-context: the boundary statement "This view assembles recorded case context. It does
+   not determine G1–G7 or readiness." and "Showing the context only reads it…"; no task or mode preselected, the
+   selection picker on "No selection named"; nothing is read until a task and a mode are chosen. Screenshot
+   p4d-01-open-from-case-nothing-preselected.png.
+ 2 INITIAL + PREPARATION with incomplete data — PASS. Gamma (no route, no selection, no intake): 200; "Missing
+   context (5)": CASE_ROUTE_UNBOUND, AUTHORITY_SELECTION_NOT_SELECTED, REPORTED_ITEMS_ABSENT, WORKS_ABSENT,
+   USE_MAPPINGS_ABSENT, each in the missing treatment; "Recorded conflicts (0)"; context revision 1; digest
+   014a2038ccccfc78caa8b77a5b4cd503afaf6ce70f578ec4b0604046d6c68abb; "Dependencies (2)" (case, agency); the four
+   fixed values CANONICAL_PRIMARY_RECORDS_OVER_APP_DERIVATIVES, HUMAN_PENDING, PROHIBITED, DISABLED with their
+   meanings. Screenshot p4d-02-bare-case-initial-preparation-missing.png (full page).
+ 3 Missing values remain missing — PASS. Gamma's party: the agency and its recorded legal name only; owner, legal
+   subject and signer "Not recorded" (nothing from names or the owner hint); authority "No authority selection is
+   named…". DRAFTING for the same case: "The context was not returned. Drafting needs the required content listed
+   below. Nothing was filled in…", 422 DRAFTING_INPUT_MISSING listing the same five gaps; no context rendered;
+   the only actions "Show context" and "Show the preparation context". Screenshot
+   p4d-03-bare-case-drafting-refused-with-gaps.png.
+ 4 No G1/readiness status is created — PASS. No page text matched the verdict scan (G1 PASS, ready, approved,
+   verified, authorized signer, valid/current authority…); the two "invalid" hits on Alpha were the
+   @example.invalid / .invalid addresses. The later-phase tables (prompt_snapshots, notice_candidates,
+   validation_runs, validation_issues, candidate_assessments, assessment_sources) stayed 0 rows (item 27).
+ 5 Full synthetic case intake — PASS. Alpha before any selection (INITIAL/PREPARATION): revision 14, digest
+   22ac9e1bba4c38c95ffa51cea37a1129029f3b62869d4791a7dc665725d0a50d; party from the bound route (owner, legal
+   subject; signer "Not recorded"); 2 items, 1 work, 1 mapping (bounds as recorded), 3 facts, 2 sources, 17
+   dependencies; missing AUTHORITY_SELECTION_NOT_SELECTED, REPORTED_ITEM_UNMAPPED (A2) and FACT_PROVENANCE_MISSING;
+   conflicts FACT_PROVENANCE_CONFLICT and FACT_RESOLUTION_CONFLICT. Screenshot
+   p4d-04-alpha-intake-before-selection.png (full page).
+ 6 Select explicit authority — PASS. Alpha's "Select authority" form (browser): the signer, "SYNTHETIC P4D
+   mandate one coverage" with a typed application scope, task Initial notice, sender notices-p4d@example.invalid, a
+   note → "Authority materials selected for evaluation. This is not a G1 decision." On the context page afterwards
+   no radio is checked and the picker stays on "No selection named"; the new selection is only labelled "the
+   case's current selection".
+ 7 Context shows the exact selected authority — PASS. With the selection named: "Selected for evaluation; not a
+   G1 decision."; the selection (id, recorded time, task, signer, sender, note) exactly as recorded; exactly one
+   coverage block, "SYNTHETIC P4D mandate one coverage (9663d076…)", with its recorded rows, the application scope
+   read back ("Application scope recorded with the selection"), mandate version 1 Frozen, one coverage-signer row,
+   "Authority events (0)" with "No authority event is recorded for this mandate or coverage. That does not make it
+   current."; the party's signer comes from the selection. Revision 15 (the selection moved it), digest
+   3fb5474a08b507c9d68cc2aebcdce56f1318f67188c7a707ca41134cbcff4a84. Screenshot p4d-05-exact-selected-authority.png.
+ 8 A newer route preferred coverage does not re-point the selection — PASS. The route edited in the browser:
+   preferred coverage → "SYNTHETIC P4D mandate two coverage" ("Changes saved.", route version 2). Re-read: still
+   exactly mandate one's coverage, no mention of mandate two, revision 15, digest unchanged (3fb5474a…); the
+   route's dependency fingerprint leaves its defaults out.
+ 9 A relevant later AuthorityEvent is visible — PASS. A TERMINATION of mandate one (whole mandate, effective on
+   2026-10-31 as recorded, source = the agency record) recorded in the browser. Re-read: "Authority events (1)"
+   in the pinned coverage block, every field as recorded (event, scope, provenance, effective dates as recorded,
+   "Recorded in TB", scope text, interpretation, source); case context revision still 15 (the event does not
+   touch the case); digest 3fb5474a… → 9bf9829e69f17f13c2738904a0608c7a797b9566deb6c8ede213d51bc90e6a9b; nothing
+   judged current, expired or invalid. Screenshot p4d-06-later-authority-event-in-context.png.
+10 Exact reported items, works and mappings — PASS. A1 and A2 (unmapped), W1, and the mapping W1 → A1
+   (occurrence 1, 0:00:15.000–0:00:45.000 → 0:01:00.000–0:01:30.000, boundary unknown, operator reported, its
+   basis source at revision 1) exactly as recorded; nothing of Beta.
+11 Current fact revisions — PASS. "Rights basis revision 2" (78bc2746…, the chain head), "Permission revision 1",
+   "Audio-visual comparison revision 1".
+12 A superseded fact is not treated as current — PASS. Revision 1 of the rights basis (8ccd316d…) is neither
+   listed nor a dependency; the head is (CaseFact:78bc2746…) with its one FactSource dependency.
+13 A MISSING fact is not converted to false — PASS. Permission: provenance "Missing", resolution "Unassessed",
+   "What was reported: Unknown"; listed as FACT_PROVENANCE_MISSING "…It is not read as false, absent or
+   negative."; never "no permission".
+14 CONFLICT remains visible — PASS. The comparison: provenance Conflict, resolution Conflict, and both
+   FACT_PROVENANCE_CONFLICT and FACT_RESOLUTION_CONFLICT under "Recorded conflicts" with the "Recorded conflict"
+   tag. Screenshot p4d-07-fact-heads-missing-conflict.png.
+15 A fact source stays pinned to its exact revision — PASS. The evidence source revised in the browser ("Revision
+   2 recorded.", 126c8a78…). Re-read: the manifest still lists revision 1 (905046f1…) with "This record cites
+   revision 1; the source now has revision 2. The citation does not move to it."; revision 2 is not listed;
+   revision 15; digest 9bf9829e… → 6e101cda1be04c7fe11dda97114fd7cfbb744b38589f79d81565b0f517f310ea (the head's
+   existence is fingerprinted, nothing re-pointed). Screenshot p4d-08-source-revision-pinned.png.
+16 Cross-case material never appears — PASS. Alpha's page contains none of Beta's ids (case, item, fact,
+   selection, NMI binding) or texts, and its selection picker only Alpha's selection. Beta's NMI_REPLY context
+   (Beta's selection): none of Alpha's ids or texts; items "SYNTHETIC-BETA-ONLY video" only; facts "Permission
+   revision 1" only; parent picker only Beta's NMI binding; no prior-transmission choice; Beta's own application
+   scope.
+17 INITIAL invents no parent correspondence — PASS. Alpha INITIAL: "Correspondence (0)", "No message is part of
+   this context.", parent binding and prior transmissions "Not recorded"; the form says "An initial notice has no
+   parent message and no prior transmissions." and shows no parent picker; no reply gap is listed.
+18 NMI_REPLY with an explicit NMI parent — PASS. Choosing the reply task: the parent picker stays on "No parent
+   named" and offers only Alpha's NMI binding (86e8d268…); the prior picker offers only the two bindings recorded
+   as sent (initial ee7f1dab…, supplement c65e4c6d…), none ticked, never the OUTBOUND + OTHER binding (7d473abe…).
+   Parent chosen → one message, "SYNTHETIC Alpha — we need more information", tagged "Parent: request for more
+   information", posture "Copied full text"; its body in a <pre> exactly as captured, including
+   `<b>not bold</b> <script>window.__p4d=1</script>` as text (0 injected elements, window.__p4d null);
+   PRIOR_AS_SENT_NOT_SELECTED listed; digest e33a3321f203cfd30f7ebbfd441033e65b9407ae123c2a3794c9e188f0c3dd15.
+   Screenshot p4d-09-reply-explicit-parent-inert-text.png.
+19 A wrong-case parent is refused — PASS. Beta's NMI binding named as Alpha's parent in the address → "The context
+   was not returned. That selection or binding belongs to another case. A production context uses only this case's
+   own records. CROSS_CASE_REFERENCE"; no context rendered; the parent picker stays empty (Beta's binding is never
+   offered). Screenshot p4d-10-wrong-case-parent-refused.png.
+20 A prior AS_SENT selected explicitly — PASS. Ticking only "Initial notice (recorded as sent)" → the address names
+   priorBindingIds=ee7f1dab…; the notice is tagged "Prior transmission"; priorCorrespondenceIds = [2a07954c…];
+   digest 2990af95e04d7d8df9e6d30050c2bc5c7f909215611175e3bb44581467f55d77.
+21 OUTBOUND + OTHER is not treated as AS_SENT — PASS. Never offered in the picker; named in the address →
+   "That binding is not recorded as a past transmission (as sent). Only a binding recorded as sent can be a prior
+   transmission; a message's direction never makes one. PRIOR_BINDING_NOT_AS_SENT" (422); no context rendered;
+   the picker still offers only the two AS_SENT bindings, unticked.
+22 An OPERATOR_REPORTED AS_SENT keeps its limited posture — PASS. The prior notice: posture "Operator reported",
+   "Recorded from what the operator reported. It is a limited posture: no raw message file, provider receipt or
+   attachment observation is implied by it."; the as-sent copy "Recorded as a past transmission. Capturing this
+   record did not send anything."; limitations as recorded; attachment "SYNTHETIC-authorization.pdf — Mentioned in
+   copied text only"; PRIOR_AS_SENT_RAW_SOURCE_ABSENT listed as missing; no verified, delivered, confirmed
+   transmission or sent-by-the-app wording. Screenshot p4d-11-prior-as-sent-operator-reported.png.
+23 One message with several bindings appears once — PASS. Both AS_SENT bindings of the notice ticked: two messages
+   (the NMI parent and the notice, once); priorCorrespondenceIds one id; dependencies three CorrespondenceBinding
+   (the parent and both priors) and two Correspondence; digest
+   cf1ce3e8d655bd2631cf7214220029e071ba9a9763d2414945b835a7aa8320c6.
+24 Different priorBindingIds give different scoped contexts — PASS. Parent only e33a3321…; + initial 2990af95…;
+   + supplement 1a5ac048362b17aa46ab531ba755d37bafa0e2c533a2e2beb0a786cfc91b4dee; + both cf1ce3e8… — four scopes,
+   four digests, the same case revision (15).
+25 A repeated unchanged read is deterministic — PASS. "Read again" → cf1ce3e8…, revision 15; the two priors named
+   in reverse order → cf1ce3e8… (priors are a set); the initial-only scope read again later → 2990af95….
+26 A relevant mutation changes revision and digest — PASS. A reported item added in the browser
+   (https://youtu.be/SYNTHp4d003 → 27a71f3a…): Alpha INITIAL/PREPARATION revision 15 → 16, digest
+   03a73ec32f4a1b27349acaf361ce1db988ee401a058bd6cf75bfdd06bcf28326 → cba50989764b65714f41411185f84bf8d07a0f51df6644dbea5e27e532f35a5a;
+   the item listed (3 items), its REPORTED_ITEM_UNMAPPED gap listed, a ReportedItem dependency. (Earlier in the
+   pass: the selection moved the revision 14 → 15; the route defaults moved nothing; the authority event and the
+   source revision changed the digest only.)
+27 GET causes no writes — PASS. Per-table content digests of every tb_notice_test table (33; scratchpad helper,
+   SELECT only through the tooling account; password, token and CSRF hash columns never enter a digest;
+   auth_sessions.last_seen_at reported apart) taken at 17:01:39Z and 17:02:33Z around a burst of reads in one page
+   session (page load, Read again, a scope change, a DRAFTING refusal, the preparation view): 33/33 content digests
+   unchanged; 153 rows before and after; audit_events 51 → 51; idempotency_records 49 → 49; later-phase tables 0.
+   The only difference: auth_sessions.last_seen_at of the browser's session — the P1 idle-timeout touch (at most
+   once a minute), not a context write. The page's network log for that session: 88 API requests, all GET, five of
+   them production-context reads (200, 200, 200, 422, 200); no POST, PATCH, PUT or DELETE.
+28 Missing / conflict UI — PASS. A missing item: "Missing context" tag, code, field path and message on a dashed
+   neutral rule (rgb(95, 106, 116)); a conflict: "Recorded conflict" tag on a solid caution rule (rgb(124, 82, 0))
+   over the caution tint (rgb(247, 236, 213)); neither styled as a failure; "Conflicts the records themselves state…
+   They are shown as recorded and are not resolved here." Screenshots p4d-12-missing-after-new-item.png,
+   p4d-13-recorded-conflicts.png.
+29 390px viewport — PASS. At 390×844 on the densest scope (reply with parent and both priors, every <details>
+   opened): document scrollWidth = clientWidth = 390 (body 390); no element outside a scroll frame extends past the
+   viewport; the four tables scroll inside their own frames (326 px frames, 466–1105 px content). Screenshots
+   p4d-14-390px-top.png, p4d-15-390px-prior-message.png.
+30 Keyboard navigation — PASS after one fix. Session 1, keys only: Tab → "Skip to content" (focus-visible, 2px
+   solid outline) → Enter → main#main → Tab → breadcrumbs → the task group (Initial, unchecked) → ArrowDown chose
+   the reply task → Tab → the mode group → Space chose Preparation → Tab → selection picker, ArrowDown chose the
+   selection → Tab → parent picker, ArrowDown chose the NMI → Tab → first prior, Space ticked it → Tab, Tab → "Show
+   context" → Enter → the context of exactly that scope. FINDING: after Enter the focus fell to <body> — the form
+   is keyed by the scope and remounts, and "Read again" / "Show the preparation context" are likewise replaced
+   while the context is read. Fixed in `6bbba3a` (after a read asked for on the page, focus moves to the read's
+   outcome; arriving on the page moves nothing) with a web test and its negative control. Session 2 (rebuilt from
+   `6bbba3a`), keys only: INITIAL + DRAFTING submitted → focus on the outcome holding the refusal; Tab → "Show the
+   preparation context", Enter → focus on the outcome holding the result; Tab → "Read again", Enter → focus on the
+   outcome, the same digest (9518aa7d19a32287546d1d4a77e41724315451614e209538f84a7deb448227fb); arriving by address
+   → focus stays on <body>.
+31 Logout → Login — PASS. "Sign out" → /login; the context address afterwards → /login with no context; network:
+   GET /auth/session 401 and GET /health 200 only (no context request); the session cookie is not readable by
+   script. Screenshot p4d-16-after-logout-login.png.
+32 No Generate / Ready / Sign / Send action — PASS. On the fullest DRAFTING context (selection, parent, both
+   priors → 200) the only buttons are "Show context" and "Read again"; none of them or of the 29 links matches
+   generate|approve|ready|sign|send|export|submit|adopt|mark as sent|contact; the only form is the scope form (a
+   read). The case page's Production context section holds one link, "Open the production context"; the module
+   navigation keeps "Production — Not implemented".
+
+Console: every console error the tool reported was checked — each was the failed-resource message of a
+deliberately provoked refusal (the 422 context refusals, the 401 session checks before login and after sign-out);
+the tool reported no console warning.
+
+Teardown (mission §40 "Clean/reset disposable DB afterwards")
+- Session 1: browser closed; the sandbox stopped → "[ui:sandbox] sandbox rows deleted; tb_notice_test is empty
+  again"; `yarn db:verify test --expect-empty`: PASS — tables 33/33, primary keys 33/33, unique keys 50/50, foreign
+  keys 125/125, CHECK constraints 30/30, domain rows total 0; password file deleted; ports 3000 and 5173 free.
+- Session 2: the same — rows deleted, `db:verify test --expect-empty` PASS (domain rows total 0), password file
+  deleted, no listener on 3000/5173.
+- `git status` showed only docs/verification/p4d/ (the screenshots were written straight into
+  evidence/screenshots/).
+
+Nothing external: no mail, mailbox, Drive, platform or uploader contact; no network call beyond localhost; no real
+data; no write to tb_notice_dev.

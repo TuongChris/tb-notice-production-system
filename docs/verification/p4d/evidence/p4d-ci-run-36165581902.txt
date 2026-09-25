@@ -1,0 +1,186 @@
+P4D Production context — CI evidence (GitHub Actions, workflow "CI")
+===================================================================
+Logs were read with the authenticated `gh api repos/TuongChris/tb-notice-production-system/actions/jobs/<id>/logs`
+and the run metadata with `gh run view <id> --json …`; key lines below (timestamps UTC, ANSI codes removed). A commit
+cannot record its own run: the run of the documentation commit that adds this file (the R11 submission head, which
+also carries the two later test-only commits bfeb9f1 and 1b012bd) is reported with the R11 report.
+
+1. The API commit 75f07c2
+-------------------------
+Run:      36160776299 — https://github.com/TuongChris/tb-notice-production-system/actions/runs/36160776299
+Event:    push to feature/p4d-production-context
+Head:     75f07c24092a50f9a829fb78cde7b45eac96db43  (getProductionContext, DB and unit tests)
+Created:  2026-09-25T16:26:33Z   Completed: 2026-09-25T16:32:48Z
+Result:   completed / success
+Jobs:
+  108156497417 Database, seed and smoke (MySQL 8.4.11)  success 16:26:36Z → 16:32:47Z
+  108156497772 Non-DB checks (cold install)             success 16:26:36Z → 16:28:53Z
+Commits on the post-R10 checkpoint ca3d7cd (on main ed5b3d7): 75f07c2.
+
+2. The page and the compiled smoke, c7df48b (first run of smoke:p4d)
+--------------------------------------------------------------------
+Run:      36162478106 — https://github.com/TuongChris/tb-notice-production-system/actions/runs/36162478106
+Event:    push to feature/p4d-production-context
+Head:     c7df48b029170f7b4439a4cb7962d4cc2f6bffee  (the page 8206bbf and smoke:p4d c7df48b)
+Created:  2026-09-25T16:42:40Z   Completed: 2026-09-25T16:48:57Z
+Result:   completed / success
+Jobs:
+  108162154213 Non-DB checks (cold install)             success 16:42:43Z → 16:44:47Z
+  108162154476 Database, seed and smoke (MySQL 8.4.11)  success 16:42:43Z → 16:48:57Z
+Commits: 8206bbf (UI, web tests), c7df48b (smoke:p4d and its CI step).
+  smoke:p4d on c7df48b: [smoke:p4d] PASS (88 checks)
+
+3. The keyboard fix 6bbba3a (the last CI-verified code commit; every P4D code change is in it)
+--------------------------------------------------------------------------------------------------
+Run:      36165581902 — https://github.com/TuongChris/tb-notice-production-system/actions/runs/36165581902
+Event:    push to feature/p4d-production-context
+Head:     6bbba3ac0477c0afb929d926bc24afc654b804b9  (focus follows a requested read; web test)
+Created:  2026-09-25T17:11:48Z   Completed: 2026-09-25T17:17:39Z
+Result:   completed / success
+Jobs:
+  108172408313 Non-DB checks (cold install)             success 17:11:52Z → 17:14:14Z
+  108172408479 Database, seed and smoke (MySQL 8.4.11)  success 17:11:51Z → 17:17:38Z
+Commit: 6bbba3a.
+
+Non-DB job
+17:12:08Z [reference:check] pinned identity (REFERENCE_BASELINE.json): 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c matches
+17:12:08Z [reference:check] OK — frozen references intact.
+17:12:08Z [reference:helper-tests] frozen helper tests: pass 27, fail 0; exit 0
+17:12:08Z [reference:helper-tests] references after run: intact
+17:12:11Z [contracts:check] OK — 3 generated outputs match the active source.
+17:12:29Z Found 0 warnings and 0 errors.
+17:12:38Z All matched files use Prettier code style!
+17:14:02Z  Test Files  41 passed (41)
+17:14:02Z       Tests  1397 passed (1397)
+17:14:10Z dist/assets/index-vSHsWyVV.css                19.01 kB │ gzip:   4.75 kB
+17:14:10Z dist/assets/cases-Kv41WKAU.js                 25.08 kB │ gzip:   7.41 kB
+17:14:10Z dist/assets/production-context-XnQjRTCV.js    31.19 kB │ gzip:   8.12 kB
+17:14:10Z dist/assets/index-CVay_OUk.js                325.73 kB │ gzip: 101.57 kB
+17:14:11Z [reference:check] pinned identity (REFERENCE_BASELINE.json): 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c matches
+17:14:11Z [reference:check] OK — frozen references intact.
+(no "(!) Some chunks are larger than 500 kB" advisory)
+
+Database job
+17:12:52Z Database schema is up to date!
+17:12:53Z [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+17:12:53Z [verify] domain rows total: 0
+17:12:53Z [verify] PASS: metadata matches the reviewed inventory.
+17:15:58Z  Test Files  11 passed (11)
+17:15:58Z       Tests  422 passed (422)
+17:16:04Z [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+17:16:04Z [verify] domain rows total: 0
+17:16:04Z [verify] PASS: metadata matches the reviewed inventory.
+17:16:09Z [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+17:16:09Z [verify] domain rows total: 0
+17:16:09Z [verify] PASS: metadata matches the reviewed inventory.
+17:16:10Z [db:seed] canonical digest 0ee26dc3ee5f3a1030fb78a6cadaf4dabef1f5a296b58163248584e1e0bfb775 (identical on every PC)
+17:16:10Z [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+17:16:10Z [verify] domain rows total: 1
+17:16:10Z [verify] PASS: metadata matches the reviewed inventory.
+17:16:15Z -- This is an empty migration.
+17:16:16Z -- This is an empty migration.
+17:16:24Z [smoke] PASS (48 checks)
+17:16:33Z [smoke:auth] PASS (4 checks)
+17:16:35Z [smoke:directory] PASS (14 checks)
+17:16:37Z [smoke:p3a] PASS (24 checks)
+17:16:39Z [smoke:p3b] PASS (36 checks)
+17:16:42Z [smoke:p4a] PASS (50 checks)
+17:16:44Z [smoke:p4b] PASS (64 checks)
+17:16:46Z [smoke:p4c] PASS (62 checks)
+17:16:50Z [smoke:p4d] PASS (88 checks)
+17:16:59Z [smoke:auth] PASS (1 checks)
+17:17:07Z [smoke:auth] PASS (4 checks)
+17:17:12Z [smoke:auth] PASS (1 checks)
+17:17:14Z [smoke:auth] PASS (4 checks)
+17:17:18Z [db:seed] canonical digest 0ee26dc3ee5f3a1030fb78a6cadaf4dabef1f5a296b58163248584e1e0bfb775 (identical on every PC)
+
+smoke:p4d on 6bbba3a (the compiled API; CI only — it writes synthetic records into the disposable CI database)
+17:16:48Z [smoke:p4d] PASS login → 200 with a session cookie and CSRF token
+17:16:48Z [smoke:p4d] PASS POST /agencies → 201
+17:16:48Z [smoke:p4d] PASS POST /sources → 201
+17:16:48Z [smoke:p4d] PASS POST /owners → 201
+17:16:48Z [smoke:p4d] PASS POST /legal-subjects → 201
+17:16:48Z [smoke:p4d] PASS GET /owners/55af6b5b-2184-4abc-b9e9-dad6a808c6c6 → 200
+17:16:48Z [smoke:p4d] PASS POST /owners/{id}/subjects → 201
+17:16:48Z [smoke:p4d] PASS POST /routes → 201
+17:16:48Z [smoke:p4d] PASS POST /signers → 201
+17:16:48Z [smoke:p4d] PASS POST /mandates → 201
+17:16:48Z [smoke:p4d] PASS GET /mandates/b1de30c3-5968-47a4-8701-0d9f8211cc08 → 200
+17:16:48Z [smoke:p4d] PASS POST /mandates/{id}/versions → 201
+17:16:48Z [smoke:p4d] PASS POST /sources → 201
+17:16:48Z [smoke:p4d] PASS GET /mandate-versions/92e041e2-45af-40eb-a605-cae0ebeb233a → 200
+17:16:48Z [smoke:p4d] PASS POST /mandate-versions/{id}/coverages → 201
+17:16:48Z [smoke:p4d] PASS GET /coverages/728d7b55-5fc5-46ce-a345-f5d177bc8648 → 200
+17:16:49Z [smoke:p4d] PASS POST /coverages/{id}/signers → 201
+17:16:49Z [smoke:p4d] PASS GET /mandate-versions/92e041e2-45af-40eb-a605-cae0ebeb233a → 200
+17:16:49Z [smoke:p4d] PASS POST /mandate-versions/{id}/freeze → 200
+17:16:49Z [smoke:p4d] PASS POST /cases → 201
+17:16:49Z [smoke:p4d] PASS POST /cases → 201
+17:16:49Z [smoke:p4d] PASS POST /sources → 201
+17:16:49Z [smoke:p4d] PASS GET /cases/b897546c-60d1-4145-a771-0e00d9a0c8f6 → 200
+17:16:49Z [smoke:p4d] PASS POST /cases/{caseId}/sources → 201
+17:16:49Z [smoke:p4d] PASS GET /cases/b897546c-60d1-4145-a771-0e00d9a0c8f6 → 200
+17:16:49Z [smoke:p4d] PASS POST /cases/{caseId}/authority-selections → 201
+17:16:49Z [smoke:p4d] PASS GET /cases/7d3d7de7-8310-4e6d-8f15-1807dca26524 → 200
+17:16:49Z [smoke:p4d] PASS POST /cases/{caseId}/authority-selections → 201
+17:16:49Z [smoke:p4d] PASS GET /cases/b897546c-60d1-4145-a771-0e00d9a0c8f6 → 200
+17:16:49Z [smoke:p4d] PASS POST /cases/{caseId}/reported-items → 201
+17:16:49Z [smoke:p4d] PASS GET /cases/b897546c-60d1-4145-a771-0e00d9a0c8f6 → 200
+17:16:49Z [smoke:p4d] PASS POST /cases/{caseId}/works → 201
+17:16:49Z [smoke:p4d] PASS POST /sources → 201
+17:16:49Z [smoke:p4d] PASS GET /cases/b897546c-60d1-4145-a771-0e00d9a0c8f6 → 200
+17:16:49Z [smoke:p4d] PASS POST /cases/{caseId}/mappings → 201
+17:16:49Z [smoke:p4d] PASS GET /cases/b897546c-60d1-4145-a771-0e00d9a0c8f6 → 200
+17:16:49Z [smoke:p4d] PASS POST /cases/{caseId}/facts → 201
+17:16:49Z [smoke:p4d] PASS GET /cases/b897546c-60d1-4145-a771-0e00d9a0c8f6 → 200
+17:16:49Z [smoke:p4d] PASS POST /cases/{caseId}/facts → 201
+17:16:49Z [smoke:p4d] PASS GET /cases/b897546c-60d1-4145-a771-0e00d9a0c8f6 → 200
+17:16:49Z [smoke:p4d] PASS POST /cases/{caseId}/facts → 201
+17:16:50Z [smoke:p4d] PASS POST /correspondence (inbound NMI) → 201
+17:16:50Z [smoke:p4d] PASS GET /cases/b897546c-60d1-4145-a771-0e00d9a0c8f6 → 200
+17:16:50Z [smoke:p4d] PASS POST /cases/{caseId}/correspondence-bindings → 201
+17:16:50Z [smoke:p4d] PASS POST /correspondence (outbound notice, operator reported) → 201
+17:16:50Z [smoke:p4d] PASS GET /cases/b897546c-60d1-4145-a771-0e00d9a0c8f6 → 200
+17:16:50Z [smoke:p4d] PASS POST /cases/{caseId}/correspondence-bindings → 201
+17:16:50Z [smoke:p4d] PASS GET /cases/b897546c-60d1-4145-a771-0e00d9a0c8f6 → 200
+17:16:50Z [smoke:p4d] PASS POST /cases/{caseId}/correspondence-bindings → 201
+17:16:50Z [smoke:p4d] PASS GET /cases/7d3d7de7-8310-4e6d-8f15-1807dca26524 → 200
+17:16:50Z [smoke:p4d] PASS POST /cases/{caseId}/correspondence-bindings → 201
+17:16:50Z [smoke:p4d] PASS GET /cases/{caseId} → 200
+17:16:50Z [smoke:p4d] PASS GET /cases/{caseId}/production-context (INITIAL + PREPARATION, no selection named) → 200
+17:16:50Z [smoke:p4d] PASS no selection named: none is filled in (not even the case’s current one); the gap is listed
+17:16:50Z [smoke:p4d] PASS GET /cases/{caseId}/production-context (INITIAL + PREPARATION) → 200
+17:16:50Z [smoke:p4d] PASS exact selected authority: the pinned coverage, its frozen version and the signer’s row
+17:16:50Z [smoke:p4d] PASS facts as recorded: MISSING listed as missing, CONFLICT listed as a recorded conflict
+17:16:50Z [smoke:p4d] PASS GET /cases/{caseId}/production-context (INITIAL + PREPARATION, read again) → 200
+17:16:50Z [smoke:p4d] PASS repeated read identical (digest 6b4d2e2b55d6…)
+17:16:50Z [smoke:p4d] PASS GET /cases/{caseId}/production-context (INITIAL + DRAFTING) → 200
+17:16:50Z [smoke:p4d] PASS GET /cases/{caseId}/production-context (NMI_REPLY + DRAFTING, explicit parent and prior) → 200
+17:16:50Z [smoke:p4d] PASS reply: explicit parent and prior only; OPERATOR_REPORTED kept and listed as limited
+17:16:50Z [smoke:p4d] PASS five context reads wrote nothing (audit, idempotency and later-phase row counts unchanged)
+17:16:50Z [smoke:p4d] PASS GET /routes/570d3e83-f0aa-4780-9f8e-9caf2fdeb664 → 200
+17:16:50Z [smoke:p4d] PASS PATCH /routes/{id} (default signer, preferred coverage) → 200
+17:16:50Z [smoke:p4d] PASS GET /cases/{caseId}/production-context (INITIAL + PREPARATION after route defaults) → 200
+17:16:50Z [smoke:p4d] PASS route default signer and preferred coverage: context digest unchanged
+17:16:50Z [smoke:p4d] PASS GET /mandates/b1de30c3-5968-47a4-8701-0d9f8211cc08 → 200
+17:16:50Z [smoke:p4d] PASS POST /mandates/{id}/events (TERMINATION, as reported) → 201
+17:16:50Z [smoke:p4d] PASS GET /cases/{caseId}/production-context (INITIAL + PREPARATION after a later authority event) → 200
+17:16:50Z [smoke:p4d] PASS later authority event included; digest changed while the case revision did not
+17:16:50Z [smoke:p4d] PASS GET /cases/{caseId}/production-context (another case’s selection) → 422
+17:16:50Z [smoke:p4d] PASS GET /cases/{caseId}/production-context (another case’s NMI binding) → 422
+17:16:50Z [smoke:p4d] PASS GET /cases/{caseId}/production-context (OUTBOUND + OTHER named as a prior transmission) → 422
+17:16:50Z [smoke:p4d] PASS GET /cases/{caseId}/production-context (a reply without its parent in DRAFTING) → 422
+17:16:50Z [smoke:p4d] PASS GET /cases/{caseId}/production-context (INITIAL with a parent binding) → 422
+17:16:50Z [smoke:p4d] PASS GET /cases/{caseId}/production-context (an unknown selection) → 422
+17:16:50Z [smoke:p4d] PASS GET /cases/{caseId}/production-context (no task named) → 400
+17:16:50Z [smoke:p4d] PASS GET /cases/{caseId} → 200
+17:16:50Z [smoke:p4d] PASS the later context reads and every refused read wrote nothing (audit, idempotency and later-phase row counts unchanged)
+17:16:50Z [smoke:p4d] PASS the reads left the case unchanged (row version and context revision)
+17:16:50Z [smoke:p4d] PASS POST /cases/{caseId}/production-context (not routed) → 404
+17:16:50Z [smoke:p4d] PASS POST /cases/{caseId}/prompts (not routed) → 404
+17:16:50Z [smoke:p4d] PASS POST /cases/{caseId}/candidates (not routed) → 404
+17:16:50Z [smoke:p4d] PASS POST /candidates/{id}/validation-runs (not routed) → 404
+17:16:50Z [smoke:p4d] PASS GET /candidates/{id}/readiness (not routed) → 404
+17:16:50Z [smoke:p4d] PASS POST /candidates/{id}/unsigned-exports (not routed) → 404
+17:16:50Z [smoke:p4d] PASS logout → 204
+17:16:50Z [smoke:p4d] PASS (88 checks)
