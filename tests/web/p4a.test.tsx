@@ -4,8 +4,9 @@
 // choices only (no inferred route, signer, coverage or source), scoped source pickers, the exact
 // payloads and preconditions (the case's ETag, the link's own ETag), read-only archived cases,
 // version conflicts, the required statement that a selection is not a G1 decision, the absence of
-// authority badges, and that nothing loaded or entered for one case is shown for another.
-// All data is synthetic.
+// authority badges, and that nothing loaded or entered for one case is shown for another. Since
+// TB-SCHEMA-API-v1.1.0 (R8), a selection is read back after any reload with exactly the coverage and
+// application scopes it pinned, and only under its own case. All data is synthetic.
 import { describe, expect, it } from 'vitest';
 import {
   all,
@@ -287,7 +288,10 @@ describe('P4A cases UI', () => {
       'Linking does not mean the document was reviewed, that what it says is true',
     );
     expect(pageText()).toContain('A route binding records which route this case uses.');
-    expect(pageText()).toContain('the contract has no operation that reads them back yet');
+    expect(pageText()).toContain(
+      'Open a selection to see the exact coverage records it pinned and the application scope recorded for each.',
+    );
+    expect(pageText()).not.toContain('the contract has no operation that reads them back yet');
     for (const stamp of stampTexts()) expect(stamp).not.toMatch(FORBIDDEN_STAMPS);
     expect(pageText()).not.toMatch(/\b(authorized|approved|g1 pass|eligible|ready to sign)\b/i);
   });
@@ -713,6 +717,123 @@ describe('P4A cases UI', () => {
       (radio) => radio.value,
     );
     expect(offered).toEqual([w.otherRoute.id]);
+  });
+
+  it('reads a selection back after a reload: the exact pinned coverage and each application scope, nothing re-evaluated, not a G1 decision', async () => {
+    const api = new FakeDirectory();
+    const w = world(api);
+    const scopes = new Map([
+      [w.coverage.id, '  SYNTHETIC-SCOPE-1 channel uploads\n  second line kept  '],
+      [w.preferred.id, 'SYNTHETIC-SCOPE-2 caf\u00e9 / cafe\u0301 “quoted” 𝄞'],
+    ]);
+    await render(api, `/cases/${w.bound.id}/authority-selections/new`);
+    await waitFor(() => all('[data-testid="coverage-candidate"]').length === 3, 'candidates');
+    await type('#select-signerId', w.signer.id);
+    for (const [coverageId, scope] of scopes) {
+      await click(q(`#select-coverage-${coverageId}`) as HTMLElement);
+      await waitFor(() => q(`#select-scope-${coverageId}`) !== null, `scope ${coverageId}`);
+      await type(`#select-scope-${coverageId}`, scope);
+    }
+    await type('#select-taskType', 'NMI_REPLY');
+    await type('#select-intendedFromEmail', 'synthetic-sender@example.invalid');
+    await type('#select-selectionNote', 'SYNTHETIC evaluate both coverages');
+    await submit(q('form.record-form'));
+    await until('Authority materials selected for evaluation. This is not a G1 decision.');
+    const [recorded] = api.selections;
+    const selectionId = String(recorded?.id);
+    // Present-day authority state moves on after the selection: another preferred coverage and an
+    // archived mandate. The read-back shows what was pinned, not today's state.
+    Object.assign(api.rows.Route.get(w.route.id) ?? {}, {
+      preferredCoverageId: w.unrecordedCoverage.id,
+    });
+    Object.assign(api.rows.Mandate.get(w.mandate.id) ?? {}, { archivedAt: 'NOW-SYNTHETIC' });
+    // A reload: all page state is discarded; only the stored records remain.
+    await unmount();
+    const writesBefore = api.writes().length;
+    await render(api, `/cases/${w.bound.id}`);
+    await waitFor(() => q('[data-testid="case-selections"]') !== null, 'history');
+    const open = byText('[data-testid="case-selections"] a', 'Open selection');
+    expect(open.getAttribute('href')).toBe(
+      `/cases/${w.bound.id}/authority-selections/${selectionId}`,
+    );
+    expect(open.getAttribute('aria-label')).toMatch(/^Open selection recorded /);
+    await click(open);
+    await waitFor(() => all('[data-testid="pinned-coverage"]').length === 2, 'pinned coverage');
+    const detail = () => q('[data-testid="selection-detail"]')?.textContent ?? '';
+    expect(q('[data-testid="selection-meaning"]')?.textContent).toBe(SELECTION_MEANING);
+    expect(q('[data-testid="selection-id"]')?.textContent).toBe(selectionId);
+    await until('SYNTHETIC YouTube coverage');
+    await until('SYNTHETIC preferred coverage');
+    await until('SYNTHETIC Brand · SYNTHETIC Subject LLC (YouTube)');
+    expect(detail()).toContain('SYNTHETIC Signer');
+    expect(detail()).toContain('synthetic-sender@example.invalid');
+    expect(detail()).toContain('SYNTHETIC evaluate both coverages');
+    expect(detail()).toContain('In use for evaluation');
+    expect(detail()).toContain('you (application user)');
+    // Exactly the stored rows, in ascending coverageId order, each scope byte for byte.
+    const ids = all('[data-testid="pinned-coverage-id"]').map((element) => element.textContent);
+    expect(ids).toEqual([...scopes.keys()].sort());
+    const shown = all('[data-testid="pinned-scope"]').map((element) => element.textContent);
+    expect(shown).toEqual([...scopes.keys()].sort().map((id) => scopes.get(id)));
+    expect(detail()).not.toContain('SYNTHETIC coverage of another signer');
+    for (const stamp of stampTexts()) expect(stamp).not.toMatch(FORBIDDEN_STAMPS);
+    expect(detail()).not.toMatch(
+      /\b(authorized|approved|g1 pass|eligible|ready to sign|archived)\b/i,
+    );
+    // One read, no write: the read-back is a GET of the contracted operation.
+    expect(api.writes()).toHaveLength(writesBefore);
+    expect(
+      api.requests.some(
+        (request) =>
+          request.method === 'GET' &&
+          request.path === `/api/v1/cases/${w.bound.id}/authority-selections/${selectionId}`,
+      ),
+    ).toBe(true);
+    // Another reload straight onto the selection's address shows the same record.
+    await unmount();
+    await render(api, `/cases/${w.bound.id}/authority-selections/${selectionId}`);
+    await waitFor(() => all('[data-testid="pinned-scope"]').length === 2, 'deep link');
+    expect(all('[data-testid="pinned-scope"]').map((element) => element.textContent)).toEqual(
+      shown,
+    );
+    expect(api.writes()).toHaveLength(writesBefore);
+  });
+
+  it('a selection is shown only under its own case: another case’s address shows not found and nothing of it', async () => {
+    const api = new FakeDirectory();
+    const w = world(api);
+    const selectionA = api.seedSelection(
+      {
+        caseId: w.bound.id,
+        agencyId: w.agency.id,
+        routeId: w.route.id,
+        signerId: w.signer.id,
+        selectionNote: 'SYNTHETIC-A-ONLY selection note',
+      },
+      [{ coverageId: w.coverage.id, applicationScope: 'SYNTHETIC-A-ONLY scope' }],
+    );
+    const caseC = api.seed('CaseRecord', {
+      agencyId: w.agency.id,
+      intakeLabel: 'SYNTHETIC Case C',
+      routeId: w.route.id,
+    });
+    await render(api, `/cases/${caseC.id}/authority-selections/${selectionA.id}`);
+    await waitFor(() => q('[data-testid="selection-not-found"]') !== null, 'not found');
+    expect(q('[data-testid="selection-not-found"]')?.textContent).toContain(
+      'A selection is shown only under the case it was made for.',
+    );
+    expect(pageText()).not.toContain('SYNTHETIC-A-ONLY');
+    expect(q('[data-testid="pinned-coverage"]')).toBeNull();
+    // In place to case A's own address, then back to C's: nothing of A stays on C's page.
+    await go(`/cases/${w.bound.id}/authority-selections/${selectionA.id}`);
+    await waitFor(() => q('[data-testid="pinned-scope"]') !== null, 'A selection');
+    expect(q('[data-testid="pinned-scope"]')?.textContent).toBe('SYNTHETIC-A-ONLY scope');
+    await go(`/cases/${caseC.id}/authority-selections/${selectionA.id}`);
+    await waitFor(() => q('[data-testid="selection-not-found"]') !== null, 'not found again');
+    expect(pageText()).not.toContain('SYNTHETIC-A-ONLY');
+    await go(`/cases/${w.bound.id}/authority-selections/00000000-0000-4000-8000-00000000dead`);
+    await waitFor(() => q('[data-testid="selection-not-found"]') !== null, 'unknown');
+    expect(api.writes()).toHaveLength(0);
   });
 
   it('the source form can name cases; case scope is sent exactly as chosen', async () => {

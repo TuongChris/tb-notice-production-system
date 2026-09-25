@@ -3,7 +3,7 @@ import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router';
 import type { ApiClient } from './api/client.js';
 import { createDirectoryApi } from './api/directory.js';
 import { SessionProvider, useSession } from './auth/session.js';
-import { SelectAuthorityPage } from './cases/authority-selection.js';
+import { SelectAuthorityPage, SelectionDetailPage } from './cases/authority-selection.js';
 import { LinkCaseSourcePage } from './cases/case-sources.js';
 import { CaseDetailPage, CaseListPage, EditCasePage, NewCasePage } from './cases/cases.js';
 import {
@@ -128,6 +128,10 @@ export function App({ api }: { api: ApiClient }) {
                 <Route
                   path="cases/:id/authority-selections/new"
                   element={<SelectAuthorityPage />}
+                />
+                <Route
+                  path="cases/:id/authority-selections/:selectionId"
+                  element={<SelectionDetailPage />}
                 />
               </Route>
             </Route>

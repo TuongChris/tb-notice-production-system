@@ -5,10 +5,14 @@
 // explicitly — the case's bound route, one signer and each coverage of a frozen version under which
 // that signer is recorded. Nothing is preselected: not the route's default signer, not its
 // preferred coverage, not the latest version. Selections are append-only; a new one becomes the one
-// in use for evaluation and earlier ones stay unchanged.
+// in use for evaluation and earlier ones stay unchanged. Each selection can be opened later — after
+// any reload — and shows exactly what it pinned: the stored selection and its stored coverage rows,
+// each with its own application scope (getCaseAuthoritySelection, TB-SCHEMA-API-v1.1.0), never
+// re-evaluated against the present state of the route or authority records.
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import type {
+  CaseAuthorityCoverage,
   CaseAuthoritySelection,
   CaseRecord,
   CoverageSigner,
@@ -18,10 +22,16 @@ import type {
   SelectAuthority,
   Signer,
 } from '@tb/contracts';
+import { ApiError } from '../api/client.js';
 import { useSession } from '../auth/session.js';
 import { Absent, Time } from '../directory/agencies.js';
 import { SelectField, TextField } from '../directory/fields.js';
-import { issuesOf, SIGNER_STATE_LABEL, TASK_TYPE_LABEL } from '../directory/format.js';
+import {
+  formatDateTime,
+  issuesOf,
+  SIGNER_STATE_LABEL,
+  TASK_TYPE_LABEL,
+} from '../directory/format.js';
 import { useDirectoryApi, useLoad } from '../directory/hooks.js';
 import { RecordName } from '../directory/lookup.js';
 import { useSubmission, type FlashState } from '../directory/record-page.js';
@@ -44,10 +54,11 @@ import {
   VersionStamp,
 } from '../representation/authority-ui.js';
 import {
-  PINNED_COVERAGE_LIMIT,
+  SELECTION_AS_RECORDED,
   SELECTION_DETAIL,
   SELECTION_HISTORY,
   SELECTION_MEANING,
+  SELECTION_READBACK,
   useCaseTarget,
 } from './case-ui.js';
 
@@ -104,6 +115,7 @@ export function AuthoritySelectionSection({ caseRecord }: { caseRecord: CaseReco
           {state.value.items.map((selection) => (
             <SelectionItem
               key={selection.id}
+              caseId={caseRecord.id}
               selection={selection}
               inUse={selection.id === caseRecord.currentAuthoritySelectionId}
               currentUserId={currentUserId}
@@ -111,32 +123,38 @@ export function AuthoritySelectionSection({ caseRecord }: { caseRecord: CaseReco
           ))}
         </ol>
       )}
-      <p className="hint">{PINNED_COVERAGE_LIMIT}</p>
+      <p className="hint">{SELECTION_READBACK}</p>
     </Section>
   );
 }
 
+function SelectionStatus({ inUse }: { inUse: boolean }) {
+  return inUse ? (
+    <span className="tag" data-testid="selection-in-use">
+      In use for evaluation
+    </span>
+  ) : (
+    <span className="tag tag-quiet">Earlier selection</span>
+  );
+}
+
 function SelectionItem({
+  caseId,
   selection,
   inUse,
   currentUserId,
 }: {
+  caseId: string;
   selection: CaseAuthoritySelection;
   inUse: boolean;
   currentUserId: string;
 }) {
   return (
-    <li className="timeline-item">
+    <li className="timeline-item" data-testid="selection-item">
       <div className="timeline-when">
         <span className="timeline-label">Selected authority record</span>
         <Time iso={selection.createdAt} />
-        {inUse ? (
-          <span className="tag" data-testid="selection-in-use">
-            In use for evaluation
-          </span>
-        ) : (
-          <span className="tag tag-quiet">Earlier selection</span>
-        )}
+        <SelectionStatus inUse={inUse} />
       </div>
       <div className="timeline-body">
         <Details
@@ -156,6 +174,141 @@ function SelectionItem({
             [
               'Recorded by',
               <RecordedBy userId={selection.createdById} currentUserId={currentUserId} />,
+            ],
+          ]}
+        />
+        <p>
+          <Link
+            to={`/cases/${caseId}/authority-selections/${selection.id}`}
+            aria-label={`Open selection recorded ${formatDateTime(selection.createdAt)}`}
+          >
+            Open selection
+          </Link>{' '}
+          <span className="hint">— the exact coverage it pinned and each application scope.</span>
+        </p>
+      </div>
+    </li>
+  );
+}
+
+/** One selection of a case, read back exactly as stored — after any reload. */
+export function SelectionDetailPage() {
+  const { id = '', selectionId = '' } = useParams();
+  return <SelectionDetail key={`${id}:${selectionId}`} caseId={id} selectionId={selectionId} />;
+}
+
+function SelectionDetail({ caseId, selectionId }: { caseId: string; selectionId: string }) {
+  const api = useDirectoryApi();
+  const { state: session } = useSession();
+  const currentUserId = session.status === 'authenticated' ? session.session.user.id : '';
+  const [state, reload] = useLoad(`case-selection:${caseId}:${selectionId}`, async () => {
+    const [caseResult, view] = await Promise.all([
+      api.cases.get(caseId),
+      api.cases.selections.get(caseId, selectionId),
+    ]);
+    return { caseRecord: caseResult.data, view };
+  });
+  if (state.status === 'loading') return <LoadingNotice label="Loading selection…" />;
+  if (state.status === 'error') {
+    const notFound = state.error instanceof ApiError && state.error.code === 'NOT_FOUND';
+    return (
+      <article className="sheet" data-testid="selection-detail">
+        <Breadcrumbs
+          trail={[
+            ['Cases', '/cases'],
+            ['Case', `/cases/${caseId}`],
+            ['Selected authority record', null],
+          ]}
+        />
+        <h1>Selected authority record</h1>
+        {notFound ? (
+          <p className="notice notice-quiet" role="alert" data-testid="selection-not-found">
+            This case has no authority selection with this id. A selection is shown only under the
+            case it was made for. <Link to={`/cases/${caseId}`}>Back to the case</Link>
+          </p>
+        ) : (
+          <ErrorNotice error={state.error} recordLabel="selection" onRetry={reload} />
+        )}
+      </article>
+    );
+  }
+  const { caseRecord, view } = state.value;
+  const { selection, coverages } = view;
+  return (
+    <article className="sheet" data-testid="selection-detail">
+      <Breadcrumbs
+        trail={[
+          ['Cases', '/cases'],
+          [caseRecord.intakeLabel, `/cases/${caseId}`],
+          ['Selected authority record', null],
+        ]}
+      />
+      <h1>Selected authority record</h1>
+      <SelectionMeaning />
+      <p className="page-intro">
+        {SELECTION_AS_RECORDED} {SELECTION_DETAIL}
+      </p>
+      <Section title="Selection">
+        <Details
+          rows={[
+            ['Selection id', <code data-testid="selection-id">{selection.id}</code>],
+            [
+              'In this case',
+              <SelectionStatus inUse={selection.id === caseRecord.currentAuthoritySelectionId} />,
+            ],
+            ['Case', <Link to={`/cases/${caseId}`}>{caseRecord.intakeLabel}</Link>],
+            ['Agency', <RecordName kind="agency" id={selection.agencyId} />],
+            ['Route', <RecordName kind="route" id={selection.routeId} />],
+            ['Signer named in the selection', <RecordName kind="signer" id={selection.signerId} />],
+            ['Task type', TASK_TYPE_LABEL[selection.taskType]],
+            ['Intended sender address', selection.intendedFromEmail],
+            [
+              'Basis source',
+              selection.basisSourceId === null ? null : (
+                <SourceCitation sourceId={selection.basisSourceId} />
+              ),
+            ],
+            ['Selection note', <p className="prose">{selection.selectionNote}</p>],
+            ['Recorded', <Time iso={selection.createdAt} />],
+            [
+              'Recorded by',
+              <RecordedBy userId={selection.createdById} currentUserId={currentUserId} />,
+            ],
+          ]}
+        />
+      </Section>
+      <Section title={`Pinned coverage (${coverages.length})`}>
+        <p className="hint">
+          Each coverage keeps the application scope recorded for it in this case, exactly as
+          entered; nothing is combined. A newer version, coverage or preferred coverage never
+          replaces what was pinned.
+        </p>
+        <ol className="timeline" aria-label="Pinned coverage" data-testid="pinned-coverages">
+          {coverages.map((row) => (
+            <PinnedCoverageItem key={row.id} row={row} />
+          ))}
+        </ol>
+      </Section>
+      <p>
+        <Link to={`/cases/${caseId}`}>Back to the case</Link>
+      </p>
+    </article>
+  );
+}
+
+function PinnedCoverageItem({ row }: { row: CaseAuthorityCoverage }) {
+  return (
+    <li className="timeline-item" data-testid="pinned-coverage">
+      <div className="timeline-body">
+        <Details
+          rows={[
+            ['Coverage', <RecordName kind="coverage" id={row.coverageId} />],
+            ['Coverage id', <code data-testid="pinned-coverage-id">{row.coverageId}</code>],
+            [
+              'Application scope for this case',
+              <p className="prose" data-testid="pinned-scope">
+                {row.applicationScope}
+              </p>,
             ],
           ]}
         />

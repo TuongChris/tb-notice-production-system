@@ -2,7 +2,8 @@
 // operations (TB-SCHEMA-API-v1). Types come from @tb/contracts; the server validates everything
 // again. SourceReferences, AuthorityEvents and CaseAuthoritySelections are immutable: they carry no
 // ETag (a source changes only through a new revision, an event is superseded by a later event, a
-// selection is followed by a later selection).
+// selection is followed by a later selection). A selection is read back with the exact coverage rows
+// it pinned through getCaseAuthoritySelection (TB-SCHEMA-API-v1.1.0, ADR-0004).
 import type {
   Agency,
   ArchiveRequest,
@@ -10,6 +11,7 @@ import type {
   BindCaseRoute,
   CanonicalBindingRequest,
   CaseAuthoritySelection,
+  CaseAuthoritySelectionView,
   CaseRecord,
   CaseSource,
   CaseWorkflowRequest,
@@ -491,6 +493,17 @@ export function createCasesApi(api: ApiClient) {
           await api.request<Page<CaseAuthoritySelection>>(
             'GET',
             `${base}/${caseId}/authority-selections${queryString(query)}`,
+          )
+        ).data,
+      /**
+       * One selection of this case with the exact coverage rows it pinned, as stored
+       * (getCaseAuthoritySelection, TB-SCHEMA-API-v1.1.0). Another case's selection is 404.
+       */
+      get: async (caseId: string, id: string) =>
+        (
+          await api.request<CaseAuthoritySelectionView>(
+            'GET',
+            `${base}/${caseId}/authority-selections/${id}`,
           )
         ).data,
       /** Precondition target: the case's ETag. The selection itself carries no ETag. */

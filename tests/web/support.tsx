@@ -7,7 +7,9 @@
 // preferred coverage. Cases (P4A) follow the case rules the pages rely on: the case's ETag as the
 // precondition of its commands, links and selections, the link's own ETag for a link-state change,
 // read-only archived cases, route binding only to a linked route of the case's agency, and
-// append-only selections of frozen coverage that records the chosen signer. All data is synthetic.
+// append-only selections of frozen coverage that records the chosen signer; a selection is read back
+// only under its own case, with its stored coverage rows in ascending coverageId order
+// (getCaseAuthoritySelection, TB-SCHEMA-API-v1.1.0). All data is synthetic.
 import { act, StrictMode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter, useNavigate } from 'react-router';
@@ -125,8 +127,8 @@ export class FakeDirectory {
   };
   /** Append-only case authority selections (no ETag, no row version), in recording order. */
   readonly selections: Array<Record<string, unknown> & { id: string }> = [];
-  /** The coverages each selection pinned (stored, but no contracted read returns them). */
-  readonly pinned = new Map<string, Array<{ coverageId: string; applicationScope: string }>>();
+  /** The CaseAuthorityCoverage rows each selection pinned, as the contract returns them. */
+  readonly pinned = new Map<string, Array<Record<string, unknown> & { coverageId: string }>>();
   /** Append-only authority events (no ETag, no row version), in recording order. */
   readonly events: Array<Record<string, unknown> & { id: string }> = [];
   /** Immutable SourceReference revisions (no ETag, no row version). */
@@ -443,9 +445,11 @@ export class FakeDirectory {
       if (!headers['Idempotency-Key']) return failure(400, 'IDEMPOTENCY_KEY_REQUIRED');
     }
     const parts = url.pathname.replace('/api/v1/', '').split('/');
-    const [collection, id, action] = parts;
+    const [collection, id, action, childId] = parts;
     if (collection === 'sources') return this.sourceRequest(method, id, action, url, body);
-    if (collection === 'cases') return this.caseRequest(method, id, action, url, headers, body);
+    if (collection === 'cases') {
+      return this.caseRequest(method, id, action, url, headers, body, childId);
+    }
     if (collection === 'case-sources' && id) {
       return this.caseSourceRequest(method, id, action, headers, body);
     }
@@ -1082,8 +1086,14 @@ export class FakeDirectory {
 
   // Cases (P4A) --------------------------------------------------------------------------------
 
-  /** A selection as the contract returns it (no ETag, no row version). */
-  seedSelection(fields: Record<string, unknown>): Record<string, unknown> & { id: string } {
+  /**
+   * A selection as the contract returns it (no ETag, no row version), with the coverage rows it
+   * pinned (each coverage with its own application scope).
+   */
+  seedSelection(
+    fields: Record<string, unknown>,
+    coverages: ReadonlyArray<{ coverageId: string; applicationScope: string }> = [],
+  ): Record<string, unknown> & { id: string } {
     const row = {
       id: this.id(),
       caseId: '',
@@ -1099,6 +1109,20 @@ export class FakeDirectory {
       ...fields,
     };
     this.selections.push(row);
+    this.pinned.set(
+      row.id,
+      coverages.map((chosen) => ({
+        id: this.id(),
+        selectionId: row.id,
+        caseId: row.caseId,
+        agencyId: row.agencyId,
+        routeId: row.routeId,
+        coverageId: chosen.coverageId,
+        applicationScope: chosen.applicationScope,
+        createdAt: row.createdAt,
+        createdById: row.createdById,
+      })),
+    );
     return row;
   }
 
@@ -1117,6 +1141,7 @@ export class FakeDirectory {
     url: URL,
     headers: Record<string, string>,
     body: unknown,
+    childId?: string,
   ): Response | Promise<Response> {
     const request = (body ?? {}) as Record<string, unknown>;
     if (id === undefined) {
@@ -1151,6 +1176,20 @@ export class FakeDirectory {
         return this.page(
           [...this.rows.CaseSource.values()].filter((link) => link['caseId'] === id).reverse(),
         );
+      }
+      if (action === 'authority-selections' && childId !== undefined) {
+        // Only under its own case; another case's selection is 404 like an unknown one.
+        const selection = this.selections.find(
+          (item) => item.id === childId && item['caseId'] === id,
+        );
+        if (!selection) return failure(404, 'NOT_FOUND');
+        const coverages = [...(this.pinned.get(selection.id) ?? [])]
+          .filter((row) => row['caseId'] === id)
+          .sort((x, y) => (x.coverageId < y.coverageId ? -1 : x.coverageId > y.coverageId ? 1 : 0));
+        return json(200, {
+          data: { selection, coverages },
+          meta: { requestId: 'r', affectedResources: [] },
+        });
       }
       if (action === 'authority-selections') {
         return this.page(this.selections.filter((item) => item['caseId'] === id).reverse());
@@ -1319,17 +1358,19 @@ export class FakeDirectory {
             });
           }
         }
-        const selection = this.seedSelection({
-          caseId: id,
-          agencyId: row['agencyId'],
-          routeId: row['routeId'],
-          signerId: signer.id,
-          taskType: request['taskType'],
-          intendedFromEmail: request['intendedFromEmail'],
-          basisSourceId: request['basisSourceId'] ?? null,
-          selectionNote: request['selectionNote'],
-        });
-        this.pinned.set(selection.id, chosen);
+        const selection = this.seedSelection(
+          {
+            caseId: id,
+            agencyId: row['agencyId'],
+            routeId: row['routeId'],
+            signerId: signer.id,
+            taskType: request['taskType'],
+            intendedFromEmail: request['intendedFromEmail'],
+            basisSourceId: request['basisSourceId'] ?? null,
+            selectionNote: request['selectionNote'],
+          },
+          chosen,
+        );
         row['currentAuthoritySelectionId'] = selection.id;
         this.touchCase(row, true);
         return json(201, { data: selection, meta: { requestId: 'r', affectedResources: [] } });

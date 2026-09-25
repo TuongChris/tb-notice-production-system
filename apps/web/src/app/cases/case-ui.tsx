@@ -27,8 +27,10 @@ export const SELECTION_DETAIL =
   'It pins exact records — the case’s route, one signer and each chosen coverage of a frozen version — for later evaluation. It does not confirm standing, current authority, owner rights or signer eligibility, and it makes nothing ready for signature.';
 export const SELECTION_HISTORY =
   'Selections are append-only. A new selection becomes the one in use for evaluation; earlier selections stay unchanged in the history.';
-export const PINNED_COVERAGE_LIMIT =
-  'The coverages a selection pins are stored with it, but the contract has no operation that reads them back yet, so this page shows them only while a selection is being made.';
+export const SELECTION_READBACK =
+  'Open a selection to see the exact coverage records it pinned and the application scope recorded for each.';
+export const SELECTION_AS_RECORDED =
+  'These are the exact records pinned when this selection was made, shown as they were recorded. Nothing here is re-evaluated against the present state of the route, mandates, coverage or sources.';
 export const OWNER_HINT_MEANING =
   'A hint only, not a finding of ownership. Once a route is bound, the hint is empty or that route’s owner.';
 
