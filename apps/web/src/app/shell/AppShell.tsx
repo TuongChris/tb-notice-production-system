@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { NavLink, Outlet } from 'react-router';
 import type { ApiClient } from '../api/client.js';
 import { useSession } from '../auth/session.js';
+import { LoadingNotice } from '../directory/ui.js';
 import { HealthIndicator } from '../health.js';
 
 /** Future modules, listed for orientation only. None is implemented or reachable yet. */
@@ -80,7 +81,9 @@ export function AppShell({ api }: { api: ApiClient }) {
           </ul>
         </nav>
         <main className="shell-main" id="main" tabIndex={-1}>
-          <Outlet />
+          <Suspense fallback={<LoadingNotice label="Loading page…" />}>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
       <footer className="shell-footer">

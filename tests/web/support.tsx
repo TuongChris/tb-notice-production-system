@@ -1855,12 +1855,21 @@ export class FakeDirectory {
 let root: Root | undefined;
 let container: HTMLElement | undefined;
 let navigateTo: ((path: string) => void) | undefined;
+let navigateBy: ((delta: number) => void) | undefined;
 
 /** Captures the router's navigate function so a test can move between URLs in the same app. */
 function NavigationProbe() {
   const navigate = useNavigate();
   navigateTo = (path: string) => void navigate(path);
+  navigateBy = (delta: number) => void navigate(delta);
   return null;
+}
+
+/** History back (-1) or forward (+1), as the browser buttons do. */
+export async function history(delta: number): Promise<void> {
+  if (!navigateBy) throw new Error('nothing rendered');
+  const navigate = navigateBy;
+  await act(async () => navigate(delta));
 }
 
 /**
@@ -1896,6 +1905,7 @@ export async function unmount(): Promise<void> {
   root = undefined;
   container = undefined;
   navigateTo = undefined;
+  navigateBy = undefined;
 }
 
 afterEach(unmount);
