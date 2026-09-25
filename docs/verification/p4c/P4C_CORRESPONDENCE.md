@@ -2,7 +2,7 @@
 
 Mission TB_R9_POST_MERGE_CLOSEOUT_AND_P4C_CORRESPONDENCE_TO_R10 on `feature/p4c-correspondence`, created from the exact post-merge `main` head `d2b6f0030f9b7e53b612eaf1fa6dffffb98e4395` (the R9 remediation merged by pull request #5; `P4B_CASE_INTAKE.md` §26). Recorded 2026-09-25 (UTC) on the home PC, the primary development workstation (ADR-0003). The mission stops at review gate **R10**, submitted with the documentation commit that adds this record, on the code head `b9fcaf2`. Every later case phase is **not started**: no ProductionContext, PromptSnapshot, NoticeCandidate, ValidationRun workflow, CandidateAssessment, readiness gate, G1–G7, READY_FOR_SIGNER, signature, adoption, sending, reply, uploader contact, platform submission, retraction, counter-notification, YouTube fetch, Drive write, mailbox connection or other external action exists.
 
-**R10 review: PENDING.** No P4C pull request is opened and nothing of P4C is merged (mission §44). The branch waits for the operator's R10 decision.
+**R10 result (operator, 2026-09-25): PASS.** P4C = **VERIFIED_COMPLETE**; the active wire contract stays **TB-SCHEMA-API-v1.2.0**. P4C is authorized for merge to `main` by a normal merge commit (mission TB_R10_CLOSEOUT_MERGE_AND_P4D_PRODUCTION_CONTEXT_TO_R11; §29). P4D is **NOT_STARTED** at this record.
 
 ## Status by scope (not collapsed)
 
@@ -10,14 +10,14 @@ Mission TB_R9_POST_MERGE_CLOSEOUT_AND_P4C_CORRESPONDENCE_TO_R10 on `feature/p4c-
 |---|---|---|
 | **R9_CLOSEOUT** | **RECORDED** — R9 final = PASS, P4B = VERIFIED_COMPLETE, ADR-0005 = ACCEPTED, TB-SCHEMA-API-v1.2.0 active; pull request #5 and `main` reconciled with `git` and authenticated `gh`; checkpoint `abad3ee` (documentation only, before any P4C code; push run 36129721720 success) | §2; `P4B_CASE_INTAKE.md` §26 |
 | **P4C_FIRST_PC** | **PASS** — `yarn test` 1377 in 39 files, `yarn test:db` 380 in 10 files; regression sweep 21/21 on the code head `b9fcaf2` | §21, `evidence/p4c-first-pc-sweep.txt`; lint **0 warnings** |
-| **P4C_CI** | **PASS** for the branch at creation `d2b6f00` (push run 36129072727), the R9 closeout checkpoint `abad3ee` (push run 36129721720), the API with the new compiled `smoke:p4c` `48ceebd` (push run 36133062817; `smoke:p4c` 62 checks), the UI `0038c56` (push run 36135445880) and the code head `b9fcaf2` (push run 36139089683), all success, both jobs. A commit cannot record its own run: the run of this documentation commit is reported with the R10 report | §21, `evidence/p4c-ci-run-36139089683.txt`; CI runs `yarn test`, `yarn test:db`, `smoke:local`, `smoke:auth`, `smoke:directory`, `smoke:p3a`, `smoke:p3b`, `smoke:p4a`, `smoke:p4b` and the new `smoke:p4c` |
+| **P4C_CI** | **PASS** for the branch at creation `d2b6f00` (push run 36129072727), the R9 closeout checkpoint `abad3ee` (push run 36129721720), the API with the new compiled `smoke:p4c` `48ceebd` (push run 36133062817; `smoke:p4c` 62 checks), the UI `0038c56` (push run 36135445880), the code head `b9fcaf2` (push run 36139089683), the R10 submission head `1b2e27b` (push run 36140515842) and the accepted head `d6cd152` (push run 36141175731), all success, both jobs. A commit cannot record its own run: the run of the closeout head is reported with the merge | §21, §29, `evidence/p4c-ci-run-36139089683.txt`; CI runs `yarn test`, `yarn test:db`, `smoke:local`, `smoke:auth`, `smoke:directory`, `smoke:p3a`, `smoke:p3b`, `smoke:p4a`, `smoke:p4b` and the new `smoke:p4c` |
 | **P4C_BROWSER (Playwright MCP)** | **PASS** 29/29 (every item of mission §31); no finding | §19, `evidence/p4c-playwright-mcp-verification.txt` |
 | **P4C_NEGATIVE_CONTROLS** | **PASS** 38/38 in the final run — all 21 control kinds of mission §36 plus one extra (run 1: 36/37, one defect of a control, not of a protection; §20) | Every disabled protection made its responsible tests fail; files restored byte-identically; working tree identical before and after; `tb_notice_test` empty afterwards (`evidence/p4c-negative-controls.txt`) |
 | **P4C_CONTRACT** | **NO WIRE CHANGE** — TB-SCHEMA-API-v1.2.0 stays the active contract; no release record, generated artefact or frozen reference changed; no contract gap found | §24; `contracts:check` OK |
 | **P4C_DATABASE** | **NO MIGRATION** — both tables and all their keys exist in the initial schema | §23; `db:verify`, both drift diffs |
-| **R10 review** | **PENDING** — submitted with this record | — |
-| **P4C_STATUS** | **IMPLEMENTED_AND_VERIFIED — SUBMITTED_FOR_R10** (the five contracted correspondence operations); not accepted until the operator decides | §3–§22 |
-| **P4C_MERGE** | **NOT_MERGED** — no pull request (mission §44) | — |
+| **R10 review** | **PASS** (operator, 2026-09-25) | §29 |
+| **P4C_STATUS** | **VERIFIED_COMPLETE** (the five contracted correspondence operations) | §3–§22, §29 |
+| **P4C_MERGE** | **NOT_MERGED at this record — AUTHORIZED_FOR_MERGE** (pull request `feature/p4c-correspondence` → `main`, normal merge commit, after the closeout head's CI is green) | §29 |
 | **P1_WINDOWS_BROWSER** | **NOT_RUN** (not reported) | Unchanged |
 | **P0_SECOND_PC** / **P0_TWO_PC_ACCEPTANCE** / **P0_SINGLE_PC_BASELINE** / **P0_OVERALL** | **DEFERRED_BY_OPERATOR** / **NOT_COMPLETED** / **VERIFIED** / **NOT_COMPLETE** against the original two-PC contract | ADR-0003; unchanged by P4C |
 
@@ -159,7 +159,8 @@ Nothing was amended, rebased, force-pushed, tagged or released. Every earlier ph
 | `48ceebd` | `ui:sandbox` guards and cleans the correspondence tables |
 | `0038c56` | UI: the correspondence registry, capture form and captured-record page; the case page's correspondence history and the binding page. Tests: `tests/web/p4c.test.tsx`, plus fake correspondence endpoints in `tests/web/support.tsx` |
 | `b9fcaf2` | Web test: the binding form preselects nothing for a subject asking for more information (makes the §36 control "auto-NMI from subject/body" decidable in the UI) |
-| R10 submission commit | This record, the evidence, `CLAUDE.md`, `CURRENT_STATE.md` (documentation only) |
+| `1b2e27b` | R10 submission: this record, the evidence, `CLAUDE.md`, `CURRENT_STATE.md` (documentation only; push run 36140515842 success) |
+| `d6cd152` | Documentation: §6 names the source-scope refusals of a capture exactly (the accepted head; push run 36141175731 success, §29) |
 
 Nothing was merged, tagged or released, and no history was rewritten. No dependency was added: the lockfile is unchanged.
 
@@ -520,3 +521,42 @@ None for R10. No stop condition of the mission occurred:
 - **Excluded:** readiness, G1–G7 decisions, READY_FOR_SIGNER, signature and external action. The prompts (`generatePrompt`, `listCasePrompts`, `getPrompt`), candidates, validation, assessments, readiness and unsigned export also stay later, as do any AI-provider call and any signing or sending.
 
 Whether any P4C interpretation (§25) must change first is the operator's decision at R10. Nothing of this phase is started.
+
+## 29. R10 — PASS (2026-09-25, home PC)
+
+Mission TB_R10_CLOSEOUT_MERGE_AND_P4D_PRODUCTION_CONTEXT_TO_R11. This section records the operator's R10 result before the P4C pull request. Sections 1–28 keep the state at their time (for example the own-CI note in §26 and "Whether any P4C interpretation (§25) must change first is the operator's decision at R10" in §28).
+
+### 29.1 Result (operator)
+
+| Item | Recorded value |
+|---|---|
+| **R10** | **PASS** (2026-09-25) — no remediation |
+| **P4C** | **VERIFIED_COMPLETE** — the five contracted correspondence operations (§1.1) |
+| Merge | **AUTHORIZED_FOR_MERGE** — pull request `feature/p4c-correspondence` → `main`, normal GitHub merge commit (no squash, no rebase, no force-push, no admin bypass, the branch kept) after the exact closeout head and the pull request checks are green |
+| **Active wire contract** | **TB-SCHEMA-API-v1.2.0**, unchanged by P4C = TB-SCHEMA-API-v1.1.0 (ADR-0004) + `docs/contracts/TB-SCHEMA-API-v1.2.0/amendment.json` (ADR-0005); both release records pinned and never edited; the frozen historical reference TB-SCHEMA-API-v1.0.0 unchanged |
+| Decisions | ADR-0001, ADR-0002, ADR-0003, ADR-0004 and ADR-0005 — all ACCEPTED; P4C adds no ADR |
+| PFC wire id | `PFC-YT-EMAIL-v1.1` (unchanged) |
+| R10 semantics | The twelve persistent rules at the top of this record stay in force, unchanged in `CLAUDE.md`: capture ≠ send; OUTBOUND ≠ AS_SENT; an event type names a captured past event, not a command; OPERATOR_REPORTED is never upgraded to raw-source verification; Message-ID and subject are not identity; one Correspondence with several bindings is one captured message; OUTCOME is item-specific in V1; silence is never an outcome; supersession preserves history; captured content is untrusted; P4C performs zero external actions; P4C computes no readiness |
+| `yarn test:transition-baseline` | A historical opt-in oracle that fails by design since the v1.1.0 edit; not a gate and not "fixed" |
+| P4D | **NOT_STARTED** at this record — authorized by the same mission on `feature/p4d-production-context`, created from the exact post-merge `main` once its CI is green |
+
+### 29.2 Heads
+
+| Name | Commit |
+|---|---|
+| `P4C_ACCEPTED_CODE_HEAD` (as named by the operator: the accepted final head) | `d6cd152e27a6ecb51c1038ebddcfe3af2ac1139e` — documentation on the code head `b9fcaf2` (`git diff b9fcaf2 d6cd152` touches only `CLAUDE.md`, `docs/CURRENT_STATE.md` and `docs/verification/p4c/`) |
+| R10 submission head | `1b2e27b08c2442066eeef83ede2fb689e87dc270` — push run [36140515842](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36140515842), 2026-09-25T13:22:13Z–13:27:46Z, **success**: "Non-DB checks (cold install)" (job 108088923092) and "Database, seed and smoke (MySQL 8.4.11)" (job 108088922972) |
+| R10 final CI | push run [36141175731](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36141175731) on `d6cd152`, 2026-09-25T13:28:29Z–13:34:23Z, **success**: "Non-DB checks (cold install)" (job 108091110334) and "Database, seed and smoke (MySQL 8.4.11)" (job 108091109923) — `reference:check` and `contracts:check` OK, lint "Found 0 warnings and 0 errors.", Prettier clean, `yarn test` 1377 / 39 files, `yarn test:db` 380 / 10 files, `db:verify` PASS, seed digest `0ee26dc3…b775` unchanged, both drift diffs empty, `smoke:local` 46, `smoke:auth` 4, `smoke:directory` 14, `smoke:p3a` 24, `smoke:p3b` 36, `smoke:p4a` 50, `smoke:p4b` 64, `smoke:p4c` 62, the P1.1 recovery checks |
+| `P4C_R10_CLOSEOUT_HEAD` | the commit that adds this section (documentation only); its CI run and the merge are recorded on `feature/p4d-production-context` |
+
+### 29.3 Closeout checks (this commit)
+
+Pre-flight on `d6cd152`, after `git fetch origin`:
+
+- branch `feature/p4c-correspondence` in sync with origin, worktree clean;
+- `origin/main` = `d2b6f0030f9b7e53b612eaf1fa6dffffb98e4395`, unchanged since the branch was created;
+- no P4C pull request (pull requests #1–#5, all merged); `gh` authenticated as the repository owner's account; `main` has no branch protection and no rulesets;
+- run 36141175731 completed with success;
+- `reference:check` and `contracts:check` OK.
+
+This commit changes documentation only: this report, `CURRENT_STATE.md` and `CLAUDE.md`. P4C made no contract decision, so no ADR or release README changes. Both `amendment.json` records, `docs/reference/**`, code, tests, migrations and the lockfile are untouched.
