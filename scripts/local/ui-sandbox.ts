@@ -1,6 +1,6 @@
 // yarn ui:sandbox --password-file <path> — a disposable local UI sandbox for manual or browser-
-// automation checks of the Directory, Sources, Routes, representation-authority and Case pages (P2,
-// P3A, P3B, P4A) WITHOUT touching tb_notice_dev.
+// automation checks of the Directory, Sources, Routes, representation-authority, Case and case
+// intake pages (P2, P3A, P3B, P4A, P4B) WITHOUT touching tb_notice_dev.
 //
 //  1. Guards: the target is the allowlisted disposable tb_notice_test schema (tooling account,
 //     loopback port 3307, never tb_notice_dev); every table the sandbox can write must be empty
