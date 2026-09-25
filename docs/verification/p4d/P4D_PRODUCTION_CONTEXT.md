@@ -31,7 +31,7 @@ Persistent rules (they stay in force after R11; `CLAUDE.md` carries them):
 | Wire contract | **No change** — TB-SCHEMA-API-v1.2.0 (§24) |
 | R11 review | **PASS** (operator, 2026-09-26) — no remediation (§29) |
 | P4D_STATUS | **VERIFIED_COMPLETE** |
-| P4D_MERGE | **NOT_MERGED at this record — AUTHORIZED_FOR_MERGE** (§29) |
+| P4D_MERGE | **MERGED_TO_MAIN** — pull request #7, merge commit `b7878b7` (method: merge commit), merged 2026-09-25T22:58:03Z; `main` push CI run 36199089531 success (§30) |
 | R11 closeout (hygiene) | **DONE** — P4A documentation reconciled (§29.4); web claim scans hardened, test code only, no product defect (§29.5) |
 
 ## 1. Operation matrix and design (contract-first)
@@ -329,3 +329,34 @@ Every affected file passes on its own and the combined web suite passes (137 tes
 Nine controls each inject forbidden wording split across elements into a page. In every control, the test files as accepted at `aa67476` pass, meaning they miss the wording, and the hardened files of `ca77ac0` fail at a hardened scan line. Files were restored byte-identically and the tree fingerprint was identical before and after (9/9).
 
 This is recorded as R11 QA hardening, not a historical failure: every accepted scan passed before and passes after.
+
+## 30. R11 closeout — merge reconciliation (2026-09-26, home PC)
+
+Mission TB_R11_CLOSEOUT_MERGE_AND_P4E_PROMPT_SNAPSHOT_TO_R12, recorded on `feature/p4e-prompt-snapshot` after the merge. `P4D = MERGED_TO_MAIN`. Sections 1–29 keep the state at their time (for example "not merged at this record" in §29).
+
+### 30.1 Merge reconciliation (verified with `git` and authenticated `gh`, not assumed)
+
+| Item | Observed value |
+|---|---|
+| `P4D_ACCEPTED_HEAD` | `aa6747626dbff4f1ff98be378c516a2257c3c8bb` (as named by the operator) |
+| `P4D_R11_CLOSEOUT_HEAD` | `b9b42c40478f553516d71478205512df894b1a71` — the R11 record (§29) on the two hygiene commits `c4797b0` and `ca77ac0`. Push run [36198085184](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36198085184), 2026-09-25T22:43:51Z–22:49:47Z, success: "Non-DB checks (cold install)" (job 108278401674) and "Database, seed and smoke (MySQL 8.4.11)" (job 108278401884). Results: `reference:check` and `contracts:check` OK; lint "Found 0 warnings and 0 errors."; `yarn test` 1398 / 42 files; `yarn test:db` 422 / 11 files; `db:verify` PASS; seed digest `0ee26dc3…b775`; `smoke:local` 48, `smoke:auth` 4, `smoke:directory` 14, `smoke:p3a` 24, `smoke:p3b` 36, `smoke:p4a` 50, `smoke:p4b` 64, `smoke:p4c` 62, `smoke:p4d` 88 |
+| Pull request | [#7](https://github.com/TuongChris/tb-notice-production-system/pull/7) `feature/p4d-production-context` → `main`, "P4D: Production context — R11", opened 2026-09-25T22:51:09Z. `headRefOid` = `b9b42c4` (11 commits); `main` unchanged at `ed5b3d7` since the branch was created. pull_request run [36198618120](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36198618120) success: "Database, seed and smoke (MySQL 8.4.11)" (job 108280062982) and "Non-DB checks (cold install)" (job 108280063140). All four check runs on `b9b42c4` completed with success; merge state CLEAN; no required review; `main` has no branch protection and no rulesets |
+| `P4D_MERGE_METHOD` | **merge commit** — `gh pr merge 7 --merge --match-head-commit b9b42c4…`. Not squash, not rebase, no `--admin`, branch not deleted. `b7878b7` has two parents, `ed5b3d7` (previous `main`) and `b9b42c4`. Message "Merge pull request #7 from TuongChris/feature/p4d-production-context", committed by GitHub, merged 2026-09-25T22:58:03Z by the repository owner's authenticated account |
+| `P4D_MERGED_MAIN_HEAD` | `b7878b764f12e3a567b6315dc90a1c08f7392a3f` |
+| Ancestry / content | `git merge-base --is-ancestor b9b42c4 origin/main` → exit 0. The previous `main` `ed5b3d7` is an ancestor of `b9b42c4` (the branch started there), so the merge introduced nothing else: the trees of `b7878b7` and `b9b42c4` are identical (`ff50d9316ac5c0f739775bb55471ab1e9a0200c7`; `git diff b9b42c4 b7878b7` empty), and `git log b9b42c4..origin/main` lists only the merge commit |
+| `MAIN_POST_P4D_CI` | **PASS** — push run [36199089531](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36199089531) on `b7878b7`, 2026-09-25T22:58:05Z–23:03:58Z: "Non-DB checks (cold install)" (job 108281546234) and "Database, seed and smoke (MySQL 8.4.11)" (job 108281546523) both success. Results: lint "Found 0 warnings and 0 errors."; `yarn test` 1398 / 42 files; `yarn test:db` 422 / 11 files; `db:verify` PASS; seed digest `0ee26dc3…b775`; `smoke:local` 48, `smoke:auth` 4, `smoke:directory` 14, `smoke:p3a` 24, `smoke:p3b` 36, `smoke:p4a` 50, `smoke:p4b` 64, `smoke:p4c` 62, `smoke:p4d` 88 |
+
+### 30.2 History preserved
+
+Nothing was amended, rebased, rewritten or force-pushed, and no tag or release was created. `feature/p4d-production-context` stays at `b9b42c4` (local and origin); every earlier phase branch is unchanged. The local `main` was fast-forwarded to `origin/main`; no commit was made on it.
+
+### 30.3 Status
+
+| Scope | Status |
+|---|---|
+| R11 review | **PASS** (operator, 2026-09-26) |
+| P4D_STATUS | **VERIFIED_COMPLETE** |
+| P4D_MERGE | **MERGED_TO_MAIN** — PR #7, merge commit `b7878b7` (method: merge commit), merged 2026-09-25T22:58:03Z; `main` push CI run 36199089531 success |
+| Active contract | **TB-SCHEMA-API-v1.2.0** (ADR-0004 and ADR-0005 ACCEPTED; frozen historical reference TB-SCHEMA-API-v1.0.0; PFC wire id `PFC-YT-EMAIL-v1.1`) |
+| Database / dependencies | **No change** — `20260923103912_initial_schema` is still the only migration; lockfile unchanged |
+| P4E | Branch `feature/p4e-prompt-snapshot` created from the exact `origin/main` `b7878b7` (not from `feature/p4d-production-context`) and pushed with upstream. At creation, local and origin pointed at `b7878b7`, the worktree was clean, and `reference:check` and `contracts:check` passed. **P4E implementation = NOT_STARTED** at this checkpoint; `docs/verification/p4e/` will record it when written |
