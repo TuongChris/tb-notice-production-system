@@ -97,12 +97,20 @@ const facts = pagesOf(() => import('./cases/facts.js'));
 const NewFactPage = facts('NewFactPage');
 const FactDetailPage = facts('FactDetailPage');
 const ReviseFactPage = facts('ReviseFactPage');
+const BindCorrespondencePage = pagesOf(() => import('./cases/case-correspondence.js'))(
+  'BindCorrespondencePage',
+);
+const correspondence = pagesOf(() => import('./correspondence/correspondence.js'));
+const CorrespondenceListPage = correspondence('CorrespondenceListPage');
+const NewCorrespondencePage = correspondence('NewCorrespondencePage');
+const CorrespondenceDetailPage = correspondence('CorrespondenceDetailPage');
 
 /**
  * Web app: Login, session check, the protected shell, the Directory, Sources, the Representation
- * pages (routes, mandates, versions, coverage, coverage signers and authority events) and Cases
- * (case records, linked sources, authority selected for evaluation and the case intake: reported
- * items, works, use mappings and facts).
+ * pages (routes, mandates, versions, coverage, coverage signers and authority events), Cases (case
+ * records, linked sources, authority selected for evaluation, the case intake — reported items,
+ * works, use mappings and facts — and correspondence bindings) and Correspondence (captured messages;
+ * nothing is sent).
  */
 export function App({ api }: { api: ApiClient }) {
   const directory = useMemo(() => createDirectoryApi(api), [api]);
@@ -189,6 +197,13 @@ export function App({ api }: { api: ApiClient }) {
                 <Route path="cases/:id/facts/new" element={<NewFactPage />} />
                 <Route path="cases/:id/facts/:factId" element={<FactDetailPage />} />
                 <Route path="cases/:id/facts/:factId/revise" element={<ReviseFactPage />} />
+                <Route
+                  path="cases/:id/correspondence-bindings/new"
+                  element={<BindCorrespondencePage />}
+                />
+                <Route path="correspondence" element={<CorrespondenceListPage />} />
+                <Route path="correspondence/new" element={<NewCorrespondencePage />} />
+                <Route path="correspondence/:id" element={<CorrespondenceDetailPage />} />
               </Route>
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />

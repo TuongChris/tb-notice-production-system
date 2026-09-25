@@ -7,12 +7,15 @@
 // reported items, works and use mappings are versioned children of one case; a case fact is an
 // immutable revision (no ETag) that changes only through a new revision of its chain, and the
 // supports recorded with a revision are read back with getCaseFactSources (TB-SCHEMA-API-v1.2.0,
-// ADR-0005).
+// ADR-0005). Correspondence (P4C): a captured message is an immutable record of its agency (no
+// ETag, no edit, no delete) and sends nothing; a case binding is its explicit, append-only
+// interpretation for one case, written with the case's ETag and corrected only by a later binding.
 import type {
   Agency,
   ArchiveRequest,
   AuthorityEvent,
   BindCaseRoute,
+  BindCorrespondence,
   CanonicalBindingRequest,
   CaseAuthoritySelection,
   CaseAuthoritySelectionView,
@@ -23,11 +26,15 @@ import type {
   CaseSource,
   CaseWork,
   CaseWorkflowRequest,
+  Correspondence,
+  CorrespondenceBinding,
+  CorrespondenceSummary,
   CoverageSigner,
   CreateAgency,
   CreateAuthorityEvent,
   CreateCase,
   CreateCaseWork,
+  CreateCorrespondence,
   CreateCoverage,
   CreateCoverageSigner,
   CreateFact,
@@ -85,7 +92,7 @@ export interface ListQuery {
   readonly q?: string;
   readonly cursor?: string;
   readonly limit?: number;
-  /** listSigners, listSources, listRoutes, listMandates and listCases. */
+  /** listSigners, listSources, listRoutes, listMandates, listCases and listCorrespondence. */
   readonly agencyId?: string;
   /** listCases only. */
   readonly routeId?: string;
@@ -174,6 +181,7 @@ export function createDirectoryApi(api: ApiClient) {
     sources: createSourcesApi(api),
     routes: createRoutesApi(api),
     cases: createCasesApi(api),
+    correspondence: createCorrespondenceApi(api),
     ...createAuthorityApi(api),
     agencies: directoryRecord<Agency, CreateAgency, PatchAgency, RecordStateRequest>(
       api,
@@ -630,6 +638,44 @@ export function createCasesApi(api: ApiClient) {
             body,
             ...writeHeaders(auth, caseEtag),
           })
+        ).data,
+    },
+  };
+}
+
+/**
+ * Correspondence (P4C): captured messages of an agency and their case bindings. A capture is
+ * immutable (no ETag, no edit, no delete) and records a message — it never sends, replies to or
+ * marks anything. A binding is written with the case's ETag and never changes; a correction is a
+ * later binding that names the one it corrects.
+ */
+export function createCorrespondenceApi(api: ApiClient) {
+  const base = '/api/v1/correspondence';
+  return {
+    /** Newest recorded first; `agencyId` narrows to one agency, `q` searches the captured fields. */
+    list: async (query: ListQuery = {}) =>
+      (await api.request<Page<CorrespondenceSummary>>('GET', `${base}${queryString(query)}`)).data,
+    get: async (id: string) => (await api.request<Correspondence>('GET', `${base}/${id}`)).data,
+    /** Records one captured message exactly as entered. No precondition: nothing existing changes. */
+    capture: async (body: CreateCorrespondence, auth: WriteAuth) =>
+      (await api.request<Correspondence>('POST', base, { body, ...writeHeaders(auth) })).data,
+    bindings: {
+      /** Every binding of the case, corrected ones included, newest recorded first. */
+      list: async (caseId: string, query: ListQuery = {}) =>
+        (
+          await api.request<Page<CorrespondenceBinding>>(
+            'GET',
+            `/api/v1/cases/${caseId}/correspondence-bindings${queryString(query)}`,
+          )
+        ).data,
+      /** Precondition target: the case's ETag. The binding itself carries no ETag. */
+      bind: async (caseId: string, body: BindCorrespondence, caseEtag: string, auth: WriteAuth) =>
+        (
+          await api.request<CorrespondenceBinding>(
+            'POST',
+            `/api/v1/cases/${caseId}/correspondence-bindings`,
+            { body, ...writeHeaders(auth, caseEtag) },
+          )
         ).data,
     },
   };

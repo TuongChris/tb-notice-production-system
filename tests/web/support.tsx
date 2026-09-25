@@ -14,7 +14,13 @@
 // children and fact revisions, the child's own ETag for edits and archive/restore, YouTube video
 // addresses only, this case's unarchived works and items for a mapping, exact millisecond strings,
 // immutable fact revisions (current revisions in lists, REVISION_NOT_HEAD for an earlier one) and
-// fact supports stored but — as in the contract — never returned. All data is synthetic.
+// fact supports stored but — as in the contract — never returned. Correspondence (P4C) follows the
+// capture and binding rules the pages rely on: a capture is stored exactly as sent (no ETag, no edit,
+// no delete) with the SHA-256 of its body text, refused only for the three contradictory postures; a
+// binding needs the case's ETag, a message of the case's agency, a reported item of this case (and
+// one for any outcome), and corrects at most once an earlier binding of this case and message. A
+// retried write with the same Idempotency-Key is answered with the first result. All data is
+// synthetic.
 import { act, StrictMode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter, useNavigate } from 'react-router';
@@ -197,6 +203,14 @@ export class FakeDirectory {
   readonly events: Array<Record<string, unknown> & { id: string }> = [];
   /** Immutable SourceReference revisions (no ETag, no row version). */
   readonly sources = new Map<string, Record<string, unknown> & { id: string }>();
+  /** Immutable captured messages (no ETag, no row version), in recording order. */
+  readonly correspondence: Array<Record<string, unknown> & { id: string }> = [];
+  /** Append-only case bindings of captured messages (no ETag), in recording order. */
+  readonly bindings: Array<Record<string, unknown> & { id: string }> = [];
+  /** First results of correspondence writes by Idempotency-Key (a retry replays them). */
+  private readonly replays = new Map<string, { body: string; response: Record<string, unknown> }>();
+  /** The next correspondence write is recorded, but its reply is lost (a 500 reaches the page). */
+  loseNextReply = false;
   /** Canonical-binding refusals the server would give for a record id (e.g. owner material). */
   readonly bindingRefusals = new Map<
     string,
@@ -520,6 +534,63 @@ export class FakeDirectory {
     return row;
   }
 
+  /**
+   * A synthetic captured message (defaults: inbound copied text of no agency, no body). A seeded
+   * body's digest is whatever the test supplies (a capture through the API computes it).
+   */
+  seedCorrespondence(fields: Record<string, unknown>): Record<string, unknown> & { id: string } {
+    const row = {
+      id: this.id(),
+      agencyId: '',
+      mailboxAddress: 'mailbox@example.invalid',
+      direction: 'INBOUND',
+      subject: 'SYNTHETIC subject',
+      messageId: null,
+      inReplyTo: null,
+      references: null,
+      sourceIdentityHash: null,
+      captureMode: 'COPIED_FULL_TEXT',
+      bodyRole: 'UNKNOWN',
+      bodyText: null,
+      bodySha256: null,
+      rawSourceId: null,
+      attachmentsManifest: null,
+      headerDateRaw: null,
+      occurredAt: null,
+      timestampPrecision: 'UNKNOWN',
+      fromAddress: null,
+      toAddress: null,
+      replyToAddress: null,
+      limitations: null,
+      createdAt: NOW,
+      createdById: USER_ID,
+      ...fields,
+    };
+    this.correspondence.push(row);
+    return row;
+  }
+
+  /** A synthetic case binding of a captured message (defaults: OTHER, the case as a whole). */
+  seedBinding(fields: Record<string, unknown>): Record<string, unknown> & { id: string } {
+    const row = {
+      id: this.id(),
+      caseId: '',
+      agencyId: '',
+      correspondenceId: '',
+      reportedItemId: null,
+      eventType: 'OTHER',
+      platformReference: null,
+      outcome: null,
+      interpretation: null,
+      supersedesBindingId: null,
+      createdAt: NOW,
+      createdById: USER_ID,
+      ...fields,
+    };
+    this.bindings.push(row);
+    return row;
+  }
+
   /** A synthetic append-only authority event of a mandate. */
   seedEvent(fields: Record<string, unknown>): Record<string, unknown> & { id: string } {
     const row = {
@@ -594,6 +665,12 @@ export class FakeDirectory {
     const parts = url.pathname.replace('/api/v1/', '').split('/');
     const [collection, id, action, childId, childAction] = parts;
     if (collection === 'sources') return this.sourceRequest(method, id, action, url, body);
+    if (collection === 'correspondence') {
+      return this.correspondenceRequest(method, id, action, url, headers, body);
+    }
+    if (collection === 'cases' && id && action === 'correspondence-bindings' && !childId) {
+      return this.bindingRequest(method, id, url, headers, body);
+    }
     if (collection === 'cases' && id && action && INTAKE_SEGMENTS.has(action)) {
       return this.intakeRequest(method, id, action, childId, childAction, url, headers, body);
     }
@@ -923,6 +1000,216 @@ export class FakeDirectory {
 
   writes(): RecordedRequest[] {
     return this.requests.filter((request) => request.method !== 'GET');
+  }
+
+  // Correspondence (P4C) ------------------------------------------------------------------------
+
+  /**
+   * A correspondence write under its Idempotency-Key: a retry of the same request replays the first
+   * result (nothing is recorded twice); a lost reply is recorded, then answered with a 500.
+   */
+  private async idempotent(
+    headers: Record<string, string>,
+    body: unknown,
+    perform: () => Promise<Response | Record<string, unknown>> | Response | Record<string, unknown>,
+  ): Promise<Response> {
+    const key = headers['Idempotency-Key'] ?? '';
+    const digest = JSON.stringify(body);
+    const earlier = this.replays.get(key);
+    const meta = { requestId: 'r', affectedResources: [] };
+    if (earlier) {
+      if (earlier.body !== digest) return failure(409, 'IDEMPOTENCY_CONFLICT');
+      return json(201, { data: earlier.response, meta });
+    }
+    const outcome = await perform();
+    if (outcome instanceof Response) return outcome;
+    this.replays.set(key, { body: digest, response: outcome });
+    if (this.loseNextReply) {
+      this.loseNextReply = false;
+      return failure(500, 'INTERNAL_ERROR');
+    }
+    return json(201, { data: outcome, meta });
+  }
+
+  private correspondenceRequest(
+    method: string,
+    id: string | undefined,
+    action: string | undefined,
+    url: URL,
+    headers: Record<string, string>,
+    body: unknown,
+  ): Response | Promise<Response> {
+    const meta = { requestId: 'r', affectedResources: [] };
+    if (id === undefined && method === 'GET') {
+      const agencyId = url.searchParams.get('agencyId');
+      const text = url.searchParams.get('q')?.toLowerCase();
+      const rows = this.correspondence
+        .filter((row) => !agencyId || row['agencyId'] === agencyId)
+        .filter(
+          (row) =>
+            !text ||
+            row.id === text ||
+            ['subject', 'mailboxAddress', 'messageId', 'fromAddress', 'toAddress'].some((field) =>
+              String(row[field] ?? '')
+                .toLowerCase()
+                .includes(text),
+            ),
+        )
+        .reverse()
+        .map((row) =>
+          Object.fromEntries(
+            [
+              'id',
+              'agencyId',
+              'mailboxAddress',
+              'direction',
+              'subject',
+              'messageId',
+              'captureMode',
+              'bodyRole',
+              'rawSourceId',
+              'occurredAt',
+              'createdAt',
+            ].map((field) => [field, row[field]]),
+          ),
+        );
+      return this.page(rows);
+    }
+    if (id === undefined && method === 'POST') {
+      return this.idempotent(headers, body, () => this.capture(body as Record<string, unknown>));
+    }
+    const row = this.correspondence.find((message) => message.id === id);
+    if (!row || action !== undefined || method !== 'GET') return failure(404, 'NOT_FOUND');
+    return json(200, { data: row, meta });
+  }
+
+  private async capture(
+    request: Record<string, unknown>,
+  ): Promise<Response | Record<string, unknown>> {
+    const agency = this.rows.Agency.get(String(request['agencyId']));
+    if (!agency) return failure(422, 'REFERENCE_NOT_FOUND', { field: 'agencyId' });
+    if (agency['recordState'] === 'ARCHIVED') {
+      return failure(409, 'RECORD_STATE_CONFLICT', {
+        record: 'Agency',
+        state: 'ARCHIVED',
+        operation: 'captureCorrespondence',
+        field: 'agencyId',
+      });
+    }
+    const issues = ['mailboxAddress', 'fromAddress', 'toAddress', 'replyToAddress']
+      .filter(
+        (field) => typeof request[field] === 'string' && !String(request[field]).includes('@'),
+      )
+      .map((path) => ({
+        path,
+        message: 'Must be a valid email (JSON Schema format, ajv-formats full mode)',
+      }));
+    if (issues.length > 0) return failure(422, 'VALIDATION_FAILED', { issues });
+    const rawSourceId = request['rawSourceId'] ?? null;
+    const posture = (field: string, reason: string) =>
+      failure(422, 'CAPTURE_POSTURE_UNSUPPORTED', { field, reason });
+    if (request['captureMode'] === 'RAW_SOURCE' && rawSourceId === null) {
+      return posture('rawSourceId', 'RAW_SOURCE_NOT_REFERENCED');
+    }
+    const attachments = (request['attachmentsManifest'] ?? []) as Array<Record<string, unknown>>;
+    const observed = attachments.findIndex((row) => row['state'] === 'OBSERVED_IN_RAW_MIME');
+    if (rawSourceId === null && observed >= 0) {
+      return posture(`attachmentsManifest.${observed}.state`, 'RAW_MIME_NOT_REFERENCED');
+    }
+    if (request['captureMode'] === 'EXCERPT' && request['bodyRole'] === 'FULL_MESSAGE') {
+      return posture('bodyRole', 'EXCERPT_NOT_FULL_MESSAGE');
+    }
+    const bodyText = typeof request['bodyText'] === 'string' ? request['bodyText'] : null;
+    return this.seedCorrespondence({
+      bodyRole: 'UNKNOWN',
+      timestampPrecision: 'UNKNOWN',
+      ...request,
+      bodySha256: bodyText === null ? null : await sha256(bodyText),
+      sourceIdentityHash: null,
+    });
+  }
+
+  private bindingRequest(
+    method: string,
+    caseId: string,
+    url: URL,
+    headers: Record<string, string>,
+    body: unknown,
+  ): Response | Promise<Response> {
+    const owner = this.rows.CaseRecord.get(caseId);
+    if (!owner) return failure(404, 'NOT_FOUND');
+    if (method === 'GET') {
+      const text = url.searchParams.get('q');
+      const rows = this.bindings
+        .filter((row) => row['caseId'] === caseId)
+        .filter(
+          (row) =>
+            !text ||
+            [
+              row.id,
+              row['correspondenceId'],
+              row['reportedItemId'],
+              row['supersedesBindingId'],
+            ].includes(text) ||
+            String(row['platformReference'] ?? '')
+              .toLowerCase()
+              .includes(text.toLowerCase()),
+        )
+        .reverse();
+      return this.page(rows);
+    }
+    if (method !== 'POST') return failure(404, 'NOT_FOUND');
+    const request = (body ?? {}) as Record<string, unknown>;
+    const item = request['reportedItemId'] ?? null;
+    if (
+      item === null &&
+      (request['eventType'] === 'OUTCOME' || (request['outcome'] ?? null) !== null)
+    ) {
+      return failure(422, 'OUTCOME_ITEM_REQUIRED', {
+        field: 'reportedItemId',
+        reason: request['eventType'] === 'OUTCOME' ? 'OUTCOME_EVENT' : 'OUTCOME_VALUE',
+      });
+    }
+    return this.idempotent(headers, body, () => {
+      const precondition = this.precondition('CaseRecord', owner, headers);
+      if (precondition) return precondition;
+      if (owner['archivedAt'] !== null) {
+        return failure(409, 'RECORD_STATE_CONFLICT', { record: 'CaseRecord', archived: true });
+      }
+      const message = this.correspondence.find((row) => row.id === request['correspondenceId']);
+      if (!message) return failure(422, 'REFERENCE_NOT_FOUND', { field: 'correspondenceId' });
+      if (message['agencyId'] !== owner['agencyId']) {
+        return failure(422, 'CROSS_AGENCY_REFERENCE', { field: 'correspondenceId' });
+      }
+      if (item !== null) {
+        const refused = this.childRefusal('ReportedItem', caseId, item, 'reportedItemId');
+        if (refused) return refused;
+      }
+      const supersedes = request['supersedesBindingId'] ?? null;
+      if (supersedes !== null) {
+        const earlier = this.bindings.find((row) => row.id === supersedes);
+        if (!earlier) return failure(422, 'REFERENCE_NOT_FOUND', { field: 'supersedesBindingId' });
+        if (earlier['caseId'] !== caseId) {
+          return failure(422, 'CROSS_CASE_REFERENCE', { field: 'supersedesBindingId' });
+        }
+        if (earlier['correspondenceId'] !== message.id) {
+          return failure(422, 'REVISION_SCOPE_CHANGE', { fields: ['correspondenceId'] });
+        }
+        const successor = this.bindings.find((row) => row['supersedesBindingId'] === supersedes);
+        if (successor) {
+          return failure(409, 'BINDING_ALREADY_SUPERSEDED', { successorId: successor.id });
+        }
+      }
+      const row = this.seedBinding({
+        ...request,
+        caseId,
+        agencyId: owner['agencyId'],
+        reportedItemId: item,
+        supersedesBindingId: supersedes,
+      });
+      this.touchCase(owner, true);
+      return row;
+    });
   }
 
   // Representation authority (P3B) -------------------------------------------------------------
@@ -1884,6 +2171,12 @@ export class FakeDirectory {
     }
     return new Response(null, { status: 204 });
   }
+}
+
+/** SHA-256 (hex) of the UTF-8 bytes of a text, as the server computes a captured body's digest. */
+export async function sha256(text: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
 let root: Root | undefined;

@@ -205,7 +205,10 @@ export const apiErrors = {
       }[subject],
       headId === null ? {} : { headId },
     ),
-  revisionScopeChange: (fields: readonly string[], subject: 'source' | 'fact' = 'source') =>
+  revisionScopeChange: (
+    fields: readonly string[],
+    subject: 'source' | 'fact' | 'binding' = 'source',
+  ) =>
     new ApiError(
       422,
       'REVISION_SCOPE_CHANGE',
@@ -213,6 +216,8 @@ export const apiErrors = {
         source:
           "A revision keeps the source's agency and scope; a different scope needs a new source.",
         fact: "A revision keeps the fact's type and scope; a different type or scope needs a new fact.",
+        binding:
+          'A correction keeps the captured message of the binding it corrects; another message needs its own binding.',
       }[subject],
       { fields },
     ),
@@ -386,5 +391,30 @@ export const apiErrors = {
       'FACT_SCOPE_INVALID',
       'A fact names exactly the record of its scope: none for CASE, the work for WORK, the reported item for REPORTED_ITEM, the mapping for USE.',
       { field, scopeKind, reason },
+    ),
+
+  // Correspondence capture and case bindings (P4C): operation-specific codes in the free-string
+  // `code` field with the contracted statuses (R6 interpretation 10); CROSS_AGENCY_REFERENCE,
+  // CROSS_CASE_REFERENCE, REFERENCE_NOT_FOUND and REVISION_SCOPE_CHANGE above are reused.
+  capturePostureUnsupported: (field: string, reason: string) =>
+    new ApiError(
+      422,
+      'CAPTURE_POSTURE_UNSUPPORTED',
+      'The recorded capture posture is not supported by this record: a raw-source capture and a raw-MIME attachment observation reference the raw source, and an excerpt is not the full message.',
+      { field, reason },
+    ),
+  outcomeItemRequired: (reason: 'OUTCOME_EVENT' | 'OUTCOME_VALUE') =>
+    new ApiError(
+      422,
+      'OUTCOME_ITEM_REQUIRED',
+      'An outcome is recorded for one specific reported item of the case; name the reported item.',
+      { field: 'reportedItemId', reason },
+    ),
+  bindingAlreadySuperseded: (successorId: string | null) =>
+    new ApiError(
+      409,
+      'BINDING_ALREADY_SUPERSEDED',
+      'The referenced binding already has a correction; a binding history does not fork. Correct the latest binding instead.',
+      successorId === null ? {} : { successorId },
     ),
 } as const;

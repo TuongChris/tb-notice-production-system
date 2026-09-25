@@ -25,7 +25,10 @@ export function HomePage() {
         <Link to="/cases">Cases</Link> hold case-specific records: a case’s route binding, the
         sources linked to it and the authority materials selected for its evaluation. A case is not
         a legal verdict, a linked source is not proof, and a selection records only what will be
-        evaluated — it is not a G1 decision. Production is not implemented yet.
+        evaluated — it is not a G1 decision. <Link to="/correspondence">Correspondence</Link>{' '}
+        records captured messages exactly as entered and, on each case, explicit bindings of what a
+        message is recorded as for that case. Capturing or binding sends, replies to and contacts
+        nothing. Production is not implemented yet.
       </p>
       <dl>
         <dt>Session</dt>

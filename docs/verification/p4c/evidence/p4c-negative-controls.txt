@@ -1,0 +1,577 @@
+P4C Correspondence — negative controls (mission §36), home PC, 2026-09-25 (UTC)
+===============================================================================
+
+Method (scratchpad runner outside Git, the P4A/R8/P4B/R9 method): each control disables exactly one protection
+of the five P4C operations (listCorrespondence, captureCorrespondence, getCorrespondence, bindCaseCorrespondence,
+listCaseCorrespondenceBindings) or of their pages by an exact text replacement — or injects the forbidden
+behaviour — then runs every responsible test command. Each command must FAIL with a non-zero exit AND name at
+least one failed test; the first failure message is recorded to show that the failure is the test's assertion,
+not a crash of a broken mutation. Every mutated file is then restored and verified byte-identical by SHA-256.
+Every anchor is checked to occur exactly once before a control runs. DB commands run on the disposable
+tb_notice_test only (synthetic example.invalid records; every test cleans up). The working tree is fingerprinted
+(git diff HEAD + SHA-256 of every untracked file) before and after a run. No control touches docs/reference/**,
+a migration, the generated contract artifacts or a release record.
+
+Final run (run 2): 2026-09-25T13:00:35.717Z – 2026-09-25T13:02:08.869Z, head b9fcaf2924d268b4c2b2d5b726e2e576cf330afa
+(the code head at the time of the run; clean tree except the untracked docs/verification/p4c/ evidence), runner exit 0.
+  38 controls, 38 caught and restored (48 responsible commands, every one failed and named a test).
+  Working-tree fingerprint before and after: e0bf58fad4aed156b6fe73ea37585a8190043f7fc9bd77fd89fa40e092d28236 (identical)
+  Afterwards `yarn db:verify test --expect-empty`: [verify] domain rows total: 0; [verify] PASS: metadata matches the reviewed inventory.
+  First failure message of each command: 46 AssertionError, 1 "timed out waiting for …" and 1 "no dt with text …"
+  (the web tests' assertion style: an element the mutation removed never appears), 0 other.
+  Unmutated baseline right before it — the 31 distinct responsible commands, each passing and selecting at least one test:
+    OK  exit 0 · Tests  1 passed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t no deduplication by Message-ID, subject, addresses or dates
+    OK  exit 0 · Tests  1 passed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t the same Message-ID in two agencies is two captures
+    OK  exit 0 · Tests  1 passed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t AS_SENT is explicit only
+    OK  exit 0 · Tests  1 passed | 16 skipped (17) · npx vitest run --config vitest.config.ts tests/web/p4c.test.tsx -t binds a captured message with the case ETag
+    OK  exit 0 · Tests  1 passed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t text never classifies
+    OK  exit 0 · Tests  1 passed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t no reply after an AS_SENT binding creates no outcome
+    OK  exit 0 · Tests  1 passed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t cross-agency: another agency
+    OK  exit 0 · Tests  1 passed | 16 skipped (17) · npx vitest run --config vitest.config.ts tests/web/p4c.test.tsx -t the binding form never offers another case
+    OK  exit 0 · Tests  1 passed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t reported items: another case
+    OK  exit 0 · Tests  1 passed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t an OUTCOME event and any outcome value name one reported item
+    OK  exit 0 · Tests  1 passed | 13 skipped (14) · npx vitest run --config vitest.config.ts tests/api/correspondence-rules.test.ts -t an OUTCOME event names one reported item
+    OK  exit 0 · Tests  1 passed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t supersession: a correction supersedes the earlier binding
+    OK  exit 0 · Tests  1 passed | 16 skipped (17) · npx vitest run --config vitest.config.ts tests/web/p4c.test.tsx -t a corrected interpretation names the earlier binding
+    OK  exit 0 · Tests  1 passed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t supersession rules: another case
+    OK  exit 0 · Tests  1 passed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t one message, several bindings
+    OK  exit 0 · Tests  1 passed | 16 skipped (17) · npx vitest run --config vitest.config.ts tests/web/p4c.test.tsx -t one message bound to two reported items is one message
+    OK  exit 0 · Tests  1 passed | 16 skipped (17) · npx vitest run --config vitest.config.ts tests/web/p4c.test.tsx -t shows Occurred apart from Recorded in TB
+    OK  exit 0 · Tests  1 passed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t stores every supplied field exactly
+    OK  exit 0 · Tests  1 passed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t createdAt is the ingestion instant only
+    OK  exit 0 · Tests  1 passed | 16 skipped (17) · npx vitest run --config vitest.config.ts tests/web/p4c.test.tsx -t captures a message exactly as typed
+    OK  exit 0 · Tests  1 passed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t occurredAt the database cannot store exactly is refused
+    OK  exit 0 · Tests  1 passed | 13 skipped (14) · npx vitest run --config vitest.config.ts tests/api/correspondence-rules.test.ts -t occurredAt follows the shared storability rule
+    OK  exit 0 · Tests  1 passed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t audit: one CORRESPONDENCE_CAPTURED event
+    OK  exit 0 · Tests  1 passed | 13 skipped (14) · npx vitest run --config vitest.config.ts tests/api/correspondence-rules.test.ts -t identifiers, modes, the body hash and lengths only
+    OK  exit 0 · Tests  1 passed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t bind an NMI: exactly as supplied
+    OK  exit 0 · Tests  1 passed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t context revision: a capture changes no case
+    OK  exit 0 · Tests  1 passed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t If-Match: missing 428, stale 412
+    OK  exit 0 · Tests  1 passed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t Idempotency-Key: required for both writes
+    OK  exit 0 · Tests  1 passed | 16 skipped (17) · npx vitest run --config vitest.config.ts tests/web/p4c.test.tsx -t HTML, script and instruction-like captured text is shown inert
+    OK  exit 0 · Tests  1 passed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t capture and bind make no outbound connection
+    OK  exit 0 · Tests  1 passed | 13 skipped (14) · npx vitest run --config vitest.config.ts tests/api/correspondence-rules.test.ts -t imports only the shared write layer
+    31 distinct commands, 0 problems
+
+RESULT: 38/38 — every disabled protection made its responsible tests fail; every file restored byte-identically.
+
+History (nothing hidden; every run kept in the scratchpad)
+- Run 1: 2026-09-25T12:56:34.572Z – 2026-09-25T12:58:02.860Z, same head b9fcaf2, fingerprint e0bf58fad4aed156b6fe73ea37585a8190043f7fc9bd77fd89fa40e092d28236
+  (identical after), runner exit 1: 37 controls, 36 caught and restored, 1 NOT CAUGHT. Its unmutated baseline:
+  30 distinct commands, 0 problems.
+  * NC-P4C-06 (auto-outcome from silence) was NOT CAUGHT: its mutation measured the thirty days with the real
+    wall clock (Date.now()), while the responsible test advances the application's injected clock (the test
+    database's TestClock) by thirty days — so the injected rule never fired and the test passed. That was a
+    defect of the control, not of the protection. For run 2 the mutation reads the app's injected clock (the
+    write executor's clock, as every time rule of the app does) and the test catches it.
+  * Three controls were caught in run 1, but not by the assertion that names their protection; they were
+    sharpened so that run 2 proves the protection itself:
+    - NC-P4C-13b (copied-text digest as source identity): run 1 failed only through the unique index
+      (agency_id, mailbox_address, source_identity_hash) — a 500 on the second identical capture. Run 2 adds the
+      exact-storage test, which asserts sourceIdentityHash = null on the stored record directly.
+    - NC-P4C-18 (stale ETag ignored) removed the precondition check and was caught only because the shared
+      write executor refuses a declared but unchecked precondition target (500). Run 2 splits it: NC-P4C-18a
+      checks the precondition against the version the client states (a stale ETag passes) and fails the
+      stale-412 assertion with a 201; NC-P4C-18b keeps the removal (the executor backstop).
+    - NC-P4C-19a/19b (idempotency replay duplicates records) rewrote the Idempotency-Key unconditionally, so a
+      missing key became the text "undefined-…" and the tests failed at the missing-key 400 assertion before the
+      replay was reached. Run 2 rewrites a key only when one is present; the tests now fail at the replay
+      assertion (a second row / a second result).
+  Only the scratchpad runner changed between the runs: the head and the working-tree fingerprint are identical.
+- Run 2 (final, above).
+
+Mission §36 coverage (every listed control; NC-P4C-22 is an extra control)
+- Message-ID-only dedupe: NC-P4C-01a, NC-P4C-01b
+- subject-only dedupe: NC-P4C-02
+- auto-AS_SENT from OUTBOUND: NC-P4C-03a, NC-P4C-03b
+- auto-NMI from subject/body: NC-P4C-04a, NC-P4C-04b
+- auto-outcome from text: NC-P4C-05
+- auto-outcome from silence: NC-P4C-06
+- cross-agency binding: NC-P4C-07a, NC-P4C-07b
+- cross-case ReportedItem: NC-P4C-08
+- OUTCOME without item: NC-P4C-09
+- supersession overwrites original: NC-P4C-10a, NC-P4C-10b, NC-P4C-10c
+- duplicate successor accepted: NC-P4C-11
+- binding counted as multiple sends: NC-P4C-12a, NC-P4C-12b
+- copied-text hash presented as raw MIME: NC-P4C-13a, NC-P4C-13b
+- occurredAt inferred from createdAt/headerDateRaw: NC-P4C-14a, NC-P4C-14b, NC-P4C-14c
+- timestamp storability bypass: NC-P4C-15
+- audit stores full private body: NC-P4C-16a, NC-P4C-16b, NC-P4C-16c
+- read causes writes: NC-P4C-17a, NC-P4C-17b
+- stale ETag ignored: NC-P4C-18a, NC-P4C-18b
+- idempotency replay duplicates records: NC-P4C-19a, NC-P4C-19b
+- UI renders HTML as executable markup: NC-P4C-20
+- UI exposes a send action: NC-P4C-21a, NC-P4C-21b
+- external action on capture (extra): NC-P4C-22
+
+Notes on single controls
+- Backstops. In NC-P4C-07a, NC-P4C-08, NC-P4C-15 and NC-P4C-18b (and in the second command of NC-P4C-13b)
+  the mutated server answered 500 where the test asserts the contracted answer; the test fails on that
+  assertion. NC-P4C-07a and NC-P4C-08 remove the service's refusal, and the composite foreign keys
+  (correspondence_id, agency_id) → correspondence and (reported_item_id, case_id) → reported_items still refuse
+  the row: nothing crossed an agency or a case, but the contracted 422 is lost. NC-P4C-13b's second command hits
+  the unique index (agency_id, mailbox_address, source_identity_hash) on the second identical capture (its first
+  command fails on the stored sourceIdentityHash itself). In NC-P4C-15 the unstorable instant reaches the write
+  and fails there (the unit command fails on the rule's own assertion). NC-P4C-18b is the shared write
+  executor's refusal of a declared but unchecked precondition target.
+- NC-P4C-06 injects, into the bindings read (listCaseCorrespondenceBindings), a rule that writes an OUTCOME
+  (OTHER) binding when more than 29 days (by the app's injected clock) have passed after an INITIAL_AS_SENT
+  binding without a later binding; the silence test advances the clock by thirty days, reads, and sees two
+  bindings where the operator recorded one.
+- NC-P4C-10b hides a corrected binding from the case history; the web test waits for both bindings to be shown
+  and times out. NC-P4C-13a relabels the body hash as a raw-MIME hash; the web test finds no row labelled
+  "SHA-256 of the recorded body text".
+- NC-P4C-17b makes getCorrespondence append to the stored limitations on each read (a read-marking); the
+  context-revision test's table snapshot before and after the reads differs.
+- NC-P4C-22 (extra) adds a fetch to the loopback discard port 127.0.0.1:9 inside capture (nothing can leave the
+  host, the error is swallowed): the DB test's fetch spy sees one call and the static scan of the module finds
+  "fetch(".
+
+Controls (replacement shown shortened; "must fail" = the responsible commands)
+------------------------------------------------------------------------------
+NC-P4C-01a — [Message-ID-only dedupe] two captures with the same Message-ID in one agency stay two records
+  file: apps/api/src/modules/correspondence/correspondence.service.ts
+  replace: "        const bodyText = body.bodyText ?? null;\n"
+  with:    "        const bodyText = body.bodyText ?? null;\n        {\n          const same = await tx.correspondence.findFirst({ where: { agencyId: body.agencyId, messageId: body...."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t no deduplication by Message-ID, subject, addresses or dates
+NC-P4C-01b — [Message-ID-only dedupe] the same Message-ID in two agencies is two captures, never merged across agencies
+  file: apps/api/src/modules/correspondence/correspondence.service.ts
+  replace: "        const bodyText = body.bodyText ?? null;\n"
+  with:    "        const bodyText = body.bodyText ?? null;\n        {\n          const same = await tx.correspondence.findFirst({ where: { messageId: body.messageId ?? undefined } ..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t the same Message-ID in two agencies is two captures
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t no deduplication by Message-ID, subject, addresses or dates
+NC-P4C-02 — [subject-only dedupe] two captures with the same subject stay two records
+  file: apps/api/src/modules/correspondence/correspondence.service.ts
+  replace: "        const bodyText = body.bodyText ?? null;\n"
+  with:    "        const bodyText = body.bodyText ?? null;\n        {\n          const same = await tx.correspondence.findFirst({ where: { agencyId: body.agencyId, subject: body.su..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t no deduplication by Message-ID, subject, addresses or dates
+NC-P4C-03a — [auto-AS_SENT from OUTBOUND] server: an outbound message bound as OTHER stays OTHER (no AS_SENT from the direction)
+  file: apps/api/src/modules/correspondence/correspondence-bindings.service.ts
+  replace: "          select: { agencyId: true },\n"
+  with:    "          select: { agencyId: true, direction: true },\n"
+  file: apps/api/src/modules/correspondence/correspondence-bindings.service.ts
+  replace: "              eventType: body.eventType,\n"
+  with:    "              eventType:\n                message.direction === 'OUTBOUND' && body.eventType === 'OTHER'\n                  ? 'INITIAL_AS_SENT'\n                  : body...."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t AS_SENT is explicit only
+NC-P4C-03b — [auto-AS_SENT from OUTBOUND] UI: choosing an outbound message preselects no "as sent" event
+  file: apps/web/src/app/cases/case-correspondence.tsx
+  replace: "  const selectedMessage = useMessage(correspondenceId);\n"
+  with:    "  const selectedMessage = useMessage(correspondenceId);\n  useEffect(() => {\n    if (selectedMessage?.direction === 'OUTBOUND') setEventType('INITIAL_AS_SENT');\n  }, [s..."
+  must fail: npx vitest run --config vitest.config.ts tests/web/p4c.test.tsx -t binds a captured message with the case ETag
+NC-P4C-04a — [auto-NMI from subject/body] server: capturing a message that asks for more information records no NMI binding
+  file: apps/api/src/modules/correspondence/correspondence.service.ts
+  replace: "        return created(ENTITY, toCorrespondenceView(row));\n"
+  with:    "        if (/more info|\\bNMI\\b/i.test(`${body.subject}\\n${bodyText ?? ''}`)) {\n          const cases = await tx.caseRecord.findMany({\n            where: { agencyId: bo..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t text never classifies
+NC-P4C-04b — [auto-NMI from subject/body] UI: a subject asking for more information preselects no NMI event
+  file: apps/web/src/app/cases/case-correspondence.tsx
+  replace: "  const selectedMessage = useMessage(correspondenceId);\n"
+  with:    "  const selectedMessage = useMessage(correspondenceId);\n  useEffect(() => {\n    if (selectedMessage !== null && /more information|\\bNMI\\b/i.test(selectedMessage.subjec..."
+  must fail: npx vitest run --config vitest.config.ts tests/web/p4c.test.tsx -t binds a captured message with the case ETag
+NC-P4C-05 — [auto-outcome from text] a message whose text says "Resolved/removed" bound as OTHER records no outcome
+  file: apps/api/src/modules/correspondence/correspondence-bindings.service.ts
+  replace: "          select: { agencyId: true },\n"
+  with:    "          select: { agencyId: true, bodyText: true },\n"
+  file: apps/api/src/modules/correspondence/correspondence-bindings.service.ts
+  replace: "              outcome: body.outcome ?? null,\n"
+  with:    "              outcome:\n                body.outcome ??\n                (/resolved|removed/i.test(message.bodyText ?? '') ? 'REMOVED' : null),\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t text never classifies
+NC-P4C-06 — [auto-outcome from silence] thirty days without a reply after an AS_SENT binding create no outcome (reads only)
+  file: apps/api/src/modules/correspondence/correspondence-bindings.service.ts
+  replace: "    if (!owner) throw apiErrors.notFound();\n    const q = searchText(query);\n"
+  with:    "    if (!owner) throw apiErrors.notFound();\n    {\n      // The app's injected clock (the write executor's), as every time rule of the app uses.\n      const clock = (th..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t no reply after an AS_SENT binding creates no outcome
+NC-P4C-07a — [cross-agency binding] server: another agency’s correspondence is refused with 422 CROSS_AGENCY_REFERENCE
+  file: apps/api/src/modules/correspondence/correspondence-bindings.service.ts
+  replace: "        if (message.agencyId !== current.agencyId) {\n          throw apiErrors.crossAgencyReference('correspondenceId', 'record');\n        }\n"
+  with:    ""
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t cross-agency: another agency
+NC-P4C-07b — [cross-agency binding] UI: the binding form offers only messages captured for the case’s agency
+  file: apps/web/src/app/cases/case-correspondence.tsx
+  replace: "    api.correspondence.list({ agencyId, ...(q ? { q } : {}), limit: 25 }),\n"
+  with:    "    api.correspondence.list({ ...(q ? { q } : {}), limit: 25 }),\n"
+  must fail: npx vitest run --config vitest.config.ts tests/web/p4c.test.tsx -t the binding form never offers another case
+  must fail: npx vitest run --config vitest.config.ts tests/web/p4c.test.tsx -t binds a captured message with the case ETag
+NC-P4C-08 — [cross-case ReportedItem] another case’s reported item is refused with 422 CROSS_CASE_REFERENCE (archived: 409)
+  file: apps/api/src/modules/correspondence/correspondence-bindings.service.ts
+  replace: "          await assertBodyChild(\n            tx,\n            'ReportedItem',\n            caseId,\n            reportedItemId,\n            'reportedItemId',\n            ..."
+  with:    "          void assertBodyChild;\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t reported items: another case
+NC-P4C-09 — [OUTCOME without item] an OUTCOME event or any outcome value names one reported item (422 OUTCOME_ITEM_REQUIRED)
+  file: apps/api/src/modules/correspondence/correspondence-bindings.service.ts
+  replace: "  if (body.eventType === 'OUTCOME') return apiErrors.outcomeItemRequired('OUTCOME_EVENT');\n  if ((body.outcome ?? null) !== null) return apiErrors.outcomeItemRequired(..."
+  with:    ""
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t an OUTCOME event and any outcome value name one reported item
+  must fail: npx vitest run --config vitest.config.ts tests/api/correspondence-rules.test.ts -t an OUTCOME event names one reported item
+NC-P4C-10a — [supersession overwrites original] server: a correction leaves the earlier binding exactly as recorded
+  file: apps/api/src/modules/correspondence/correspondence-bindings.service.ts
+  replace: "        const touched = await touchCaseFor(context, current);\n"
+  with:    "        if (supersedesBindingId !== null) {\n          await tx.correspondenceBinding.update({\n            where: { id: supersedesBindingId },\n            data: { event..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t supersession: a correction supersedes the earlier binding
+NC-P4C-10b — [supersession overwrites original] UI: a corrected binding stays shown in the case history
+  file: apps/web/src/app/cases/case-correspondence.tsx
+  replace: "        {bindings.map((binding) => (\n"
+  with:    "        {bindings\n          .filter((binding) => !successors.has(binding.id))\n          .map((binding) => (\n"
+  must fail: npx vitest run --config vitest.config.ts tests/web/p4c.test.tsx -t a corrected interpretation names the earlier binding
+NC-P4C-10c — [supersession overwrites original] a correction never names another case’s binding (422 CROSS_CASE_REFERENCE)
+  file: apps/api/src/modules/correspondence/correspondence-bindings.service.ts
+  replace: "          if (earlier.caseId !== caseId) {\n            throw apiErrors.crossCaseReference('supersedesBindingId', 'record');\n          }\n"
+  with:    ""
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t supersession rules: another case
+NC-P4C-11 — [duplicate successor accepted] a second correction of one binding is refused (409 BINDING_ALREADY_SUPERSEDED naming the successor)
+  file: apps/api/src/modules/correspondence/correspondence-bindings.service.ts
+  replace: "        const supersedesBindingId = body.supersedesBindingId ?? null;\n"
+  with:    "        let supersedesBindingId = body.supersedesBindingId ?? null;\n"
+  file: apps/api/src/modules/correspondence/correspondence-bindings.service.ts
+  replace: "          if (successor) throw apiErrors.bindingAlreadySuperseded(successor.id);\n"
+  with:    "          if (successor) supersedesBindingId = null;\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t supersession rules: another case
+NC-P4C-12a — [binding counted as multiple sends] server: binding one message several times never duplicates the message
+  file: apps/api/src/modules/correspondence/correspondence-bindings.service.ts
+  replace: "              correspondenceId: body.correspondenceId,\n"
+  with:    "              correspondenceId: (\n                await tx.correspondence.create({\n                  data: {\n                    ...(await tx.correspondence.findUnique..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t one message, several bindings
+NC-P4C-12b — [binding counted as multiple sends] UI: the case counts distinct captured messages, not binding rows
+  file: apps/web/src/app/cases/case-correspondence.tsx
+  replace: "  const messageCount = messages.size;\n"
+  with:    "  const messageCount = bindings.length;\n"
+  must fail: npx vitest run --config vitest.config.ts tests/web/p4c.test.tsx -t one message bound to two reported items is one message
+NC-P4C-13a — [copied-text hash presented as raw MIME] UI: the body hash is labelled as the hash of the recorded body text
+  file: apps/web/src/app/correspondence/correspondence-ui.tsx
+  replace: "export const BODY_HASH_LABEL = 'SHA-256 of the recorded body text';\n"
+  with:    "export const BODY_HASH_LABEL = 'SHA-256 of the raw message (raw MIME hash)';\n"
+  must fail: npx vitest run --config vitest.config.ts tests/web/p4c.test.tsx -t shows Occurred apart from Recorded in TB
+NC-P4C-13b — [copied-text hash presented as raw MIME] server: the copied-text digest never becomes the message’s source identity
+  file: apps/api/src/modules/correspondence/correspondence.service.ts
+  replace: "            sourceIdentityHash: null,\n"
+  with:    "            sourceIdentityHash: bodySha256(bodyText),\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t stores every supplied field exactly
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t no deduplication by Message-ID, subject, addresses or dates
+NC-P4C-14a — [occurredAt inferred from createdAt/headerDateRaw] server: occurredAt is never parsed from the raw header date
+  file: apps/api/src/modules/correspondence/correspondence.service.ts
+  replace: "            occurredAt: typeof body.occurredAt === 'string' ? toDbInstant(body.occurredAt) : null,\n"
+  with:    "            occurredAt:\n              typeof body.occurredAt === 'string'\n                ? toDbInstant(body.occurredAt)\n                : body.headerDateRaw\n         ..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t createdAt is the ingestion instant only
+NC-P4C-14b — [occurredAt inferred from createdAt/headerDateRaw] server: occurredAt is never taken from the ingestion instant
+  file: apps/api/src/modules/correspondence/correspondence.service.ts
+  replace: "            occurredAt: typeof body.occurredAt === 'string' ? toDbInstant(body.occurredAt) : null,\n"
+  with:    "            occurredAt:\n              typeof body.occurredAt === 'string' ? toDbInstant(body.occurredAt) : context.now,\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t createdAt is the ingestion instant only
+NC-P4C-14c — [occurredAt inferred from createdAt/headerDateRaw] UI: an empty "Occurred at" sends no occurredAt
+  file: apps/web/src/app/correspondence/correspondence.tsx
+  replace: "      ...(occurred === null ? {} : { occurredAt: occurred }),\n"
+  with:    "      occurredAt: occurred ?? new Date().toISOString(),\n"
+  must fail: npx vitest run --config vitest.config.ts tests/web/p4c.test.tsx -t captures a message exactly as typed
+NC-P4C-15 — [timestamp storability bypass] an occurredAt the database cannot store exactly is refused (422) before any claim or write
+  file: apps/api/src/modules/correspondence/correspondence-rules.ts
+  replace: "  if (unstorable) return unstorable;\n"
+  with:    "  void unstorable;\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t occurredAt the database cannot store exactly is refused
+  must fail: npx vitest run --config vitest.config.ts tests/api/correspondence-rules.test.ts -t occurredAt follows the shared storability rule
+NC-P4C-16a — [audit stores full private body] the capture audit keeps the body text only as its length (redacted field)
+  file: apps/api/src/modules/directory/changes.ts
+  replace: "  'bodyText',\n"
+  with:    ""
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t audit: one CORRESPONDENCE_CAPTURED event
+  must fail: npx vitest run --config vitest.config.ts tests/api/correspondence-rules.test.ts -t identifiers, modes, the body hash and lengths only
+NC-P4C-16b — [audit stores full private body] the capture audit record carries no copy of the body under another key
+  file: apps/api/src/modules/correspondence/correspondence-rules.ts
+  replace: "    references: references === null ? null : { redacted: true, count: references.length },\n"
+  with:    "    bodyCopy: row.bodyText,\n    references: references === null ? null : { redacted: true, count: references.length },\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t audit: one CORRESPONDENCE_CAPTURED event
+  must fail: npx vitest run --config vitest.config.ts tests/api/correspondence-rules.test.ts -t identifiers, modes, the body hash and lengths only
+NC-P4C-16c — [audit stores full private body] the binding audit keeps the interpretation only as its length
+  file: apps/api/src/modules/directory/changes.ts
+  replace: "  'interpretation',\n"
+  with:    ""
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t bind an NMI: exactly as supplied
+NC-P4C-17a — [read causes writes] listing a case’s bindings writes nothing (no version move)
+  file: apps/api/src/modules/correspondence/correspondence-bindings.service.ts
+  replace: "    if (!owner) throw apiErrors.notFound();\n    const q = searchText(query);\n"
+  with:    "    if (!owner) throw apiErrors.notFound();\n    await this.prisma.caseRecord.update({\n      where: { id: caseId },\n      data: { rowVersion: { increment: 1 } },\n    })..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t context revision: a capture changes no case
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t no reply after an AS_SENT binding creates no outcome
+NC-P4C-17b — [read causes writes] reading a captured message writes nothing (no read-marking)
+  file: apps/api/src/modules/correspondence/correspondence.service.ts
+  replace: "    if (!row) throw apiErrors.notFound();\n    return toCorrespondenceView(row);\n"
+  with:    "    if (!row) throw apiErrors.notFound();\n    await this.prisma.correspondence.update({\n      where: { id },\n      data: { limitations: `${row.limitations ?? ''}[read]..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t context revision: a capture changes no case
+NC-P4C-18a — [stale ETag ignored] a binding needs the case’s current ETag: a stale version the client states is 412
+  file: apps/api/src/modules/correspondence/correspondence-bindings.service.ts
+  replace: "          rowVersion: current.rowVersion,\n"
+  with:    "          rowVersion: Number(/:v(\\d+)\"$/.exec(requester.ifMatch ?? '')?.[1] ?? current.rowVersion),\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t If-Match: missing 428, stale 412
+NC-P4C-18b — [stale ETag ignored] the binding write checks the case precondition at all (the executor refuses an unchecked target)
+  file: apps/api/src/modules/correspondence/correspondence-bindings.service.ts
+  replace: "        context.checkPrecondition({\n          entityType: CASE_ENTITY,\n          id: caseId,\n          rowVersion: current.rowVersion,\n        });\n"
+  with:    ""
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t If-Match: missing 428, stale 412
+NC-P4C-19a — [idempotency replay duplicates records] a capture replay with the same Idempotency-Key returns the stored result (one row)
+  file: apps/api/src/modules/correspondence/correspondence.service.ts
+  replace: "      { operationId: 'captureCorrespondence', pathParams: {}, body, requester },\n"
+  with:    "      {\n        operationId: 'captureCorrespondence',\n        pathParams: {},\n        body,\n        requester: {\n          ...requester,\n          idempotencyKey:\n    ..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t Idempotency-Key: required for both writes
+NC-P4C-19b — [idempotency replay duplicates records] a binding replay with the same Idempotency-Key returns the stored result (one row)
+  file: apps/api/src/modules/correspondence/correspondence-bindings.service.ts
+  replace: "      { operationId: 'bindCaseCorrespondence', pathParams: { caseId }, body, requester },\n"
+  with:    "      {\n        operationId: 'bindCaseCorrespondence',\n        pathParams: { caseId },\n        body,\n        requester: {\n          ...requester,\n          idempotency..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t Idempotency-Key: required for both writes
+NC-P4C-20 — [UI renders HTML as executable markup] captured text is rendered as plain text, never as HTML
+  file: apps/web/src/app/correspondence/correspondence-ui.tsx
+  replace: "      <pre className=\"captured-text\" data-testid={testId}>\n        {text}\n      </pre>\n"
+  with:    "      <pre className=\"captured-text\" data-testid={testId} dangerouslySetInnerHTML={{ __html: text }} />\n"
+  must fail: npx vitest run --config vitest.config.ts tests/web/p4c.test.tsx -t HTML, script and instruction-like captured text is shown inert
+NC-P4C-21a — [UI exposes a send action] the captured-message page offers no send or reply action
+  file: apps/web/src/app/correspondence/correspondence.tsx
+  replace: "      <p className=\"notice notice-quiet\" data-testid=\"no-external-action\">\n"
+  with:    "      <button type=\"button\">Send reply</button>\n      <p className=\"notice notice-quiet\" data-testid=\"no-external-action\">\n"
+  must fail: npx vitest run --config vitest.config.ts tests/web/p4c.test.tsx -t captures a message exactly as typed
+  must fail: npx vitest run --config vitest.config.ts tests/web/p4c.test.tsx -t HTML, script and instruction-like captured text is shown inert
+NC-P4C-21b — [UI exposes a send action] the case correspondence history offers no send action
+  file: apps/web/src/app/cases/case-correspondence.tsx
+  replace: "      <div className=\"timeline-body\">\n"
+  with:    "      <div className=\"timeline-body\">\n        <button type=\"button\">Send to the uploader</button>\n"
+  must fail: npx vitest run --config vitest.config.ts tests/web/p4c.test.tsx -t binds a captured message with the case ETag
+NC-P4C-22 — [external action on capture (extra)] a capture makes no outbound connection and calls no fetch (loopback target, nothing leaves the host)
+  file: apps/api/src/modules/correspondence/correspondence.service.ts
+  replace: "        const id = randomUUID();\n"
+  with:    "        await fetch('http://127.0.0.1:9/send', { method: 'POST' }).catch(() => undefined);\n        const id = randomUUID();\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t capture and bind make no outbound connection
+  must fail: npx vitest run --config vitest.config.ts tests/api/correspondence-rules.test.ts -t imports only the shared write layer
+
+Final run log (run 2)
+---------------------
+# P4C negative controls — start 2026-09-25T13:00:35.717Z — head b9fcaf2924d268b4c2b2d5b726e2e576cf330afa — tree fingerprint e0bf58fad4aed156b6fe73ea37585a8190043f7fc9bd77fd89fa40e092d28236
+[NC-P4C-01a] CAUGHT · restored byte-identical · [Message-ID-only dedupe] two captures with the same Message-ID in one agency stay two records
+    exit 1 · Tests  1 failed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t no deduplication by Message-ID, subject, addresses or dates
+      × no deduplication by Message-ID, subject, addresses or dates: identical metadata captured twice is two records; sourceIdentityHash stays null
+      FAIL  tests/db/p4c-http.test.ts > CAPTURE — one recorded communication, exactly as supplied > no deduplication by Message-ID, subject, addresses or dates: identical metadata captured twice is two records; sourceIdentityHash stays null
+        ↳ AssertionError: expected '2e405ab3-c9f5-4152-b9e3-b7322330f0cb' not to be '2e405ab3-c9f5-4152-b9e3-b7322330f0cb' // Object.is equality
+[NC-P4C-01b] CAUGHT · restored byte-identical · [Message-ID-only dedupe] the same Message-ID in two agencies is two captures, never merged across agencies
+    exit 1 · Tests  1 failed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t the same Message-ID in two agencies is two captures
+      × the same Message-ID in two agencies is two captures, never merged; each binds only into its own agency’s cases
+      FAIL  tests/db/p4c-http.test.ts > CONTAMINATION — nothing crosses agencies, cases or items > the same Message-ID in two agencies is two captures, never merged; each binds only into its own agency’s cases
+        ↳ AssertionError: expected '9b71e8f4-d2ee-4631-acc7-4e4cbed86981' not to be '9b71e8f4-d2ee-4631-acc7-4e4cbed86981' // Object.is equality
+    exit 1 · Tests  1 failed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t no deduplication by Message-ID, subject, addresses or dates
+      × no deduplication by Message-ID, subject, addresses or dates: identical metadata captured twice is two records; sourceIdentityHash stays null
+      FAIL  tests/db/p4c-http.test.ts > CAPTURE — one recorded communication, exactly as supplied > no deduplication by Message-ID, subject, addresses or dates: identical metadata captured twice is two records; sourceIdentityHash stays null
+        ↳ AssertionError: expected '0a380b51-9a72-4c14-bacb-76e99ff18df0' not to be '0a380b51-9a72-4c14-bacb-76e99ff18df0' // Object.is equality
+[NC-P4C-02] CAUGHT · restored byte-identical · [subject-only dedupe] two captures with the same subject stay two records
+    exit 1 · Tests  1 failed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t no deduplication by Message-ID, subject, addresses or dates
+      × no deduplication by Message-ID, subject, addresses or dates: identical metadata captured twice is two records; sourceIdentityHash stays null
+      FAIL  tests/db/p4c-http.test.ts > CAPTURE — one recorded communication, exactly as supplied > no deduplication by Message-ID, subject, addresses or dates: identical metadata captured twice is two records; sourceIdentityHash stays null
+        ↳ AssertionError: expected '473d9a64-a6f4-40b5-ac34-c470029f67f4' not to be '473d9a64-a6f4-40b5-ac34-c470029f67f4' // Object.is equality
+[NC-P4C-03a] CAUGHT · restored byte-identical · [auto-AS_SENT from OUTBOUND] server: an outbound message bound as OTHER stays OTHER (no AS_SENT from the direction)
+    exit 1 · Tests  1 failed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t AS_SENT is explicit only
+      × AS_SENT is explicit only: an outbound capture creates no binding; an outbound message bound as OTHER stays OTHER; recording AS_SENT sends nothing and creates nothing else
+      FAIL  tests/db/p4c-http.test.ts > BINDINGS — explicit, append-only interpretations of one captured message for one case > AS_SENT is explicit only: an outbound capture creates no binding; an outbound message bound as OTHER stays OTHER; recording AS_SENT sends nothing and creates nothing else
+        ↳ AssertionError: expected 'INITIAL_AS_SENT' to be 'OTHER' // Object.is equality
+[NC-P4C-03b] CAUGHT · restored byte-identical · [auto-AS_SENT from OUTBOUND] UI: choosing an outbound message preselects no "as sent" event
+    exit 1 · Tests  1 failed | 16 skipped (17) · npx vitest run --config vitest.config.ts tests/web/p4c.test.tsx -t binds a captured message with the case ETag
+      × binds a captured message with the case ETag; the event is chosen explicitly — nothing is preselected from an outbound direction or a subject — and the history shows the "as sent" copy
+      FAIL  tests/web/p4c.test.tsx > P4C case correspondence UI > binds a captured message with the case ETag; the event is chosen explicitly — nothing is preselected from an outbound direction or a subject — and the history shows the "as sent" copy
+        ↳ AssertionError: expected 'INITIAL_AS_SENT' to be '' // Object.is equality
+[NC-P4C-04a] CAUGHT · restored byte-identical · [auto-NMI from subject/body] server: capturing a message that asks for more information records no NMI binding
+    exit 1 · Tests  1 failed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t text never classifies
+      × text never classifies: a body saying “Request Resolved” creates no OUTCOME and a subject saying “Need more info” creates no NMI; only the operator’s explicit binding records an interpretation
+      FAIL  tests/db/p4c-http.test.ts > TRANSMISSION AND OUTCOME — nothing is sent, and nothing is inferred > text never classifies: a body saying “Request Resolved” creates no OUTCOME and a subject saying “Need more info” creates no NMI; only the operator’s explicit binding records an interpretation
+        ↳ AssertionError: expected 1 to be +0 // Object.is equality
+[NC-P4C-04b] CAUGHT · restored byte-identical · [auto-NMI from subject/body] UI: a subject asking for more information preselects no NMI event
+    exit 1 · Tests  1 failed | 16 skipped (17) · npx vitest run --config vitest.config.ts tests/web/p4c.test.tsx -t binds a captured message with the case ETag
+      × binds a captured message with the case ETag; the event is chosen explicitly — nothing is preselected from an outbound direction or a subject — and the history shows the "as sent" copy
+      FAIL  tests/web/p4c.test.tsx > P4C case correspondence UI > binds a captured message with the case ETag; the event is chosen explicitly — nothing is preselected from an outbound direction or a subject — and the history shows the "as sent" copy
+        ↳ AssertionError: expected 'NMI' to be '' // Object.is equality
+[NC-P4C-05] CAUGHT · restored byte-identical · [auto-outcome from text] a message whose text says "Resolved/removed" bound as OTHER records no outcome
+    exit 1 · Tests  1 failed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t text never classifies
+      × text never classifies: a body saying “Request Resolved” creates no OUTCOME and a subject saying “Need more info” creates no NMI; only the operator’s explicit binding records an interpretation
+      FAIL  tests/db/p4c-http.test.ts > TRANSMISSION AND OUTCOME — nothing is sent, and nothing is inferred > text never classifies: a body saying “Request Resolved” creates no OUTCOME and a subject saying “Need more info” creates no NMI; only the operator’s explicit binding records an interpretation
+        ↳ AssertionError: expected [ 'OTHER', 'REMOVED' ] to deeply equal [ 'OTHER', null ]
+[NC-P4C-06] CAUGHT · restored byte-identical · [auto-outcome from silence] thirty days without a reply after an AS_SENT binding create no outcome (reads only)
+    exit 1 · Tests  1 failed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t no reply after an AS_SENT binding creates no outcome
+      × no reply after an AS_SENT binding creates no outcome: after thirty days of silence the case has exactly the bindings the operator recorded
+      FAIL  tests/db/p4c-http.test.ts > TRANSMISSION AND OUTCOME — nothing is sent, and nothing is inferred > no reply after an AS_SENT binding creates no outcome: after thirty days of silence the case has exactly the bindings the operator recorded
+        ↳ AssertionError: expected [ { …(12) }, { …(12) } ] to deeply equal [ { …(12) } ]
+[NC-P4C-07a] CAUGHT · restored byte-identical · [cross-agency binding] server: another agency’s correspondence is refused with 422 CROSS_AGENCY_REFERENCE
+    exit 1 · Tests  1 failed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t cross-agency: another agency
+      × cross-agency: another agency’s correspondence cannot be bound into this case (422 CROSS_AGENCY_REFERENCE); an unknown one is 422 REFERENCE_NOT_FOUND; nothing is written
+      FAIL  tests/db/p4c-http.test.ts > BINDINGS — explicit, append-only interpretations of one captured message for one case > cross-agency: another agency’s correspondence cannot be bound into this case (422 CROSS_AGENCY_REFERENCE); an unknown one is 422 REFERENCE_NOT_FOUND; nothing is written
+        ↳ AssertionError: expected [ 500, 'INTERNAL_ERROR', {} ] to deeply equal [ 422, 'CROSS_AGENCY_REFERENCE', …(1) ]
+[NC-P4C-07b] CAUGHT · restored byte-identical · [cross-agency binding] UI: the binding form offers only messages captured for the case’s agency
+    exit 1 · Tests  1 failed | 16 skipped (17) · npx vitest run --config vitest.config.ts tests/web/p4c.test.tsx -t the binding form never offers another case
+      × the binding form never offers another case’s reported item or another agency’s message, even when the address names one
+      FAIL  tests/web/p4c.test.tsx > P4C case correspondence UI > the binding form never offers another case’s reported item or another agency’s message, even when the address names one
+        ↳ AssertionError: expected [ '', …(3) ] to not include '00000000-0000-4000-8000-000000000011'
+    exit 1 · Tests  1 failed | 16 skipped (17) · npx vitest run --config vitest.config.ts tests/web/p4c.test.tsx -t binds a captured message with the case ETag
+      × binds a captured message with the case ETag; the event is chosen explicitly — nothing is preselected from an outbound direction or a subject — and the history shows the "as sent" copy
+      FAIL  tests/web/p4c.test.tsx > P4C case correspondence UI > binds a captured message with the case ETag; the event is chosen explicitly — nothing is preselected from an outbound direction or a subject — and the history shows the "as sent" copy
+        ↳ AssertionError: expected [ '', …(3) ] to not include '00000000-0000-4000-8000-000000000011'
+[NC-P4C-08] CAUGHT · restored byte-identical · [cross-case ReportedItem] another case’s reported item is refused with 422 CROSS_CASE_REFERENCE (archived: 409)
+    exit 1 · Tests  1 failed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t reported items: another case
+      × reported items: another case’s item is 422 CROSS_CASE_REFERENCE, an unknown one 422 REFERENCE_NOT_FOUND, an archived one 409; nothing is written
+      FAIL  tests/db/p4c-http.test.ts > BINDINGS — explicit, append-only interpretations of one captured message for one case > reported items: another case’s item is 422 CROSS_CASE_REFERENCE, an unknown one 422 REFERENCE_NOT_FOUND, an archived one 409; nothing is written
+        ↳ AssertionError: 45210e61-ae24-446b-98f5-e7dac9add04d: expected [ 500, 'INTERNAL_ERROR' ] to deeply equal [ 422, 'CROSS_CASE_REFERENCE' ]
+[NC-P4C-09] CAUGHT · restored byte-identical · [OUTCOME without item] an OUTCOME event or any outcome value names one reported item (422 OUTCOME_ITEM_REQUIRED)
+    exit 1 · Tests  1 failed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t an OUTCOME event and any outcome value name one reported item
+      × an OUTCOME event and any outcome value name one reported item (422 OUTCOME_ITEM_REQUIRED before any claim); with the item they are recorded; an OUTCOME may leave the outcome unclassified
+      FAIL  tests/db/p4c-http.test.ts > BINDINGS — explicit, append-only interpretations of one captured message for one case > an OUTCOME event and any outcome value name one reported item (422 OUTCOME_ITEM_REQUIRED before any claim); with the item they are recorded; an OUTCOME may leave the outcome unclassified
+        ↳ AssertionError: {"eventType":"OUTCOME"}: expected [ 201, '(no error: HTTP 201)' ] to deeply equal [ 422, 'OUTCOME_ITEM_REQUIRED' ]
+    exit 1 · Tests  1 failed | 13 skipped (14) · npx vitest run --config vitest.config.ts tests/api/correspondence-rules.test.ts -t an OUTCOME event names one reported item
+      × an OUTCOME event names one reported item
+      FAIL  tests/api/correspondence-rules.test.ts > outcomes are item-specific (INVARIANTS §4, DOMAIN_MODEL_v1 §13) > an OUTCOME event names one reported item
+        ↳ AssertionError: expected null to deeply equal [ 422, 'OUTCOME_ITEM_REQUIRED', …(1) ]
+[NC-P4C-10a] CAUGHT · restored byte-identical · [supersession overwrites original] server: a correction leaves the earlier binding exactly as recorded
+    exit 1 · Tests  1 failed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t supersession: a correction supersedes the earlier binding
+      × supersession: a correction supersedes the earlier binding, which stays exactly as recorded; the correction may change the event type, item, outcome and interpretation; the message is never edited
+      FAIL  tests/db/p4c-http.test.ts > BINDINGS — explicit, append-only interpretations of one captured message for one case > supersession: a correction supersedes the earlier binding, which stays exactly as recorded; the correction may change the event type, item, outcome and interpretation; the message is never edited
+        ↳ AssertionError: expected [ { …(12) }, { …(12) }, { …(12) } ] to deeply equal [ { …(12) }, { …(12) }, { …(12) } ]
+[NC-P4C-10b] CAUGHT · restored byte-identical · [supersession overwrites original] UI: a corrected binding stays shown in the case history
+    exit 1 · Tests  1 failed | 16 skipped (17) · npx vitest run --config vitest.config.ts tests/web/p4c.test.tsx -t a corrected interpretation names the earlier binding
+      × a corrected interpretation names the earlier binding, keeps its message and leaves it unchanged; a corrected binding cannot be corrected again
+      FAIL  tests/web/p4c.test.tsx > P4C case correspondence UI > a corrected interpretation names the earlier binding, keeps its message and leaves it unchanged; a corrected binding cannot be corrected again
+        ↳ Error: timed out waiting for both bindings
+[NC-P4C-10c] CAUGHT · restored byte-identical · [supersession overwrites original] a correction never names another case’s binding (422 CROSS_CASE_REFERENCE)
+    exit 1 · Tests  1 failed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t supersession rules: another case
+      × supersession rules: another case’s binding 422 CROSS_CASE_REFERENCE, another message 422 REVISION_SCOPE_CHANGE, an unknown binding 422, a second correction of one binding 409 BINDING_ALREADY_SUPERSEDED naming the successor; nothing is written
+      FAIL  tests/db/p4c-http.test.ts > BINDINGS — explicit, append-only interpretations of one captured message for one case > supersession rules: another case’s binding 422 CROSS_CASE_REFERENCE, another message 422 REVISION_SCOPE_CHANGE, an unknown binding 422, a second correction of one binding 409 BINDING_ALREADY_SUPERSEDED naming the successor; nothing is written
+        ↳ AssertionError: {"correspondenceId":"e31cb93a-abcb-4eb5-981c-5cada08cd037","supersedesBindingId":"869c8965-72ae-4ae5-be49-e8fce152f2cc"}: expected [ 201, '(no error: HTTP 201)' ] to deeply equal [ 422, 'CROSS_CASE_REFERE
+[NC-P4C-11] CAUGHT · restored byte-identical · [duplicate successor accepted] a second correction of one binding is refused (409 BINDING_ALREADY_SUPERSEDED naming the successor)
+    exit 1 · Tests  1 failed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t supersession rules: another case
+      × supersession rules: another case’s binding 422 CROSS_CASE_REFERENCE, another message 422 REVISION_SCOPE_CHANGE, an unknown binding 422, a second correction of one binding 409 BINDING_ALREADY_SUPERSEDED naming the successor; nothing is written
+      FAIL  tests/db/p4c-http.test.ts > BINDINGS — explicit, append-only interpretations of one captured message for one case > supersession rules: another case’s binding 422 CROSS_CASE_REFERENCE, another message 422 REVISION_SCOPE_CHANGE, an unknown binding 422, a second correction of one binding 409 BINDING_ALREADY_SUPERSEDED naming the successor; nothing is written
+        ↳ AssertionError: {"correspondenceId":"6ec71df4-9571-44f2-be46-78d6f31dd21a","supersedesBindingId":"70199585-bcc7-4c50-9fff-9113afed0e4c"}: expected [ 201, '(no error: HTTP 201)' ] to deeply equal [ 409, 'BINDING_ALREADY_S
+[NC-P4C-12a] CAUGHT · restored byte-identical · [binding counted as multiple sends] server: binding one message several times never duplicates the message
+    exit 1 · Tests  1 failed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t one message, several bindings
+      × one message, several bindings: one correspondence bound to three items and to two cases of its agency stays one correspondence; transmissions count distinct messages, not binding rows
+      FAIL  tests/db/p4c-http.test.ts > BINDINGS — explicit, append-only interpretations of one captured message for one case > one message, several bindings: one correspondence bound to three items and to two cases of its agency stays one correspondence; transmissions count distinct messages, not binding rows
+        ↳ AssertionError: expected Set{ …(3) } to deeply equal Set{ '996a1dc5-9b5b-40b3-9b8a-0a567c…' }
+[NC-P4C-12b] CAUGHT · restored byte-identical · [binding counted as multiple sends] UI: the case counts distinct captured messages, not binding rows
+    exit 1 · Tests  1 failed | 16 skipped (17) · npx vitest run --config vitest.config.ts tests/web/p4c.test.tsx -t one message bound to two reported items is one message
+      × one message bound to two reported items is one message, not two transmissions; an operator-reported "as sent" record shows its limited posture
+      FAIL  tests/web/p4c.test.tsx > P4C case correspondence UI > one message bound to two reported items is one message, not two transmissions; an operator-reported "as sent" record shows its limited posture
+        ↳ AssertionError: expected '2 captured messages' to be '1 captured message' // Object.is equality
+[NC-P4C-13a] CAUGHT · restored byte-identical · [copied-text hash presented as raw MIME] UI: the body hash is labelled as the hash of the recorded body text
+    exit 1 · Tests  1 failed | 16 skipped (17) · npx vitest run --config vitest.config.ts tests/web/p4c.test.tsx -t shows Occurred apart from Recorded in TB
+      × shows Occurred apart from Recorded in TB, never substitutes the raw header date, and labels the hash as the hash of the recorded body text
+      FAIL  tests/web/p4c.test.tsx > P4C correspondence registry UI > shows Occurred apart from Recorded in TB, never substitutes the raw header date, and labels the hash as the hash of the recorded body text
+        ↳ Error: no dt with text SHA-256 of the recorded body text
+[NC-P4C-13b] CAUGHT · restored byte-identical · [copied-text hash presented as raw MIME] server: the copied-text digest never becomes the message’s source identity
+    exit 1 · Tests  1 failed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t stores every supplied field exactly
+      × stores every supplied field exactly (no trimming, case folding, newline or Unicode normalization); bodySha256 is SHA-256 of the exact UTF-8 body; no ETag; get and list read it back
+      FAIL  tests/db/p4c-http.test.ts > CAPTURE — one recorded communication, exactly as supplied > stores every supplied field exactly (no trimming, case folding, newline or Unicode normalization); bodySha256 is SHA-256 of the exact UTF-8 body; no ETag; get and list read it back
+        ↳ AssertionError: expected { …(24) } to deeply equal { …(24) }
+    exit 1 · Tests  1 failed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t no deduplication by Message-ID, subject, addresses or dates
+      × no deduplication by Message-ID, subject, addresses or dates: identical metadata captured twice is two records; sourceIdentityHash stays null
+      FAIL  tests/db/p4c-http.test.ts > CAPTURE — one recorded communication, exactly as supplied > no deduplication by Message-ID, subject, addresses or dates: identical metadata captured twice is two records; sourceIdentityHash stays null
+        ↳ AssertionError: {"error":{"code":"INTERNAL_ERROR","message":"The server could not complete the request.","details":{},"requestId":"120e3409-9dca-4292-a431-b04120587d9e"}}: expected 500 to be 201 // Object.is equality
+[NC-P4C-14a] CAUGHT · restored byte-identical · [occurredAt inferred from createdAt/headerDateRaw] server: occurredAt is never parsed from the raw header date
+    exit 1 · Tests  1 failed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t createdAt is the ingestion instant only
+      × createdAt is the ingestion instant only; occurredAt is stored only as supplied; headerDateRaw is raw text, never parsed into occurredAt
+      FAIL  tests/db/p4c-http.test.ts > CAPTURE — one recorded communication, exactly as supplied > createdAt is the ingestion instant only; occurredAt is stored only as supplied; headerDateRaw is raw text, never parsed into occurredAt
+        ↳ AssertionError: expected '2026-09-01T03:15:09.000Z' to be null
+[NC-P4C-14b] CAUGHT · restored byte-identical · [occurredAt inferred from createdAt/headerDateRaw] server: occurredAt is never taken from the ingestion instant
+    exit 1 · Tests  1 failed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t createdAt is the ingestion instant only
+      × createdAt is the ingestion instant only; occurredAt is stored only as supplied; headerDateRaw is raw text, never parsed into occurredAt
+      FAIL  tests/db/p4c-http.test.ts > CAPTURE — one recorded communication, exactly as supplied > createdAt is the ingestion instant only; occurredAt is stored only as supplied; headerDateRaw is raw text, never parsed into occurredAt
+        ↳ AssertionError: expected '2026-09-23T09:00:00.000Z' to be null
+[NC-P4C-14c] CAUGHT · restored byte-identical · [occurredAt inferred from createdAt/headerDateRaw] UI: an empty "Occurred at" sends no occurredAt
+    exit 1 · Tests  1 failed | 16 skipped (17) · npx vitest run --config vitest.config.ts tests/web/p4c.test.tsx -t captures a message exactly as typed
+      × captures a message exactly as typed — nothing trimmed or normalized — with no default direction or capture mode; nothing else is requested
+      FAIL  tests/web/p4c.test.tsx > P4C correspondence registry UI > captures a message exactly as typed — nothing trimmed or normalized — with no default direction or capture mode; nothing else is requested
+        ↳ AssertionError: expected { …(11) } to deeply equal { …(10) }
+[NC-P4C-15] CAUGHT · restored byte-identical · [timestamp storability bypass] an occurredAt the database cannot store exactly is refused (422) before any claim or write
+    exit 1 · Tests  1 failed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t occurredAt the database cannot store exactly is refused
+      × occurredAt the database cannot store exactly is refused before any claim or write (R7): leap second, sub-millisecond digits, out of range
+      FAIL  tests/db/p4c-http.test.ts > CAPTURE — one recorded communication, exactly as supplied > occurredAt the database cannot store exactly is refused before any claim or write (R7): leap second, sub-millisecond digits, out of range
+        ↳ AssertionError: 2026-06-30T23:59:60Z: expected [ 500, 'INTERNAL_ERROR' ] to deeply equal [ 422, 'VALIDATION_FAILED' ]
+    exit 1 · Tests  1 failed | 13 skipped (14) · npx vitest run --config vitest.config.ts tests/api/correspondence-rules.test.ts -t occurredAt follows the shared storability rule
+      × occurredAt follows the shared storability rule; headerDateRaw is raw text and never checked as a date
+      FAIL  tests/api/correspondence-rules.test.ts > body text — exact, digest of the recorded text only > occurredAt follows the shared storability rule; headerDateRaw is raw text and never checked as a date
+        ↳ AssertionError: expected undefined to be 'VALIDATION_FAILED' // Object.is equality
+[NC-P4C-16a] CAUGHT · restored byte-identical · [audit stores full private body] the capture audit keeps the body text only as its length (redacted field)
+    exit 1 · Tests  1 failed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t audit: one CORRESPONDENCE_CAPTURED event
+      × audit: one CORRESPONDENCE_CAPTURED event with identifiers, modes, the body hash and lengths only — no body, subject, Message-ID, address, header date, limitation or file name
+      FAIL  tests/db/p4c-http.test.ts > CAPTURE — one recorded communication, exactly as supplied > audit: one CORRESPONDENCE_CAPTURED event with identifiers, modes, the body hash and lengths only — no body, subject, Message-ID, address, header date, limitation or file name
+        ↳ AssertionError: expected { …(20) } to match object { …(12) }
+    exit 1 · Tests  1 failed | 13 skipped (14) · npx vitest run --config vitest.config.ts tests/api/correspondence-rules.test.ts -t identifiers, modes, the body hash and lengths only
+      × identifiers, modes, the body hash and lengths only — no body, subject, address or file name
+      FAIL  tests/api/correspondence-rules.test.ts > the capture audit record keeps no private content > identifiers, modes, the body hash and lengths only — no body, subject, address or file name
+        ↳ AssertionError: SYNTHETIC private body text: expected '{"agencyId":"0f8fad5b-d9cb-469f-a165-…' not to contain 'SYNTHETIC private body text'
+[NC-P4C-16b] CAUGHT · restored byte-identical · [audit stores full private body] the capture audit record carries no copy of the body under another key
+    exit 1 · Tests  1 failed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t audit: one CORRESPONDENCE_CAPTURED event
+      × audit: one CORRESPONDENCE_CAPTURED event with identifiers, modes, the body hash and lengths only — no body, subject, Message-ID, address, header date, limitation or file name
+      FAIL  tests/db/p4c-http.test.ts > CAPTURE — one recorded communication, exactly as supplied > audit: one CORRESPONDENCE_CAPTURED event with identifiers, modes, the body hash and lengths only — no body, subject, Message-ID, address, header date, limitation or file name
+        ↳ AssertionError: SYNTHETIC private body — do not copy: expected '{"id":"69c29fbe-5add-404b-ad10-46732b…' not to contain 'SYNTHETIC private body — do not copy'
+    exit 1 · Tests  1 failed | 13 skipped (14) · npx vitest run --config vitest.config.ts tests/api/correspondence-rules.test.ts -t identifiers, modes, the body hash and lengths only
+      × identifiers, modes, the body hash and lengths only — no body, subject, address or file name
+      FAIL  tests/api/correspondence-rules.test.ts > the capture audit record keeps no private content > identifiers, modes, the body hash and lengths only — no body, subject, address or file name
+        ↳ AssertionError: SYNTHETIC private body text: expected '{"agencyId":"0f8fad5b-d9cb-469f-a165-…' not to contain 'SYNTHETIC private body text'
+[NC-P4C-16c] CAUGHT · restored byte-identical · [audit stores full private body] the binding audit keeps the interpretation only as its length
+    exit 1 · Tests  1 failed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t bind an NMI: exactly as supplied
+      × bind an NMI: exactly as supplied, no ETag; the case version and context revision move once; audited with the interpretation as its length; listed
+      FAIL  tests/db/p4c-http.test.ts > BINDINGS — explicit, append-only interpretations of one captured message for one case > bind an NMI: exactly as supplied, no ETag; the case version and context revision move once; audited with the interpretation as its length; listed
+        ↳ AssertionError: expected { …(11) } to match object { Object (action, entityType, ...) }
+[NC-P4C-17a] CAUGHT · restored byte-identical · [read causes writes] listing a case’s bindings writes nothing (no version move)
+    exit 1 · Tests  1 failed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t context revision: a capture changes no case
+      × context revision: a capture changes no case; a binding moves only its case, once; reads and refused writes change nothing
+      FAIL  tests/db/p4c-http.test.ts > BINDINGS — explicit, append-only interpretations of one captured message for one case > context revision: a capture changes no case; a binding moves only its case, once; reads and refused writes change nothing
+        ↳ AssertionError: expected { Object (idempotency_records, audit_events, ...) } to deeply equal { Object (idempotency_records, audit_events, ...) }
+    exit 1 · Tests  1 failed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t no reply after an AS_SENT binding creates no outcome
+      × no reply after an AS_SENT binding creates no outcome: after thirty days of silence the case has exactly the bindings the operator recorded
+      FAIL  tests/db/p4c-http.test.ts > TRANSMISSION AND OUTCOME — nothing is sent, and nothing is inferred > no reply after an AS_SENT binding creates no outcome: after thirty days of silence the case has exactly the bindings the operator recorded
+        ↳ AssertionError: expected { …(24) } to deeply equal { …(24) }
+[NC-P4C-17b] CAUGHT · restored byte-identical · [read causes writes] reading a captured message writes nothing (no read-marking)
+    exit 1 · Tests  1 failed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t context revision: a capture changes no case
+      × context revision: a capture changes no case; a binding moves only its case, once; reads and refused writes change nothing
+      FAIL  tests/db/p4c-http.test.ts > BINDINGS — explicit, append-only interpretations of one captured message for one case > context revision: a capture changes no case; a binding moves only its case, once; reads and refused writes change nothing
+        ↳ AssertionError: expected { Object (idempotency_records, audit_events, ...) } to deeply equal { Object (idempotency_records, audit_events, ...) }
+[NC-P4C-18a] CAUGHT · restored byte-identical · [stale ETag ignored] a binding needs the case’s current ETag: a stale version the client states is 412
+    exit 1 · Tests  1 failed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t If-Match: missing 428, stale 412
+      × the case’s If-Match: missing 428, stale 412, another record’s ETag 412; an archived case is read-only (409); nothing is written
+      FAIL  tests/db/p4c-http.test.ts > BINDINGS — explicit, append-only interpretations of one captured message for one case > the case’s If-Match: missing 428, stale 412, another record’s ETag 412; an archived case is read-only (409); nothing is written
+        ↳ AssertionError: expected [ 201, '(no error: HTTP 201)' ] to deeply equal [ 412, 'RECORD_VERSION_CONFLICT' ]
+[NC-P4C-18b] CAUGHT · restored byte-identical · [stale ETag ignored] the binding write checks the case precondition at all (the executor refuses an unchecked target)
+    exit 1 · Tests  1 failed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t If-Match: missing 428, stale 412
+      × the case’s If-Match: missing 428, stale 412, another record’s ETag 412; an archived case is read-only (409); nothing is written
+      FAIL  tests/db/p4c-http.test.ts > BINDINGS — explicit, append-only interpretations of one captured message for one case > the case’s If-Match: missing 428, stale 412, another record’s ETag 412; an archived case is read-only (409); nothing is written
+        ↳ AssertionError: {"error":{"code":"INTERNAL_ERROR","message":"The server could not complete the request.","details":{},"requestId":"023226c5-5c43-4d59-acb5-9463e91877de"}}: expected 500 to be 201 // Object.is equality
+[NC-P4C-19a] CAUGHT · restored byte-identical · [idempotency replay duplicates records] a capture replay with the same Idempotency-Key returns the stored result (one row)
+    exit 1 · Tests  1 failed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t Idempotency-Key: required for both writes
+      × Idempotency-Key: required for both writes; an exact replay returns the stored result once (no second row, audit or version move); the same key with another body is 409
+      FAIL  tests/db/p4c-http.test.ts > SHARED WRITE LAYER — idempotency, concurrency and atomic audit > Idempotency-Key: required for both writes; an exact replay returns the stored result once (no second row, audit or version move); the same key with another body is 409
+        ↳ AssertionError: expected [ 201, { …(24) }, [ { …(3) } ], …(1) ] to deeply equal [ 201, { …(24) }, [ { …(3) } ], …(1) ]
+[NC-P4C-19b] CAUGHT · restored byte-identical · [idempotency replay duplicates records] a binding replay with the same Idempotency-Key returns the stored result (one row)
+    exit 1 · Tests  1 failed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t Idempotency-Key: required for both writes
+      × Idempotency-Key: required for both writes; an exact replay returns the stored result once (no second row, audit or version move); the same key with another body is 409
+      FAIL  tests/db/p4c-http.test.ts > SHARED WRITE LAYER — idempotency, concurrency and atomic audit > Idempotency-Key: required for both writes; an exact replay returns the stored result once (no second row, audit or version move); the same key with another body is 409
+        ↳ AssertionError: expected [ Array(4) ] to deeply equal [ 201, { …(12) }, …(2) ]
+[NC-P4C-20] CAUGHT · restored byte-identical · [UI renders HTML as executable markup] captured text is rendered as plain text, never as HTML
+    exit 1 · Tests  1 failed | 16 skipped (17) · npx vitest run --config vitest.config.ts tests/web/p4c.test.tsx -t HTML, script and instruction-like captured text is shown inert
+      × HTML, script and instruction-like captured text is shown inert, as plain text
+      FAIL  tests/web/p4c.test.tsx > P4C correspondence registry UI > HTML, script and instruction-like captured text is shown inert, as plain text
+        ↳ AssertionError: expected 3 to be +0 // Object.is equality
+[NC-P4C-21a] CAUGHT · restored byte-identical · [UI exposes a send action] the captured-message page offers no send or reply action
+    exit 1 · Tests  1 failed | 16 skipped (17) · npx vitest run --config vitest.config.ts tests/web/p4c.test.tsx -t captures a message exactly as typed
+      × captures a message exactly as typed — nothing trimmed or normalized — with no default direction or capture mode; nothing else is requested
+      FAIL  tests/web/p4c.test.tsx > P4C correspondence registry UI > captures a message exactly as typed — nothing trimmed or normalized — with no default direction or capture mode; nothing else is requested
+        ↳ AssertionError: expected [ 'Send reply' ] to deeply equal []
+    exit 1 · Tests  1 failed | 16 skipped (17) · npx vitest run --config vitest.config.ts tests/web/p4c.test.tsx -t HTML, script and instruction-like captured text is shown inert
+      × HTML, script and instruction-like captured text is shown inert, as plain text
+      FAIL  tests/web/p4c.test.tsx > P4C correspondence registry UI > HTML, script and instruction-like captured text is shown inert, as plain text
+        ↳ AssertionError: expected [ 'Send reply' ] to deeply equal []
+[NC-P4C-21b] CAUGHT · restored byte-identical · [UI exposes a send action] the case correspondence history offers no send action
+    exit 1 · Tests  1 failed | 16 skipped (17) · npx vitest run --config vitest.config.ts tests/web/p4c.test.tsx -t binds a captured message with the case ETag
+      × binds a captured message with the case ETag; the event is chosen explicitly — nothing is preselected from an outbound direction or a subject — and the history shows the "as sent" copy
+      FAIL  tests/web/p4c.test.tsx > P4C case correspondence UI > binds a captured message with the case ETag; the event is chosen explicitly — nothing is preselected from an outbound direction or a subject — and the history shows the "as sent" copy
+        ↳ AssertionError: expected [ 'Send to the uploader' ] to deeply equal []
+[NC-P4C-22] CAUGHT · restored byte-identical · [external action on capture (extra)] a capture makes no outbound connection and calls no fetch (loopback target, nothing leaves the host)
+    exit 1 · Tests  1 failed | 39 skipped (40) · node scripts/db/run-db-tests.mjs tests/db/p4c-http.test.ts -t capture and bind make no outbound connection
+      × capture and bind make no outbound connection and call no fetch, even with addresses and links in the message
+      FAIL  tests/db/p4c-http.test.ts > TRANSMISSION AND OUTCOME — nothing is sent, and nothing is inferred > capture and bind make no outbound connection and call no fetch, even with addresses and links in the message
+        ↳ AssertionError: expected 1 to be +0 // Object.is equality
+    exit 1 · Tests  1 failed | 13 skipped (14) · npx vitest run --config vitest.config.ts tests/api/correspondence-rules.test.ts -t imports only the shared write layer
+      × imports only the shared write layer, contracts and its sibling case and source rules
+      FAIL  tests/api/correspondence-rules.test.ts > capture is not a send: the correspondence module has no network, mail, Drive or process client > imports only the shared write layer, contracts and its sibling case and source rules
+        ↳ AssertionError: correspondence.service.ts: expected 'import { randomUUID } from \'node:cry…' not to match /from ['"](node:)?(http|https|http2|n…/i
+# end 2026-09-25T13:02:08.869Z — tree fingerprint e0bf58fad4aed156b6fe73ea37585a8190043f7fc9bd77fd89fa40e092d28236 (identical)
+38 controls, 38 caught and restored, 0 problems
+runner-exit=0

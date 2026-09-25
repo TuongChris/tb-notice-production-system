@@ -4,10 +4,10 @@
 |---|---|
 | Release | **TB-SCHEMA-API-v1.2.0** — additive (semantic minor) |
 | Base | **TB-SCHEMA-API-v1.1.0** (`docs/contracts/TB-SCHEMA-API-v1.1.0`, ADR-0004, accepted at R8 final; record sha256 `2f4df697…85`), which is the frozen TB-SCHEMA-API-v1.0.0 reference plus its amendment. The frozen pack `docs/reference/database-api-v1/TB_DATABASE_SCHEMA_API_CONTRACT_v1` is never edited. |
-| Decision | `docs/decisions/ADR-0005-tb-schema-api-v1-2-0-case-fact-sources-read.md` — **PROPOSED** (R9 remediation), for the operator's review at gate R9 final |
+| Decision | `docs/decisions/ADR-0005-tb-schema-api-v1-2-0-case-fact-sources-read.md` — **ACCEPTED** (operator, 2026-09-25, review gate R9 final = PASS); this release is the **active** wire contract, merged into `main` by pull request #5 (merge commit `d2b6f00`) |
 | Recorded | 2026-09-25, R9 remediation (mission TB_R9_FACT_SOURCE_READBACK_REMEDIATION_TO_R9_FINAL) |
 | Record | `amendment.json` (this folder), sha256 `b5cae658a3f47639500e2220e4a91fcfb81c34972d8426a4fa9fd1146cdbc294` |
-| Verification | `docs/verification/p4b/P4B_CASE_INTAKE.md` §25 (R9 remediation; evidence `docs/verification/p4b/evidence/r9-*`) |
+| Verification | `docs/verification/p4b/P4B_CASE_INTAKE.md` §25 (R9 remediation; evidence `docs/verification/p4b/evidence/r9-*`) and §26 (R9 final, merge) |
 
 The wire contract of this release is TB-SCHEMA-API-v1.1.0, unchanged, plus exactly the amendment recorded here. The generated artifacts `packages/contracts/schemas/api-schemas.json` and `packages/contracts/openapi/openapi.{json,yaml}` are the release's documents. Their digests are in `amendment.json` (`result.files`).
 
@@ -77,4 +77,4 @@ Additive only. No existing operation, path, parameter, schema, required field, e
 
 ## Record integrity
 
-`amendment.json` is the release record proposed with ADR-0005 for R9 final. It was written once for this release from the reviewed source change and the accepted v1.1.0 record, and its correctness is proven by the composition tests above, not by a generator. Once accepted it is never edited: its digest is pinned in `tests/contracts/release-v1-2-0.test.ts`. A later wire change is a new release with its own record and ADR.
+`amendment.json` is the reviewed release record, accepted with ADR-0005 at R9 final. It was written once for this release from the reviewed source change and the accepted v1.1.0 record, and its correctness is proven by the composition tests above, not by a generator. It is never edited: its digest is pinned in `tests/contracts/release-v1-2-0.test.ts`. A later wire change is a new release with its own record and ADR.

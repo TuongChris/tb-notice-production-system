@@ -202,6 +202,65 @@ export const BOUNDARY_CONVENTION_LABEL: Record<string, string> = {
   INCLUSIVE: 'Start and end included',
 };
 
+/**
+ * Correspondence (P4C). The capture posture says how a message was captured. The postures are not
+ * equivalent and are never upgraded; none of them verifies the message, its sending or receipt.
+ */
+export const CAPTURE_MODE_LABEL = {
+  RAW_SOURCE: 'Raw source captured',
+  COPIED_FULL_TEXT: 'Copied full text',
+  EXCERPT: 'Excerpt',
+  OPERATOR_REPORTED: 'Operator reported',
+} as const;
+/** What the recorded body text is, as entered. */
+export const BODY_ROLE_LABEL = {
+  FULL_MESSAGE: 'Full message',
+  AUTHORED_BODY: 'Authored body only',
+  QUOTED_HISTORY: 'Quoted history',
+  EXCERPT: 'Excerpt',
+  UNKNOWN: 'Unknown',
+} as const;
+/** Which way a message is recorded as going, relative to the mailbox — not proof of either. */
+export const DIRECTION_LABEL = { INBOUND: 'Inbound', OUTBOUND: 'Outbound' } as const;
+/** An attachment observation as recorded — never the attachment itself or proof it was attached. */
+export const ATTACHMENT_STATE_LABEL = {
+  OBSERVED_IN_RAW_MIME: 'Recorded as observed in the raw message',
+  COPIED_TEXT_ALLEGATION: 'Mentioned in copied text only',
+  UNKNOWN: 'Unknown',
+} as const;
+/**
+ * What a binding records a captured message as, for one case: past events, never commands. An
+ * "as sent" event is a transmission recorded as having happened; recording it sends nothing.
+ */
+export const CORRESPONDENCE_EVENT_LABEL = {
+  INITIAL_AS_SENT: 'Initial notice (recorded as sent)',
+  ACK: 'Acknowledgement',
+  NMI: 'Request for more information (NMI)',
+  REPLY_AS_SENT: 'Reply (recorded as sent)',
+  SUPPLEMENT_AS_SENT: 'Supplement (recorded as sent)',
+  CORRECTION_AS_SENT: 'Correction notice (recorded as sent)',
+  OUTCOME: 'Outcome',
+  OTHER: 'Other',
+} as const;
+/** A recorded outcome for one reported item — as recorded, not the platform's present status. */
+export const OUTCOME_LABEL = {
+  REMOVED: 'Removed',
+  REINSTATED: 'Reinstated',
+  REJECTED: 'Rejected',
+  RETRACTED: 'Retracted',
+  OTHER: 'Other',
+} as const;
+
+/** Why a capture's posture was refused (CAPTURE_POSTURE_UNSUPPORTED reasons). */
+const CAPTURE_POSTURE_REASON_TEXT: Record<string, string> = {
+  RAW_SOURCE_NOT_REFERENCED:
+    'A raw-source capture names the source record of the raw message file. Choose it, or choose the capture mode that describes what you have.',
+  RAW_MIME_NOT_REFERENCED:
+    'An attachment recorded as observed in the raw message needs the source record of that raw message. Choose it, or record the attachment as you actually saw it.',
+  EXCERPT_NOT_FULL_MESSAGE:
+    'An excerpt is not the full message. Choose the body role that describes the recorded text.',
+};
+
 /** Why a reported item address was refused (REPORTED_URL_UNSUPPORTED reasons). */
 const REPORTED_URL_REASON_TEXT: Record<string, string> = {
   UNPARSEABLE: 'That text could not be read as a web address.',
@@ -443,6 +502,9 @@ export function describeError(error: unknown, recordLabel = 'record'): string {
     case 'REFERENCE_NOT_FOUND':
       return 'A referenced record no longer exists. Reload and choose again.';
     case 'CROSS_AGENCY_REFERENCE':
+      if (details['field'] === 'correspondenceId') {
+        return 'That message was captured for another agency. A case binds only correspondence captured for its own agency.';
+      }
       if (recordLabel === 'case') {
         const field = typeof details['field'] === 'string' ? details['field'] : '';
         if (field === 'routeId') {
@@ -488,6 +550,9 @@ export function describeError(error: unknown, recordLabel = 'record'): string {
       }
       return 'That source is already recorded as another owner’s material, so it cannot be used for this owner.';
     case 'CROSS_CASE_REFERENCE':
+      if (details['field'] === 'supersedesBindingId') {
+        return 'That binding belongs to another case. A corrected interpretation names an earlier binding of this same case.';
+      }
       if (isCaseRecordField(typeof details['field'] === 'string' ? details['field'] : '')) {
         return 'That record belongs to another case. A case uses only its own works, reported items, use mappings and linked sources.';
       }
@@ -528,6 +593,9 @@ export function describeError(error: unknown, recordLabel = 'record'): string {
       }
       return 'A newer revision of this source exists. Only the current revision can be revised.';
     case 'REVISION_SCOPE_CHANGE':
+      if (stringList(details['fields']).includes('correspondenceId')) {
+        return 'A corrected interpretation keeps the captured message of the binding it corrects. Another message needs its own binding.';
+      }
       if (recordLabel === 'fact') {
         return 'A revision keeps the fact’s type and scope. A different type or scope needs a new fact.';
       }
@@ -593,6 +661,15 @@ export function describeError(error: unknown, recordLabel = 'record'): string {
       return 'This version already has a coverage with that label for that route.';
     case 'DUPLICATE_COVERAGE_SIGNER':
       return 'That signer is already recorded under this coverage in that capacity.';
+    case 'CAPTURE_POSTURE_UNSUPPORTED':
+      return (
+        CAPTURE_POSTURE_REASON_TEXT[String(details['reason'])] ??
+        'The capture posture contradicts what was recorded. Choose the capture mode and body role that describe what you have.'
+      );
+    case 'OUTCOME_ITEM_REQUIRED':
+      return 'An outcome is recorded for one reported item of this case. Choose the reported item; for several videos, record one binding per item.';
+    case 'BINDING_ALREADY_SUPERSEDED':
+      return 'That binding already has a corrected interpretation. A binding history does not fork: correct the latest binding instead.';
     case 'EVENT_ALREADY_SUPERSEDED':
       return 'That event already has a successor. An event history does not fork: supersede the latest event instead.';
     case 'IDEMPOTENCY_IN_PROGRESS':
