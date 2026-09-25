@@ -1,20 +1,22 @@
 # P4A — Case core and case authority selection (home PC)
 
-Mission TB_P4A_CASE_CORE_AND_AUTHORITY_SELECTION_TO_R8 on `feature/p4a-case-core`, branched from the post-P3B `main` head `3649bef` and started at the R7 closeout head `b97ac13`. Recorded 2026-09-24 (UTC) on the home PC, the primary development workstation (ADR-0003). The mission stops at review gate **R8** and is submitted as **PENDING**. Every later case phase was **not started**: no ReportedItem, CaseWork, UseMapping, CaseFact, audiovisual evidence conclusion, permission or exception finding, correspondence, PromptSnapshot, NoticeCandidate, ValidationRun workflow, CandidateAssessment, readiness gate, G1–G7, READY_FOR_SIGNER, signature, adoption, sending, retraction, counter-notification, uploader contact, Drive write, mailbox or other external action exists.
+Mission TB_P4A_CASE_CORE_AND_AUTHORITY_SELECTION_TO_R8 on `feature/p4a-case-core`, branched from the post-P3B `main` head `3649bef` and started at the R7 closeout head `b97ac13`. Recorded 2026-09-24 (UTC) on the home PC, the primary development workstation (ADR-0003). The mission stopped at review gate **R8**, submitted at `7a11ce4`. Every later case phase was **not started**: no ReportedItem, CaseWork, UseMapping, CaseFact, audiovisual evidence conclusion, permission or exception finding, correspondence, PromptSnapshot, NoticeCandidate, ValidationRun workflow, CandidateAssessment, readiness gate, G1–G7, READY_FOR_SIGNER, signature, adoption, sending, retraction, counter-notification, uploader contact, Drive write, mailbox or other external action exists.
+
+**R8 result (operator, 2026-09-25): PASS_WITH_ONE_CONTRACT_REMEDIATION.** The implementation, tests, browser verification, negative controls and CI were accepted. The one blocker was the CaseAuthorityCoverage read-back gap (§9). It is remediated by the mission TB_R8_CASE_AUTHORITY_SELECTION_READBACK_REMEDIATION (2026-09-25): the additive contract release **TB-SCHEMA-API-v1.1.0** (ADR-0004, PROPOSED) and its one new read, `getCaseAuthoritySelection` (§21). The remediation is submitted for **R8 final (PENDING)**. There is no merge and no P4B.
 
 ## Status by scope (not collapsed)
 
 | Scope | Status | Basis |
 |---|---|---|
-| **P4A_FIRST_PC** | **PASS** | All automated checks in §14 executed on the home PC and passed; lint **0 warnings** |
-| **P4A_CI** | **PASS** for the code head `61164fa` (push run 36028683469, both jobs success, `smoke:p4a` 47 checks) | CI runs `yarn test`, `yarn test:db`, `smoke:local`, `smoke:auth`, `smoke:directory`, `smoke:p3a`, `smoke:p3b` and the new compiled `smoke:p4a` flow (§14). A commit cannot record its own run; the run of the submitted head (the test-only commit `6330aeb` plus this documentation) is reported with R8 |
-| **P4A_BROWSER (Playwright MCP)** | **PASS** 23/23 (mission §34); three UI findings found and fixed (F1–F3, §12) | Isolated test browser against the compiled API on the disposable `tb_notice_test` (`evidence/p4a-playwright-mcp-verification.txt`) |
-| **P4A_NEGATIVE_CONTROLS** | **PASS** 24/24 | Every disabled protection made its responsible tests fail; files restored byte-identically (§13, `evidence/p4a-negative-controls.txt`) |
-| **R8 review** | **PENDING** | Submitted with this report |
+| **P4A_FIRST_PC** | **PASS** | All automated checks in §14 executed on the home PC and passed; lint **0 warnings**. The R8 remediation sweep on the code head `ab56139`: 21 of 21 steps passed (§21.11) |
+| **P4A_CI** | **PASS** for the code head `61164fa` (push run 36028683469, `smoke:p4a` 47 checks), the R8 submission head `7a11ce4` (push run 36030891042), and the R8 remediation heads `e745a20` (push run 36082079759) and `ab56139` (push run 36083151963, both jobs success, `smoke:p4a` 50 checks) | CI runs `yarn test`, `yarn test:db`, `smoke:local`, `smoke:auth`, `smoke:directory`, `smoke:p3a`, `smoke:p3b` and the compiled `smoke:p4a` flow (§14, §21.11). A commit cannot record its own run, so the run of the documentation head is reported with R8 final |
+| **P4A_BROWSER (Playwright MCP)** | **PASS** 23/23 (mission §34); three UI findings found and fixed (F1–F3, §12). R8 read-back **PASS** 12/12; one layout finding found and fixed (F4, §21.9) | Isolated test browser against the compiled API on the disposable `tb_notice_test` (`evidence/p4a-playwright-mcp-verification.txt`, `evidence/r8-playwright-mcp-verification.txt`) |
+| **P4A_NEGATIVE_CONTROLS** | **PASS** 24/24; R8 **PASS** 17/17, and the 24 P4A controls again 24/24 on the final code (§21.10) | Every disabled protection made its responsible tests fail; files restored byte-identically (§13, `evidence/p4a-negative-controls.txt`, `evidence/r8-negative-controls.txt`) |
+| **R8 review** | **PASS_WITH_ONE_CONTRACT_REMEDIATION** (operator, 2026-09-25). The remediation is **IMPLEMENTED AND VERIFIED** and submitted for **R8 final — PENDING** | §21 |
 | **P1_WINDOWS_BROWSER** | **NOT_RUN** (not reported) | Unchanged |
 | **P0_SECOND_PC** / **P0_TWO_PC_ACCEPTANCE** / **P0_SINGLE_PC_BASELINE** / **P0_OVERALL** | **DEFERRED_BY_OPERATOR** / **NOT_COMPLETED** / **VERIFIED** / **NOT_COMPLETE** against the original two-PC contract | ADR-0003; unchanged by P4A |
 
-`EXTERNAL_LEGAL_ACTIONS=0` · `REAL_CASE_DATA=0` · `G1_DECISIONS=0` · `G7_CREATED=0` · `READINESS_COMPUTED=0` · `DRIVE_WRITES=0` · `DEPLOYMENTS=0` · `REAL_TB_DATA_IN_GIT=0` · `REAL_ACCOUNTS_CREATED_BY_ENGINEER=0` · `RECORDS_WRITTEN_TO_OPERATOR_DB=0` · `SCHEMA_CHANGES=0` · `WIRE_CONTRACT_CHANGES=0` · `NEW_DEPENDENCIES=0`.
+`EXTERNAL_LEGAL_ACTIONS=0` · `REAL_CASE_DATA=0` · `G1_DECISIONS=0` · `G7_CREATED=0` · `READINESS_COMPUTED=0` · `DRIVE_WRITES=0` · `DEPLOYMENTS=0` · `REAL_TB_DATA_IN_GIT=0` · `REAL_ACCOUNTS_CREATED_BY_ENGINEER=0` · `RECORDS_WRITTEN_TO_OPERATOR_DB=0` · `SCHEMA_CHANGES=0` · `WIRE_CONTRACT_CHANGES=1` (the R8 remediation only: the additive release TB-SCHEMA-API-v1.1.0 with one read and two schemas, ADR-0004, §21; P4A itself made none) · `FROZEN_REFERENCE_CHANGES=0` · `NEW_DEPENDENCIES=0`.
 
 Persistent rules established by P4A (recorded in `CLAUDE.md`):
 
@@ -55,6 +57,8 @@ Read from the active contract metadata (`packages/contracts/src/api/operations.t
 Every P4A write declares 400/401/403/404/409/412/413/422/428/429/500 (the two creates without a precondition omit 412/428); reads declare 400/401/403/404/409/413/422/429/500. The other 29 operations under `/cases/…` (reported items, case works, use mappings, case facts, correspondence bindings, production context, prompts, candidates) stay unrouted.
 
 **Contract gap (reported for R8, not worked around).** `CaseAuthorityCoverage` is defined in the schema catalog, but no contracted response contains it: `CaseAuthoritySelection` and its page carry the selection row only. `selectCaseAuthority` pins the chosen coverages in `case_authority_coverages` (the IDs of the created rows appear in the response's `meta.affectedResources`), but no operation reads a past selection's coverages back. The UI can therefore show a selection's chosen chain while it is being made, and for history only the contracted selection fields. Reading pinned coverages back needs an approved contract amendment; no wire change is made here.
+
+**Resolved at the R8 remediation (§21).** The additive release TB-SCHEMA-API-v1.1.0 adds a 17th case operation, `getCaseAuthoritySelection` — GET `/cases/{caseId}/authority-selections/{id}` → 200 `GetCaseAuthoritySelectionResponse`. It has no ETag, no If-Match and no Idempotency-Key, and it mutates nothing. The table above stays the P4A (v1.0.0) scope.
 
 ### 1.2 Design decisions (service level; the contract is silent on them)
 
@@ -179,13 +183,17 @@ One rule set (`modules/sources/source-scope.ts`) serves every case citation — 
 - **Checks** (all under the case's `If-Match`; every refusal writes nothing): the case is unarchived and has a bound route; `routeId` equals it (422 `AUTHORITY_SCOPE_UNRESOLVED` CASE_ROUTE_UNBOUND / NOT_CASE_ROUTE), unarchived and LINKED with usable parties (409). The signer exists, acts for the case's agency (422 `CROSS_AGENCY_REFERENCE`) and is neither archived nor ENDED (409). Each of 1–20 distinct coverages exists, belongs to the case's agency (422 `CROSS_AGENCY_REFERENCE`), names the case's route (422 `AUTHORITY_SCOPE_UNRESOLVED` OTHER_ROUTE), sits in a FROZEN version (409 `VERSION_NOT_FROZEN`) of an unarchived mandate of an unarchived agency (409), and records the signer as a CoverageSigner (422 `AUTHORITY_SCOPE_UNRESOLVED` SIGNER_NOT_RECORDED). The optional basis source applies to the case (§7).
 - **No currentness.** Dates, expiry, UNTIL_TERMINATED, a freeze, "latest" and the absence of events are not evaluated; an expired or superseded frozen version is pinned exactly as chosen (test "no currentness…"). `taskType` is recorded as supplied; no mapping to the coverage's action-scope vocabulary is invented.
 - **Effect.** One append-only selection row and one CaseAuthorityCoverage row per chosen coverage (§9); the case's `currentAuthoritySelectionId` moves to it with `rowVersion` and `contextRevision` +1. No authority record changes — mandate, version, coverage, coverage signer, signer and route keep their row versions (test, NC-11a). The selection has no ETag and no update or delete.
-- **History.** `listCaseAuthoritySelections` lists every selection of the case, newest first; the UI marks the one the case points to as "In use for evaluation" and the others as "Earlier selection". Earlier selections and their pinned coverage rows never change (NC-06a), and a case with history keeps its route (NC-06b).
+- **History.** `listCaseAuthoritySelections` lists every selection of the case, newest first; the UI marks the one the case points to as "In use for evaluation" and the others as "Earlier selection". Earlier selections and their pinned coverage rows never change (NC-06a), and a case with history keeps its route (NC-06b). Since the R8 remediation each selection opens its read-back with the exact coverage rows it pinned (`getCaseAuthoritySelection`, §21).
 
 ## 9. CaseAuthorityCoverage
 
 - One row per chosen coverage, created only by `selectCaseAuthority`: the selection, the exact `coverageId` and the `applicationScope` stored exactly as entered. Each coverage keeps its own application scope; nothing is combined, unioned or computed.
 - Rows are never updated or deleted; a newer version or coverage never re-points them (test "exact ids stay pinned…").
 - **Contract gap (reported, not worked around).** No contracted operation reads these rows back: `CaseAuthoritySelection` and its page carry the selection row only; the ids of the created rows appear in the create response's `meta.affectedResources`. The UI therefore shows the chosen chain while a selection is being made and, in the history, the contracted selection fields; it states the limitation ("The coverages a selection pins are stored with it, but the contract has no operation that reads them back yet…"). The DB tests verify the rows directly. Reading them back needs an approved contract amendment.
+- **Resolved (R8 remediation, §21).**
+  - TB-SCHEMA-API-v1.1.0 adds `getCaseAuthoritySelection`. It returns one selection of the path's case together with exactly its stored CaseAuthorityCoverage rows (`coverageId` and `applicationScope` as recorded), in ascending `coverageId` order.
+  - The UI shows them on the selection's read-back page, and that page survives a reload.
+  - The limitation sentence is replaced by "Open a selection to see the exact coverage records it pinned and the application scope recorded for each."
 
 ## 10. Case isolation
 
@@ -206,7 +214,7 @@ Pages (React, no new dependency; the P2–P3B design system): **Cases** in the s
 
 - **Wording.** "A case is the boundary of its case-specific records. It is not a legal verdict…"; "A linked source is associated with this case — nothing more…"; "Selected authority record"; the prominent "This selection records which authority materials will be evaluated for this Case. It is not a G1 decision." on the case page, the selection form and its chain summary. Stamps are neutral (workflow states, Archived, In use for evaluation, Earlier selection). There is no AUTHORIZED, APPROVED, VALID AUTHORITY, CURRENT AUTHORITY, READY, ELIGIBLE, G1/G7 PASS, verified, confidence or trust label.
 - **Explicit choices.** The route picker offers only the case agency's routes (unavailable ones inert with the reason); the selection form preselects nothing — the route's default signer and preferred coverage are shown as suggestions only, draft-version coverage is counted but not offered, and coverage that does not record the chosen signer is inert with the reason; each chosen coverage needs its own application scope.
-- **Inspectable chain.** While a selection is made: Agency, Route (owner · legal subject · platform) and, for each coverage, Mandate → Version (Frozen) → Coverage with its recorded dates, action scope and recorded signers, plus a summary of the chain to be pinned. In the history (the contracted selection fields, §9): Agency, Route, the signer named, task type, intended sender, basis source with its recorded provenance, note and "Recorded by you (application user)".
+- **Inspectable chain.** While a selection is made: Agency, Route (owner · legal subject · platform) and, for each coverage, Mandate → Version (Frozen) → Coverage with its recorded dates, action scope and recorded signers, plus a summary of the chain to be pinned. In the history (the contracted selection fields, §9): Agency, Route, the signer named, task type, intended sender, basis source with its recorded provenance, note and "Recorded by you (application user)". Since the R8 remediation each history item also opens the selection's read-back page, which lists every pinned coverage with its application scope (§21.8).
 - **Unavailable actions** stay visible but inert (`aria-disabled` + reason); refusals are explained and focus moves to them.
 
 **Playwright MCP (mission §34): 23/23 PASS** on `yarn ui:sandbox` (compiled API on the disposable `tb_notice_test`, isolated headless browser, synthetic data only; rows deleted and `db:verify test --expect-empty` PASS afterwards). Details, forced-request refusals, console summary and 18 screenshots: `evidence/p4a-playwright-mcp-verification.txt`, `evidence/screenshots/`. Three findings were fixed in `b6aeeac` with web tests and negative controls, and re-verified in the browser:
@@ -236,6 +244,8 @@ Scratchpad runner (outside Git): each control disables exactly one protection by
 | browser findings | NC-15 route dialog without initial focus (F1); NC-16 the "Source" label (F2); NC-17 the hidden header (F3) |
 
 ## 14. Tests, regression and CI
+
+This section records the P4A submission. The R8 remediation adds 19 tests to `yarn test` (1247 in 33 files) and 6 to `yarn test:db` (301 in 8 files), and it re-runs every check on the final code (§21.7, §21.11).
 
 | Suite | P4A tests | Covers |
 |---|---|---|
@@ -306,8 +316,8 @@ Totals (home PC, 2026-09-24; per-file counts from JSON-reporter runs with output
 
 ## 18. Deviations, warnings and limitations
 
-- **Contract gap — CaseAuthorityCoverage is not readable** (§9). Reported for R8; no wire change was made. The UI states the limitation.
-- **Build advisory (new).** `vite build` warns that the web bundle exceeds 500 kB after minification: 548.82 kB (gzip 151.26 kB) against 495.26 kB at `d615297`, the P4A pages adding about 54 kB. It is a Vite advisory, not a lint finding or error. The limit was not raised and no code splitting was added (an architecture choice outside this mission); route-level code splitting can be decided separately.
+- **Contract gap — CaseAuthorityCoverage is not readable** (§9). Reported for R8; no wire change was made. The UI states the limitation. **Resolved by the R8 remediation** (§21): TB-SCHEMA-API-v1.1.0, `getCaseAuthoritySelection`.
+- **Build advisory (new).** `vite build` warns that the web bundle exceeds 500 kB after minification: 548.82 kB (gzip 151.26 kB) against 495.26 kB at `d615297`, the P4A pages adding about 54 kB. It is a Vite advisory, not a lint finding or error. The limit was not raised and no code splitting was added (an architecture choice outside this mission); route-level code splitting can be decided separately. After the R8 remediation the bundle is 552.78 kB (gzip 152.05 kB). As the R8 mission directs, this is recorded as a **non-blocking advisory**, and lazy loading is deferred to P4B or a separate UI task (§21.13).
 - **Pre-existing UI observations (unchanged):** the shared `ReasonDialog` focuses its Reason field even when a select precedes it (here the workflow dialog; the accepted P3A route link-state dialog behaves the same); the source picker fetches each listed source after the list; the source form's case and subject checklists briefly show "Not recorded" while loading; the list-table scroll frame of earlier phases is not itself focusable.
 - **Browser tool artefact.** Two targeted Playwright MCP snapshots showed a stale "Loading applicable sources…" view while the full snapshot and in-page evaluation showed the list loaded (§12 evidence). Not an application defect.
 - `yarn install` still reports the pre-existing YN0086 peer-dependency warning (present before P4A; lockfile unchanged).
@@ -322,3 +332,243 @@ None.
 ## 20. Proposed next phase (not started)
 
 **P4B — Case intake material** (gate R9; needs its own explicit, approved mission): the contracted ReportedItem (6: list, create, get, patch, archive, restore), CaseWork (6), UseMapping (6) and CaseFact (4: list, create, get, revise) operations — the case-specific material that later evaluation and production rely on, recorded exactly as supplied with sources pinned to this case, and none of it a finding of infringement, permission, exception or fair use. Excluded: correspondence, production context, prompts, candidates, validation, assessments, readiness, G1–G7, READY_FOR_SIGNER, signing, sending and any external action. Nothing of it is started.
+
+## 21. R8 remediation — the selection read-back (TB-SCHEMA-API-v1.1.0)
+
+Mission TB_R8_CASE_AUTHORITY_SELECTION_READBACK_REMEDIATION, 2026-09-25 (UTC), home PC. It ran on `feature/p4a-case-core` from the accepted R8 head `7a11ce4a066e051ca7e605cdc383c9ef59c7d431`, with `main` unchanged at `3649bef4d83feeec3bcf6b8293757354af739ae4`. The remediation is submitted for **R8 final (PENDING)**: no merge and no P4B.
+
+### 21.1 R8 result and scope
+
+- **R8 result:** PASS_WITH_ONE_CONTRACT_REMEDIATION (operator, 2026-09-25). The implementation, tests, browser verification, negative controls and CI were accepted.
+- **The only blocker:** the CaseAuthorityCoverage read-back gap (§9).
+- **Directed:** the smallest additive read (preferred `GET /cases/{caseId}/authority-selections/{selectionId}`, operationId `getCaseAuthoritySelection`), under a new additive baseline with an ADR (expected TB-SCHEMA-API-v1.1.0). The frozen v1.0.0 pack is never edited. `PFC-YT-EMAIL-v1.1` is unrelated and unchanged.
+- **Excluded, and not used:** AuditEvent parsing, client-remembered state, uncontracted routes or fields.
+
+### 21.2 Root cause
+
+TB-SCHEMA-API-v1.0.0 defines `CaseAuthorityCoverage` in its catalog, but no operation returns it:
+
+- `CaseAuthoritySelection` and its page carry the selection row only.
+- The ids of the created coverage rows appear only in the create response's `meta.affectedResources`.
+- The one frozen schema that embeds a selection with coverages, `ProductionContext.authority`, belongs to the unimplemented production context. It also resolves present-day MandateCoverage / MandateVersion / CoverageSigner / AuthorityEvent records rather than the stored rows.
+
+`selectCaseAuthority` stored the rows correctly, but nothing could read them back. After a reload the product therefore could not show which coverages, and which application scopes, a historical selection pinned. Traceability, which is the purpose of a selection, was broken on the wire (ADR-0004, Context).
+
+### 21.3 The new operation (exact)
+
+| Item | Value |
+|---|---|
+| operationId | `getCaseAuthoritySelection` (tag `Case`) |
+| Method and path | GET `/cases/{caseId}/authority-selections/{id}` — path parameters `caseId`, `id` (uuid, 36 characters) |
+| Request | none (no body, no query) |
+| Success | 200 `GetCaseAuthoritySelectionResponse` = `{ data: CaseAuthoritySelectionView, meta: ResponseMeta }` (strict) |
+| Read model | `CaseAuthoritySelectionView` = `{ selection: CaseAuthoritySelection, coverages: CaseAuthorityCoverage[1..20] }` (strict; references only the unchanged v1.0.0 row schemas) |
+| Errors | 400/401/403/404/409/413/422/429/500 (those of the other case-child reads) |
+| Security | session cookie; `x-precondition-target: null`; `x-idempotent-write: false` |
+| ETag / If-Match / Idempotency-Key | none / none / none — a read; nothing is mutated |
+
+**Naming follows the contract's conventions** (ADR-0004 decision 3):
+
+- The path parameter is `{id}`, not the mission's `{selectionId}`. Every contracted case-child read is `/cases/{caseId}/…/{id}` (`getReportedItem`, `getCaseWork`, `getUseMapping`, `getCaseFact`). The behaviour is identical.
+- The read model is a `*View`, like `ContextView` and `SessionView`.
+- The pair `selection` + `coverages` follows `ProductionContext.authority` and `SelectAuthority`.
+- The envelope is `{data, meta}`, like every `Get*Response`.
+
+### 21.4 Baseline and version decision
+
+- **New release.** **TB-SCHEMA-API-v1.1.0** is a semantic minor release, additive only.
+  - Decision: `docs/decisions/ADR-0004-tb-schema-api-v1-1-0-case-authority-selection-read.md`, **PROPOSED** for acceptance at R8 final.
+  - Record: `docs/contracts/TB-SCHEMA-API-v1.1.0/` — `amendment.json` (sha256 `2f4df69739926d4b50c22a1ba123ede51edec04bafb86459bb6bacb2d1dfda85`) and `README.md`.
+- **Composition.** The release is the frozen v1.0.0 reference, unchanged (`MANIFEST.sha256` `42c2a419…9c`; files `api-schemas.json` `bdb3213b…`, `openapi.json` `c47e2ea1…`), plus the amendment. Together they reproduce the generated artifacts byte for byte:
+  - `api-schemas.json` `76b8e0d684c1ebd3a5fd697a8e5c3b381ad2b3e246504dee3d7a7353ae69eb58`;
+  - `openapi.json` `2954de6a15d6f40977c801d7b5f67822dfffa1fd380c43cba0858888090acd2b`;
+  - `openapi.yaml` `ba777e948d6e9977128340c88518f012fd5baeac18eea87dcdf8280967f6bbd3`.
+
+  The result has 286 schemas (284 + 2) and 142 operations (141 + 1), with OpenAPI `info.version` 1.1.0. `@tb/contracts` exports `CONTRACT_BASELINE = 'TB-SCHEMA-API-v1.1.0'` and `FROZEN_REFERENCE_RELEASE = 'TB-SCHEMA-API-v1.0.0'`.
+- **Frozen v1.0.0 untouched.**
+  - `git diff 7a11ce4..ab56139 -- docs/reference` is empty.
+  - `yarn reference:check` passes before and after (the MANIFEST digest equals the `REFERENCE_BASELINE.json` pin).
+  - Nothing is generated into `docs/reference`: the generator refuses it.
+  - `verify_contracts.py` was not run.
+- **Unchanged.**
+  - All 284 schemas and 141 operations of v1.0.0 are byte-identical and in their order.
+  - `$id` `urn:tb:api-contract:v1`, OpenAPI 3.1.1, servers, tags, security, and shared parameters and responses.
+  - `PFC-YT-EMAIL-v1.1`, `AppMeta.schemaRelease` (§21.14) and the database schema.
+- **Compatibility: additive only.**
+  - No existing operation, path, parameter, schema, required field, enum, format, status code, header, security requirement or error code changed.
+  - A v1.0.0 client keeps working, and every v1.0.0 response still validates against v1.0.0.
+- **Generation and parity procedure.**
+  - Edit only `packages/contracts/src/**`, then run `yarn contracts:generate` and `yarn contracts:check`.
+  - `yarn test` pins the release (§21.7): the amendment digest and its base identity; byte identity with the composition (`tests/contracts/release.ts`); the result digests; additivity; the itemized inventory; and three-way runtime parity for all 286 schemas plus the 31 frozen fixtures against the frozen bundle.
+- **Transition check.** The opt-in `yarn test:transition-baseline` passed at `7a11ce4` before the edit and fails after it. ADR-0002 §6 predicts exactly this for the first approved contract edit (`evidence/r8-first-pc-sweep.txt`). It is not part of `yarn test` or CI and is not "fixed".
+
+### 21.5 Read model and semantics
+
+- **Meaning, only this.** "This is the exact authority chain that was selected/pinned for evaluation in this Case." It is not G1 PASS, confirmed standing, currently valid authority, signer eligibility, G7 or READY_FOR_SIGNER.
+- **Implementation.** The files are `apps/api/src/modules/cases/case-authority.service.ts` (`get`), `cases.controller.ts` and `case-views.ts`.
+  - The route is session-protected by the global guard, and the path parameters are parsed by the contract.
+  - The selection is found with `findFirst({ where: { id, caseId } })`.
+  - Its pinned rows are selected only by that exact `selectionId` + `caseId`, in ascending `coverageId` then `id` order. The order is deterministic: `coverageId` is unique within a selection (unique key), and the request order is not stored.
+  - Each row is returned field by field as stored.
+- **Read-only.** A GET with no ETag, no If-Match and no Idempotency-Key; the WriteExecutor is not involved and there is no new write framework. The DB test compares every row of every suite table, including idempotency records, audit events and sessions, before and after the reads: nothing is written.
+- **Nothing resolved or followed.**
+  - No lookup of the route's preferred coverage or default signer, newer MandateVersions, later SourceReference revisions, AuditEvents or any present-day state.
+  - Each row keeps its own application scope, with no union.
+  - Nothing current, valid, eligible, G1 or ready is stated.
+- **Integrity.** A stored selection without 1–20 pinned rows returns 500 `INTERNAL_ERROR`; it is never shown as a chain and nothing is invented. Through the API such a selection is impossible, because every selection is written with its rows in one transaction.
+
+### 21.6 Cross-case isolation
+
+- **Server.**
+  - A selection of another case is 404 `NOT_FOUND`, with a body identical to that of an unknown selection or an unknown case.
+  - The DB test checks eight refusal paths: another case's selection through this case (both directions), another agency's case, an unknown case, the case id used as a selection id, a malformed id, and the unknown-selection baseline.
+  - No refusal carries the other case's data. Each case reads only its own rows.
+- **UI.** The read-back page is keyed by case and selection id. Another case's address shows "This case has no authority selection with this id. A selection is shown only under the case it was made for." and nothing of it (web test, browser scenarios 6–8).
+- **Controls and smoke.** Negative control NC-R8-01 removes the case filter, and the isolation test fails. `smoke:p4a` checks the expected refusal "the selection read through another case → 404".
+
+### 21.7 Tests
+
+| Suite | R8 change | Covers |
+|---|---|---|
+| `tests/db/p4a-http.test.ts` | +6 (45) | SELECTION READ-BACK: **one coverage** (the exact stored selection and row; no ETag; nothing written; 401 without a session); **several coverages** (ascending `coverageId`; each scope exact — leading/trailing spaces, CRLF, tab, curly quotes, a backslash and JSON text, NFC/NFD, a 6000-code-point scope of supplementary characters; equal to the stored rows; three repeated reads identical); **historical pinning** (a successor frozen version with a coverage recording the same signer, a new preferred coverage and default signer, newer revisions of the basis and coverage-basis sources, a later event, the mandate archived, the clock advanced — the read-back is byte-identical); **case isolation** (§21.6); **no G1/readiness/currentness field, and the list unchanged** (selection rows only, newest first); **integrity** (500). The conformance test checks every collected response against its operation and exercises all 17 case operations |
+| `tests/db/directory-http.test.ts`, `auth-http` | ±0 | the routed inventory: 17 case operations, 93 business operations |
+| `tests/contracts/release-v1-1-0.test.ts` | +13 (new) | release record digest; base identity; constants and `AppMeta` unchanged; byte-identical composition (bundle, OpenAPI); artifact digests (YAML included); component-form rule; additive only (284 schemas, 141 operations, document metadata); the added read (GET under the case, session only, no body/If-Match/Idempotency-Key; exact response 1–20; no G1/readiness/currentness/validity/eligibility field) |
+| `tests/contracts/inventory-openapi.test.ts` | +2 (441) | compared with the release baseline; itemized inventory of the two additions against the amendment |
+| `tests/contracts/runtime-parity.test.ts` | +2 (319) | three-way parity (baseline Ajv, generated Ajv, Zod) for all 286 schemas; the 31 frozen fixtures against the frozen bundle |
+| `tests/web/p4a.test.tsx` | +2 (17) | **read-back after a simulated reload** (unmount and render again: exact rows, order and scopes, nothing re-evaluated after present-day changes, no writes, a deep link after a second reload, the F4 layout guard); **a selection is shown only under its own case** (another case's address: not found, nothing of it; in-place navigation C → A → C; an unknown id; no writes) |
+| `scripts/local/p4a-smoke.ts` (CI) | +3 checks (50) | the read-back (no ETag; the exact selection; the pinned row's `coverageId`, `applicationScope`, `selectionId`, `caseId`); the expected refusal through another case (404) |
+| `scripts/local/smoke.ts` | +1 check (37) | the read-back without a session → 401 |
+
+**Mission §8, item by item:**
+
+| # | Requirement | Covered by |
+|---|---|---|
+| 1 | One coverage reads back exactly | DB "one coverage" |
+| 2 | Several coverages read back | DB "several coverages"; web; browser |
+| 3 | `applicationScope` round-trips exactly | DB "several coverages"; web; browser scenario 2 |
+| 4 | Deterministic order | DB "several coverages" |
+| 5 | Unchanged after a preferred-coverage change, newer authority records and a newer source revision | DB "historical pinning"; browser scenario 4 |
+| 6 | Case A cannot read case B's selection | DB "case isolation"; web; browser 6–8; `smoke:p4a` |
+| 7 | Unknown selection → contracted 404 | DB "case isolation"; browser 7 |
+| 8 | No G1 or readiness field | DB "adds no G1…"; release test |
+| 9 | No writes | DB "one coverage"; web |
+| 10 | The list stays backward compatible | DB "…the list is unchanged"; release test "additive only"; browser 7 |
+
+Totals: `yarn test` **1247** in 33 files (P4A: 1228 in 32); `yarn test:db` **301** in 8 files (P4A: 295); no test removed.
+
+### 21.8 UI
+
+- **History link.** Each history item has an **Open selection** link (accessible name "Open selection recorded <date and time>") to `/cases/{id}/authority-selections/{selectionId}`. The address survives a reload and can be opened directly.
+- **The page "Selected authority record"** (`apps/web/src/app/cases/authority-selection.tsx`) shows:
+  - the required sentence "This selection records which authority materials will be evaluated for this Case. It is not a G1 decision.";
+  - "These are the exact records pinned when this selection was made, shown as they were recorded. Nothing here is re-evaluated against the present state of the route, mandates, coverage or sources.";
+  - **Selection**:
+    - Selection id, In this case (the neutral stamp "In use for evaluation" / "Earlier selection" from the case pointer), Case, Agency, Route and "Signer named in the selection";
+    - Task type, Intended sender address and Selection note;
+    - Basis source: the exact cited revision with its recorded provenance, plus "This record cites revision n; the source now has revision m. The citation does not move to it." when the source has since been revised;
+    - Recorded (`createdAt`) and Recorded by (`createdById`);
+  - **Pinned coverage (n)**: each row's coverage, coverage id and "Application scope for this case" exactly as stored, with whitespace preserved.
+- **Loading.** The page reads the case (`getCase`) and the selection (`getCaseAuthoritySelection`), and the linked records by their own ids for their names. A 404 shows the case-scoped not-found notice.
+- **Wording.** Neutral. There is no AUTHORIZED, APPROVED, VALID, CURRENT AUTHORITY, READY, ELIGIBLE or G1/G7 PASS label. The history's limitation sentence is replaced by "Open a selection to see the exact coverage records it pinned and the application scope recorded for each."
+- **Dependencies.** No new UI dependency. The bundle is not split and the Vite limit is not raised (§21.13).
+
+### 21.9 Browser verification (Playwright MCP)
+
+**12/12 PASS** in the final pass. The target was `yarn ui:sandbox` (the compiled API on the disposable `tb_notice_test` and the built web app), in an isolated headless browser, with synthetic data only. Rows were deleted afterwards and `db:verify test --expect-empty` passed. Details: `evidence/r8-playwright-mcp-verification.txt`; screenshots `evidence/screenshots/r8-01…r8-06` and `r8-f4-before-fix-1280-pinned-coverage.png`.
+
+- **The selection.** Created from explicit choices with two coverages and exact scopes (leading/trailing spaces, a newline, NFC/NFD, a character outside the BMP).
+- **Reload and return.** Reloaded, then Sources → Cases list → case → Open selection. The page shows every selection field, both pinned coverages in ascending order and both scopes exactly as entered (compared as strings in the page). A deep link reloaded shows the same.
+- **Present-day changes.** A successor frozen version with its own coverage, a new preferred coverage and default signer, a revised basis source and a TERMINATION event were added through the API. The read-back is unchanged; the citation note shows that revision 2 exists and is not followed.
+- **A second selection.** The earlier one reads back as "Earlier selection" with its own two rows.
+- **Case isolation.** Case Beta cannot open Alpha's selection (not found, nothing of Alpha). Forced requests (Beta, an unknown case, the second selection through Beta, a malformed id) give an identical 404 body; PATCH/DELETE on the path give 404; the list is unchanged (11 fields per item, no coverages). In-place navigation A ↔ B leaks nothing.
+- **Layout and access.** No horizontal scroll at 390px. The keyboard opens a selection. The copy scan finds only negations. Sign-out → 401.
+- **Console.** Only the deliberate 401/404 entries.
+
+**Finding F4 (found in pass 1 on `e745a20`, fixed in `ab56139`).**
+
+- **Defect.** At 1280px each pinned coverage entry reused the timeline list, whose grid has a "when" column the entry did not use. The entry's details were squeezed into that narrow column, one character per line.
+- **Fix.** A ruled record list (`.pinned-coverage`), a web-test guard and NC-R8-17.
+- **Re-verified.** In pass 2, the scope cells are 772px wide at 1280 (one line 22px, two lines 44px), with no horizontal scroll at 390px. The final pass ran on exactly the committed build: the bundle `index-DmR-MXqD.js` equals the one built by the sweep and by CI for `ab56139`.
+
+### 21.10 Negative controls
+
+**R8: 17/17 caught and restored byte-identically.** One run on `ab56139`, 2026-09-25T02:00:03Z–02:00:41Z.
+
+| Area | Controls |
+|---|---|
+| cross-case leakage | NC-R8-01 |
+| order | NC-R8-02 |
+| historical pinning — preferred coverage, newer source revision, newer frozen version | NC-R8-03/04/05 |
+| no union of scopes | NC-R8-06 |
+| read-only | NC-R8-07 |
+| no invented chain | NC-R8-08 |
+| UI read-back after reload, the history link, the not-G1 sentence | NC-R8-09/10/11 |
+| F4 | NC-R8-17 |
+| additive contract, exact operation, no G1 field, the release record and its frozen base | NC-R8-12…16 |
+
+**P4A: the 24 P4A controls were re-run on the same head, 24/24** (01:58:42Z–01:59:52Z). The working-tree fingerprint was identical before and after each run, and `tb_notice_test` was empty afterwards.
+
+**Earlier runs** are recorded in `evidence/r8-negative-controls.txt`:
+
+- NC-R8-13 at first was not caught. The release test crashed while collecting, so no named test failed. The test was hardened, and the control was then caught.
+- NC-R8-09 was skipped once because the F4 fix moved its anchor. The anchor was updated, and the control was then caught.
+
+### 21.11 Regression sweep and CI
+
+**Sweep** (mission §11): 2026-09-25T01:48:31Z–01:52:54Z on the code head `ab56139`. All 21 steps exit 0 (`evidence/r8-first-pc-sweep.txt`).
+
+| Command | Result |
+|---|---|
+| `yarn reference:check` (before and after) | frozen references intact (`MANIFEST.sha256` `42c2a419…` matches the pin) |
+| `yarn reference:helper-tests` | 27 pass, 0 fail |
+| `yarn contracts:check` | 3 generated outputs match the active source |
+| `yarn install --immutable` | lockfile unchanged (pre-existing YN0086 warning) |
+| `yarn typecheck` · `yarn format:check` | exit 0 |
+| `yarn lint` · `oxlint --deny-warnings` | exit 0 · exit 0 — **0 warnings** ("Found 0 warnings and 0 errors." on 236 files) |
+| `yarn test` | 1247 / 1247 in 33 files |
+| `yarn test:db` | 301 / 301 in 8 files (`tb_notice_test`) |
+| `yarn db:verify test --expect-empty` (before and after) | PASS, domain rows 0 |
+| `yarn db:verify dev` | PASS (metadata and a row count only: 5; no row content read) |
+| `yarn db:status test` / `dev` | up to date (1 migration) |
+| `yarn db:drift:diff-migrations` / `db:drift:diff-datasource dev` | empty migration (no drift) |
+| `yarn build` | exit 0 (Vite advisory, §21.13) |
+| `yarn smoke:local` | 37 checks (P4A: 36) |
+| `yarn dev:verify-shutdown` | 4 / 4 scenarios |
+
+`smoke:auth`, `smoke:directory`, `smoke:p3a`, `smoke:p3b` and `smoke:p4a` write records and run only in CI. They are preserved, and they pass there.
+
+**CI.**
+
+- **Code head `ab56139`:** push run [36083151963](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36083151963) (2026-09-25T01:42:02Z–01:46:53Z), **success**, both jobs (`evidence/r8-ci-run-36083151963.txt`).
+  - Non-DB job: reference check and the 27 helper tests, `contracts:check`, lint "Found 0 warnings and 0 errors.", format, `yarn test` 1247 / 1247 in 33 files, build (552.78 kB), frozen references unchanged.
+  - DB job: migration and metadata verification on test, replay and dev; `yarn test:db` 301 / 301 in 8 files; seed twice with the canonical digest unchanged; both drift diffs empty; `smoke:local` 37; `smoke:auth` 4; `smoke:directory` 14; `smoke:p3a` 24; `smoke:p3b` 36; **`smoke:p4a` 50** (the read-back and its cross-case refusal included); P1.1 recovery commands; `yarn dev` clean shutdown 4 / 4.
+- **Earlier runs:** `e745a20` (run 36082079759) success; the P4A submission head `7a11ce4` (run 36030891042) success.
+- **Documentation head:** its run is reported with R8 final.
+
+### 21.12 Schema, migration and dependencies
+
+- **None changed.**
+  - No migration was needed, created or applied: the existing `case_authority_selections` and `case_authority_coverages` tables already hold every field returned.
+  - `20260923103912_initial_schema` is still the only migration, and both drift diffs are empty.
+  - No `db push`, `migrate reset`, FK disabling or applied-migration edit.
+- **Nothing else outside the change.** `git diff 7a11ce4..ab56139` touches nothing under `apps/api/prisma`, `docs/reference`, `yarn.lock`, `.yarnrc.yml`, `.nvmrc` or any `package.json`. No dependency was added.
+
+### 21.13 Bundle advisory
+
+`vite build` still warns that the single chunk exceeds 500 kB: 552.78 kB (gzip 152.05 kB) at `ab56139`, against 548.82 kB at the R8 submission. As the mission directs, it is recorded as a **non-blocking advisory**. The Vite threshold is not raised and nothing is code-split. Route-level lazy loading is deferred to P4B or a separate UI task.
+
+### 21.14 Open items for the operator (not decided here)
+
+1. **Acceptance of ADR-0004** (PROPOSED) and of TB-SCHEMA-API-v1.1.0 as the active baseline, at R8 final.
+2. **`AppMeta.schemaRelease`.** In the unrouted `GET /meta` this is the constant `'TB-SCHEMA-API-v1.0.0'`. Changing it would change an existing schema, which is not additive, so v1.1.0 leaves it unchanged, and nothing emits it today. When `getMeta` is implemented, the operator decides whether it reports the frozen release or whether the constant changes in a later, non-additive release.
+3. **The transition check** now fails by design (§21.4).
+
+### 21.15 Commits
+
+| Commit | Content |
+|---|---|
+| `2d74b5a` | Contract: TB-SCHEMA-API-v1.1.0 — `CaseAuthoritySelectionView`, `GetCaseAuthoritySelectionResponse`, `getCaseAuthoritySelection`, `info.version` 1.1.0, the release constants; regenerated artifacts; the release record (`docs/contracts/TB-SCHEMA-API-v1.1.0/`) and ADR-0004; `tests/contracts/release.ts`, `release-v1-1-0.test.ts` (13); inventory and runtime parity against the release baseline |
+| `b6be5c9` | API: the read (`case-authority.service.ts`, `case-views.ts`, `cases.controller.ts`); DB tests (+6) and the routed inventories; `smoke:p4a` read-back and cross-case refusal; `smoke:local` boundary |
+| `e745a20` | UI: the read-back page, the history's Open selection link and route; the web API client; web tests (+2) and the test API's case-scoped read |
+| `ab56139` | UI fix F4 (browser finding): the pinned rows are a record list, not a timeline; web-test guard |
+| *(this commit)* | Documentation: this section, the evidence files `r8-*`, the screenshots `r8-*`, `CURRENT_STATE.md`, `CLAUDE.md` |

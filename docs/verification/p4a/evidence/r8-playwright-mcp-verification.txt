@@ -1,0 +1,125 @@
+R8 remediation — Playwright MCP browser verification of the selection read-back (mission §9), home PC, 2026-09-25 (UTC)
+=========================================================================================================================
+
+Target and isolation
+- `yarn ui:sandbox --password-file <scratchpad file outside the repository>`: the COMPILED API on the disposable
+  `tb_notice_test` schema plus the built web app (`vite preview`) on http://localhost:5173 (proxying /api).
+  Synthetic sandbox user p2-ui-sandbox@example.invalid; the password file was deleted afterwards.
+- Browser: the Playwright MCP isolated headless Chromium profile (no personal profile, no real login session), 1280×800
+  unless noted. Never `tb_notice_dev`, never the operator's `yarn dev`, never real case or owner data.
+- Prerequisites were created through the compiled API with the sandbox user (scratchpad script, not committed):
+  agencies SYNTHETIC Agency Sigma and Tau; owners Upsilon and Phi with legal subjects; routes Sigma·Upsilon (LINKED),
+  Sigma·Phi (PAUSED), Tau·Upsilon; signers Chi and Psi (Sigma) and Omega (Tau); six source pointers; five authority
+  chains — Sigma representation agreement (Chi), Sigma supplementary agreement (Chi), a Sigma agreement naming Psi
+  only, a DRAFT Sigma chain, Tau (Omega). Every case record and every selection was created in the browser.
+- Two passes, each on a freshly started sandbox (each start runs `yarn build`; each stop deletes every sandbox row):
+    pass 1  2026-09-25T01:28:43Z–01:34:22Z  build of `e745a20` (bundle 552.86 kB)  → finding F4 (below)
+    pass 2  2026-09-25T01:36:57Z–01:40:10Z  build of the F4 fix, committed as `ab56139` (bundle 552.78 kB,
+            index-DmR-MXqD.js) — the FINAL pass; the results and the six screenshots r8-01…r8-06 below are from it.
+- Teardown after each pass: SIGINT to the sandbox → "[ui:sandbox] sandbox rows deleted; tb_notice_test is empty
+  again"; `yarn db:verify test --expect-empty` PASS (domain rows total: 0); password file deleted; ports 3000 and
+  5173 free; `git status` showed only the screenshots.
+
+Final pass — 12/12 PASS
+-----------------------
+Ids (synthetic, tb_notice_test, deleted at teardown): Case Alpha 37ea39e0-d1b7-4983-b4d8-c1b2deac5b21; selection S1
+867ea2df-652a-4c19-94a3-aa4087273c18; selection S2 f9bdd0ea-36ce-4f2d-b52e-a60c4392c3bd; Case Beta
+98065d00-2c8f-49cf-808b-028aaf79fd71; coverages "Sigma representation agreement" 9c0e2e69-601e-4254-b02f-a722978ef614
+and "Sigma supplementary agreement" 73de4412-409a-4131-9bcf-8e6617570007.
+
+ 1 Selection recorded — PASS. Alpha created on route Sigma·Upsilon (Sigma·Phi offered disabled: paused). The
+   selection form preselected nothing (3 coverage candidates, no signer); Tau's source was not offered as basis.
+   Chosen explicitly: signer Chi; both Sigma coverages, each with its own application scope, entered as
+     9c0e2e69… "␠␠SYNTHETIC-R8-SCOPE-MAIN channel uploads⏎␠␠second line kept␠␠" (leading/trailing spaces, a newline)
+     73de4412… "SYNTHETIC-R8-SCOPE-SECOND café / café “quoted” 𝄞 music uploads" (NFC é, NFD e + U+0301,
+               curly quotes, U+1D11E outside the BMP);
+   task "Initial notice"; intended sender synthetic-r8-sender@example.invalid; basis source "SYNTHETIC Sigma
+   representation letter" revision 1; a selection note. Result: "Authority materials selected for evaluation. This
+   is not a G1 decision."; history 1 item, "In use for evaluation", with the link "Open selection" (accessible name
+   "Open selection recorded Sep 25, 2026, 8:37 AM"). Screenshot r8-01-selection-recorded-history.png.
+ 2 Read-back after a reload and navigation — PASS. Full reload of the case page (navigation type "reload"; the
+   success message gone; history 1 item) → Sources → Cases list → the case → "Open selection". The page shows
+   Selection id 867ea2df…, In this case "In use for evaluation", Case, Agency, Route "SYNTHETIC Brand Upsilon ·
+   SYNTHETIC Upsilon Media Company (YouTube)", "Signer named in the selection" Chi, Task type, Intended sender, Basis
+   source (Canonical record · revision 1 · agency's own source · access not checked · reported provenance: operator
+   reported), Selection note, Recorded "Sep 25, 2026, 8:37 AM", Recorded by "you (application user)"; the sentence
+   "This selection records which authority materials will be evaluated for this Case. It is not a G1 decision.";
+   "Pinned coverage (2)" in ascending coverageId order (73de4412… then 9c0e2e69…), each with its coverage name, id
+   and application scope — both scopes equal to the entered strings exactly (compared in-page as strings: true,
+   true). Layout at 1280: each scope cell 772 px wide, the one-line scope 22 px and the two-line scope 44 px high
+   (line height 21.75 px); list class `pinned-coverage`; no horizontal scroll.
+   Screenshot r8-02-selection-readback-after-reload.png.
+ 3 Deep link reloaded — PASS. A reload of the selection URL itself shows the same two rows and exact scopes. The
+   page's case-scoped requests (resource entries under /api/v1/cases/) were exactly GET /cases/{alpha} and
+   GET /cases/{alpha}/authority-selections/{S1}; the linked record names (route, signer, coverage, source) come
+   from those records' own reads.
+ 4 Unchanged after present-day changes — PASS. Through the compiled API (scratchpad script, sandbox user), after
+   S1 was recorded: a successor frozen AMENDMENT version of the pinned mandate with its own coverage of the same
+   route recording Chi (c7f5ce89-9980-4609-a248-5523c7ca8364); the route's preferred coverage set to the Psi coverage
+   (ff43fb5e-…) and its default signer to Psi; the basis source revised (revision 2, 285451b4-…); a TERMINATION event
+   recorded for the mandate. After a reload the read-back is unchanged: the same two coverage ids and exact scopes,
+   signer Chi, the basis source still revision 1 (8e46823d-…) with the note "This record cites revision 1; the source
+   now has revision 2. The citation does not move to it."; no mention of the successor coverage, the preferred
+   coverage, Psi or the termination. Screenshot r8-03-readback-unchanged-after-present-day-changes.png.
+ 5 Earlier selection reads back unchanged — PASS. The new-selection form opened empty (4 candidates now, the v2
+   coverage included; no signer and no coverage preselected). S2 recorded explicitly: Chi, the v2 coverage with its
+   own scope, "Reply to a request for more information". History: S2 "In use for evaluation", S1 "Earlier
+   selection" (Initial notice). Opening S1: "Earlier selection" with the same two rows and exact scopes.
+   Screenshot r8-04-earlier-selection-readback.png.
+ 6 Case B cannot expose Case A's selection — PASS. Case Beta created in the browser on the same route. Beta's
+   address with S1 shows "This case has no authority selection with this id. A selection is shown only under the
+   case it was made for." with a link back to Beta; no pinned row; none of Alpha's markers (scope texts, selection
+   note, coverage ids, case label, signer); the only selection request was GET /cases/{beta}/authority-selections/{S1}
+   → 404. Screenshot r8-05-case-b-cannot-open-case-a-selection.png.
+ 7 Forced requests (signed-in browser, same-origin fetch) — PASS.
+     own read (Alpha, S1)                   → 200, no ETag, Cache-Control no-store; data keys selection + coverages;
+                                              the selection's 11 fields; each coverage row exactly the 9
+                                              CaseAuthorityCoverage fields (agencyId, applicationScope, caseId,
+                                              coverageId, createdAt, createdById, id, routeId, selectionId), naming
+                                              Alpha and S1; meta.affectedResources empty
+     unknown selection id under Alpha       → 404 {code NOT_FOUND, message "The requested resource does not exist.",
+                                              details {}}
+     S1 through Beta                        → 404, body identical to the unknown-selection body
+     S1 through an unknown case             → 404, identical body
+     S2 through Beta                        → 404, identical body
+     malformed selection id                 → 404, identical body
+     PATCH / DELETE on the selection path   → 404 NOT_FOUND (no such operation)
+     list operation (Alpha)                 → 200, 2 items of 11 keys each, no coverages field, newest first (S2, S1)
+   No refusal body mentions anything of Alpha.
+ 8 In-place navigation A ↔ B — PASS. Beta's case page: "No authority materials have been selected for evaluation in
+   this case.", the meaning sentence, no Alpha marker. In one document (history.pushState + popstate, so the same
+   route component is reused): Alpha's S1 page loaded with 2 rows → Beta's address for S1 shows not found with no
+   Alpha marker → Alpha's address shows Alpha's rows again.
+ 9 390px viewport — PASS. The read-back page: scrollWidth = clientWidth = 390, scope cells 328 px, no element beyond
+   the viewport; the case page: no horizontal scroll. Screenshot r8-06-390-selection-readback.png.
+10 Keyboard — PASS. The history link takes focus with a visible 2 px solid outline, accessible name "Open selection
+   recorded Sep 25, 2026, 8:38 AM" (visible text "Open selection"); Enter opens S2 (1 pinned row, "In use for
+   evaluation").
+11 Copy — PASS. Scan of the read-back's main text for authorized/authorised, approved, valid authority, G1 PASS, G7,
+   ready to sign, ready for signer, eligible, verified, current authority, confidence: the only match is inside the
+   negation "It does not confirm standing, current authority, owner rights or signer eligibility…". Stamps only
+   "In use for evaluation" / "Earlier selection". The not-G1 sentence appears verbatim on the case page and the
+   read-back.
+12 Sign out — PASS. Sign out → /login; the read then returns 401 SESSION_REQUIRED.
+
+Console (final pass): 10 entries, all "Failed to load resource" lines of deliberate requests — 1 × 401 (the session
+probe on the login page before sign-in) and 9 × 404 (Beta's address for S1 in the UI twice, the unknown selection,
+the unknown case, S2 through Beta, the malformed id, and the PATCH and DELETE on S1's path). No script error, no
+warning.
+
+Pass 1 and finding F4 (fixed in `ab56139`, re-verified in pass 2)
+------------------------------------------------------------------
+Pass 1 (Alpha b00ce2ed-029a-4fc0-93a0-8be1270af285, selections 499a4b7e-… and 91d74f08-…, Beta 6325e595-…) passed
+the same scenarios functionally — exact rows and scopes after reload, unchanged after present-day changes, Beta
+refused, 390px without horizontal scroll, keyboard, copy, sign-out 401 — but the screenshot review found:
+F4 At 1280px each pinned coverage entry reused the timeline list (`.timeline` / `.timeline-item`, a two-column grid
+   "when | body") without its "when" column, so the entry's details were squeezed into the narrow first column, one
+   character per line. Evidence: screenshots/r8-f4-before-fix-1280-pinned-coverage.png (pass 1, after the
+   present-day changes). The 390px layout was unaffected (the grid collapses to one column there).
+   Fix: the pinned rows are a ruled record list (`.pinned-coverage` in app.css; `PinnedCoverageItem` without the
+   timeline wrapper); web-test assertions (the list is not a timeline; every `.timeline-item` has its
+   `.timeline-when`); negative control NC-R8-17. Re-verified in pass 2 (scenario 2: 772 px scope cells, one line
+   22 px, two lines 44 px) and at 390px (scenario 9).
+The pass-1 screenshots r8-01…r8-06 were replaced by the pass-2 screenshots; only the F4 evidence was kept.
+
+Nothing external: no mail, Drive, platform or network call beyond 127.0.0.1; no real data; no write to tb_notice_dev.

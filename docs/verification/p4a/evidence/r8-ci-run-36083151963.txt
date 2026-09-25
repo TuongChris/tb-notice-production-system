@@ -1,0 +1,157 @@
+R8 remediation — CI evidence for the code head (GitHub Actions, workflow "CI")
+==============================================================================
+Run:      36083151963 — https://github.com/TuongChris/tb-notice-production-system/actions/runs/36083151963
+Event:    push to feature/p4a-case-core
+Head:     ab56139a1267e6ad28a68abc1cba82bf477872cc (R8 commits 2d74b5a, b6be5c9, e745a20, ab56139 on 7a11ce4)
+Created:  2026-09-25T01:42:02Z   Completed: 2026-09-25T01:46:53Z
+Result:   completed / success
+Jobs:
+  107909233846 Non-DB checks (cold install)            success 01:42:05Z → 01:44:12Z
+  107909234089 Database, seed and smoke (MySQL 8.4.11) success 01:42:10Z → 01:46:52Z
+Logs were read with the authenticated `gh api …/actions/jobs/<id>/logs`; key lines below (timestamps UTC).
+
+Earlier runs of this branch (all push, all success, both jobs):
+  36030891042  7a11ce4  the P4A R8 submission head (2026-09-24T16:57:01Z–17:01:39Z)
+  36082079759  e745a20  the R8 remediation before F4 (2026-09-25T01:27:18Z–01:32:00Z): lint "Found 0 warnings and
+                        0 errors.", yarn test 1247 in 33 files, yarn test:db 301 in 8 files, bundle 552.86 kB,
+                        smoke:local 37, smoke:auth 4, smoke:directory 14, smoke:p3a 24, smoke:p3b 36, smoke:p4a 50,
+                        yarn dev clean shutdown 4/4
+A commit cannot record its own run: the run of the documentation head is reported with R8 final.
+
+Non-DB job
+----------
+01:42:18Z [reference:check] pinned identity (REFERENCE_BASELINE.json): 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c matches
+01:42:18Z [reference:check] OK — frozen references intact.
+01:42:19Z [reference:helper-tests] frozen helper tests: pass 27, fail 0; exit 0
+01:42:19Z [reference:helper-tests] references after run: intact
+01:42:22Z [contracts:check] OK — 3 generated outputs match the active source.
+01:42:38Z Found 0 warnings and 0 errors.
+01:42:44Z All matched files use Prettier code style!
+01:44:01Z  Test Files  33 passed (33)
+01:44:01Z       Tests  1247 passed (1247)
+01:44:09Z dist/assets/index-DOsoL7EN.css   17.39 kB │ gzip:   4.47 kB
+01:44:09Z dist/assets/index-DmR-MXqD.js   552.78 kB │ gzip: 152.05 kB
+01:44:09Z (!) Some chunks are larger than 500 kB after minification. Consider:
+01:44:09Z [reference:check] pinned identity (REFERENCE_BASELINE.json): 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c matches
+01:44:09Z [reference:check] OK — frozen references intact.
+
+Database job
+------------
+01:42:56Z Database schema is up to date!
+01:42:56Z [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+01:42:56Z [verify] domain rows total: 0
+01:42:56Z [verify] PASS: metadata matches the reviewed inventory.
+01:44:59Z  Test Files  8 passed (8)
+01:44:59Z       Tests  301 passed (301)
+01:45:06Z [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+01:45:06Z [verify] domain rows total: 0
+01:45:06Z [verify] PASS: metadata matches the reviewed inventory.
+01:45:12Z [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+01:45:12Z [verify] domain rows total: 0
+01:45:12Z [verify] PASS: metadata matches the reviewed inventory.
+01:45:12Z [db:seed] canonical digest 0ee26dc3ee5f3a1030fb78a6cadaf4dabef1f5a296b58163248584e1e0bfb775 (identical on every PC)
+01:45:13Z [db:seed] canonical digest 0ee26dc3ee5f3a1030fb78a6cadaf4dabef1f5a296b58163248584e1e0bfb775 (identical on every PC)
+01:45:13Z [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+01:45:13Z [verify] domain rows total: 1
+01:45:13Z [verify] PASS: metadata matches the reviewed inventory.
+01:45:19Z -- This is an empty migration.
+01:45:20Z -- This is an empty migration.
+01:45:28Z dist/assets/index-DOsoL7EN.css   17.39 kB │ gzip:   4.47 kB
+01:45:28Z dist/assets/index-DmR-MXqD.js   552.78 kB │ gzip: 152.05 kB
+01:45:28Z (!) Some chunks are larger than 500 kB after minification. Consider:
+01:45:30Z [smoke] PASS (37 checks)
+01:45:31Z [admin:create] guard: tb_dev@127.0.0.1:3307/tb_notice_dev (local runtime account)
+01:45:34Z [admin:create] target tb_dev@127.0.0.1:3307/tb_notice_dev (password not shown)
+01:45:35Z [admin:create] created enabled application user 448c4753-0cfa-4360-b92a-f9e3e9caa67e
+01:45:35Z [admin:create]   email:        p1-ci-admin@example.invalid
+01:45:35Z [admin:create]   display name: P1 CI synthetic admin (disposable)
+01:45:35Z [admin:create]   password:     Argon2id hash stored; the password itself was not stored or printed
+01:45:35Z [admin:create] Application login state only: no Signer, authority or business record was changed, and this confers no legal authority.
+01:45:41Z [smoke:auth] PASS (4 checks)
+01:45:43Z [smoke:directory] PASS (14 checks)
+01:45:46Z [smoke:p3a] PASS (24 checks)
+01:45:49Z [smoke:p3b] PASS (36 checks)
+01:45:52Z [smoke:p4a] PASS (50 checks)
+01:45:52Z [admin:revoke-sessions] guard: tb_dev@127.0.0.1:3307/tb_notice_dev (local runtime account)
+01:45:56Z [admin:revoke-sessions] target tb_dev@127.0.0.1:3307/tb_notice_dev (password not shown)
+01:45:56Z [admin:revoke-sessions] 0 active session(s) revoked for application user 448c4753-0cfa-4360-b92a-f9e3e9caa67e (p1-ci-admin@example.invalid); session epoch 1 → 2 (every earlier session is unusable).
+01:45:56Z [admin:revoke-sessions] Application login state only: no Signer, authority or business record was changed, and this confers no legal authority.
+01:45:57Z [admin:disable] guard: tb_dev@127.0.0.1:3307/tb_notice_dev (local runtime account)
+01:46:00Z [admin:disable] target tb_dev@127.0.0.1:3307/tb_notice_dev (password not shown)
+01:46:01Z [admin:disable] disabled application user 448c4753-0cfa-4360-b92a-f9e3e9caa67e (p1-ci-admin@example.invalid); session epoch 2 → 3; 0 active session(s) revoked. The user row is kept.
+01:46:01Z [admin:disable] Application login state only: no Signer, authority or business record was changed, and this confers no legal authority.
+01:46:03Z [smoke:auth] PASS (1 checks)
+01:46:03Z [admin:disable] guard: tb_dev@127.0.0.1:3307/tb_notice_dev (local runtime account)
+01:46:07Z [admin:disable] target tb_dev@127.0.0.1:3307/tb_notice_dev (password not shown)
+01:46:07Z [admin:disable] application user 448c4753-0cfa-4360-b92a-f9e3e9caa67e (p1-ci-admin@example.invalid) is already disabled; nothing changed.
+01:46:07Z [admin:disable] Application login state only: no Signer, authority or business record was changed, and this confers no legal authority.
+01:46:08Z [admin:enable] guard: tb_dev@127.0.0.1:3307/tb_notice_dev (local runtime account)
+01:46:11Z [admin:enable] target tb_dev@127.0.0.1:3307/tb_notice_dev (password not shown)
+01:46:11Z [admin:enable] enabled application user 448c4753-0cfa-4360-b92a-f9e3e9caa67e (p1-ci-admin@example.invalid); session epoch 3 → 4 (sessions from before stay unusable); 0 active session(s) revoked.
+01:46:11Z [admin:enable] Application login state only: no Signer, authority or business record was changed, and this confers no legal authority.
+01:46:13Z [smoke:auth] PASS (4 checks)
+01:46:14Z [admin:password] guard: tb_dev@127.0.0.1:3307/tb_notice_dev (local runtime account)
+01:46:17Z [admin:password] target tb_dev@127.0.0.1:3307/tb_notice_dev (password not shown)
+01:46:18Z [admin:password] password replaced for application user 448c4753-0cfa-4360-b92a-f9e3e9caa67e (p1-ci-admin@example.invalid); session epoch 4 → 5; 0 active session(s) revoked.
+01:46:18Z [admin:password] The account stays enabled; the new password was not stored or printed.
+01:46:18Z [admin:password] Application login state only: no Signer, authority or business record was changed, and this confers no legal authority.
+01:46:20Z [smoke:auth] PASS (1 checks)
+01:46:22Z [smoke:auth] PASS (4 checks)
+01:46:27Z [db:seed] canonical digest 0ee26dc3ee5f3a1030fb78a6cadaf4dabef1f5a296b58163248584e1e0bfb775 (identical on every PC)
+01:46:48Z [verify-dev] PASS (4/4 scenarios)
+01:46:49Z [reference:check] pinned identity (REFERENCE_BASELINE.json): 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c matches
+01:46:49Z [reference:check] OK — frozen references intact.
+
+smoke:p4a (compiled P4A flow with the R8 read-back, synthetic, CI only) — all lines
+------------------------------------------------------------------------------------
+[smoke:p4a] PASS login → 200 with a session cookie and CSRF token
+[smoke:p4a] PASS POST /agencies → 201
+[smoke:p4a] PASS POST /sources (agency record) → 201
+[smoke:p4a] PASS POST /owners → 201
+[smoke:p4a] PASS POST /legal-subjects → 201
+[smoke:p4a] PASS POST /owners/{id}/subjects (link) → 201
+[smoke:p4a] PASS POST /routes → 201
+[smoke:p4a] PASS POST /signers → 201
+[smoke:p4a] PASS POST /mandates → 201
+[smoke:p4a] PASS POST /mandates/{id}/versions → 201
+[smoke:p4a] PASS POST /mandate-versions/{id}/coverages → 201
+[smoke:p4a] PASS POST /coverages/{id}/signers → 201
+[smoke:p4a] PASS GET /mandate-versions/{id} → 200
+[smoke:p4a] PASS POST /mandate-versions/{id}/freeze → 200
+[smoke:p4a] PASS PATCH /routes/{id} preferredCoverageId (operational default) → 200
+[smoke:p4a] PASS POST /cases → 201
+[smoke:p4a] PASS PATCH /cases/{id} → 200
+[smoke:p4a] PASS POST /cases/{id}/route-binding → 200
+[smoke:p4a] PASS POST /cases/{id}/sources → 201
+[smoke:p4a] PASS GET /case-sources/{id} → 200
+[smoke:p4a] PASS POST /case-sources/{id}/link-state PAUSED → 200
+[smoke:p4a] PASS POST /case-sources/{id}/link-state LINKED → 200
+[smoke:p4a] PASS GET /cases/{id} → 200
+[smoke:p4a] PASS POST /cases/{id}/canonical-binding → 200
+[smoke:p4a] PASS POST /cases/{id}/authority-selections → 201
+[smoke:p4a] PASS GET /cases/{id} (after the selection) → 200
+[smoke:p4a] PASS the selection pins the chosen chain for evaluation; nothing else changed state
+[smoke:p4a] PASS GET /cases/{id}/authority-selections/{id} (read-back) → 200
+[smoke:p4a] PASS the selection reads back with the exact coverage and application scope it pinned
+[smoke:p4a] PASS GET /cases?agencyId= → 200
+[smoke:p4a] PASS GET /cases/{id}/sources → 200
+[smoke:p4a] PASS GET /cases/{id}/authority-selections → 200
+[smoke:p4a] PASS POST /cases/{id}/workflow → 200
+[smoke:p4a] PASS POST /agencies (second agency) → 201
+[smoke:p4a] PASS POST /cases (second agency) → 201
+[smoke:p4a] PASS second agency case binds the first agency route (expected refusal) → 422
+[smoke:p4a] PASS POST /cases (sibling case) → 201
+[smoke:p4a] PASS the selection read through another case (expected refusal) → 404
+[smoke:p4a] PASS POST /sources (scoped to the sibling case) → 201
+[smoke:p4a] PASS link another case’s source (expected refusal) → 422
+[smoke:p4a] PASS the application User as signer (expected refusal) → 422
+[smoke:p4a] PASS a write with a stale case ETag (expected refusal) → 412
+[smoke:p4a] PASS POST /cases/{id}/archive → 200
+[smoke:p4a] PASS a link on the archived case (expected refusal) → 409
+[smoke:p4a] PASS POST /cases/{id}/restore → 200
+[smoke:p4a] PASS DELETE /cases/{id} (unused second-agency case) → 204
+[smoke:p4a] PASS GET /sources/{id} → 200
+[smoke:p4a] PASS the source provenance is unchanged by link, canonical binding and selection
+[smoke:p4a] PASS POST /cases/{caseId}/reported-items (later phase, not routed) → 404
+[smoke:p4a] PASS logout → 204
+[smoke:p4a] PASS (50 checks)
