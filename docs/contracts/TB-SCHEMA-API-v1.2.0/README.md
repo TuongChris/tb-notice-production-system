@@ -7,6 +7,7 @@
 | Decision | `docs/decisions/ADR-0005-tb-schema-api-v1-2-0-case-fact-sources-read.md` — **PROPOSED** (R9 remediation), for the operator's review at gate R9 final |
 | Recorded | 2026-09-25, R9 remediation (mission TB_R9_FACT_SOURCE_READBACK_REMEDIATION_TO_R9_FINAL) |
 | Record | `amendment.json` (this folder), sha256 `b5cae658a3f47639500e2220e4a91fcfb81c34972d8426a4fa9fd1146cdbc294` |
+| Verification | `docs/verification/p4b/P4B_CASE_INTAKE.md` §25 (R9 remediation; evidence `docs/verification/p4b/evidence/r9-*`) |
 
 The wire contract of this release is TB-SCHEMA-API-v1.1.0, unchanged, plus exactly the amendment recorded here. The generated artifacts `packages/contracts/schemas/api-schemas.json` and `packages/contracts/openapi/openapi.{json,yaml}` are the release's documents. Their digests are in `amendment.json` (`result.files`).
 

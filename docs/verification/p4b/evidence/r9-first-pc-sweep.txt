@@ -1,0 +1,201 @@
+R9 remediation — first-PC regression sweep (mission §19), home PC, 2026-09-25 (UTC)
+================================================================================
+Tree: the final code head b862cf7 (R9 remediation commits fbcd8ae, 02332da, b862cf7 on the post-P4B main eb83b19),
+clean except the seven untracked r9 screenshots. Every step runs even after a failure; exit codes below. Ports
+3000/5173 were free before the sweep (no operator dev servers running). Nothing was written to tb_notice_dev:
+db:verify dev reads metadata and a row count only, db:status and the drift diffs only compare.
+
+Step summary
+------------
+sweep start 2026-09-25T09:24:14Z head b862cf7b560b61dd5e1586feb0f0b9b75290bedb (7 status lines: the seven untracked r9 screenshots)
+reference:check                                  exit 0      0s  reference_check.log
+reference:helper-tests                           exit 0      0s  reference_helper-tests.log
+contracts:check                                  exit 0      1s  contracts_check.log
+install --immutable                              exit 0      1s  install_--immutable.log
+typecheck                                        exit 0      9s  typecheck.log
+lint                                             exit 0      0s  lint.log
+oxlint --deny-warnings --format default          exit 0      0s  oxlint_--deny-warnings_--format_default.log
+format:check                                     exit 0      5s  format_check.log
+test                                             exit 0     41s  test.log
+test:db                                          exit 0    183s  test_db.log
+db:verify test --expect-empty                    exit 0      0s  db_verify_test_--expect-empty.log
+db:verify dev                                    exit 0      0s  db_verify_dev.log
+db:status test                                   exit 0      1s  db_status_test.log
+db:status dev                                    exit 0      1s  db_status_dev.log
+db:drift:diff-migrations                         exit 0     23s  db_drift_diff-migrations.log
+db:drift:diff-datasource dev                     exit 0      1s  db_drift_diff-datasource_dev.log
+build                                            exit 0      4s  build.log
+smoke:local                                      exit 0      7s  smoke_local.log
+dev:verify-shutdown                              exit 0     13s  dev_verify-shutdown.log
+reference:check (after)                          exit 0      0s  reference_check_(after).log
+db:verify test --expect-empty (after)            exit 0      0s  db_verify_test_--expect-empty_(after).log
+sweep end 2026-09-25T09:29:05Z status: the same seven untracked r9 screenshots
+
+Key output lines
+----------------
+  [reference:check] pinned identity (REFERENCE_BASELINE.json): 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c matches
+  [reference:check] OK — frozen references intact.
+  [reference:helper-tests] frozen helper tests: pass 27, fail 0; exit 0
+  [reference:helper-tests] references after run: intact
+  [contracts:check] OK — 3 generated outputs match the active source.
+  install --immutable: YN0000: · Done with warnings in 0s 668ms
+    (the warning is YN0086: Some peer dependencies are incorrectly met by dependencies; run yarn explain peer-requirements for details. — pre-existing,
+    as at P4B; the lockfile is unchanged by the R9 remediation)
+  typecheck: exit 0
+  lint: exit 0; oxlint --deny-warnings --format default: exit 0 —
+    Found 0 warnings and 0 errors.
+    Finished in 58ms on 256 files with 96 rules using 20 threads.
+  All matched files use Prettier code style!
+  yarn test:    Test Files  37 passed (37) · Tests  1346 passed (1346)
+  yarn test:db: Test Files  9 passed (9) · Tests  340 passed (340)
+  db_verify_test_--expect-empty:
+    [verify] target tb_migrate@127.0.0.1:3307/tb_notice_test — MySQL 8.4.11 (MySQL Community Server - GPL)
+    [verify] reviewed migration sha256 b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+    [verify] tables 33/33 (InnoDB 33, utf8mb4_0900_bin 33); columns 541/541 (character columns with binary collation 391)
+    [verify] primary keys 33/33; unique keys 50/50; indexes 34/34; implicit FK indexes 97
+    [verify] foreign keys 125/125 RESTRICT/RESTRICT (composite 27); CHECK constraints 30/30 semantically matching and ENFORCED=YES
+    [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+    [verify] domain rows total: 0
+    [verify] PASS: metadata matches the reviewed inventory.
+  db_verify_dev (metadata and a row count only; 5 domain rows, unchanged since R8 — nothing written):
+    [verify] domain rows total: 5
+    [verify] PASS: metadata matches the reviewed inventory.
+  db_status_test: Database schema is up to date!
+  db_status_dev: Database schema is up to date!
+  db_drift_diff-migrations: -- This is an empty migration.
+  db_drift_diff-datasource_dev: -- This is an empty migration.
+  build (no Vite chunk-size advisory; the entry and the fact page chunk):
+    dist/assets/index-Du21GphK.css                17.81 kB │ gzip:  4.54 kB
+    dist/assets/facts-CyMOCh5Y.js                 29.80 kB │ gzip:  8.66 kB
+    dist/assets/index-p4TRgKZi.js                319.34 kB │ gzip: 99.58 kB
+    ✓ built in 189ms
+  smoke:local:
+    [smoke] PASS MySQL compose service is healthy
+    [smoke] PASS database reachable as tb_dev@% on tb_notice_dev (MySQL 8.4.11)
+    [smoke] PASS Prisma client, contracts, API and web built (yarn build)
+    [smoke] PASS api listening on 127.0.0.1:3000
+    [smoke] PASS web listening on 127.0.0.1:5173
+    [smoke] PASS API /api/v1/health: 200, no-store, valid GetHealthResponse, status ok
+    [smoke] PASS web proxy /api/v1/health: 200, no-store, valid GetHealthResponse, status ok
+    [smoke] PASS web shell served on http://localhost:5173/ with bundle /assets/index-p4TRgKZi.js
+    [smoke] PASS auth boundary: GET /auth/session without a cookie → 401 SESSION_REQUIRED, no-store, no CORS
+    [smoke] PASS auth boundary: POST /auth/login without Origin → 403 ORIGIN_REJECTED, no-store, no CORS
+    [smoke] PASS auth boundary: POST /auth/login for a synthetic unknown account → 403 INVALID_CREDENTIALS, no-store, no CORS
+    [smoke] PASS auth boundary: POST /auth/logout without a session → 401 SESSION_REQUIRED, no-store, no CORS
+    [smoke] PASS auth boundary: GET /auth/session through the web proxy → 401 SESSION_REQUIRED, no-store, no CORS
+    [smoke] PASS business boundary: GET /agencies without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /owners without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /legal-subjects without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /signers without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /owners/{ownerId}/subjects without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /owner-subjects/{id} through the web proxy without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /agencies without Origin → 403 ORIGIN_REJECTED, no-store
+    [smoke] PASS business boundary: POST /agencies/{id}/canonical-bindings without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /sources without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /sources/{id}/revisions without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /routes through the web proxy without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /routes without Origin → 403 ORIGIN_REJECTED, no-store
+    [smoke] PASS business boundary: POST /routes/{id}/canonical-bindings without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /mandates without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /mandates/{id}/versions without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /mandate-versions/{id}/freeze without Origin → 403 ORIGIN_REJECTED, no-store
+    [smoke] PASS business boundary: GET /coverages/{id}/signers through the web proxy without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /mandates/{id}/events without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /cases without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /cases/{caseId}/authority-selections without Origin → 403 ORIGIN_REJECTED, no-store
+    [smoke] PASS business boundary: GET /cases/{caseId}/authority-selections/{id} without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /case-sources/{id} through the web proxy without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /cases/{caseId}/reported-items without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /cases/{caseId}/works without Origin → 403 ORIGIN_REJECTED, no-store
+    [smoke] PASS business boundary: GET /cases/{caseId}/mappings/{id} without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /cases/{caseId}/facts/{id}/revisions without Origin → 403 ORIGIN_REJECTED, no-store
+    [smoke] PASS business boundary: GET /cases/{caseId}/facts/{id}/sources without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /cases/{caseId}/correspondence-bindings (later phase, not routed) → 404 NOT_FOUND, no-store
+    [smoke] PASS processes stopped; ports 3000 and 5173 released
+    [smoke] PASS (42 checks)
+  dev:verify-shutdown:
+    [verify-dev] node scripts/local/dev.ts [terminal-ctrl-c]: started=true exit=0 in 606ms portsReleased=true leftovers=0 → PASS
+    [verify-dev] node scripts/local/dev.ts [top-sigint]: started=true exit=0 in 604ms portsReleased=true leftovers=0 → PASS
+    [verify-dev] node scripts/local/dev.ts [top-sigterm]: started=true exit=0 in 605ms portsReleased=true leftovers=0 → PASS
+    [verify-dev] yarn dev [terminal-ctrl-c]: started=true exit=0 in 605ms portsReleased=true leftovers=0 → PASS
+    [verify-dev] PASS (4/4 scenarios)
+  reference:check (after): [reference:check] OK — frozen references intact.
+  db:verify test --expect-empty (after): [verify] domain rows total: 0
+
+Per-file test counts (JSON reporter, output outside the repository; run right after the sweep on the same tree)
+---------------------------------------------------------------------------------------------------------------
+yarn test: 1346/1346 passed in 37 files
+     14  tests/api/admin-cli-runner.test.ts
+     12  tests/api/admin-cli.test.ts
+     23  tests/api/auth-config.test.ts
+     38  tests/api/authority-rules.test.ts
+      7  tests/api/cli-target.test.ts
+      5  tests/api/credentials.test.ts
+     15  tests/api/directory-rules.test.ts
+     56  tests/api/intake-rules.test.ts
+      8  tests/api/login-throttle.test.ts
+      2  tests/api/password-hasher-work.test.ts
+      6  tests/api/password-hasher.test.ts
+      5  tests/api/request-middleware.test.ts
+      7  tests/api/runtime-database-url.test.ts
+      5  tests/api/session-cookie.test.ts
+      6  tests/api/session-tokens.test.ts
+     54  tests/api/source-rules.test.ts
+     47  tests/api/storability.test.ts
+      7  tests/api/write-executor.test.ts
+     13  tests/api/write-primitives.test.ts
+     21  tests/contracts/formats-unicode.test.ts
+    443  tests/contracts/inventory-openapi.test.ts
+     28  tests/contracts/lowering-health.test.ts
+     30  tests/contracts/port-fail-closed.test.ts
+     12  tests/contracts/release-v1-1-0.test.ts
+     13  tests/contracts/release-v1-2-0.test.ts
+    321  tests/contracts/runtime-parity.test.ts
+     11  tests/contracts/tooling.test.ts
+      8  tests/tooling/admin-guard.test.ts
+      6  tests/tooling/env-file.test.ts
+     12  tests/tooling/seed-guard.test.ts
+     10  tests/web/app.test.tsx
+     22  tests/web/directory.test.tsx
+     18  tests/web/p3a.test.tsx
+     17  tests/web/p3b.test.tsx
+     17  tests/web/p4a.test.tsx
+     24  tests/web/p4b.test.tsx
+      3  tests/web/routing.test.tsx
+yarn test:db: 340/340 passed in 9 files
+      5  tests/db/admin-create.test.ts
+     14  tests/db/admin-recovery.test.ts
+     37  tests/db/auth-http.test.ts
+     71  tests/db/directory-http.test.ts
+     45  tests/db/p3a-http.test.ts
+     62  tests/db/p3b-http.test.ts
+     45  tests/db/p4a-http.test.ts
+     39  tests/db/p4b-http.test.ts
+     22  tests/db/structural.test.ts
+
+Baseline (P4B, merged to main as eb83b19; code head 35cf552): yarn test 1326 in 36 files; yarn test:db 333 in 9
+files; smoke:local 41 checks. R9 remediation:
+  +13 tests/contracts/release-v1-2-0.test.ts (new file);
+  tests/contracts/release-v1-1-0.test.ts 13 → 12, restructured, nothing it protects dropped: its three byte-identity
+    tests against the generated artifacts became one test that reproduces the v1.1.0 documents from "frozen +
+    v1.1.0" to the digests recorded at acceptance (the generated artifacts are v1.2.0 now, and their byte identity
+    is asserted by release-v1-2-0); its active-release constant test moved to release-v1-2-0 (the package names
+    v1.2.0) and was replaced by a check that v1.1.0's document version and the unrelated identifiers are as
+    released; one new test checks that the active contract carries the v1.1.0 operation and schemas exactly as
+    released (negative controls NC-R9-07a/b/d fail it);
+  +2 tests/contracts/inventory-openapi.test.ts (441 → 443, the two added schemas);
+  +2 tests/contracts/runtime-parity.test.ts (319 → 321, the two added schemas);
+  +4 tests/web/p4b.test.tsx (20 → 24);
+  +7 tests/db/p4b-http.test.ts (32 → 39);
+  = yarn test +20 (1346), yarn test:db +7 (340); smoke:local +1 check (the supports read without a session → 401).
+
+Transition check (ADR-0002 §6, opt-in, not part of yarn test or CI; never a success gate)
+------------------------------------------------------------------------------------------
+`yarn test:transition-baseline` (the one-time port output of the frozen v1.0.0 pack equals the committed active
+source — valid only before the first approved contract edit), run once after the sweep on the same tree (it ports
+into a temporary directory outside the repository; the working tree was unchanged afterwards):
+  AssertionError: api/catalog.ts: expected '21635649f249957eb5896cb54e26ed6495b41…' to be '3a8484943886f9b085eace68e3da72ace82f6…' // Object.is equality
+  Test Files  1 failed (1)
+  Tests  1 failed (1)
+It has failed by design since the approved v1.1.0 edit (ADR-0004) and fails the same way after the v1.2.0 edit
+(ADR-0005). It is not "fixed": no amendment is reverted and the frozen baseline is not modified.

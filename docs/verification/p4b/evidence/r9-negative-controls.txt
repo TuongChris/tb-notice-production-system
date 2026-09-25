@@ -1,0 +1,353 @@
+R9 remediation — negative controls (mission §15), home PC, 2026-09-25 (UTC)
+=============================================================================
+
+Method (scratchpad runner outside Git, the P4A/R8/P4B method): each control disables exactly one protection of
+the FactSource read-back (TB-SCHEMA-API-v1.2.0, getCaseFactSources) by an exact text replacement — or injects
+the forbidden behaviour — then runs every responsible test command. Each command must FAIL with a non-zero exit
+AND name at least one failed test; the first failure message is recorded to show that the failure is the
+test's assertion, not a crash of a broken mutation. Every mutated file is then restored and verified
+byte-identical by SHA-256. Every anchor is checked to occur exactly once before a control runs. DB commands run
+on the disposable tb_notice_test only (synthetic records; every test cleans up). The working tree is
+fingerprinted (git diff HEAD + SHA-256 of every untracked file) before and after a run.
+
+Final run (run 2): 2026-09-25T09:22:32.325Z – 2026-09-25T09:23:31.922Z, head b862cf7b560b61dd5e1586feb0f0b9b75290bedb
+(the final code head; clean tree except the untracked r9 screenshots), runner exit 0.
+  21 controls, 21 caught and restored (28 responsible commands, every one failed and named a test).
+  Working-tree fingerprint before and after: 5140a6c6dcfcb082658833109b02f4c452146fa5328182de8743d18de04abe5a (identical)
+  Afterwards `yarn db:verify test --expect-empty`: [verify] domain rows total: 0; [verify] PASS: metadata matches the reviewed inventory.
+  First failure message of each command: 25 AssertionError, 3 "timed out waiting for …" (the web
+  tests' assertion style: an element the mutation removed never appears), 0 other.
+  Unmutated baseline right before it — the 13 distinct responsible commands, each passing and selecting at least one test:
+    OK  exit 0 · Tests  1 passed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t case isolation: another case’s fact is 404 through this case
+    OK  exit 0 · Tests  1 passed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t a stored support that names another case’s link
+    OK  exit 0 · Tests  1 passed | 23 skipped (24) · npx vitest run --config vitest.config.ts tests/web/p4b.test.tsx -t another case’s fact: not found, its supports never requested
+    OK  exit 0 · Tests  1 passed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t historical pinning: a newer source revision, a paused link
+    OK  exit 0 · Tests  1 passed | 23 skipped (24) · npx vitest run --config vitest.config.ts tests/web/p4b.test.tsx -t a support whose link was later paused or unlinked
+    OK  exit 0 · Tests  1 passed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t revisions keep their own supports
+    OK  exit 0 · Tests  1 passed | 23 skipped (24) · npx vitest run --config vitest.config.ts tests/web/p4b.test.tsx -t create and revise with supports, then unmount and reload
+    OK  exit 0 · Tests  1 passed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t read only and neutral
+    OK  exit 0 · Tests  1 passed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t zero supports: an empty list naming the revision
+    OK  exit 0 · Tests  13 passed (13) · npx vitest run --config vitest.config.ts tests/contracts/release-v1-2-0.test.ts
+    OK  exit 0 · Tests  12 passed (12) · npx vitest run --config vitest.config.ts tests/contracts/release-v1-1-0.test.ts
+    OK  exit 0 · Tests  443 passed (443) · npx vitest run --config vitest.config.ts tests/contracts/inventory-openapi.test.ts
+    OK  exit 0 · Tests  1 passed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t one support reads back exactly the stored row
+    13 distinct commands, 0 problems
+
+RESULT: 21/21 — every disabled protection made its responsible tests fail; every file restored byte-identically.
+
+History (nothing hidden; every run kept in the scratchpad)
+- Run 1: 2026-09-25T09:08:22.795Z – 2026-09-25T09:09:24.519Z, same head b862cf7, before the browser pass (so before the
+  r9 screenshots existed), fingerprint 98eb43ea8a13a5bef4faee00d48c91c5fd405c5eb2668708d3188c0e5b1019db (identical after), runner exit 0:
+  21 controls, 21 caught and restored. Afterwards db:verify test: [verify] domain rows total: 0; [verify] PASS: metadata matches the reviewed inventory.
+  Its summary column recorded vitest's "⎯⎯ Failed Tests 1 ⎯⎯" banner instead of the final "Tests …" line (the
+  pattern /Tests\s+\d/ also matched the banner, which came last in the combined output). The CAUGHT decision
+  (non-zero exit and at least one named failed test) never used that column. For run 2 the runner strips colour
+  codes and takes only a line that begins with "Tests"; nothing else changed.
+- Run 2 (final, above): same head; the fingerprint differs from run 1's only because the seven untracked
+  r9 screenshots now exist.
+
+Mission §15 coverage
+- cross-case support leakage: NC-R9-01a, NC-R9-01b, NC-R9-01c
+- following the latest source revision: NC-R9-02a, NC-R9-02b
+- hiding supports after CaseSource pause/unlink: NC-R9-03a, NC-R9-03b
+- merging supports across fact revisions: NC-R9-04a, NC-R9-04b
+- provenance auto-upgrade: NC-R9-05a, NC-R9-05b
+- read causing a write/audit: NC-R9-06a, NC-R9-06b
+- release modifying v1.1.0: NC-R9-07a, NC-R9-07b, NC-R9-07c, NC-R9-07d
+- zero-support facts: NC-R9-08a, NC-R9-08b
+- deterministic order: NC-R9-09a
+- GetCaseFact backward compatibility: NC-R9-10a
+
+Notes on single controls
+- NC-R9-02a injects the forbidden behaviour where a source revision is written (sources.service.ts,
+  reviseSource): the new revision re-points every CaseSource link of the revised source. The
+  pinning test then sees the link cite the newer revision — so a recorded support can never be made to follow a
+  newer SourceReference revision without the test failing.
+- NC-R9-07d edits the accepted v1.1.0 release record temporarily (docs/contracts/TB-SCHEMA-API-v1.1.0/
+  amendment.json; restored byte-identically, verified by SHA-256): both the v1.1.0 release test (pinned record
+  digest) and the v1.2.0 release test (the base identity names that digest) fail. docs/reference/** is never
+  mutated by any control.
+- NC-R9-08a/08b copy the R8 CaseAuthorityCoverage rule "at least one row" into the read and into the contract:
+  the zero-support test and the release test fail — zero supports stays a normal answer.
+
+Controls (replacement shown shortened; "must fail" = the responsible commands)
+------------------------------------------------------------------------------
+NC-R9-01a — [cross-case support leakage] the read finds the fact revision only under the case of the path
+  file: apps/api/src/modules/cases/case-facts.service.ts
+  replace: "      where: { id, caseId },\n      select: { id: true },\n"
+  with:    "      where: { id },\n      select: { id: true },\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t case isolation: another case’s fact is 404 through this case
+NC-R9-01b — [cross-case support leakage] a stored support naming another case’s link is never returned (500, nothing leaks)
+  file: apps/api/src/modules/cases/case-facts.service.ts
+  replace: "    if (rows.length > MAX_SUPPORTS || rows.some((row) => row.caseSource.caseId !== caseId)) {\n"
+  with:    "    if (rows.length > MAX_SUPPORTS) {\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t a stored support that names another case’s link
+NC-R9-01c — [cross-case support leakage] UI: a fact not found in this case never has its supports requested or shown
+  file: apps/web/src/app/cases/facts.tsx
+  replace: "        {notFound ? (\n          <NotInThisCase caseId={caseId} noun=\"fact\" testId=\"fact-not-found\" />\n"
+  with:    "        {notFound ? (\n          <>\n            <NotInThisCase caseId={caseId} noun=\"fact\" testId=\"fact-not-found\" />\n            <FactSupports caseId={caseId} factId={..."
+  must fail: npx vitest run --config vitest.config.ts tests/web/p4b.test.tsx -t another case’s fact: not found, its supports never requested
+NC-R9-02a — [following the latest source revision] a newer SourceReference revision never re-points the link a recorded support names
+  file: apps/api/src/modules/sources/sources.service.ts
+  replace: "        await context.audit({\n          action: 'SOURCE_REVISED',\n"
+  with:    "        await tx.caseSource.updateMany({\n          where: { sourceId: target.id },\n          data: { sourceId: revisionId },\n        });\n        await context.audit({\n..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t historical pinning: a newer source revision, a paused link
+NC-R9-02b — [following the latest source revision] UI: a support cites the revision its link cites, never the source’s newest revision
+  file: apps/web/src/app/cases/facts.tsx
+  replace: "  const [state] = useLoad(`fact-support-link:${support.caseSourceId}`, () =>\n    api.cases.sources.get(support.caseSourceId),\n  );\n"
+  with:    "  const [state] = useLoad(`fact-support-link:${support.caseSourceId}`, async () => {\n    const found = await api.cases.sources.get(support.caseSourceId);\n    const cit..."
+  must fail: npx vitest run --config vitest.config.ts tests/web/p4b.test.tsx -t a support whose link was later paused or unlinked
+NC-R9-03a — [hiding supports after CaseSource pause/unlink] the read returns every recorded support, whatever the link’s state today
+  file: apps/api/src/modules/cases/case-facts.service.ts
+  replace: "      where: { factId: fact.id },\n"
+  with:    "      where: { factId: fact.id, caseSource: { linkState: 'LINKED' } },\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t historical pinning: a newer source revision, a paused link
+NC-R9-03b — [hiding supports after CaseSource pause/unlink] UI: a support whose link is now paused or unlinked stays shown
+  file: apps/web/src/app/cases/facts.tsx
+  replace: "  const link = state.status === 'ready' ? state.value.data : null;\n"
+  with:    "  const link = state.status === 'ready' ? state.value.data : null;\n  if (link !== null && link.linkState !== 'LINKED') return null;\n"
+  must fail: npx vitest run --config vitest.config.ts tests/web/p4b.test.tsx -t a support whose link was later paused or unlinked
+NC-R9-04a — [merging supports across fact revisions] the read returns the rows of exactly the requested revision, never its chain’s
+  file: apps/api/src/modules/cases/case-facts.service.ts
+  replace: "      where: { id, caseId },\n      select: { id: true },\n"
+  with:    "      where: { id, caseId },\n      select: { id: true, factGroupId: true },\n"
+  file: apps/api/src/modules/cases/case-facts.service.ts
+  replace: "      where: { factId: fact.id },\n"
+  with:    "      where: { fact: { factGroupId: fact.factGroupId } },\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t revisions keep their own supports
+NC-R9-04b — [merging supports across fact revisions] UI: an earlier revision shows its own supports, never the current revision’s
+  file: apps/web/src/app/cases/facts.tsx
+  replace: "      <FactSupports caseId={caseId} factId={fact.id} />\n"
+  with:    "      <FactSupports caseId={caseId} factId={head?.id ?? fact.id} />\n"
+  must fail: npx vitest run --config vitest.config.ts tests/web/p4b.test.tsx -t create and revise with supports, then unmount and reload
+NC-R9-05a — [provenance auto-upgrade] reading the supports never upgrades the fact (a reviewed source cited sets nothing)
+  file: apps/api/src/modules/cases/case-facts.service.ts
+  replace: "    if (!fact) throw apiErrors.notFound();\n"
+  with:    "    if (!fact) throw apiErrors.notFound();\n    const reviewedSupports = await this.prisma.factSource.count({\n      where: {\n        factId: fact.id,\n        caseSource..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t read only and neutral
+NC-R9-05b — [provenance auto-upgrade] UI: a recorded support shows no upgraded provenance
+  file: apps/web/src/app/cases/facts.tsx
+  replace: "          ['Support role', <span data-testid=\"fact-support-role\">{support.supportRole}</span>],\n"
+  with:    "          ['Support role', <span data-testid=\"fact-support-role\">{support.supportRole}</span>],\n          ['Provenance', <ProvenanceText provenance=\"DOCUMENT_REVIEWED\"..."
+  must fail: npx vitest run --config vitest.config.ts tests/web/p4b.test.tsx -t a support whose link was later paused or unlinked
+NC-R9-06a — [read causing a write/audit] reading the supports writes no audit event
+  file: apps/api/src/modules/cases/case-facts.service.ts
+  replace: "    if (!fact) throw apiErrors.notFound();\n"
+  with:    "    if (!fact) throw apiErrors.notFound();\n    await this.prisma.auditEvent.create({\n      data: {\n        requestId: 'negative-control',\n        action: 'CASE_FACT_SO..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t zero supports: an empty list naming the revision
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t read only and neutral
+NC-R9-06b — [read causing a write/audit] reading the supports changes no record (the case version stays)
+  file: apps/api/src/modules/cases/case-facts.service.ts
+  replace: "    if (!fact) throw apiErrors.notFound();\n"
+  with:    "    if (!fact) throw apiErrors.notFound();\n    await this.prisma.caseRecord.update({\n      where: { id: caseId },\n      data: { rowVersion: { increment: 1 } },\n    });\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t zero supports: an empty list naming the revision
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t read only and neutral
+NC-R9-07a — [release modifying v1.1.0] the v1.1.0 schemas stay exactly as released (CaseAuthoritySelectionView bounds)
+  file: packages/contracts/src/api/schemas/core.ts
+  replace: "    coverages: tb.array(CaseAuthorityCoverageSchema, { minItems: 1, maxItems: 20 }),\n"
+  with:    "    coverages: tb.array(CaseAuthorityCoverageSchema, { minItems: 1, maxItems: 21 }),\n"
+  must fail: npx vitest run --config vitest.config.ts tests/contracts/release-v1-2-0.test.ts
+  must fail: npx vitest run --config vitest.config.ts tests/contracts/release-v1-1-0.test.ts
+  must fail: npx vitest run --config vitest.config.ts tests/contracts/inventory-openapi.test.ts
+NC-R9-07b — [release modifying v1.1.0] the v1.1.0 operation stays exactly as released (getCaseAuthoritySelection)
+  file: packages/contracts/src/api/operations.ts
+  replace: "      'Read one selection of this case with the exact coverage rows it pinned; a stored historical record, not G1 or current authority.',\n"
+  with:    "      'Read one selection of this case with its coverage rows; a stored historical record.',\n"
+  must fail: npx vitest run --config vitest.config.ts tests/contracts/release-v1-2-0.test.ts
+  must fail: npx vitest run --config vitest.config.ts tests/contracts/release-v1-1-0.test.ts
+NC-R9-07c — [release modifying v1.1.0] the committed v1.2.0 artifact carries the v1.1.0 operation unchanged
+  file: packages/contracts/openapi/openapi.json
+  replace: "\"summary\": \"Read one selection of this case with the exact coverage rows it pinned; a stored historical record, not G1 or current authority.\","
+  with:    "\"summary\": \"Read one selection of this case with its coverage rows; a stored historical record.\","
+  must fail: npx vitest run --config vitest.config.ts tests/contracts/release-v1-2-0.test.ts
+  must fail: npx vitest run --config vitest.config.ts tests/contracts/inventory-openapi.test.ts
+NC-R9-07d — [release modifying v1.1.0] the accepted v1.1.0 release record is never edited (digest pinned; v1.2.0 names it as base)
+  file: docs/contracts/TB-SCHEMA-API-v1.1.0/amendment.json
+  replace: "\"summary\": \"Adds the case-scoped read of one CaseAuthoritySelection"
+  with:    "\"summary\": \"Adds a case-scoped read of one CaseAuthoritySelection"
+  must fail: npx vitest run --config vitest.config.ts tests/contracts/release-v1-1-0.test.ts
+  must fail: npx vitest run --config vitest.config.ts tests/contracts/release-v1-2-0.test.ts
+NC-R9-08a — [zero-support facts] a revision without supports is a normal answer, not a corrupt record (no R8 1-row rule)
+  file: apps/api/src/modules/cases/case-facts.service.ts
+  replace: "    if (rows.length > MAX_SUPPORTS || rows.some((row) => row.caseSource.caseId !== caseId)) {\n"
+  with:    "    if (\n      rows.length === 0 ||\n      rows.length > MAX_SUPPORTS ||\n      rows.some((row) => row.caseSource.caseId !== caseId)\n    ) {\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t zero supports: an empty list naming the revision
+NC-R9-08b — [zero-support facts] the contract allows zero rows (minItems 0, not the 1 of CaseAuthoritySelectionView)
+  file: packages/contracts/src/api/schemas/core.ts
+  replace: "    sources: tb.array(FactSourceSchema, { minItems: 0, maxItems: 100 }),\n"
+  with:    "    sources: tb.array(FactSourceSchema, { minItems: 1, maxItems: 100 }),\n"
+  must fail: npx vitest run --config vitest.config.ts tests/contracts/release-v1-2-0.test.ts
+NC-R9-09a — [deterministic order] the rows come in ascending (createdAt, id) order
+  file: apps/api/src/modules/cases/case-facts.service.ts
+  replace: "      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],\n      include: { caseSource: { select: { caseId: true } } },\n"
+  with:    "      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],\n      include: { caseSource: { select: { caseId: true } } },\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t one support reads back exactly the stored row
+NC-R9-10a — [GetCaseFact backward compatibility] getCaseFact returns exactly the CaseFact row (no embedded support list)
+  file: apps/api/src/modules/cases/case-facts.service.ts
+  replace: "    if (!row) throw apiErrors.notFound();\n    return toCaseFactView(row);\n"
+  with:    "    if (!row) throw apiErrors.notFound();\n    const sources = await this.prisma.factSource.findMany({ where: { factId: id } });\n    return { ...toCaseFactView(row), so..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t read only and neutral
+
+Final run log (run 2)
+---------------------
+# R9 negative controls — start 2026-09-25T09:22:32.325Z — head b862cf7b560b61dd5e1586feb0f0b9b75290bedb — tree fingerprint 5140a6c6dcfcb082658833109b02f4c452146fa5328182de8743d18de04abe5a
+[NC-R9-01a] CAUGHT · restored byte-identical · [cross-case support leakage] the read finds the fact revision only under the case of the path
+    exit 1 · Tests  1 failed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t case isolation: another case’s fact is 404 through this case
+      × case isolation: another case’s fact is 404 through this case, exactly like an unknown fact or case; no existence, count, link id or assertion crosses
+      FAIL  tests/db/p4b-http.test.ts > FACT SOURCES READ-BACK (TB-SCHEMA-API-v1.2.0, R9) — the exact supports recorded for one fact revision > case isolation: another case’s fact is 404 through this case, exactly like an unknown fact or case; no existence, count, link id or assertion crosses
+        ↳ AssertionError: 86feaf31-cd16-4531-b56d-af3f6166e153 0509ef51-e028-47b7-8d27-42c21d66e408: expected 500 to be 404 // Object.is equality
+[NC-R9-01b] CAUGHT · restored byte-identical · [cross-case support leakage] a stored support naming another case’s link is never returned (500, nothing leaks)
+    exit 1 · Tests  1 failed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t a stored support that names another case’s link
+      × a stored support that names another case’s link, or more rows than a revision can hold, is never shown: 500, nothing leaks
+      FAIL  tests/db/p4b-http.test.ts > FACT SOURCES READ-BACK (TB-SCHEMA-API-v1.2.0, R9) — the exact supports recorded for one fact revision > a stored support that names another case’s link, or more rows than a revision can hold, is never shown: 500, nothing leaks
+        ↳ AssertionError: expected [ 200, '(no error: HTTP 200)' ] to deeply equal [ 500, 'INTERNAL_ERROR' ]
+[NC-R9-01c] CAUGHT · restored byte-identical · [cross-case support leakage] UI: a fact not found in this case never has its supports requested or shown
+    exit 1 · Tests  1 failed | 23 skipped (24) · npx vitest run --config vitest.config.ts tests/web/p4b.test.tsx -t another case’s fact: not found, its supports never requested
+      × another case’s fact: not found, its supports never requested or shown; each case shows only its own supports
+      FAIL  tests/web/p4b.test.tsx > R9 — the supports recorded with each fact revision, read back (TB-SCHEMA-API-v1.2.0) > another case’s fact: not found, its supports never requested or shown; each case shows only its own supports
+        ↳ AssertionError: expected true to be false // Object.is equality
+[NC-R9-02a] CAUGHT · restored byte-identical · [following the latest source revision] a newer SourceReference revision never re-points the link a recorded support names
+    exit 1 · Tests  1 failed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t historical pinning: a newer source revision, a paused link
+      × historical pinning: a newer source revision, a paused link and an unlinked link change nothing in the recorded supports and hide none of them; the link’s present state is its own record
+      FAIL  tests/db/p4b-http.test.ts > FACT SOURCES READ-BACK (TB-SCHEMA-API-v1.2.0, R9) — the exact supports recorded for one fact revision > historical pinning: a newer source revision, a paused link and an unlinked link change nothing in the recorded supports and hide none of them; the link’s present state is its own record
+        ↳ AssertionError: expected '1ad05529-b461-4d5c-be88-222567d9cb15' to be '8b2fd2d5-cf05-4be6-9ef1-1b2c65827ce4' // Object.is equality
+[NC-R9-02b] CAUGHT · restored byte-identical · [following the latest source revision] UI: a support cites the revision its link cites, never the source’s newest revision
+    exit 1 · Tests  1 failed | 23 skipped (24) · npx vitest run --config vitest.config.ts tests/web/p4b.test.tsx -t a support whose link was later paused or unlinked
+      × a support whose link was later paused or unlinked stays shown as recorded; the link’s state today is shown apart; a newer source revision is not followed
+      FAIL  tests/web/p4b.test.tsx > R9 — the supports recorded with each fact revision, read back (TB-SCHEMA-API-v1.2.0) > a support whose link was later paused or unlinked stays shown as recorded; the link’s state today is shown apart; a newer source revision is not followed
+        ↳ Error: timed out waiting for the source now has revision 2. The citation does not move to it.
+[NC-R9-03a] CAUGHT · restored byte-identical · [hiding supports after CaseSource pause/unlink] the read returns every recorded support, whatever the link’s state today
+    exit 1 · Tests  1 failed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t historical pinning: a newer source revision, a paused link
+      × historical pinning: a newer source revision, a paused link and an unlinked link change nothing in the recorded supports and hide none of them; the link’s present state is its own record
+      FAIL  tests/db/p4b-http.test.ts > FACT SOURCES READ-BACK (TB-SCHEMA-API-v1.2.0, R9) — the exact supports recorded for one fact revision > historical pinning: a newer source revision, a paused link and an unlinked link change nothing in the recorded supports and hide none of them; the link’s present state is its own record
+        ↳ AssertionError: expected '{"factId":"7db454e9-9343-4682-ac1c-dc…' to be '{"factId":"7db454e9-9343-4682-ac1c-dc…' // Object.is equality
+[NC-R9-03b] CAUGHT · restored byte-identical · [hiding supports after CaseSource pause/unlink] UI: a support whose link is now paused or unlinked stays shown
+    exit 1 · Tests  1 failed | 23 skipped (24) · npx vitest run --config vitest.config.ts tests/web/p4b.test.tsx -t a support whose link was later paused or unlinked
+      × a support whose link was later paused or unlinked stays shown as recorded; the link’s state today is shown apart; a newer source revision is not followed
+      FAIL  tests/web/p4b.test.tsx > R9 — the supports recorded with each fact revision, read back (TB-SCHEMA-API-v1.2.0) > a support whose link was later paused or unlinked stays shown as recorded; the link’s state today is shown apart; a newer source revision is not followed
+        ↳ Error: timed out waiting for supports
+[NC-R9-04a] CAUGHT · restored byte-identical · [merging supports across fact revisions] the read returns the rows of exactly the requested revision, never its chain’s
+    exit 1 · Tests  1 failed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t revisions keep their own supports
+      × revisions keep their own supports: the earlier revision still reads its rows, a newer one only its own (other or none); nothing is merged or carried over
+      FAIL  tests/db/p4b-http.test.ts > FACT SOURCES READ-BACK (TB-SCHEMA-API-v1.2.0, R9) — the exact supports recorded for one fact revision > revisions keep their own supports: the earlier revision still reads its rows, a newer one only its own (other or none); nothing is merged or carried over
+        ↳ AssertionError: expected { …(2) } to deeply equal { …(2) }
+[NC-R9-04b] CAUGHT · restored byte-identical · [merging supports across fact revisions] UI: an earlier revision shows its own supports, never the current revision’s
+    exit 1 · Tests  1 failed | 23 skipped (24) · npx vitest run --config vitest.config.ts tests/web/p4b.test.tsx -t create and revise with supports, then unmount and reload
+      × create and revise with supports, then unmount and reload: the historical revision still shows exactly its own supports, read back from the server; the newer one only its own
+      FAIL  tests/web/p4b.test.tsx > R9 — the supports recorded with each fact revision, read back (TB-SCHEMA-API-v1.2.0) > create and revise with supports, then unmount and reload: the historical revision still shows exactly its own supports, read back from the server; the newer one only its own
+        ↳ Error: timed out waiting for revision 1 supports after reload
+[NC-R9-05a] CAUGHT · restored byte-identical · [provenance auto-upgrade] reading the supports never upgrades the fact (a reviewed source cited sets nothing)
+    exit 1 · Tests  1 failed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t read only and neutral
+      × read only and neutral: the fact keeps its provenance and resolution state as recorded — a reviewed support upgrades nothing; nothing is written; getCaseFact is unchanged (no support list)
+      FAIL  tests/db/p4b-http.test.ts > FACT SOURCES READ-BACK (TB-SCHEMA-API-v1.2.0, R9) — the exact supports recorded for one fact revision > read only and neutral: the fact keeps its provenance and resolution state as recorded — a reviewed support upgrades nothing; nothing is written; getCaseFact is unchanged (no support list)
+        ↳ AssertionError: expected { …(21) } to deeply equal { …(21) }
+[NC-R9-05b] CAUGHT · restored byte-identical · [provenance auto-upgrade] UI: a recorded support shows no upgraded provenance
+    exit 1 · Tests  1 failed | 23 skipped (24) · npx vitest run --config vitest.config.ts tests/web/p4b.test.tsx -t a support whose link was later paused or unlinked
+      × a support whose link was later paused or unlinked stays shown as recorded; the link’s state today is shown apart; a newer source revision is not followed
+      FAIL  tests/web/p4b.test.tsx > R9 — the supports recorded with each fact revision, read back (TB-SCHEMA-API-v1.2.0) > a support whose link was later paused or unlinked stays shown as recorded; the link’s state today is shown apart; a newer source revision is not followed
+        ↳ AssertionError: expected [ 'Operator reported', …(2) ] to deeply equal [ 'Operator reported' ]
+[NC-R9-06a] CAUGHT · restored byte-identical · [read causing a write/audit] reading the supports writes no audit event
+    exit 1 · Tests  1 failed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t zero supports: an empty list naming the revision
+      × zero supports: an empty list naming the revision — a normal answer, not a gap, an error or MISSING; no ETag, no precondition, session only, nothing written
+      FAIL  tests/db/p4b-http.test.ts > FACT SOURCES READ-BACK (TB-SCHEMA-API-v1.2.0, R9) — the exact supports recorded for one fact revision > zero supports: an empty list naming the revision — a normal answer, not a gap, an error or MISSING; no ETag, no precondition, session only, nothing written
+        ↳ AssertionError: expected { …(25) } to deeply equal { …(25) }
+    exit 1 · Tests  1 failed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t read only and neutral
+      × read only and neutral: the fact keeps its provenance and resolution state as recorded — a reviewed support upgrades nothing; nothing is written; getCaseFact is unchanged (no support list)
+      FAIL  tests/db/p4b-http.test.ts > FACT SOURCES READ-BACK (TB-SCHEMA-API-v1.2.0, R9) — the exact supports recorded for one fact revision > read only and neutral: the fact keeps its provenance and resolution state as recorded — a reviewed support upgrades nothing; nothing is written; getCaseFact is unchanged (no support list)
+        ↳ AssertionError: expected { …(25) } to deeply equal { …(25) }
+[NC-R9-06b] CAUGHT · restored byte-identical · [read causing a write/audit] reading the supports changes no record (the case version stays)
+    exit 1 · Tests  1 failed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t zero supports: an empty list naming the revision
+      × zero supports: an empty list naming the revision — a normal answer, not a gap, an error or MISSING; no ETag, no precondition, session only, nothing written
+      FAIL  tests/db/p4b-http.test.ts > FACT SOURCES READ-BACK (TB-SCHEMA-API-v1.2.0, R9) — the exact supports recorded for one fact revision > zero supports: an empty list naming the revision — a normal answer, not a gap, an error or MISSING; no ETag, no precondition, session only, nothing written
+        ↳ AssertionError: expected { …(25) } to deeply equal { …(25) }
+    exit 1 · Tests  1 failed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t read only and neutral
+      × read only and neutral: the fact keeps its provenance and resolution state as recorded — a reviewed support upgrades nothing; nothing is written; getCaseFact is unchanged (no support list)
+      FAIL  tests/db/p4b-http.test.ts > FACT SOURCES READ-BACK (TB-SCHEMA-API-v1.2.0, R9) — the exact supports recorded for one fact revision > read only and neutral: the fact keeps its provenance and resolution state as recorded — a reviewed support upgrades nothing; nothing is written; getCaseFact is unchanged (no support list)
+        ↳ AssertionError: expected { …(25) } to deeply equal { …(25) }
+[NC-R9-07a] CAUGHT · restored byte-identical · [release modifying v1.1.0] the v1.1.0 schemas stay exactly as released (CaseAuthoritySelectionView bounds)
+    exit 1 · Tests  3 failed | 10 passed (13) · npx vitest run --config vitest.config.ts tests/contracts/release-v1-2-0.test.ts
+      × JSON Schema bundle
+      × OpenAPI document
+      × all 284 frozen and all 286 v1.1.0 schemas are byte-identical and in their order; the only new names are this amendment’s
+      FAIL  tests/contracts/release-v1-2-0.test.ts > frozen v1.0.0 + v1.1.0 + v1.2.0 reproduces the generated contract byte for byte > JSON Schema bundle
+      FAIL  tests/contracts/release-v1-2-0.test.ts > frozen v1.0.0 + v1.1.0 + v1.2.0 reproduces the generated contract byte for byte > OpenAPI document
+      FAIL  tests/contracts/release-v1-2-0.test.ts > additive only: nothing of v1.0.0 or v1.1.0 is changed, removed or reordered > all 284 frozen and all 286 v1.1.0 schemas are byte-identical and in their order; the only new names are this amendment’s
+        ↳ AssertionError: expected false to be true // Object.is equality
+        ↳ AssertionError: CaseAuthoritySelectionView: expected false to be true // Object.is equality
+    exit 1 · Tests  2 failed | 10 passed (12) · npx vitest run --config vitest.config.ts tests/contracts/release-v1-1-0.test.ts
+      × the active contract carries the v1.1.0 operation and schemas exactly as released
+      × the response is exactly the stored selection and its stored coverage rows (1–20), nothing else
+      FAIL  tests/contracts/release-v1-1-0.test.ts > the added read: case-scoped, read-only, exactly the stored rows — unchanged in the active contract > the active contract carries the v1.1.0 operation and schemas exactly as released
+      FAIL  tests/contracts/release-v1-1-0.test.ts > the added read: case-scoped, read-only, exactly the stored rows — unchanged in the active contract > the response is exactly the stored selection and its stored coverage rows (1–20), nothing else
+        ↳ AssertionError: CaseAuthoritySelectionView: expected false to be true // Object.is equality
+        ↳ AssertionError: expected { …(2) } to deeply equal { …(2) }
+    exit 1 · Tests  7 failed | 436 passed (443) · npx vitest run --config vitest.config.ts tests/contracts/inventory-openapi.test.ts
+      × serializes byte-identically to the release baseline (the frozen api-schemas.json + the amendments)
+      × is deep-equal to the release baseline
+      × CaseAuthoritySelectionView (TB-SCHEMA-API-v1.1.0 addition): itemized inventory equal to its amendment
+      × serializes byte-identically to the release baseline (the frozen openapi.json + the amendments) and is deep-equal
+      × keeps OpenAPI 3.1.1, the loopback server URL, info (version 1.2.0), tags, security and components
+      × parses with default YAML settings to exactly the generated JSON document
+      × committed JSON artifacts equal the in-memory build
+      FAIL  tests/contracts/inventory-openapi.test.ts > JSON Schema bundle parity (the 284 frozen schemas + 2 of TB-SCHEMA-API-v1.1.0 + 2 of TB-SCHEMA-API-v1.2.0) > serializes byte-identically to the release baseline (the frozen api-schemas.json + the amendments)
+        ↳ AssertionError: expected false to be true // Object.is equality
+        ↳ AssertionError: expected { …(16) } to deeply equal { …(16) }
+        ↳ AssertionError: CaseAuthoritySelectionView: expected { type: 'object', …(4) } to deeply equal { type: 'object', …(4) }
+[NC-R9-07b] CAUGHT · restored byte-identical · [release modifying v1.1.0] the v1.1.0 operation stays exactly as released (getCaseAuthoritySelection)
+    exit 1 · Tests  2 failed | 11 passed (13) · npx vitest run --config vitest.config.ts tests/contracts/release-v1-2-0.test.ts
+      × OpenAPI document
+      × all 141 frozen and all 142 v1.1.0 operations are identical and in their order; the only new one is getCaseFactSources
+      FAIL  tests/contracts/release-v1-2-0.test.ts > frozen v1.0.0 + v1.1.0 + v1.2.0 reproduces the generated contract byte for byte > OpenAPI document
+      FAIL  tests/contracts/release-v1-2-0.test.ts > additive only: nothing of v1.0.0 or v1.1.0 is changed, removed or reordered > all 141 frozen and all 142 v1.1.0 operations are identical and in their order; the only new one is getCaseFactSources
+        ↳ AssertionError: expected false to be true // Object.is equality
+        ↳ AssertionError: /cases/{caseId}/authority-selections/{id}: expected false to be true // Object.is equality
+    exit 1 · Tests  1 failed | 11 passed (12) · npx vitest run --config vitest.config.ts tests/contracts/release-v1-1-0.test.ts
+      × the active contract carries the v1.1.0 operation and schemas exactly as released
+      FAIL  tests/contracts/release-v1-1-0.test.ts > the added read: case-scoped, read-only, exactly the stored rows — unchanged in the active contract > the active contract carries the v1.1.0 operation and schemas exactly as released
+        ↳ AssertionError: expected false to be true // Object.is equality
+[NC-R9-07c] CAUGHT · restored byte-identical · [release modifying v1.1.0] the committed v1.2.0 artifact carries the v1.1.0 operation unchanged
+    exit 1 · Tests  1 failed | 12 passed (13) · npx vitest run --config vitest.config.ts tests/contracts/release-v1-2-0.test.ts
+      × the committed artifacts (JSON and YAML) are the rendered release and have its digests
+      FAIL  tests/contracts/release-v1-2-0.test.ts > frozen v1.0.0 + v1.1.0 + v1.2.0 reproduces the generated contract byte for byte > the committed artifacts (JSON and YAML) are the rendered release and have its digests
+        ↳ AssertionError: packages/contracts/openapi/openapi.json is the rendered release: expected false to be true // Object.is equality
+    exit 1 · Tests  1 failed | 442 passed (443) · npx vitest run --config vitest.config.ts tests/contracts/inventory-openapi.test.ts
+      × committed JSON artifacts equal the in-memory build
+      FAIL  tests/contracts/inventory-openapi.test.ts > OpenAPI YAML > committed JSON artifacts equal the in-memory build
+        ↳ AssertionError: expected { openapi: '3.1.1', …(6) } to deeply equal { openapi: '3.1.1', …(6) }
+[NC-R9-07d] CAUGHT · restored byte-identical · [release modifying v1.1.0] the accepted v1.1.0 release record is never edited (digest pinned; v1.2.0 names it as base)
+    exit 1 · Tests  1 failed | 11 passed (12) · npx vitest run --config vitest.config.ts tests/contracts/release-v1-1-0.test.ts
+      × the amendment record is the reviewed one (never edited after the release)
+      FAIL  tests/contracts/release-v1-1-0.test.ts > TB-SCHEMA-API-v1.1.0 release record > the amendment record is the reviewed one (never edited after the release)
+        ↳ AssertionError: expected '3302e821e99b4285b18bc0acc704558dbfc0b…' to be '2f4df69739926d4b50c22a1ba123ede51edec…' // Object.is equality
+    exit 1 · Tests  1 failed | 12 passed (13) · npx vitest run --config vitest.config.ts tests/contracts/release-v1-2-0.test.ts
+      × extends exactly the accepted TB-SCHEMA-API-v1.1.0: its record and its documents, reproduced to their recorded digests
+      FAIL  tests/contracts/release-v1-2-0.test.ts > TB-SCHEMA-API-v1.2.0 release record > extends exactly the accepted TB-SCHEMA-API-v1.1.0: its record and its documents, reproduced to their recorded digests
+        ↳ AssertionError: expected '3302e821e99b4285b18bc0acc704558dbfc0b…' to be '2f4df69739926d4b50c22a1ba123ede51edec…' // Object.is equality
+[NC-R9-08a] CAUGHT · restored byte-identical · [zero-support facts] a revision without supports is a normal answer, not a corrupt record (no R8 1-row rule)
+    exit 1 · Tests  1 failed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t zero supports: an empty list naming the revision
+      × zero supports: an empty list naming the revision — a normal answer, not a gap, an error or MISSING; no ETag, no precondition, session only, nothing written
+      FAIL  tests/db/p4b-http.test.ts > FACT SOURCES READ-BACK (TB-SCHEMA-API-v1.2.0, R9) — the exact supports recorded for one fact revision > zero supports: an empty list naming the revision — a normal answer, not a gap, an error or MISSING; no ETag, no precondition, session only, nothing written
+        ↳ AssertionError: {"error":{"code":"INTERNAL_ERROR","message":"The server could not complete the request.","details":{},"requestId":"d08f0a7f-25d3-418f-b5b5-dc440d8f1ddc"}}: expected 500 to be 200 // Object.is equality
+[NC-R9-08b] CAUGHT · restored byte-identical · [zero-support facts] the contract allows zero rows (minItems 0, not the 1 of CaseAuthoritySelectionView)
+    exit 1 · Tests  3 failed | 10 passed (13) · npx vitest run --config vitest.config.ts tests/contracts/release-v1-2-0.test.ts
+      × JSON Schema bundle
+      × OpenAPI document
+      × the response is the revision id and its stored FactSource rows (0–100, zero allowed), nothing else
+      FAIL  tests/contracts/release-v1-2-0.test.ts > frozen v1.0.0 + v1.1.0 + v1.2.0 reproduces the generated contract byte for byte > JSON Schema bundle
+      FAIL  tests/contracts/release-v1-2-0.test.ts > frozen v1.0.0 + v1.1.0 + v1.2.0 reproduces the generated contract byte for byte > OpenAPI document
+      FAIL  tests/contracts/release-v1-2-0.test.ts > the added read: case-scoped, read-only, exactly the stored FactSource rows of one revision > the response is the revision id and its stored FactSource rows (0–100, zero allowed), nothing else
+        ↳ AssertionError: expected false to be true // Object.is equality
+        ↳ AssertionError: expected { …(2) } to deeply equal { …(2) }
+[NC-R9-09a] CAUGHT · restored byte-identical · [deterministic order] the rows come in ascending (createdAt, id) order
+    exit 1 · Tests  1 failed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t one support reads back exactly the stored row
+      × one support reads back exactly the stored row; several read back byte for byte — role and assertion as entered — in (createdAt, id) order, the same on every read
+      FAIL  tests/db/p4b-http.test.ts > FACT SOURCES READ-BACK (TB-SCHEMA-API-v1.2.0, R9) — the exact supports recorded for one fact revision > one support reads back exactly the stored row; several read back byte for byte — role and assertion as entered — in (createdAt, id) order, the same on every read
+        ↳ AssertionError: expected [ { …(7) }, { …(7) }, { …(7) } ] to deeply equal [ { …(7) }, { …(7) }, { …(7) } ]
+[NC-R9-10a] CAUGHT · restored byte-identical · [GetCaseFact backward compatibility] getCaseFact returns exactly the CaseFact row (no embedded support list)
+    exit 1 · Tests  1 failed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4b-http.test.ts -t read only and neutral
+      × read only and neutral: the fact keeps its provenance and resolution state as recorded — a reviewed support upgrades nothing; nothing is written; getCaseFact is unchanged (no support list)
+      FAIL  tests/db/p4b-http.test.ts > FACT SOURCES READ-BACK (TB-SCHEMA-API-v1.2.0, R9) — the exact supports recorded for one fact revision > read only and neutral: the fact keeps its provenance and resolution state as recorded — a reviewed support upgrades nothing; nothing is written; getCaseFact is unchanged (no support list)
+        ↳ AssertionError: expected false to be true // Object.is equality
+# end 2026-09-25T09:23:31.922Z — tree fingerprint 5140a6c6dcfcb082658833109b02f4c452146fa5328182de8743d18de04abe5a (identical)
+21 controls, 21 caught and restored, 0 problems
+exit 0

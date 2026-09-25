@@ -1,0 +1,124 @@
+R9 remediation — Playwright MCP browser verification of the fact-support read-back (mission §16), home PC, 2026-09-25 (UTC)
+===========================================================================================================================
+
+Target and isolation
+- `yarn ui:sandbox --password-file <scratchpad file outside the repository>`: the COMPILED API on the disposable
+  `tb_notice_test` schema plus the built web app (`vite preview`) on http://localhost:5173 (proxying /api), built
+  from the final code head `b862cf7` (entry `index-p4TRgKZi.js` 319.34 kB, gzip 99.58 kB; `facts-CyMOCh5Y.js`
+  29.80 kB — the same bundle names CI built for `b862cf7`). Synthetic sandbox user p2-ui-sandbox@example.invalid;
+  its password was typed into the isolated browser's login form only and the password file was deleted afterwards.
+- Browser: the Playwright MCP isolated headless Chromium profile (no personal profile, no real login session),
+  1280×900 unless noted. Never `tb_notice_dev`, never the operator's `yarn dev`, never real case or owner data.
+- Prerequisites, created through the compiled API with the sandbox user (scratchpad script, not committed),
+  2026-09-25T09:10:52Z: agency "SYNTHETIC Agency Kappa"; two sources of that agency — "SYNTHETIC Kappa intake
+  packet" (OPERATOR_INPUT, provenance operator reported) and "SYNTHETIC Kappa reviewed licence copy"
+  (CANONICAL_RECORD, DOCUMENT_REVIEWED by "SYNTHETIC Reviewer"); owner "SYNTHETIC Brand Lambda" with legal subject
+  "SYNTHETIC Lambda Media LLC" and their route; cases "SYNTHETIC Case Alpha" and "SYNTHETIC Case Beta" on that
+  route; Alpha's links PACKET (8b1d0626-…) and LICENCE (6abe59c3-…), Beta's link PACKET (7c15ee79-…). Every fact,
+  support, fact revision, source revision and link-state change below was made in the browser.
+- One pass, 2026-09-25T09:11:13Z (login) – 09:17:42Z (browser closed), then teardown (below).
+
+Ids (synthetic, tb_notice_test, deleted at teardown)
+  Case Alpha fad31c4a-5988-411a-9141-126012c614ca · Case Beta ea14c651-572b-4b0c-8630-fdbadd6675a5
+  packet source 860f112f-78c1-456d-8235-d2a3c2d7ca9b (revision 1; revision 2 fb2988d8-d958-41d8-8b25-305f0a4873f1)
+  licence source 754c7010-d7e6-4b29-8b57-8ff76abdd114
+  fact revision 1 4b6b5d9b-6076-4522-a68c-a21062835403 (chain c0252c0a-a5c8-4f32-ac34-85550cae174e)
+  fact revision 2 1cf95e79-315f-4ea9-92dd-0c2376f241b8 · zero-support fact cbb3fdc9-8f15-46df-9190-55f9695d6e93
+  FactSource rows of revision 1: 0141c184-1057-47f9-800b-5a5684cc6503, c62cd076-c064-4d99-8508-ef9b6c585551
+
+Result — 12/12 PASS (every item of mission §16)
+-------------------------------------------------
+ 1 Support created — PASS. New case fact in Alpha: Work identification, about the whole case, provenance
+   "Operator reported" (with the reviewed licence copy named as a support, "Document reviewed" was offered but not
+   chosen), two supports entered in this order:
+     support 1  link PACKET  role PRIMARY  "SYNTHETIC packet page 2 names the work “Lambda Theme” — café"
+     support 2  link LICENCE role CONTEXT  "SYNTHETIC licence clause 2 describes the recording⏎second line of the
+                                            same assertion" (a newline inside the assertion)
+   (The first "Record fact" click did not happen: the Playwright element references had gone stale after a partial
+   snapshot — a tool error, nothing was sent; the form was completed again from a fresh snapshot.) Recorded as
+   revision 1. The page's "Supporting sources" section equals the wire (same-origin fetch of
+   GET /cases/{alpha}/facts/{rev1}/sources from the signed-in page): 200, no ETag, Cache-Control no-store,
+   meta.affectedResources [], data {factId rev1, sources: 2 rows of exactly the seven stored fields}, both rows with
+   createdAt 2026-09-25T09:12:09.923Z — so they come in id order: 0141c184… (CONTEXT, the licence, entered second)
+   before c62cd076… (PRIMARY, the packet, entered first); the submission order is not stored (ADR-0005 §4). The
+   roles and assertions shown equal the wire strings (compared in-page: true); the assertion cell is
+   white-space pre-wrap, so the newline shows as a line break. The fact's provenance stays "Operator reported" and
+   its resolution "Unassessed" although a reviewed source is cited. Screenshot r9-01-fact-supports-recorded.png.
+ 2 Reload — PASS. A new document load of the fact's address (browser navigate; the app, its memory and every
+   request start from scratch; no success message): the same two supports, roles, assertions and citations
+   (/sources/754c7010… for CONTEXT, /sources/860f112f… for PRIMARY), both links "Linked" today.
+ 3 Role and assertion visible — PASS (items 1, 2): each support shows Support role, What it supports, "Cited source
+   (the exact revision its link cites)" with the source's title, role, revision, scope and recorded provenance,
+   and "Linked to this case as" with the link's role and id; "The link today — not part of this record" is a
+   separate box.
+ 4 Revise with different supports — PASS. "Record a new revision" of revision 1 (the form starts with no support:
+   the earlier revision's supports are not copied), one support: link LICENCE, role REVISED, "SYNTHETIC revision 2
+   cites only the licence copy". "Revision 2 recorded."; revision 2 (1cf95e79…) shows "Current revision" and
+   exactly that one support; history "Revision 2 (this page) current …" / "Revision 1 recorded …".
+ 5 Old revision keeps its supports — PASS. Revision 1 (history link): "Superseded revision", "This is an earlier
+   revision, kept exactly as it was recorded. The current revision is revision 2."; its two supports exactly as in
+   item 1; the REVISED support is not shown there (checked: false). Screenshot
+   r9-02-earlier-revision-keeps-its-supports.png (full page).
+ 6 New revision shows only its own — PASS (item 4): revision 2 lists one support, not three; nothing is merged.
+ 7 Source revised; the support stays pinned — PASS. On the packet source's page, "Record a new revision" with the
+   title "SYNTHETIC Kappa intake packet (corrected scan)" → revision 2 (fb2988d8…). Back on fact revision 1: the
+   wire rows are unchanged (the same two row ids and caseSourceIds), the packet link (8b1d0626…) still cites
+   860f112f… (revision 1), and the page cites revision 1 with "This record cites revision 1; the source now has
+   revision 2. The citation does not move to it." (the licence support has no such note). Screenshot
+   r9-03-support-pinned-after-source-revision.png.
+ 8 Pause / unlink shown apart — PASS. On Alpha's case page, "Change link state" (the P4A dialog, with a reason):
+   packet → Paused ("SYNTHETIC R9 pass: packet paused after the fact was recorded"), licence → Unlinked
+   ("SYNTHETIC R9 pass: licence copy unlinked after the fact was recorded"). Fact revision 1 then still shows both
+   supports with the same roles and assertions (wire row ids unchanged); the recorded rows mention no state
+   (checked: false for both); each "The link today — not part of this record" box shows the state, the reason and
+   "This link is now paused/unlinked. The support above stays recorded for this revision exactly as it was."
+   Revision 2 shows its one support with the link "Unlinked" today. Screenshot
+   r9-04-supports-kept-after-pause-and-unlink.png.
+ 9 Cross-case address does not leak — PASS. Beta's address for Alpha's fact
+   (/cases/{beta}/facts/4b6b5d9b…) shows "This case has no fact with this id. A fact is shown only under the case it
+   belongs to." with a link back to Beta; none of Alpha's markers (the assertions, "Lambda Theme", PRIMARY, CONTEXT,
+   both link ids, "Work identification"); no support shown. On a fresh load of that address the page's API
+   requests were exactly /auth/session, /health, /cases/{beta} and /cases/{beta}/facts/{rev1} — the supports were
+   never requested. Forced reads (signed-in, same origin): GET /cases/{beta}/facts/{rev1}/sources → 404 and
+   GET /cases/{beta}/facts/00000000-0000-4000-8000-000000000000/sources → 404, bodies identical
+   ({code NOT_FOUND, message "The requested resource does not exist.", details {}}), no Alpha text in either. Beta's
+   case page: "No fact is recorded for this case.", no Alpha marker. Screenshot r9-05-other-case-fact-not-found.png.
+10 Zero supports; no G1/readiness wording — PASS. A second fact in Alpha with no support (Permission, whole case,
+   "What was reported" UNKNOWN, assertion "SYNTHETIC nothing was reported about permission", provenance Missing):
+   wire {factId cbb3fdc9…, sources: []}; the page says "No supporting source was recorded for this revision." with
+   the meaning and pinning sentences, provenance "Missing" (not upgraded). Its page text matches none of
+   /\b(proof|proves?|proven|verified|unsupported|disproved?|false|no permission|permission denied)\b/i.
+   Copy scan of the three fact pages (revision 1, revision 2, the zero-support fact) for
+   /\b(G[1-7] ?(PASS|passed|cleared|satisfied)|ready (for signer|to sign|to send)|READY_FOR_SIGNER|eligible for
+   notice|verified (fact|copyright|source)|proves?|proof|proven|infringement (is )?(found|confirmed|established|
+   proven)|is infringing|permission denied|authori[sz]ed signer|approved signer|current authority confirmed)\b/i:
+   no match; the only stamps are "Current revision" / "Superseded revision", the link states and the shell's "Not
+   implemented". Alpha's case page matches "proves"/"proven" only inside the existing P4A negations ("It is an
+   identity reference only: it proves nothing and changes no provenance."; "Linking does not mean … that
+   infringement is proven …").
+11 390px — PASS. Fact revision 1 at 390×844: scrollWidth 390 (no horizontal scroll), no element of a support
+   beyond the viewport, both supports and both link-today boxes shown. Screenshot r9-06-390-fact-supports.png.
+12 Keyboard — PASS. From the superseded notice's "revision 2" link, Tab → the licence citation → the packet
+   citation → the history's "Revision 2" link, Shift+Tab → back to the packet citation; every focused element
+   shows a 2 px solid outline. Enter on the packet citation opens /sources/860f112f… ("SYNTHETIC Kappa intake
+   packet", stamp "Superseded": the exact revision 1 the support cites). Screenshot
+   r9-07-keyboard-focus-on-cited-source.png.
+
+Reads write nothing: five reads of the supports (revision 1 twice more, revision 2, the zero-support fact) — each
+200, no ETag, 2 / 1 / 0 / 2 / 2 rows — left Case Alpha at ETag "CaseRecord:fad31c4a-…:v8", rowVersion 8 and
+contextRevision 8 before and after.
+
+Console (whole pass): 5 entries, all "Failed to load resource" lines of expected requests — 1 × 401 (the session
+probe on the login page before sign-in) and 4 × 404 (Beta's address for Alpha's fact loaded twice by the page, and
+the two forced reads). No script error, no warning.
+
+Teardown (mission §16 "cleanup")
+- 09:17:42Z browser closed; 09:17:43Z SIGINT to the sandbox → "[ui:sandbox] sandbox rows deleted; tb_notice_test is
+  empty again".
+- `yarn db:verify test --expect-empty`: PASS — primary keys 33/33, unique keys 50/50, foreign keys 125/125, CHECK
+  constraints 30/30, domain rows total 0.
+- Password file deleted; ports 3000 and 5173 free; no sandbox process left; `git status` showed only the seven
+  r9 screenshots (saved under evidence/, moved to evidence/screenshots/ with the documentation).
+
+Nothing external: no mail, Drive, platform or network call beyond 127.0.0.1; no real data; no write to
+tb_notice_dev.

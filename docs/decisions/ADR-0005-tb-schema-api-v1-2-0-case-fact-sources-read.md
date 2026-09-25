@@ -4,6 +4,7 @@ Status: **PROPOSED** — 2026-09-25, with the R9 remediation (mission TB_R9_FACT
 Acceptance boundary: an engineering contract change only. It creates no legal or factual authority, no case finding, no proof, no review, no G1–G7 decision and no readiness implication.
 Scope: `packages/contracts/src/**` (two schemas, one operation, the document version, the release constant), the generated artifacts `packages/contracts/{schemas,openapi}/**`, the release record `docs/contracts/TB-SCHEMA-API-v1.2.0/`, the parity tests `tests/contracts/**`, and the API/UI that implement the read.
 Related: ADR-0002 §6 (an intentional wire change needs a new approved baseline: release + ADR), ADR-0004 (the release this one extends and the pattern it follows), P4B report §1.2 and §19 (the gap), INVARIANTS §3 ("FactSource links a CaseSource from the same Case").
+Verification: P4B report §25 — implemented on `feature/r9-fact-support-readback` (code head `b862cf7`); tests, browser pass, negative controls, regression sweep and CI recorded there and in `docs/verification/p4b/evidence/r9-*`.
 
 ## Context
 
@@ -36,7 +37,7 @@ Related: ADR-0002 §6 (an intentional wire change needs a new approved baseline:
    - **Document:** OpenAPI `info.version` 1.1.0 → 1.2.0.
    - **Placement:** the schemas follow `GetCaseFactResponse`; the path follows `/cases/{caseId}/facts/{id}`; the operation follows `getCaseFact`.
 3. **Naming follows the contract's conventions** (the mission asks for this and for it to be recorded).
-   - **Why not `listCaseFactSources`** (the mission's likely name). In this contract a `list*` operation is always a cursor-paginated collection. All 25 frozen `list*` operations take `limit`, `cursor` and `q` and return `{ items, nextCursor }` (API_CONTRACT_v1 §5: default 25, maximum 100, `(createdAt DESC, id DESC)`). This read returns the complete, bounded set of one revision's rows in one response, never a page. A `list*` name would promise paging, a cursor and a search that it does not have.
+   - **Why not `listCaseFactSources`** (the mission's likely name). In this contract a `list*` operation is always a cursor-paginated collection. All 27 frozen `list*` operations take `limit`, `cursor` and `q` and return `{ items, nextCursor }` (API_CONTRACT_v1 §5: default 25, maximum 100, `(createdAt DESC, id DESC)`). This read returns the complete, bounded set of one revision's rows in one response, never a page. A `list*` name would promise paging, a cursor and a search that it does not have.
    - **What it follows instead.** The v1.1.0 read `getCaseAuthoritySelection`: a `get*` that returns a `*View` holding a bounded set of stored rows. Hence:
      - operationId `getCaseFactSources`: the fact read `getCaseFact` plus what it returns;
      - `GetCaseFactSourcesResponse`, like every `Get*Response`;
