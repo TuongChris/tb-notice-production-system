@@ -33,7 +33,7 @@ Persistent rules (they stay in force after R12; `CLAUDE.md` carries them):
 | Wire contract | **No change** — TB-SCHEMA-API-v1.2.0 (§24) |
 | R12 review | **PASS** (operator, 2026-09-26) — no remediation (§29) |
 | P4E_STATUS | **VERIFIED_COMPLETE** |
-| P4E_MERGE | **NOT_MERGED at this record — AUTHORIZED_FOR_MERGE** (§29) |
+| P4E_MERGE | **MERGED_TO_MAIN** — pull request #8, merge commit `79db09b`, `main` CI green (§30) |
 
 ## 1. Operation matrix and design (contract-first)
 
@@ -321,3 +321,34 @@ Checks on the complete closeout tree before committing:
 - `yarn test` 1431 passed in 44 files (unchanged).
 
 `yarn test:db` was not rerun because no code changed; it runs in CI on the closeout head.
+
+## 30. R12 closeout — merge reconciliation (2026-09-26, home PC)
+
+Mission TB_R12_CLOSEOUT_MERGE_AND_P4F_NOTICE_CANDIDATE_TO_R13, recorded on `feature/p4f-notice-candidate` after the merge. `P4E = MERGED_TO_MAIN`. Sections 1–29 keep the state at their time (for example "not merged at this record" in §29).
+
+### 30.1 Merge reconciliation (verified with `git` and authenticated `gh`, not assumed)
+
+| Item | Observed value |
+|---|---|
+| `P4E_ACCEPTED_CODE_HEAD` | `5e57dbca0597159d045ceffcb5a81bec761d0caa` (as named by the operator) |
+| `P4E_R12_CLOSEOUT_HEAD` | `db03b7aba70218395adbba0e2b9c2a380d5ae192` — the R12 record (§29), documentation only. Push run [36212158654](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36212158654), 2026-09-26T02:35:13Z–02:44:05Z, success: "Non-DB checks (cold install)" (job 108320802473) and "Database, seed and smoke (MySQL 8.4.11)" (job 108320802486). Results: `reference:check` and `contracts:check` OK; lint "Found 0 warnings and 0 errors."; `yarn test` 1431 / 44 files; `yarn test:db` 455 / 12 files; `smoke:local` 52, `smoke:auth` 4, `smoke:directory` 14, `smoke:p3a` 24, `smoke:p3b` 36, `smoke:p4a` 50, `smoke:p4b` 64, `smoke:p4c` 62, `smoke:p4d` 87, `smoke:p4e` 84 |
+| Pull request | [#8](https://github.com/TuongChris/tb-notice-production-system/pull/8) `feature/p4e-prompt-snapshot` → `main`, "P4E: Deterministic prompt generation and snapshots — R12", opened 2026-09-26T02:44:58Z. `headRefOid` = `db03b7a` (9 commits); `main` unchanged at `b7878b7` since the branch was created. pull_request run [36212659975](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36212659975), 2026-09-26T02:45:00Z–02:51:51Z, success: "Non-DB checks (cold install)" (job 108322298160) and "Database, seed and smoke (MySQL 8.4.11)" (job 108322298238). All four check runs on `db03b7a` completed with success; merge state CLEAN; no required review; `main` has no branch protection and no rulesets |
+| `P4E_MERGE_METHOD` | **merge commit** — `gh pr merge 8 --merge --match-head-commit db03b7a…`. Not squash, not rebase, no `--admin`, branch not deleted. `79db09b` has two parents, `b7878b7` (previous `main`) and `db03b7a`. Message "Merge pull request #8 from TuongChris/feature/p4e-prompt-snapshot", committed by GitHub, merged 2026-09-26T02:52:12Z by the repository owner's authenticated account |
+| `P4E_MERGED_MAIN_HEAD` | `79db09b13de4177d6649d14d703e9327796fd1cc` |
+| Ancestry / content | `git merge-base --is-ancestor db03b7a origin/main` → exit 0. The previous `main` `b7878b7` is an ancestor of `db03b7a` (the branch started there), so the merge introduced nothing else: the trees of `79db09b` and `db03b7a` are identical (`d758e4990883fc69399c0ebdd95161eade1ef372`; `git diff db03b7a 79db09b` empty), and `git log db03b7a..origin/main` lists only the merge commit |
+| `MAIN_POST_P4E_CI` | **PASS** — push run [36213030265](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36213030265) on `79db09b`, 2026-09-26T02:52:14Z–02:59:15Z: "Non-DB checks (cold install)" (job 108323375007) and "Database, seed and smoke (MySQL 8.4.11)" (job 108323375115) both success. Results: lint "Found 0 warnings and 0 errors."; `yarn test` 1431 / 44 files; `yarn test:db` 455 / 12 files; both drift diffs empty; seed digest `0ee26dc3…b775`; `smoke:local` 52, `smoke:auth` 4, `smoke:directory` 14, `smoke:p3a` 24, `smoke:p3b` 36, `smoke:p4a` 50, `smoke:p4b` 64, `smoke:p4c` 62, `smoke:p4d` 87, `smoke:p4e` 84 |
+
+### 30.2 History preserved
+
+Nothing was amended, rebased, rewritten or force-pushed, and no tag or release was created. `feature/p4e-prompt-snapshot` stays at `db03b7a` (local and origin); every earlier phase branch is unchanged. The local `main` was fast-forwarded to `origin/main`; no commit was made on it.
+
+### 30.3 Status
+
+| Scope | Status |
+|---|---|
+| R12 review | **PASS** (operator, 2026-09-26) |
+| P4E_STATUS | **VERIFIED_COMPLETE** |
+| P4E_MERGE | **MERGED_TO_MAIN** — PR #8, merge commit `79db09b` (method: merge commit), merged 2026-09-26T02:52:12Z; `main` push CI run 36213030265 success |
+| Active contract | **TB-SCHEMA-API-v1.2.0** (ADR-0004 and ADR-0005 ACCEPTED; frozen historical reference TB-SCHEMA-API-v1.0.0; PFC wire id `PFC-YT-EMAIL-v1.1`); accepted internal prompt template `TB-PROMPT-TEMPLATE-v1` |
+| Database / dependencies | **No change** — `20260923103912_initial_schema` is still the only migration; lockfile unchanged |
+| P4F | Branch `feature/p4f-notice-candidate` created from the exact `origin/main` `79db09b` (not from `feature/p4e-prompt-snapshot`) and pushed with upstream (push run 36213422419 on the same commit). At creation, local and origin pointed at `79db09b`, the worktree was clean, and `reference:check` and `contracts:check` passed. **P4F implementation = NOT_STARTED** at this checkpoint; `docs/verification/p4f/` will record it when written |
