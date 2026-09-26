@@ -1,0 +1,212 @@
+P4G — Playwright MCP browser verification of technical validation (mission §36), home PC, 2026-09-26 (UTC)
+==========================================================================================================
+
+Target and isolation
+- `yarn ui:sandbox --password-file <scratchpad file outside the repository>`: the COMPILED API on the disposable
+  `tb_notice_test` schema plus the built web app (`vite preview`) on http://localhost:5173 (proxying /api).
+  Session 1 (items 1–32): built from the committed head `d663804` (entry `index-BqtGXoK9.js` 329.85 kB, gzip
+  102.51 kB; `candidates-CE1zFpBa.js` 52.40 kB, gzip 13.73 kB; no Zod markers in either chunk). Session 2 (the F1
+  re-verification): built from `3b56a41` (`candidates-Bqvdfi3_.js` 52.60 kB, gzip 13.79 kB; no Zod markers).
+  Synthetic sandbox user p2-ui-sandbox@example.invalid; its password was typed into the isolated browser's login form
+  only, and both password files were deleted after the sessions. No password, cookie or CSRF token is recorded here.
+- Browser: the Playwright MCP isolated headless Chromium profile (no personal profile, no real login session; the
+  MCP configuration allows only localhost origins), 1280×800 / 1280×900 unless noted. Never `tb_notice_dev`, never
+  the operator's `yarn dev`, never real case, owner, authority, correspondence or draft data; every address is
+  @example.invalid. No AI provider, mailbox, Drive or platform was contacted (item 29).
+- Screenshots are element screenshots of the validation section (panel, result, coverage, issues, history), a
+  not-found page and the login page — never the candidate body or the evaluated context (mission §47); the issue
+  details stay collapsed. They are in docs/verification/p4g/evidence/screenshots/.
+- Prerequisites, created through the compiled API with the sandbox user (scratchpad scripts, not committed):
+  agency "SYNTHETIC Agency P4G-A" with its canonical-record source, owner "SYNTHETIC Brand P4G-X", legal subject
+  "SYNTHETIC Subject P4G-L LLC", their association, a LINKED route, signer "SYNTHETIC P4G Signer Person"; one frozen
+  mandate whose coverage of the route records the signer; cases "SYNTHETIC Case P4G-Alpha" and
+  "SYNTHETIC Case P4G-Beta" (both bound to the route), each with an authority selection naming the intended mailbox
+  synthetic-sender-p4g@example.invalid; each with a reported item, work and mapping. Alpha: a licence source linked to
+  the case, a letter recorded among the captured attachments of an OPERATOR_REPORTED INITIAL_AS_SENT binding, and an
+  NMI binding whose message records a Reply-To. A source scoped to Beta only. Prompt snapshots: Alpha INITIAL
+  DRAFTING, Alpha INITIAL PREPARATION, Alpha NMI_REPLY DRAFTING (parent the NMI, prior the AS_SENT binding), Beta
+  INITIAL DRAFTING — each generated against exactly the context read before it. Fifteen synthetic candidates imported
+  through `importCandidate`: clean, zero slots, two slots, declaration placeholder, preparation, attachment wording,
+  internal marker ("D. REVIEW NOTES"), five integrity/envelope/plan targets, reply, thread target, Beta.
+- Stored-data injections (items 8–13, 26): data the application never writes, put directly into the disposable
+  tb_notice_test by a scratchpad script through the repository's allowlist guard (tooling account). Where the
+  artifact hash must stay consistent, it was recomputed with the frozen reference helper so only the injected
+  relationship differs: body_sha256 := a×64; artifact_sha256 := b×64; a reply's envelope.parentBindingId := the
+  INITIAL_AS_SENT binding (rehashed); envelope.from := another address (rehashed); the plan := [the Beta-only source]
+  (rehashed); the plan := [the licence, PREVIOUSLY_SUPPLIED] (rehashed); a NUL appended to one stored body.
+- Changes made while the page held a read (items 16–19) went through the compiled API with the same synthetic user
+  (a scratchpad script) or the application's own case edit page (item 19).
+- Items 20–21 and 27 used in-page API calls in the signed-in browser session (fetch with the session's CSRF token,
+  never recorded): the page itself sends a fresh Idempotency-Key per click by design, so a replay cannot be produced
+  from its controls; the later-phase routes have no page.
+
+Result: 32/32 PASS; one finding (F1, UI wording) fixed in `3b56a41` and re-verified in session 2.
+
+Items
+-----
+1  PASS  Candidate detail before validation — clean candidate (Alpha INITIAL DRAFTING, version 1): the "Technical
+         validation" section with its boundary note; Artifact SHA-256 0298ffe8…; candidate task "Initial notice
+         (INITIAL)"; prompt mode "Drafting (DRAFTING)"; ruleset TB-TECHNICAL-RULESET-v1; current dependency digest "Not
+         read yet"; the only action "Read the current context"; "No validation run is recorded for this candidate."
+         No Approve / Verify rights / Legal validation action. [p4g-01-before-validation.png]
+2  PASS  Run against the exact artifact and the current digest — "Read the current context" (GET
+         /cases/{Alpha}/production-context?taskType=INITIAL&generationMode=DRAFTING&authoritySelectionId=<Alpha's>)
+         → digest 033a0dbc… "Current context read: revision 8, 0 missing, 0 recorded conflicts. A run is checked
+         against exactly this read."; "Run technical validation" → POST /candidates/{id}/validation-runs 201. Request
+         body exactly {expectedArtifactSha256: 0298ffe8… (the shown artifact), expectedDependencyDigest: 033a0dbc…
+         (the read)}, with an Idempotency-Key and no If-Match.
+3  PASS  TECHNICAL_PASS with the technical-only qualifier — "Technical validation result: TECHNICAL PASS", the note
+         "Technical checks only. This is not G1–G6 review, legal approval, readiness, signature, or permission to
+         send.", "The configured technical rules executed and found no technical blocker or review-required technical
+         issue under this ruleset."; 0 blockers, 0 review required, 0 warnings; focus on the result heading; the run
+         is listed with the same qualifier. [p4g-02-03-technical-pass-qualifier-coverage.png]
+4  PASS  Zero pending slots → BLOCKED: SIGNATURE.PENDING_SLOT_ONCE · Deterministic check · Blocker · bodyText — "The
+         body does not contain the pending signer slot. … nothing here inserts it." [p4g-04-zero-slots-blocked.png]
+5  PASS  Two pending slots → BLOCKED: SIGNATURE.PENDING_SLOT_ONCE · Deterministic · Blocker · bodyText — "The body
+         contains the pending signer slot 2 times; exactly one is expected." (details: lines 2 and 4).
+         [p4g-05-two-slots-blocked.png]
+6  PASS  Declaration placeholder → BLOCKED (the frozen rule: an exact reserved token is a deterministic BLOCKER):
+         MARKER.DECLARATION_PLACEHOLDER · Deterministic · Blocker · bodyText — "… still contains the placeholder for
+         reviewed declaration text. It is not complete: the declaration wording needs human-approved text, which this
+         application never supplies or invents." [p4g-06-declaration-placeholder-blocked.png]
+7  PASS  PREPARATION candidate not portrayed as production-ready — panel "Prompt mode: Preparation (PREPARATION)";
+         page note "Drafted from a preparation prompt … this candidate is draft material only."; run BLOCKED:
+         CONTEXT.GENERATION_MODE · Deterministic · Blocker · promptSnapshotId — "… draft material only, not a candidate
+         for production. …"; no ready / approved / production-ready wording on the page.
+         [p4g-07a-preparation-panel.png, p4g-07b-preparation-blocked.png]
+8  PASS  Wrong body hash (injected a×64) → BLOCKED: ARTIFACT.BODY_SHA256 · Deterministic · Blocker · bodySha256 — "…
+         an integrity failure. Neither the hash nor the body is repaired." details {stored a×64, recomputed df9dfeac…}.
+         [p4g-08-body-hash-injection-blocked.png]
+9  PASS  Wrong artifact hash (injected b×64; the panel shows the stored b×64, which is what the page sends, so the
+         capture check passes) → BLOCKED: ARTIFACT.ARTIFACT_SHA256 · Deterministic · Blocker · artifactSha256 — "… not
+         the TB-CANDIDATE-ARTIFACT-v1 hash of the stored artifact: an integrity failure. …" details {stored b×64,
+         recomputed 0201ed0b…}. [p4g-09-artifact-hash-injection-blocked.png]
+10 PASS  NMI thread mismatch (reply envelope names the AS_SENT binding, rehashed) → BLOCKED: ENVELOPE.THREAD ·
+         Deterministic · Blocker · envelope.parentBindingId — "The reply names another thread than its prompt
+         snapshot's parent binding. The thread is never changed silently." {reason PARENT_DIFFERENT, stored the AS_SENT
+         binding, expected the NMI binding}; plus CONTEXT.MISSING · Review required (PRIOR_AS_SENT_RAW_SOURCE_ABSENT:
+         the prior transmission is OPERATOR_REPORTED — a recorded gap, kept, not resolved).
+         [p4g-10-thread-injection-blocked.png]
+11 PASS  Sender mismatch (rehashed) → BLOCKED: ENVELOPE.SENDER · Deterministic · Blocker · envelope.from — "The sender
+         is not the intended mailbox of the authority selection the prompt snapshot pinned. …" {reason
+         NOT_SELECTED_MAILBOX, stored, expected, authoritySelectionId}. [p4g-11-sender-injection-blocked.png]
+12 PASS  Document source mismatch (the plan names the Beta-only source, rehashed) → BLOCKED: PLAN.SOURCE_APPLIES ·
+         Deterministic · Blocker · preparedDocuments.0.sourceId {code CROSS_CASE_REFERENCE}; PLAN.SOURCE_IN_CONTEXT ·
+         Deterministic · Review required. [p4g-12-document-source-injection-blocked.png]
+13 PASS  Unbacked PREVIOUSLY_SUPPLIED (the licence, which no prior transmission records; rehashed) → BLOCKED:
+         PLAN.PREVIOUSLY_SUPPLIED · Deterministic · Blocker · preparedDocuments.0.state {reason
+         NOT_RECORDED_AS_SUPPLIED}. [p4g-13-previously-supplied-injection-blocked.png]
+14 PASS  Obvious attachment wording ("Please find attached the licence", no planned file) → REVIEW REQUIRED ("The rules
+         found issues a person must review, or a rule was not executed"): WORDING.ATTACHMENT_CLAIM · "Heuristic signal —
+         a pattern in free text for a person to read — not a finding about what the text means" (dashed, italic badge)
+         · Review required · bodyText — "… A Drive link or a reference is not an attachment: a person reads it.
+         (Heuristic signal, not a finding about the text.)" details {line 1 "find attached", the pattern,
+         preparedForAttachment false}. Never a BLOCKER. [p4g-14-attachment-wording-heuristic-review.png]
+15 PASS  Exact internal marker ("D. REVIEW NOTES" in the body) → BLOCKED: MARKER.PROMPT_STRUCTURE · Deterministic ·
+         Blocker · bodyText — "Text of the prompt itself — … — appears in the text meant for sending." {tokens
+         ["D. REVIEW NOTES"], line 2}. [p4g-15-internal-marker-blocked.png]
+16 PASS  Relevant AuthorityEvent after the read → 412 — clean candidate, read 033a0dbc…; a TERMINATION event recorded on
+         the pinned mandate through the API; Run with the earlier read → the alert (role=alert) "Context changed. Read
+         the current context before validating again." + "No validation run was recorded."; the Run action gone, only
+         "Read the current context" offered; focus on the outcome; no run added (3 listed before and after); one POST,
+         never retried. New read 3dbb70ea… (context revision still 8: the digest is never merely the revision); Run →
+         REVIEW REQUIRED: CONTEXT.PROMPT_DRIFT · Deterministic · Review required ·
+         dependencyManifest.AuthorityEvent:<id> — "A record the prompt snapshot did not include is now part of the
+         context (AuthorityEvent): the draft was written without it." {change ADDED}.
+         [p4g-16a-authority-event-412-before-fix.png, p4g-16b-new-read-drift-review-required.png]
+         Finding F1 (UI wording): after the 412 the panel still showed the earlier read's digest under "Current
+         dependency digest". Fixed in 3b56a41; session 2 (fresh build and seed): the same flow shows the row as
+         "Changed since the last read: not known until the current context is read again." and the earlier digest
+         nowhere on the panel; the alert, the refusal of a retry and the focus are unchanged; a new read shows the new
+         digest as current and the run evaluates exactly it. [p4g-16c-after-fix-412-panel.png]
+17 PASS  Relevant SourceReference head change → 412 — read 3dbb70ea…; a new revision of the licence (linked to Alpha, so
+         in the closure) recorded through the API; Run → 412 as in item 16, no run added. New read 23a01e15…; Run →
+         REVIEW REQUIRED: CONTEXT.PROMPT_DRIFT for AuthorityEvent (ADDED) and SourceReference:<licence> ("A record of
+         the context changed since the prompt snapshot was generated (SourceReference) …" — the case still links the
+         same pinned revision; its chain's new head changes its fingerprint; nothing re-pointed).
+         [p4g-17-source-head-412-then-drift.png]
+18 PASS  Parent binding correction → 412 — reply candidate, read 3c20990e… (a first run: REVIEW REQUIRED only for the
+         recorded gap and the drift; no thread, sender or recipient issue — the recipient is the NMI's recorded
+         Reply-To); a correction of the NMI binding recorded through the API; Run with that read → 412 "Context
+         changed …", no run added. New read refused (P4D 409 BINDING_ALREADY_SUPERSEDED): "The current context of this
+         candidate's prompt snapshot scope could not be read, so this candidate cannot be validated against it. That
+         binding was corrected by a later binding. Name the correction instead; the earlier binding stays in the
+         history and is never used in its place." — no Run action, nothing substituted.
+         [p4g-18a-parent-correction-412.png (F1 visible), p4g-18b-new-read-names-correction.png]
+19 PASS  Irrelevant UI-note change does not stale — clean candidate, read 033a0dbc… (tab 1); the case's Notes changed
+         on /cases/{Alpha}/edit (tab 2; "Case updated."); Run in tab 1 with the earlier read → 201 TECHNICAL PASS,
+         evaluated digest 033a0dbc… = the read (case notes are UI-only text, left out of the P4D fingerprint).
+         [p4g-19a-read-before-notes-change.png, p4g-19b-notes-change-not-stale.png]
+20 PASS  Same Idempotency-Key replay returns the same run (in-page API call; one key K): POST → 201 run 4057b428…
+         TECHNICAL_PASS; the same K and body → 201, the same run id, a byte-identical response body; the candidate's
+         runs 1 → 2 (one new run).
+21 PASS  Same key, changed request → 409 IDEMPOTENCY_CONFLICT (another expectedDependencyDigest under K); no run added.
+22 PASS  List ValidationRuns — the page's "Recorded runs of this candidate": 2 runs newest first (16:14, 16:09 local),
+         each "TECHNICAL PASS · time · TB-TECHNICAL-RULESET-v1 · 0 blockers, 0 review required, 0 warnings", the
+         qualifier and "Dependency digest evaluated 033a0dbc…". In-page list calls: summaries only (keys artifactSha256,
+         blockerCount, candidateId, caseId, completedAt, createdAt, dependencyDigest, id, result, reviewRequiredCount,
+         rulesetVersion, startedAt, warningCount); q=BLOCKED → [BLOCKED]. [p4g-22-run-list-newest-first.png]
+23 PASS  List issues — thread candidate history → "Show issues" (aria-expanded true, "Hide issues"): "Issues, in the
+         order the ruleset reported them": ENVELOPE.THREAD (Deterministic, Blocker), CONTEXT.MISSING (Deterministic,
+         Review required). In-page calls: ?limit=1 → [ENVELOPE.THREAD] + a cursor → [CONTEXT.MISSING], nextCursor null;
+         q=BLOCKER → [ENVELOPE.THREAD]; q=CONTEXT.MISSING → [CONTEXT.MISSING]; q=blocker → 0 (exact); cursor=forged →
+         400 INVALID_CURSOR; an unknown run → 404 NOT_FOUND. [p4g-23-issue-list-rule-order.png]
+24 PASS  Historical run remains after supersession — the zero-slot candidate superseded on its page ("Draft artifact
+         superseded. Nothing was sent, contacted or retracted, and the candidate itself is unchanged."); the section
+         says "This candidate is superseded: it is no longer the active draft artifact. A run checks this exact
+         historical artifact only; it does not make it active again."; its BLOCKED run stays listed; a new run of the
+         superseded candidate is recorded (BLOCKED) and both are listed.
+         [p4g-24a-superseded-note.png, p4g-24b-runs-kept-after-supersession.png]
+25 PASS  Case A runs and issues do not leak into case B — Beta's candidate page before any Beta run: "No validation run
+         is recorded for this candidate." (none of Alpha's); Beta's run → TECHNICAL PASS with Beta's own digest
+         31e78eb1…; the page text holds no Alpha case, selection, work, mapping, licence, letter, NMI, AS_SENT or run id
+         and no "Alpha". Beta's stored run (its 201 body, scanned outside the repository and deleted): no Alpha id in the
+         evaluated context or the dependency manifest; evaluated caseId Beta, selection Beta's, works Beta's,
+         correspondence none, priors none, externalAction PROHIBITED, signatureState HUMAN_PENDING; the shared records
+         are the one agency, route, owner, legal subject, signer and mandate chain both cases rely on — the same route
+         and owner transfer no run, issue or review. Alpha's candidate under Beta's case URL: "This case has no candidate
+         with this id. A candidate is shown only under the case it belongs to." — no validation section.
+         [p4g-25-other-case-candidate-not-shown.png]
+26 PASS  Coverage manifest visible — item 3: Required rules (29), Executed rules (29), Not executed (0) None, "Semantic
+         review required: Yes — this run performed no G1–G6 or legal review". With a NUL injected into the stored body
+         of the declaration candidate (import refuses it): BLOCKED; Required rules (29), Executed rules (27), Not
+         executed (2): ARTIFACT.BODY_SHA256, ARTIFACT.ARTIFACT_SHA256 — each with its own Review required issue "The rule
+         was not executed: … It is not passed."; ARTIFACT.TEXT_EXACT Blocker ("Nothing is repaired."); also
+         MARKER.DECLARATION_PLACEHOLDER and three drift signals (AuthorityEvent added; CaseRecord changed — its
+         contextRevision moved with item 18's correction binding, as P4D fingerprints it; SourceReference changed).
+         [p4g-26-coverage-not-executed-visible.png, p4g-26b-not-executed-issues.png]
+27 PASS  No G1–G6 / READY state — in-page probes: GET /candidates/{id}/readiness, POST and GET
+         /candidates/{id}/assessments, POST /candidates/{id}/unsigned-exports | approve | sign | send and GET
+         /validation-runs/{id} → 404 NOT_FOUND each; the candidate's keys matching ready/assess/approv/valid/sign/g1–7:
+         only signatureState = HUMAN_PENDING. No READY_FOR_SIGNER, Approved, G1–G7 PASS or production-ready wording on
+         the pages checked. Database: no readiness or approval column on notice_candidates, validation_runs or
+         validation_issues; every candidate HUMAN_PENDING; every run semanticReviewRequired = true.
+28 PASS  No assessment record — tb_notice_test after 21 runs (4 TECHNICAL_PASS, 13 BLOCKED, 4 REVIEW_REQUIRED; 28
+         issues): candidate_assessments 0, assessment_sources 0; 21 VALIDATION_RUN_RECORDED audit events, none holding
+         the synthetic body text, an example.invalid address or the matched attachment phrase.
+29 PASS  No external or network action — the browser made no request outside http://localhost:5173/; the sandbox API
+         process's sockets were its 5 MySQL connections to 127.0.0.1:3307 and its listener on 127.0.0.1:3000, the web
+         server's only its listener on 127.0.0.1:5173 (socket inodes of /proc/<pid>/fd mapped to /proc/net/tcp). No AI
+         provider, mail, Drive or platform call.
+30 PASS  390px viewport (390×844, attachment-wording candidate, read → run → REVIEW REQUIRED): document scrollWidth 390
+         = the viewport (no page-level horizontal scroll); nothing outside a table frame extends past the viewport (the
+         digests wrap); the issues table scrolls inside its frame (overflow-x auto).
+         [p4g-30a-run-panel-390px.png, p4g-30b-result-390px.png]
+31 PASS  Keyboard and focus (marker candidate, keyboard only after the page loaded): Tab to "Read the current context"
+         (:focus-visible, 2px outline) → Enter → focus on the read's outcome ("Current context read: revision 9, …") →
+         Tab → "Run technical validation" (:focus-visible) → Enter → the run is recorded and focus moves to "Technical
+         validation result: BLOCKED" → Tab ×5 (four issue "Details" summaries) → the history's "Show issues" toggle
+         (aria-expanded false) → Enter → aria-expanded true, "Hide issues", its four issues shown, focus kept.
+         [p4g-31a-keyboard-focus-run.png, p4g-31b-keyboard-history-toggle.png]
+32 PASS  Sign out → Login: "/login" ("Sign in with your local application account"); a candidate URL afterwards →
+         /login; GET /candidates/{id}/validation-runs → 401 SESSION_REQUIRED. [p4g-32-signed-out-login.png]
+
+Console
+- Session 1: only the expected HTTP responses of the checks — the 401 session probe before login, the 409 of item 21,
+  the 400 and 404 of item 23, the three 412 of items 16–18, the 409 of item 18's refused read, the eight 404 probes of
+  item 27 and the 401 after sign-out. No script error or warning. Session 2: the 401 before login and the 412 of item 16.
+
+Teardown
+- Both sessions stopped with SIGTERM: "[ui:sandbox] sandbox rows deleted; tb_notice_test is empty again"; then
+  `yarn db:verify test --expect-empty` → domain rows total: 0, PASS. Both password files deleted; the Beta run body
+  saved for item 25's scan deleted; the working tree afterwards: only docs/verification/p4g/ (the screenshots).

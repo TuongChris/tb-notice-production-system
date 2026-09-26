@@ -1,0 +1,365 @@
+P4G Technical validation — negative controls (mission §43), home PC, 2026-09-26 (UTC)
+======================================================================================
+
+Method (scratchpad runner outside Git, the P4A–P4F method): each control disables exactly one protection of
+validateCandidate, listValidationRuns, listValidationIssues, the technical ruleset or the validation section of the
+candidate page by an exact text replacement — or injects the forbidden behaviour — then runs every responsible test
+command. Each command must FAIL with a non-zero exit AND name at least one failed test; the first failure message is
+recorded to show that the failure is the test's own assertion, not a crash of a broken mutation, a helper timeout or
+a database backstop. Every mutated file is then restored and verified byte-identical by SHA-256. Every anchor is
+checked to occur exactly once before a control runs (`--check`: 33 controls, 0 anchor problems). DB commands run on
+the disposable tb_notice_test only (synthetic example.invalid records; every test cleans up). The working tree is
+fingerprinted (git diff HEAD + SHA-256 of every untracked file) before and after a run. No control touches
+docs/reference/**, a migration, the generated contract artifacts or a release record.
+
+Final run (run 7): 2026-09-26T09:46:30.134Z – 2026-09-26T09:48:53.819Z, head 608800e61a294873d0bbd1e5e3d5b46bee247270
+(the code head; clean tree except the untracked docs/verification/p4g/ screenshots), runner exit 0.
+  33 controls, 33 caught and restored (60 responsible commands, every one failed and named a test).
+  Working-tree fingerprint before and after: 7ae647c4e5d53818db5d35b0cd175162d974398be1748a0dcc7a69af3139540e (identical)
+  Afterwards `yarn db:verify test --expect-empty`: [verify] PASS: metadata matches the reviewed inventory (domain rows 0).
+  First failure message of each command: 60 AssertionError, 0 other (no timeout, no crash, no backstop).
+
+Run history (the earlier runs found test weaknesses; every fix was test code only, except as noted)
+  Run 1 (head 1774bf1, 30 controls): 26 caught, 4 problems.
+    - NC-P4G-24's mutation wrote a candidate_assessments row. The shared DB-suite cleanup did not know that table, so
+      deleting notice_candidates failed on its foreign key and left rows in tb_notice_test; NC-P4G-25 and NC-P4G-26 were
+      then judged on the next suites' emptiness backstop, not on their own assertions. tb_notice_test was emptied in
+      foreign-key order (no FOREIGN_KEY_CHECKS change) and verified empty.
+    - NC-P4G-23 (every stored run listed) passed the run-list test, which only had one candidate's runs.
+    Fix e7088bb: the shared suite list includes assessment_sources and candidate_assessments (every suite proves them
+    empty; the cleanup breaks the assessments' supersedes chain first); the list test records a later run of another
+    candidate of the same case and asserts each list shows exactly its own.
+  Run 2 (head e7088bb, NC-P4G-23..26): 4 caught, each by its own AssertionError.
+  Review of the engine while documenting: a heuristic rule that failed while running was recorded as a BLOCKER
+    diagnostic (a HEURISTIC BLOCKER issue) — against the ruleset's own statement that no heuristic issue is a BLOCKER.
+    Fix d663804 (product code): its diagnostic is REVIEW_REQUIRED; a deterministic rule's stays a BLOCKER; new control
+    NC-P4G-31. Browser finding F1 (fix 3b56a41, product code): after a 412 the panel kept showing the stale digest as
+    current; new control NC-P4G-32.
+  Run 3 (head 3b56a41, 32 controls): 32 caught; one command (NC-P4G-30, web) failed only on the test helper's wait
+    timing out ("timed out waiting for the refusal"), not on an assertion.
+    Fix 23f921a: the test waits for the run's outcome alert and then asserts it is the context refusal.
+  Run 4 (NC-P4G-30, NC-P4G-32): both caught by an AssertionError.
+  Run 5 (head 23f921a, all 32): 32 caught, 59 commands, every first failure an AssertionError.
+  While documenting interpretation V4, a DB test was added (608800e, test code only): a DRAFTING candidate whose
+    current context lost a blocking input meets the P4D gate (422, nothing recorded); new control NC-P4G-33.
+  Run 6 (NC-P4G-33): caught by an AssertionError ([201] instead of [422, DRAFTING_INPUT_MISSING]).
+  Run 7 (head 608800e, all 33): above — the final run.
+
+Mission §43 kinds → controls (all 22 required kinds, plus 11 more)
+  artifact hash mismatch ignored ............. NC-P4G-01
+  dependency mismatch ignored ................ NC-P4G-02
+  relevant AuthorityEvent omitted ............ NC-P4G-03
+  pending slot rule disabled ................. NC-P4G-04
+  declaration placeholder rule disabled ...... NC-P4G-05
+  HUMAN_PENDING rule disabled ................ NC-P4G-06
+  wrong parent accepted ...................... NC-P4G-07
+  wrong sender accepted ...................... NC-P4G-08
+  source revision auto-follow ................ NC-P4G-09
+  PREVIOUSLY_SUPPLIED fabricated ............. NC-P4G-10
+  heuristic labelled deterministic ........... NC-P4G-11
+  required rule silently omitted ............. NC-P4G-13
+  NOT_EXECUTED treated PASS .................. NC-P4G-14
+  ERROR treated PASS ......................... NC-P4G-15
+  run committed after dependency changed ..... NC-P4G-18
+  mixed context/run snapshot ................. NC-P4G-19 (SERIALIZABLE → READ COMMITTED), NC-P4G-20 (plan-source recheck)
+  audit stores candidate body ................ NC-P4G-22
+  cross-case run leak ........................ NC-P4G-23
+  UI says "Approved" ......................... NC-P4G-27
+  UI hides notExecutedRuleIds ................ NC-P4G-28
+  validation creates assessment/readiness .... NC-P4G-24 (writes a G1 PASS CandidateAssessment), NC-P4G-25 (the run view claims readyForSigner)
+  outbound network introduced ................ NC-P4G-26
+  additional ................................. NC-P4G-12 (heuristic reports a BLOCKER), NC-P4G-31 (a failing heuristic's diagnostic made a
+                                               BLOCKER), NC-P4G-16 (semanticReviewRequired false), NC-P4G-17 (PREPARATION portrayed as
+                                               ready), NC-P4G-21 (the prompt's prior bindings dropped from the scope), NC-P4G-29 (the
+                                               technical-only qualifier removed), NC-P4G-30 (a 412 shown as a generic failure with the
+                                               run still offered), NC-P4G-32 (the stale digest shown as current after a 412),
+                                               NC-P4G-33 (the P4D DRAFTING gate bypassed by the validation's capture)
+
+Runner output of the final run (run 7), verbatim
+------------------------------------------------
+# P4G negative controls — start 2026-09-26T09:46:30.134Z — head 608800e61a294873d0bbd1e5e3d5b46bee247270 — tree fingerprint 7ae647c4e5d53818db5d35b0cd175162d974398be1748a0dcc7a69af3139540e
+[NC-P4G-01] CAUGHT · restored byte-identical · [artifact hash mismatch ignored] the expected artifact SHA-256 must be the stored one (412 ARTIFACT_CHANGED): the capture check removed
+    exit 1 · Tests  1 failed | 25 skipped (26) · node scripts/db/run-db-tests.mjs tests/db/p4g-http.test.ts -t the artifact reviewed must be the stored one
+      × the artifact reviewed must be the stored one: another expected artifact SHA-256 is 412 ARTIFACT_CHANGED before any context is used, nothing recorded, the key released
+      FAIL  tests/db/p4g-http.test.ts > P4G validateCandidate — a technical result for one exact artifact against the current context > the artifact reviewed must be the stored one: another expected artifact SHA-256 is 412 ARTIFACT_CHANGED before any context is used, nothing recorded, the key released
+        ↳ × the artifact reviewed must be the stored one: another expected artifact SHA-256 is 412 ARTIFACT_CHANGED before any context is used, nothing recorded, the key released 1575ms
+        ↳ FAIL  tests/db/p4g-http.test.ts > P4G validateCandidate — a technical result for one exact artifact against the current context > the artifact reviewed must be the stored one: another expected artifact SHA-256 is 412 ART
+        ↳ AssertionError: expected [ 201, '(no error: HTTP 201)' ] to deeply equal [ 412, 'ARTIFACT_CHANGED' ]
+[NC-P4G-02] CAUGHT · restored byte-identical · [dependency mismatch ignored] the expected dependency digest must be the current one (412 CONTEXT_CHANGED): the capture check removed
+    exit 1 · Tests  1 failed | 25 skipped (26) · node scripts/db/run-db-tests.mjs tests/db/p4g-http.test.ts -t the context reviewed must be the current one
+      × the context reviewed must be the current one: another expected digest is 412 CONTEXT_CHANGED — never substituted, nothing recorded
+      FAIL  tests/db/p4g-http.test.ts > P4G validateCandidate — a technical result for one exact artifact against the current context > the context reviewed must be the current one: another expected digest is 412 CONTEXT_CHANGED — never substituted, nothing recorded
+        ↳ × the context reviewed must be the current one: another expected digest is 412 CONTEXT_CHANGED — never substituted, nothing recorded 1516ms
+        ↳ FAIL  tests/db/p4g-http.test.ts > P4G validateCandidate — a technical result for one exact artifact against the current context > the context reviewed must be the current one: another expected digest is 412 CONTEXT_CHANG
+        ↳ AssertionError: expected [ 201, '(no error: HTTP 201)' ] to deeply equal [ 412, 'CONTEXT_CHANGED' ]
+    exit 1 · Tests  1 failed | 25 skipped (26) · node scripts/db/run-db-tests.mjs tests/db/p4g-http.test.ts -t a relevant change after the read makes the reviewed digest stale
+      × a relevant change after the read makes the reviewed digest stale (412): an authority event, a source head, a case-source link state, a fact revision and a mapping edit — each needs a new read; a work note does not
+      FAIL  tests/db/p4g-http.test.ts > P4G validateCandidate — a technical result for one exact artifact against the current context > a relevant change after the read makes the reviewed digest stale (412): an authority event, a source head, a case-source link state, a fact revision and a mapping edit — each needs a new read; a work note does not
+        ↳ AssertionError: AuthorityEvent: expected [ 201, '(no error: HTTP 201)' ] to deeply equal [ 412, 'CONTEXT_CHANGED' ]
+[NC-P4G-03] CAUGHT · restored byte-identical · [relevant AuthorityEvent omitted] the pinned mandates’ authority events are dependencies of the context the run binds to: left out of the closure
+    exit 1 · Tests  1 failed | 25 skipped (26) · node scripts/db/run-db-tests.mjs tests/db/p4g-http.test.ts -t a relevant change after the read makes the reviewed digest stale
+      × a relevant change after the read makes the reviewed digest stale (412): an authority event, a source head, a case-source link state, a fact revision and a mapping edit — each needs a new read; a work note does not
+      FAIL  tests/db/p4g-http.test.ts > P4G validateCandidate — a technical result for one exact artifact against the current context > a relevant change after the read makes the reviewed digest stale (412): an authority event, a source head, a case-source link state, a fact revision and a mapping edit — each needs a new read; a work note does not
+        ↳ AssertionError: AuthorityEvent: expected [ 201, '(no error: HTTP 201)' ] to deeply equal [ 412, 'CONTEXT_CHANGED' ]
+    exit 1 · Tests  1 failed | 25 skipped (26) · node scripts/db/run-db-tests.mjs tests/db/p4g-http.test.ts -t no run is published against mixed snapshots
+      × no run is published against mixed snapshots: a change committed after the capture is caught by the commit’s recheck (412, nothing written); a change that does not touch the context is not
+      FAIL  tests/db/p4g-http.test.ts > P4G validateCandidate — a technical result for one exact artifact against the current context > no run is published against mixed snapshots: a change committed after the capture is caught by the commit’s recheck (412, nothing written); a change that does not touch the context is not
+        ↳ AssertionError: expected [ 201, '(no error: HTTP 201)' ] to deeply equal [ 412, 'CONTEXT_CHANGED' ]
+[NC-P4G-04] CAUGHT · restored byte-identical · [pending slot rule disabled] the body carries the exact pending slot exactly once: the count replaced by one
+    exit 1 · Tests  1 failed | 35 skipped (36) · yarn vitest run --config vitest.config.ts tests/api/validation-rules.test.ts -t zero is a BLOCKER, one passes, two are a BLOCKER listing both
+      × zero is a BLOCKER, one passes, two are a BLOCKER listing both, the slot in the subject is a BLOCKER
+      FAIL  tests/api/validation-rules.test.ts > the pending signature slot — exactly one exact token; a name elsewhere is not a signature > zero is a BLOCKER, one passes, two are a BLOCKER listing both, the slot in the subject is a BLOCKER
+        ↳ AssertionError: expected [] to deeply equal [ ObjectContaining{…} ]
+    exit 1 · Tests  1 failed | 25 skipped (26) · node scripts/db/run-db-tests.mjs tests/db/p4g-http.test.ts -t the pending slot: zero or two are BLOCKED, one passes
+      × the pending slot: zero or two are BLOCKED, one passes; a lookalike is a heuristic signal; the declaration placeholder and prompt text are deterministic BLOCKERs
+      FAIL  tests/db/p4g-http.test.ts > P4G stored integrity, signature, envelope and plan rules over real stored candidates > the pending slot: zero or two are BLOCKED, one passes; a lookalike is a heuristic signal; the declaration placeholder and prompt text are deterministic BLOCKERs
+        ↳ AssertionError: zero slots: expected 'TECHNICAL_PASS' to be 'BLOCKED' // Object.is equality
+[NC-P4G-05] CAUGHT · restored byte-identical · [declaration placeholder rule disabled] the reviewed-declaration placeholder is a BLOCKER: the token list emptied
+    exit 1 · Tests  1 failed | 35 skipped (36) · yarn vitest run --config vitest.config.ts tests/api/validation-rules.test.ts -t the reviewed-declaration placeholder and the input placeholders
+      × the reviewed-declaration placeholder and the input placeholders are deterministic BLOCKERs; nothing is filled in
+      FAIL  tests/api/validation-rules.test.ts > wording and markers — bounded, documented detection > the reviewed-declaration placeholder and the input placeholders are deterministic BLOCKERs; nothing is filled in
+        ↳ AssertionError: expected [] to deeply equal [ ObjectContaining{…} ]
+    exit 1 · Tests  1 failed | 25 skipped (26) · node scripts/db/run-db-tests.mjs tests/db/p4g-http.test.ts -t the pending slot: zero or two are BLOCKED, one passes
+      × the pending slot: zero or two are BLOCKED, one passes; a lookalike is a heuristic signal; the declaration placeholder and prompt text are deterministic BLOCKERs
+      FAIL  tests/db/p4g-http.test.ts > P4G stored integrity, signature, envelope and plan rules over real stored candidates > the pending slot: zero or two are BLOCKED, one passes; a lookalike is a heuristic signal; the declaration placeholder and prompt text are deterministic BLOCKERs
+        ↳ AssertionError: declaration placeholder: expected 'TECHNICAL_PASS' to be 'BLOCKED' // Object.is equality
+[NC-P4G-06] CAUGHT · restored byte-identical · [HUMAN_PENDING rule disabled] the stored signature state is HUMAN_PENDING: any stored state accepted
+    exit 1 · Tests  1 failed | 35 skipped (36) · yarn vitest run --config vitest.config.ts tests/api/validation-rules.test.ts -t the signature state is HUMAN_PENDING only
+      × the signature state is HUMAN_PENDING only: any other stored state is a BLOCKER; nothing signs
+      FAIL  tests/api/validation-rules.test.ts > artifact integrity — exact bytes and hashes, recomputed and never repaired > the signature state is HUMAN_PENDING only: any other stored state is a BLOCKER; nothing signs
+        ↳ AssertionError: expected [] to deeply equal [ [ 'BLOCKER', 'signatureState' ] ]
+[NC-P4G-07] CAUGHT · restored byte-identical · [wrong parent accepted] the envelope thread is exactly the prompt’s parent binding: any named thread accepted
+    exit 1 · Tests  1 failed | 35 skipped (36) · yarn vitest run --config vitest.config.ts tests/api/validation-rules.test.ts -t INITIAL: no parent is invented
+      × INITIAL: no parent is invented — a thread in the envelope is a BLOCKER
+      FAIL  tests/api/validation-rules.test.ts > envelope and thread — exact relationships with the prompt snapshot; recipients never approved > INITIAL: no parent is invented — a thread in the envelope is a BLOCKER
+        ↳ AssertionError: expected undefined to deeply equal { reason: 'INITIAL_WITH_PARENT', …(2) }
+    exit 1 · Tests  1 failed | 35 skipped (36) · yarn vitest run --config vitest.config.ts tests/api/validation-rules.test.ts -t NMI_REPLY: exactly the prompt’s parent passes
+      × NMI_REPLY: exactly the prompt’s parent passes; a missing or another parent is a BLOCKER; a thread the prompt did not name is a BLOCKER
+      FAIL  tests/api/validation-rules.test.ts > envelope and thread — exact relationships with the prompt snapshot; recipients never approved > NMI_REPLY: exactly the prompt’s parent passes; a missing or another parent is a BLOCKER; a thread the prompt did not name is a BLOCKER
+        ↳ AssertionError: expected [] to deeply equal [ 'PARENT_DIFFERENT' ]
+    exit 1 · Tests  1 failed | 25 skipped (26) · node scripts/db/run-db-tests.mjs tests/db/p4g-http.test.ts -t envelope and plan injections
+      × envelope and plan injections: thread, sender, another case’s source, an unknown source, an unrecorded hash, an unbacked PREVIOUSLY_SUPPLIED and ACTUALLY_ATTACHED are BLOCKERs
+      FAIL  tests/db/p4g-http.test.ts > P4G stored integrity, signature, envelope and plan rules over real stored candidates > envelope and plan injections: thread, sender, another case’s source, an unknown source, an unrecorded hash, an unbacked PREVIOUSLY_SUPPLIED and ACTUALLY_ATTACHED are BLOCKERs
+        ↳ AssertionError: thread: expected 'REVIEW_REQUIRED' to be 'BLOCKED' // Object.is equality
+[NC-P4G-08] CAUGHT · restored byte-identical · [wrong sender accepted] the sender is exactly the pinned selection’s mailbox: any sender accepted
+    exit 1 · Tests  1 failed | 35 skipped (36) · yarn vitest run --config vitest.config.ts tests/api/validation-rules.test.ts -t the sender is exactly the pinned selection’s mailbox
+      × the sender is exactly the pinned selection’s mailbox (another is a BLOCKER); without a selection the sender is unbacked — review required, nothing chosen
+      FAIL  tests/api/validation-rules.test.ts > envelope and thread — exact relationships with the prompt snapshot; recipients never approved > the sender is exactly the pinned selection’s mailbox (another is a BLOCKER); without a selection the sender is unbacked — review required, nothing chosen
+        ↳ AssertionError: expected undefined to deeply equal ObjectContaining{…}
+    exit 1 · Tests  1 failed | 25 skipped (26) · node scripts/db/run-db-tests.mjs tests/db/p4g-http.test.ts -t envelope and plan injections
+      × envelope and plan injections: thread, sender, another case’s source, an unknown source, an unrecorded hash, an unbacked PREVIOUSLY_SUPPLIED and ACTUALLY_ATTACHED are BLOCKERs
+      FAIL  tests/db/p4g-http.test.ts > P4G stored integrity, signature, envelope and plan rules over real stored candidates > envelope and plan injections: thread, sender, another case’s source, an unknown source, an unrecorded hash, an unbacked PREVIOUSLY_SUPPLIED and ACTUALLY_ATTACHED are BLOCKERs
+        ↳ AssertionError: sender: expected 'REVIEW_REQUIRED' to be 'BLOCKED' // Object.is equality
+[NC-P4G-09] CAUGHT · restored byte-identical · [source revision auto-follow] a plan names exactly its own revision and a newer one is review required: the newer revision silently followed (never reported)
+    exit 1 · Tests  1 failed | 35 skipped (36) · yarn vitest run --config vitest.config.ts tests/api/validation-rules.test.ts -t a missing revision is a BLOCKER
+      × a missing revision is a BLOCKER (the other plan rules skip it); one outside the evaluated context is review required; a newer revision is review required and nothing is re-pointed
+      FAIL  tests/api/validation-rules.test.ts > document plan — exact revisions, recorded hashes, applicability and recorded supply posture > a missing revision is a BLOCKER (the other plan rules skip it); one outside the evaluated context is review required; a newer revision is review required and nothing is re-pointed
+        ↳ AssertionError: expected [] to deeply equal [ ObjectContaining{…} ]
+    exit 1 · Tests  1 failed | 25 skipped (26) · node scripts/db/run-db-tests.mjs tests/db/p4g-http.test.ts -t no run is published against mixed snapshots
+      × no run is published against mixed snapshots: a change committed after the capture is caught by the commit’s recheck (412, nothing written); a change that does not touch the context is not
+      FAIL  tests/db/p4g-http.test.ts > P4G validateCandidate — a technical result for one exact artifact against the current context > no run is published against mixed snapshots: a change committed after the capture is caught by the commit’s recheck (412, nothing written); a change that does not touch the context is not
+        ↳ AssertionError: expected [] to deeply equal [ ObjectContaining{…} ]
+[NC-P4G-10] CAUGHT · restored byte-identical · [PREVIOUSLY_SUPPLIED fabricated] PREVIOUSLY_SUPPLIED needs a prior transmission recording the source: an unrecorded supply accepted as a limited posture
+    exit 1 · Tests  1 failed | 35 skipped (36) · yarn vitest run --config vitest.config.ts tests/api/validation-rules.test.ts -t PREVIOUSLY_SUPPLIED: none recorded by a prior transmission is a BLOCKER
+      × PREVIOUSLY_SUPPLIED: none recorded by a prior transmission is a BLOCKER; recorded only as copied-text allegation is review required; observed in the raw MIME passes; the parent NMI’s attachments never count
+      FAIL  tests/api/validation-rules.test.ts > document plan — exact revisions, recorded hashes, applicability and recorded supply posture > PREVIOUSLY_SUPPLIED: none recorded by a prior transmission is a BLOCKER; recorded only as copied-text allegation is review required; observed in the raw MIME passes; the parent NMI’s attachments never count
+        ↳ AssertionError: expected { …(6) } to deeply equal ObjectContaining{…}
+    exit 1 · Tests  1 failed | 25 skipped (26) · node scripts/db/run-db-tests.mjs tests/db/p4g-http.test.ts -t envelope and plan injections
+      × envelope and plan injections: thread, sender, another case’s source, an unknown source, an unrecorded hash, an unbacked PREVIOUSLY_SUPPLIED and ACTUALLY_ATTACHED are BLOCKERs
+      FAIL  tests/db/p4g-http.test.ts > P4G stored integrity, signature, envelope and plan rules over real stored candidates > envelope and plan injections: thread, sender, another case’s source, an unknown source, an unrecorded hash, an unbacked PREVIOUSLY_SUPPLIED and ACTUALLY_ATTACHED are BLOCKERs
+        ↳ AssertionError: unbacked supply: expected 'REVIEW_REQUIRED' to be 'BLOCKED' // Object.is equality
+[NC-P4G-11] CAUGHT · restored byte-identical · [heuristic labelled deterministic] the attachment-wording scan is a HEURISTIC signal: labelled DETERMINISTIC
+    exit 1 · Tests  1 failed | 35 skipped (36) · yarn vitest run --config vitest.config.ts tests/api/validation-rules.test.ts -t is one identifier with a pinned inventory of 29 required rules
+      × is one identifier with a pinned inventory of 29 required rules; the implementations are exactly that inventory, in order, with the same kinds
+      FAIL  tests/api/validation-rules.test.ts > the ruleset TB-TECHNICAL-RULESET-v1 — pinned inventory, coverage and aggregation > is one identifier with a pinned inventory of 29 required rules; the implementations are exactly that inventory, in order, with the same kinds
+        ↳ AssertionError: expected [ { …(2) }, …(28) ] to deeply equal [ { …(2) }, …(28) ]
+    exit 1 · Tests  1 failed | 35 skipped (36) · yarn vitest run --config vitest.config.ts tests/api/validation-rules.test.ts -t heuristic signals are never blockers and never labelled deterministic
+      × heuristic signals are never blockers and never labelled deterministic; every finding carries its rule’s inventory kind — also when a heuristic rule fails while running
+      FAIL  tests/api/validation-rules.test.ts > the ruleset TB-TECHNICAL-RULESET-v1 — pinned inventory, coverage and aggregation > heuristic signals are never blockers and never labelled deterministic; every finding carries its rule’s inventory kind — also when a heuristic rule fails while running
+        ↳ AssertionError: WORDING.ATTACHMENT_CLAIM: expected 'DETERMINISTIC' to be 'HEURISTIC' // Object.is equality
+    exit 1 · Tests  1 failed | 25 skipped (26) · node scripts/db/run-db-tests.mjs tests/db/p4g-http.test.ts -t attachment wording without a planned file is a HEURISTIC REVIEW_REQUIRED signal
+      × attachment wording without a planned file is a HEURISTIC REVIEW_REQUIRED signal — never a BLOCKER and never labelled deterministic
+      FAIL  tests/db/p4g-http.test.ts > P4G stored integrity, signature, envelope and plan rules over real stored candidates > attachment wording without a planned file is a HEURISTIC REVIEW_REQUIRED signal — never a BLOCKER and never labelled deterministic
+        ↳ AssertionError: expected [ { …(10) } ] to deeply equal [ ObjectContaining{…} ]
+[NC-P4G-12] CAUGHT · restored byte-identical · [heuristic reports a BLOCKER] a heuristic never reports a BLOCKER: unsupported attachment wording made a BLOCKER
+    exit 1 · Tests  1 failed | 35 skipped (36) · yarn vitest run --config vitest.config.ts tests/api/validation-rules.test.ts -t heuristic signals are never blockers and never labelled deterministic
+      × heuristic signals are never blockers and never labelled deterministic; every finding carries its rule’s inventory kind — also when a heuristic rule fails while running
+      FAIL  tests/api/validation-rules.test.ts > the ruleset TB-TECHNICAL-RULESET-v1 — pinned inventory, coverage and aggregation > heuristic signals are never blockers and never labelled deterministic; every finding carries its rule’s inventory kind — also when a heuristic rule fails while running
+        ↳ AssertionError: WORDING.ATTACHMENT_CLAIM: expected [ 'REVIEW_REQUIRED', 'WARNING' ] to include 'BLOCKER'
+    exit 1 · Tests  1 failed | 35 skipped (36) · yarn vitest run --config vitest.config.ts tests/api/validation-rules.test.ts -t attachment wording without a planned file prepared for attachment
+      × attachment wording without a planned file prepared for attachment is a heuristic review signal; with one, a warning that it must be attached outside the application; unrelated wording is not matched
+      FAIL  tests/api/validation-rules.test.ts > wording and markers — bounded, documented detection > attachment wording without a planned file prepared for attachment is a heuristic review signal; with one, a warning that it must be attached outside the application; unrelated wording is not matched
+        ↳ AssertionError: expected [ { …(6) } ] to deeply equal [ ObjectContaining{…} ]
+    exit 1 · Tests  1 failed | 25 skipped (26) · node scripts/db/run-db-tests.mjs tests/db/p4g-http.test.ts -t attachment wording without a planned file is a HEURISTIC REVIEW_REQUIRED signal
+      × attachment wording without a planned file is a HEURISTIC REVIEW_REQUIRED signal — never a BLOCKER and never labelled deterministic
+      FAIL  tests/db/p4g-http.test.ts > P4G stored integrity, signature, envelope and plan rules over real stored candidates > attachment wording without a planned file is a HEURISTIC REVIEW_REQUIRED signal — never a BLOCKER and never labelled deterministic
+        ↳ AssertionError: expected 'BLOCKED' to be 'REVIEW_REQUIRED' // Object.is equality
+[NC-P4G-31] CAUGHT · restored byte-identical · [heuristic reports a BLOCKER] a heuristic rule that fails while running is an ERROR run whose diagnostic is review required, never a BLOCKER: every ERROR diagnostic made a BLOCKER
+    exit 1 · Tests  1 failed | 35 skipped (36) · yarn vitest run --config vitest.config.ts tests/api/validation-rules.test.ts -t heuristic signals are never blockers and never labelled deterministic
+      × heuristic signals are never blockers and never labelled deterministic; every finding carries its rule’s inventory kind — also when a heuristic rule fails while running
+      FAIL  tests/api/validation-rules.test.ts > the ruleset TB-TECHNICAL-RULESET-v1 — pinned inventory, coverage and aggregation > heuristic signals are never blockers and never labelled deterministic; every finding carries its rule’s inventory kind — also when a heuristic rule fails while running
+        ↳ AssertionError: expected [ [ …(4) ], [ …(4) ], [ …(4) ], …(3) ] to deeply equal [ [ …(4) ], [ …(4) ], [ …(4) ], …(3) ]
+    exit 1 · Tests  1 failed | 25 skipped (26) · node scripts/db/run-db-tests.mjs tests/db/p4g-http.test.ts -t an ERROR run: a rule that fails while running
+      × an ERROR run: a rule that fails while running is recorded as ERROR with a safe diagnostic (its name only) and listed as not executed — never a pass
+      FAIL  tests/db/p4g-http.test.ts > P4G validateCandidate — a technical result for one exact artifact against the current context > an ERROR run: a rule that fails while running is recorded as ERROR with a safe diagnostic (its name only) and listed as not executed — never a pass
+        ↳ AssertionError: expected [ 1, +0 ] to deeply equal [ +0, 1 ]
+[NC-P4G-13] CAUGHT · restored byte-identical · [required rule silently omitted] every rule of the ruleset is required and run: one rule silently dropped from both lists
+    exit 1 · Tests  1 failed | 35 skipped (36) · yarn vitest run --config vitest.config.ts tests/api/validation-rules.test.ts -t is one identifier with a pinned inventory of 29 required rules
+      × is one identifier with a pinned inventory of 29 required rules; the implementations are exactly that inventory, in order, with the same kinds
+      FAIL  tests/api/validation-rules.test.ts > the ruleset TB-TECHNICAL-RULESET-v1 — pinned inventory, coverage and aggregation > is one identifier with a pinned inventory of 29 required rules; the implementations are exactly that inventory, in order, with the same kinds
+        ↳ AssertionError: expected [ { …(2) }, …(27) ] to deeply equal [ { …(2) }, …(28) ]
+    exit 1 · Tests  1 failed | 25 skipped (26) · node scripts/db/run-db-tests.mjs tests/db/p4g-http.test.ts -t a clean DRAFTING candidate: TECHNICAL_PASS with every rule executed
+      × a clean DRAFTING candidate: TECHNICAL_PASS with every rule executed, bound to the exact artifact and the fresh context of its prompt’s scope; nothing else changes
+      FAIL  tests/db/p4g-http.test.ts > P4G validateCandidate — a technical result for one exact artifact against the current context > a clean DRAFTING candidate: TECHNICAL_PASS with every rule executed, bound to the exact artifact and the fresh context of its prompt’s scope; nothing else changes
+        ↳ AssertionError: expected [ 'ARTIFACT.TEXT_EXACT', …(27) ] to have a length of 29 but got 28
+[NC-P4G-14] CAUGHT · restored byte-identical · [NOT_EXECUTED treated PASS] a rule that cannot run is listed as not executed with an issue: recorded as executed and passed
+    exit 1 · Tests  1 failed | 35 skipped (36) · yarn vitest run --config vitest.config.ts tests/api/validation-rules.test.ts -t NOT_EXECUTED is never passed
+      × NOT_EXECUTED is never passed: a rule that cannot run, a rule that is not run at all and a failing rule are listed as not executed, each with an issue
+      FAIL  tests/api/validation-rules.test.ts > the ruleset TB-TECHNICAL-RULESET-v1 — pinned inventory, coverage and aggregation > NOT_EXECUTED is never passed: a rule that cannot run, a rule that is not run at all and a failing rule are listed as not executed, each with an issue
+        ↳ AssertionError: expected { requiredRuleIds: [ …(2) ], …(3) } to deeply equal { requiredRuleIds: [ …(2) ], …(3) }
+    exit 1 · Tests  1 failed | 35 skipped (36) · yarn vitest run --config vitest.config.ts tests/api/validation-rules.test.ts -t text that import refuses
+      × text that import refuses (a NUL, an unpaired surrogate) is a BLOCKER at its field, and the two hashes are then NOT_EXECUTED — listed, never passed
+      FAIL  tests/api/validation-rules.test.ts > artifact integrity — exact bytes and hashes, recomputed and never repaired > text that import refuses (a NUL, an unpaired surrogate) is a BLOCKER at its field, and the two hashes are then NOT_EXECUTED — listed, never passed
+        ↳ AssertionError: expected [] to deeply equal [ 'ARTIFACT.BODY_SHA256', …(1) ]
+    exit 1 · Tests  1 failed | 25 skipped (26) · node scripts/db/run-db-tests.mjs tests/db/p4g-http.test.ts -t wrong stored hashes and inexact text are technical BLOCKERs
+      × wrong stored hashes and inexact text are technical BLOCKERs (never repaired): a body hash, an artifact hash, a NUL
+      FAIL  tests/db/p4g-http.test.ts > P4G stored integrity, signature, envelope and plan rules over real stored candidates > wrong stored hashes and inexact text are technical BLOCKERs (never repaired): a body hash, an artifact hash, a NUL
+        ↳ AssertionError: expected [] to deeply equal [ 'ARTIFACT.BODY_SHA256', …(1) ]
+[NC-P4G-15] CAUGHT · restored byte-identical · [ERROR treated PASS] a rule that fails while running makes an ERROR run: recorded as executed with no finding
+    exit 1 · Tests  1 failed | 35 skipped (36) · yarn vitest run --config vitest.config.ts tests/api/validation-rules.test.ts -t aggregation: ERROR before BLOCKED before REVIEW_REQUIRED
+      × aggregation: ERROR before BLOCKED before REVIEW_REQUIRED before TECHNICAL_PASS; WARNING and INFO never change the result
+      FAIL  tests/api/validation-rules.test.ts > the ruleset TB-TECHNICAL-RULESET-v1 — pinned inventory, coverage and aggregation > aggregation: ERROR before BLOCKED before REVIEW_REQUIRED before TECHNICAL_PASS; WARNING and INFO never change the result
+        ↳ AssertionError: expected 'BLOCKED' to be 'ERROR' // Object.is equality
+    exit 1 · Tests  1 failed | 35 skipped (36) · yarn vitest run --config vitest.config.ts tests/api/validation-rules.test.ts -t NOT_EXECUTED is never passed
+      × NOT_EXECUTED is never passed: a rule that cannot run, a rule that is not run at all and a failing rule are listed as not executed, each with an issue
+      FAIL  tests/api/validation-rules.test.ts > the ruleset TB-TECHNICAL-RULESET-v1 — pinned inventory, coverage and aggregation > NOT_EXECUTED is never passed: a rule that cannot run, a rule that is not run at all and a failing rule are listed as not executed, each with an issue
+        ↳ AssertionError: expected 'TECHNICAL_PASS' to be 'ERROR' // Object.is equality
+    exit 1 · Tests  1 failed | 25 skipped (26) · node scripts/db/run-db-tests.mjs tests/db/p4g-http.test.ts -t an ERROR run: a rule that fails while running
+      × an ERROR run: a rule that fails while running is recorded as ERROR with a safe diagnostic (its name only) and listed as not executed — never a pass
+      FAIL  tests/db/p4g-http.test.ts > P4G validateCandidate — a technical result for one exact artifact against the current context > an ERROR run: a rule that fails while running is recorded as ERROR with a safe diagnostic (its name only) and listed as not executed — never a pass
+        ↳ AssertionError: expected 'TECHNICAL_PASS' to be 'ERROR' // Object.is equality
+[NC-P4G-16] CAUGHT · restored byte-identical · [semantic review not required] every run records semanticReviewRequired = true: recorded false
+    exit 1 · Tests  1 failed | 35 skipped (36) · yarn vitest run --config vitest.config.ts tests/api/validation-rules.test.ts -t a clean candidate: every required rule executed, nothing found
+      × a clean candidate: every required rule executed, nothing found — TECHNICAL_PASS, no issue, semantic review still required
+      FAIL  tests/api/validation-rules.test.ts > the ruleset TB-TECHNICAL-RULESET-v1 — pinned inventory, coverage and aggregation > a clean candidate: every required rule executed, nothing found — TECHNICAL_PASS, no issue, semantic review still required
+        ↳ AssertionError: expected { requiredRuleIds: [ …(29) ], …(3) } to deeply equal { requiredRuleIds: [ …(29) ], …(3) }
+    exit 1 · Tests  1 failed | 25 skipped (26) · node scripts/db/run-db-tests.mjs tests/db/p4g-http.test.ts -t a clean DRAFTING candidate: TECHNICAL_PASS with every rule executed
+      × a clean DRAFTING candidate: TECHNICAL_PASS with every rule executed, bound to the exact artifact and the fresh context of its prompt’s scope; nothing else changes
+      FAIL  tests/db/p4g-http.test.ts > P4G validateCandidate — a technical result for one exact artifact against the current context > a clean DRAFTING candidate: TECHNICAL_PASS with every rule executed, bound to the exact artifact and the fresh context of its prompt’s scope; nothing else changes
+        ↳ AssertionError: expected { …(17) } to deeply equal { …(17) }
+[NC-P4G-17] CAUGHT · restored byte-identical · [PREPARATION portrayed as ready] a PREPARATION prompt’s candidate is a BLOCKER: the mode check disabled
+    exit 1 · Tests  1 failed | 35 skipped (36) · yarn vitest run --config vitest.config.ts tests/api/validation-rules.test.ts -t a PREPARATION prompt’s candidate is draft material only
+      × a PREPARATION prompt’s candidate is draft material only: a deterministic BLOCKER — it is never portrayed as production-ready
+      FAIL  tests/api/validation-rules.test.ts > the recorded context — mode, gaps, conflicts and drift since the prompt; nothing resolved > a PREPARATION prompt’s candidate is draft material only: a deterministic BLOCKER — it is never portrayed as production-ready
+        ↳ AssertionError: expected [] to deeply equal [ ObjectContaining{…} ]
+    exit 1 · Tests  1 failed | 25 skipped (26) · node scripts/db/run-db-tests.mjs tests/db/p4g-http.test.ts -t a PREPARATION prompt’s candidate is draft material only
+      × a PREPARATION prompt’s candidate is draft material only: BLOCKED by CONTEXT.GENERATION_MODE even when its text is clean
+      FAIL  tests/db/p4g-http.test.ts > P4G recorded context, preparation, drift and history > a PREPARATION prompt’s candidate is draft material only: BLOCKED by CONTEXT.GENERATION_MODE even when its text is clean
+        ↳ AssertionError: expected 'TECHNICAL_PASS' to be 'BLOCKED' // Object.is equality
+[NC-P4G-33] CAUGHT · restored byte-identical · [DRAFTING gate bypassed] a DRAFTING candidate whose current context misses a blocking input is refused by the P4D gate (422, nothing recorded): the gate call removed from the capture
+    exit 1 · Tests  1 failed | 25 skipped (26) · node scripts/db/run-db-tests.mjs tests/db/p4g-http.test.ts -t whose context lost a blocking input
+      × a DRAFTING prompt’s candidate whose context lost a blocking input after the read: the reviewed digest is stale (412) and the fresh read is refused by the P4D gate naming the gap — nothing is recorded, filled in or downgraded to PREPARATION
+      FAIL  tests/db/p4g-http.test.ts > P4G recorded context, preparation, drift and history > a DRAFTING prompt’s candidate whose context lost a blocking input after the read: the reviewed digest is stale (412) and the fresh read is refused by the P4D gate naming the gap — nothing is recorded, filled in or downgraded to PREPARATION
+        ↳ AssertionError: expected [ 201, '(no error: HTTP 201)' ] to deeply equal [ 422, 'DRAFTING_INPUT_MISSING' ]
+[NC-P4G-18] CAUGHT · restored byte-identical · [run committed after dependency changed] the commit rebuilds the context and refuses a changed digest (412): the recheck removed
+    exit 1 · Tests  1 failed | 25 skipped (26) · node scripts/db/run-db-tests.mjs tests/db/p4g-http.test.ts -t no run is published against mixed snapshots
+      × no run is published against mixed snapshots: a change committed after the capture is caught by the commit’s recheck (412, nothing written); a change that does not touch the context is not
+      FAIL  tests/db/p4g-http.test.ts > P4G validateCandidate — a technical result for one exact artifact against the current context > no run is published against mixed snapshots: a change committed after the capture is caught by the commit’s recheck (412, nothing written); a change that does not touch the context is not
+        ↳ AssertionError: expected [ 201, '(no error: HTTP 201)' ] to deeply equal [ 412, 'CONTEXT_CHANGED' ]
+[NC-P4G-19] CAUGHT · restored byte-identical · [mixed context/run snapshot] the commit runs SERIALIZABLE, so what it rechecked stays as read until it commits: READ COMMITTED instead
+    exit 1 · Tests  1 failed | 25 skipped (26) · node scripts/db/run-db-tests.mjs tests/db/p4g-http.test.ts -t SERIALIZABLE: what the commit rechecked stays as read until it commits
+      × SERIALIZABLE: what the commit rechecked stays as read until it commits — a dependency write that never locks the case waits for the run
+      FAIL  tests/db/p4g-http.test.ts > P4G validateCandidate — a technical result for one exact artifact against the current context > SERIALIZABLE: what the commit rechecked stays as read until it commits — a dependency write that never locks the case waits for the run
+        ↳ AssertionError: expected 1 to be +0 // Object.is equality
+[NC-P4G-20] CAUGHT · restored byte-identical · [plan sources not rechecked] the plan’s source revisions are read again before the commit (412): the fingerprint recheck removed
+    exit 1 · Tests  1 failed | 25 skipped (26) · node scripts/db/run-db-tests.mjs tests/db/p4g-http.test.ts -t no run is published against mixed snapshots
+      × no run is published against mixed snapshots: a change committed after the capture is caught by the commit’s recheck (412, nothing written); a change that does not touch the context is not
+      FAIL  tests/db/p4g-http.test.ts > P4G validateCandidate — a technical result for one exact artifact against the current context > no run is published against mixed snapshots: a change committed after the capture is caught by the commit’s recheck (412, nothing written); a change that does not touch the context is not
+        ↳ AssertionError: expected [ 201, '(no error: HTTP 201)' ] to deeply equal [ 412, 'CONTEXT_CHANGED' ]
+[NC-P4G-21] CAUGHT · restored byte-identical · [prompt scope not reproduced] the run evaluates the prompt’s own scope (parent and priors from its frozen manifest): the priors dropped
+    exit 1 · Tests  1 failed | 25 skipped (26) · node scripts/db/run-db-tests.mjs tests/db/p4g-http.test.ts -t envelope and plan injections
+      × envelope and plan injections: thread, sender, another case’s source, an unknown source, an unrecorded hash, an unbacked PREVIOUSLY_SUPPLIED and ACTUALLY_ATTACHED are BLOCKERs
+      FAIL  tests/db/p4g-http.test.ts > P4G stored integrity, signature, envelope and plan rules over real stored candidates > envelope and plan injections: thread, sender, another case’s source, an unknown source, an unrecorded hash, an unbacked PREVIOUSLY_SUPPLIED and ACTUALLY_ATTACHED are BLOCKERs
+        ↳ AssertionError: {"error":{"code":"CONTEXT_CHANGED","message":"The recorded context changed after it was read. Read the current context before validating again; no validation run was recorded.","details":{"field":"expecte
+[NC-P4G-22] CAUGHT · restored byte-identical · [audit stores candidate body] the audit event keeps identifiers, digests and counts only: the candidate body and subject added
+    exit 1 · Tests  1 failed | 25 skipped (26) · node scripts/db/run-db-tests.mjs tests/db/p4g-http.test.ts -t the audit event records identifiers, digests, the ruleset
+      × the audit event records identifiers, digests, the ruleset, the result, counts and not-executed rule ids — never the subject, body, addresses or issue messages
+      FAIL  tests/db/p4g-http.test.ts > P4G recorded context, preparation, drift and history > the audit event records identifiers, digests, the ruleset, the result, counts and not-executed rule ids — never the subject, body, addresses or issue messages
+        ↳ AssertionError: expected { …(18) } to deeply equal { …(16) }
+[NC-P4G-23] CAUGHT · restored byte-identical · [cross-case run leak] a candidate lists its own runs only: every stored run listed
+    exit 1 · Tests  1 failed | 25 skipped (26) · node scripts/db/run-db-tests.mjs tests/db/p4g-http.test.ts -t two cases of one agency, owner and route
+      × two cases of one agency, owner and route: each run evaluates only its own case’s facts, sources, authority and correspondence; the same artifact in both cases shares no run; a change in A never stales B; a technical pass changes no fact and creates no assessment or readiness
+      FAIL  tests/db/p4g-http.test.ts > CONTAMINATION — nothing of one case appears in or stales another case’s validation > two cases of one agency, owner and route: each run evaluates only its own case’s facts, sources, authority and correspondence; the same artifact in both cases shares no run; a change in A never stales B; a technical pass changes no fact and creates no assessment or readiness
+        ↳ AssertionError: expected [ { …(13) } ] to deeply equal []
+    exit 1 · Tests  1 failed | 25 skipped (26) · node scripts/db/run-db-tests.mjs tests/db/p4g-http.test.ts -t lists: a candidate’s runs newest first as summaries
+      × lists: a candidate’s runs newest first as summaries, only its own, paged; q exactly an id, digest or result; issues in the ruleset’s order, paged, q exactly an id, rule, severity or kind; 404 for an unknown candidate or run
+      FAIL  tests/db/p4g-http.test.ts > P4G recorded context, preparation, drift and history > lists: a candidate’s runs newest first as summaries, only its own, paged; q exactly an id, digest or result; issues in the ruleset’s order, paged, q exactly an id, rule, severity or kind; 404 for an unknown candidate or run
+        ↳ AssertionError: expected [ …(3) ] to deeply equal [ …(2) ]
+[NC-P4G-24] CAUGHT · restored byte-identical · [validation creates assessment/readiness] a run is a technical result only: the commit also records a G1 PASS CandidateAssessment
+    exit 1 · Tests  1 failed | 25 skipped (26) · node scripts/db/run-db-tests.mjs tests/db/p4g-http.test.ts -t a clean DRAFTING candidate: TECHNICAL_PASS with every rule executed
+      × a clean DRAFTING candidate: TECHNICAL_PASS with every rule executed, bound to the exact artifact and the fresh context of its prompt’s scope; nothing else changes
+      FAIL  tests/db/p4g-http.test.ts > P4G validateCandidate — a technical result for one exact artifact against the current context > a clean DRAFTING candidate: TECHNICAL_PASS with every rule executed, bound to the exact artifact and the fresh context of its prompt’s scope; nothing else changes
+        ↳ AssertionError: candidate_assessments: expected 1 to be +0 // Object.is equality
+    exit 1 · Tests  1 failed | 25 skipped (26) · node scripts/db/run-db-tests.mjs tests/db/p4g-http.test.ts -t no run is read, updated or deleted by id
+      × no run is read, updated or deleted by id, and assessments, readiness, unsigned export, signing and sending stay unrouted; P4G writes no later-phase record
+      FAIL  tests/db/p4g-http.test.ts > P4G boundaries — no outbound call, no later phase, no mutation of a run > no run is read, updated or deleted by id, and assessments, readiness, unsigned export, signing and sending stay unrouted; P4G writes no later-phase record
+        ↳ AssertionError: candidate_assessments: expected 1 to be +0 // Object.is equality
+    exit 1 · Tests  1 failed | 35 skipped (36) · yarn vitest run --config vitest.config.ts tests/api/validation-rules.test.ts -t nothing writes an assessment, a readiness, a signature or an export
+      × nothing writes an assessment, a readiness, a signature or an export; the only records written are the run, its issues and the audit event
+      FAIL  tests/api/validation-rules.test.ts > the validation module — no clock, randomness, network, AI provider or later-phase record > nothing writes an assessment, a readiness, a signature or an export; the only records written are the run, its issues and the audit event
+        ↳ AssertionError: expected [ 'candidateAssessment.create', …(2) ] to deeply equal [ 'validationRun.create', …(1) ]
+[NC-P4G-25] CAUGHT · restored byte-identical · [validation claims readiness] a run carries no readiness or verdict: the run view claims readyForSigner
+    exit 1 · Tests  2 failed | 1 passed | 23 skipped (26) · node scripts/db/run-db-tests.mjs tests/db/p4g-http.test.ts -t a clean DRAFTING candidate: TECHNICAL_PASS with every rule executed|lists: a candidate’s runs newest first as summaries|every collected response matches its operation
+      × a clean DRAFTING candidate: TECHNICAL_PASS with every rule executed, bound to the exact artifact and the fresh context of its prompt’s scope; nothing else changes
+      × every collected response matches its operation: declared status, contract schema, no ETag on a run, no readiness or approval vocabulary as a key; the three validation operations were exercised
+      FAIL  tests/db/p4g-http.test.ts > P4G validateCandidate — a technical result for one exact artifact against the current context > a clean DRAFTING candidate: TECHNICAL_PASS with every rule executed, bound to the exact artifact and the fresh context of its prompt’s scope; nothing else changes
+      FAIL  tests/db/p4g-http.test.ts > P4G boundaries — no outbound call, no later phase, no mutation of a run > every collected response matches its operation: declared status, contract schema, no ETag on a run, no readiness or approval vocabulary as a key; the three validation operations were exercised
+        ↳ AssertionError: expected { …(18) } to deeply equal { …(17) }
+        ↳ AssertionError: validateCandidate 201 [{"code":"unrecognized_keys","keys":["readyForSigner"],"path":["data"],"message":"Unrecognized key: \"readyForSigner\""}]: expected false to be true // Object.is equality
+[NC-P4G-26] CAUGHT · restored byte-identical · [outbound network introduced] a validation calls nothing outside the application: a fetch to an AI-provider-like endpoint added to the capture
+    exit 1 · Tests  1 failed | 25 skipped (26) · node scripts/db/run-db-tests.mjs tests/db/p4g-http.test.ts -t a validation opens no outbound connection and calls no fetch
+      × a validation opens no outbound connection and calls no fetch — no AI provider, network or mail call exists
+      FAIL  tests/db/p4g-http.test.ts > P4G boundaries — no outbound call, no later phase, no mutation of a run > a validation opens no outbound connection and calls no fetch — no AI provider, network or mail call exists
+        ↳ AssertionError: expected 1 to be +0 // Object.is equality
+    exit 1 · Tests  1 failed | 35 skipped (36) · yarn vitest run --config vitest.config.ts tests/api/validation-rules.test.ts -t no module file opens a network, mail, file, process or AI-provider call
+      × no module file opens a network, mail, file, process or AI-provider call
+      FAIL  tests/api/validation-rules.test.ts > the validation module — no clock, randomness, network, AI provider or later-phase record > no module file opens a network, mail, file, process or AI-provider call
+        ↳ AssertionError: validation.service.ts: expected '// Technical validation (P4G) — valid…' not to match /\bfetch\(|node:(?:http|https|net|tls…/i
+        ↳ //             contract declares no precondition target: the expected artifact SHA-256 and
+        ↳ //               plan's source revisions (validation-inputs.ts) → the expected dependency digest is
+[NC-P4G-27] CAUGHT · restored byte-identical · [UI says "Approved"] the technical pass is labelled TECHNICAL PASS with its qualifier: labelled "Approved"
+    exit 1 · Tests  1 failed | 10 skipped (11) · yarn vitest run --config vitest.config.ts tests/web/p4g.test.tsx -t a run is recorded against exactly the read
+      × a run is recorded against exactly the read: the shown artifact and the read digest; TECHNICAL PASS with its qualifier and the full coverage manifest; focus on the result; the run is listed
+      FAIL  tests/web/p4g.test.tsx > P4G technical validation on the candidate page > a run is recorded against exactly the read: the shown artifact and the read digest; TECHNICAL PASS with its qualifier and the full coverage manifest; focus on the result; the run is listed
+        ↳ AssertionError: expected 'Approved' to be 'TECHNICAL PASS' // Object.is equality
+[NC-P4G-28] CAUGHT · restored byte-identical · [UI hides notExecutedRuleIds] the not-executed rules are listed: the list replaced by "None"
+    exit 1 · Tests  1 failed | 10 skipped (11) · yarn vitest run --config vitest.config.ts tests/web/p4g.test.tsx -t BLOCKED lists the technical blockers
+      × BLOCKED lists the technical blockers; deterministic checks and heuristic signals are shown apart; not-executed rules are visible
+      FAIL  tests/web/p4g.test.tsx > P4G technical validation on the candidate page > BLOCKED lists the technical blockers; deterministic checks and heuristic signals are shown apart; not-executed rules are visible
+        ↳ AssertionError: expected [] to deeply equal [ 'ARTIFACT.BODY_SHA256' ]
+    exit 1 · Tests  1 failed | 10 skipped (11) · yarn vitest run --config vitest.config.ts tests/web/p4g.test.tsx -t REVIEW REQUIRED says why; ERROR shows only the safe diagnostic
+      × REVIEW REQUIRED says why; ERROR shows only the safe diagnostic
+      FAIL  tests/web/p4g.test.tsx > P4G technical validation on the candidate page > REVIEW REQUIRED says why; ERROR shows only the safe diagnostic
+        ↳ AssertionError: expected [] to deeply equal [ 'ENVELOPE.SENDER' ]
+[NC-P4G-29] CAUGHT · restored byte-identical · [UI qualifier removed] every result shows the permanent technical-only qualifier: the qualifier removed
+    exit 1 · Tests  1 failed | 10 skipped (11) · yarn vitest run --config vitest.config.ts tests/web/p4g.test.tsx -t a run is recorded against exactly the read
+      × a run is recorded against exactly the read: the shown artifact and the read digest; TECHNICAL PASS with its qualifier and the full coverage manifest; focus on the result; the run is listed
+      FAIL  tests/web/p4g.test.tsx > P4G technical validation on the candidate page > a run is recorded against exactly the read: the shown artifact and the read digest; TECHNICAL PASS with its qualifier and the full coverage manifest; focus on the result; the run is listed
+        ↳ AssertionError: expected undefined to be 'Technical checks only. This is not G1…' // Object.is equality
+    exit 1 · Tests  1 failed | 10 skipped (11) · yarn vitest run --config vitest.config.ts tests/web/p4g.test.tsx -t BLOCKED lists the technical blockers
+      × BLOCKED lists the technical blockers; deterministic checks and heuristic signals are shown apart; not-executed rules are visible
+      FAIL  tests/web/p4g.test.tsx > P4G technical validation on the candidate page > BLOCKED lists the technical blockers; deterministic checks and heuristic signals are shown apart; not-executed rules are visible
+        ↳ AssertionError: expected undefined to be 'Technical checks only. This is not G1…' // Object.is equality
+[NC-P4G-32] CAUGHT · restored byte-identical · [UI retries or hides a 412] after a 412 the earlier read’s digest is never shown as the current one: the stale-digest branch removed
+    exit 1 · Tests  1 failed | 10 skipped (11) · yarn vitest run --config vitest.config.ts tests/web/p4g.test.tsx -t a changed context \(412\) is shown exactly
+      × a changed context (412) is shown exactly: no run recorded, only a new read offered, never retried; the next run uses the new read
+      FAIL  tests/web/p4g.test.tsx > P4G technical validation on the candidate page > a changed context (412) is shown exactly: no run recorded, only a new read offered, never retried; the next run uses the new read
+        ↳ AssertionError: expected <code class="digest" …(1)></code> to be null
+[NC-P4G-30] CAUGHT · restored byte-identical · [UI retries or hides a 412] a 412 shows exactly "Context changed…" and requires a new read: shown as a generic failure with the run still offered
+    exit 1 · Tests  1 failed | 10 skipped (11) · yarn vitest run --config vitest.config.ts tests/web/p4g.test.tsx -t a changed context \(412\) is shown exactly
+      × a changed context (412) is shown exactly: no run recorded, only a new read offered, never retried; the next run uses the new read
+      FAIL  tests/web/p4g.test.tsx > P4G technical validation on the candidate page > a changed context (412) is shown exactly: no run recorded, only a new read offered, never retried; the next run uses the new read
+        ↳ AssertionError: expected <div role="alert" …(2)>…(1)</div> to be null
+# end 2026-09-26T09:48:53.819Z — tree fingerprint 7ae647c4e5d53818db5d35b0cd175162d974398be1748a0dcc7a69af3139540e (identical)
+33 controls, 33 caught and restored, 0 problems
+exit=0
