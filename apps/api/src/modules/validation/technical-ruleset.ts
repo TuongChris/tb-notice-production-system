@@ -17,8 +17,10 @@
 //
 // Rule outcomes: EXECUTED (with zero or more findings; a passed rule stores no issue), NOT_EXECUTED
 // (its input cannot be evaluated as defined — recorded as a REVIEW_REQUIRED issue with the reason)
-// and ERROR (it failed while running — recorded as a BLOCKER issue with the error's name only).
-// Every required rule that did not execute is listed in notExecutedRuleIds; none is ever passed.
+// and ERROR (it failed while running — recorded as a diagnostic issue with the error's name only:
+// a BLOCKER for a deterministic rule, REVIEW_REQUIRED for a heuristic one, since no heuristic issue
+// is ever a BLOCKER; the run is ERROR either way). Every required rule that did not execute is
+// listed in notExecutedRuleIds; none is ever passed.
 //
 // Result (deterministic): ERROR when any rule failed; else BLOCKED when any BLOCKER; else
 // REVIEW_REQUIRED when any REVIEW_REQUIRED finding or any required rule not executed; else
@@ -1443,7 +1445,8 @@ export function evaluateCandidate(
       records.push({ ...identity, outcome: 'ERROR' });
       findings.push({
         ...identity,
-        severity: 'BLOCKER',
+        // A diagnostic, not a finding about the text; a heuristic issue is never a BLOCKER.
+        severity: rule.checkKind === 'HEURISTIC' ? 'REVIEW_REQUIRED' : 'BLOCKER',
         fieldPath: null,
         message: RULE_ERROR_MESSAGE,
         details: { outcome: 'ERROR', errorName: error instanceof Error ? error.name : 'Error' },

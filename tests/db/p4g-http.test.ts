@@ -1332,6 +1332,21 @@ describe('P4G validateCandidate — a technical result for one exact artifact ag
         details: { outcome: 'ERROR', errorName: 'TypeError' },
       }),
     ]);
+    // A heuristic rule that fails is an ERROR run as well; its diagnostic is never a BLOCKER.
+    validationObserver.failRule = 'WORDING.ATTACHMENT_CLAIM';
+    const heuristic = (await validate(p.candidate, p.prompt)).run;
+    expect(heuristic.result).toBe('ERROR');
+    expect(heuristic.coverageManifest.notExecutedRuleIds).toEqual(['WORDING.ATTACHMENT_CLAIM']);
+    expect([heuristic.blockerCount, heuristic.reviewRequiredCount]).toEqual([0, 1]);
+    expect(await issuesOf(heuristic.id)).toEqual([
+      expect.objectContaining({
+        ruleId: 'WORDING.ATTACHMENT_CLAIM',
+        checkKind: 'HEURISTIC',
+        severity: 'REVIEW_REQUIRED',
+        message: RULE_ERROR_MESSAGE,
+        details: { outcome: 'ERROR', errorName: 'TypeError' },
+      }),
+    ]);
     const stored = JSON.stringify(
       await suiteDump(['validation_runs', 'validation_issues', 'audit_events']),
     );

@@ -358,7 +358,7 @@ describe('the ruleset TB-TECHNICAL-RULESET-v1 — pinned inventory, coverage and
     expect(failed.coverageManifest.executedRuleIds).toHaveLength(28);
   });
 
-  it('heuristic signals are never blockers and never labelled deterministic; every finding carries its rule’s inventory kind', () => {
+  it('heuristic signals are never blockers and never labelled deterministic; every finding carries its rule’s inventory kind — also when a heuristic rule fails while running', () => {
     const view = cleanView('reply');
     const [source] = sourceIdsOf(view);
     const evaluation = evaluateCandidate(
@@ -393,6 +393,31 @@ describe('the ruleset TB-TECHNICAL-RULESET-v1 — pinned inventory, coverage and
         expect(item.message, item.ruleId).toMatch(/[Hh]euristic signal/);
       }
     }
+    // A heuristic rule that fails while running makes an ERROR run; its diagnostic keeps the
+    // rule's kind and is review required — a heuristic issue is never a BLOCKER.
+    const failed = evaluateCandidate(inputOf(), {
+      beforeRule: (ruleId) => {
+        if (heuristics.has(ruleId) || ruleId === 'ENVELOPE.SENDER')
+          throw new RangeError('SYNTHETIC');
+      },
+    });
+    expect(failed.result).toBe('ERROR');
+    expect(failed.coverageManifest.notExecutedRuleIds).toEqual(
+      INVENTORY.filter(([id, kind]) => kind === 'H' || id === 'ENVELOPE.SENDER').map(([id]) => id),
+    );
+    expect(
+      failed.findings.map((item) => [item.ruleId, item.checkKind, item.severity, item.details]),
+    ).toEqual(
+      INVENTORY.filter(([id, kind]) => kind === 'H' || id === 'ENVELOPE.SENDER').map(
+        ([id, kind]) => [
+          id,
+          kindOf(kind),
+          kind === 'H' ? 'REVIEW_REQUIRED' : 'BLOCKER',
+          { outcome: 'ERROR', errorName: 'RangeError' },
+        ],
+      ),
+    );
+    expect(failed.counts.blocker).toBe(1);
   });
 });
 
