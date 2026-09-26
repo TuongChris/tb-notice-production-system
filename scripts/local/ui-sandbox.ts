@@ -1,7 +1,8 @@
 // yarn ui:sandbox --password-file <path> — a disposable local UI sandbox for manual or browser-
 // automation checks of the Directory, Sources, Routes, representation-authority, Case, case
-// intake, Correspondence, Production context, Prompt and Candidate pages (P2, P3A, P3B, P4A, P4B,
-// P4C, P4D, P4E, P4F) WITHOUT touching tb_notice_dev.
+// intake, Correspondence, Production context, Prompt and Candidate pages with the candidates'
+// technical validation (P2, P3A, P3B, P4A, P4B, P4C, P4D, P4E, P4F, P4G) WITHOUT touching
+// tb_notice_dev.
 //
 //  1. Guards: the target is the allowlisted disposable tb_notice_test schema (tooling account,
 //     loopback port 3307, never tb_notice_dev); every table the sandbox can write must be empty
@@ -15,7 +16,8 @@
 //     written is deleted in foreign-key order; the tables are verified empty again.
 // No external request is made (captured correspondence is only recorded; nothing is sent; the
 // production context is a read that writes nothing; prompts and candidates are stored text — no AI
-// provider is called, nothing is signed or sent). The account is a synthetic sandbox login, not a
+// provider is called, nothing is signed or sent; a validation run is a technical result only —
+// nothing is assessed, approved or made ready). The account is a synthetic sandbox login, not a
 // Signer.
 import 'reflect-metadata';
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
@@ -35,14 +37,17 @@ const SANDBOX_EMAIL = 'p2-ui-sandbox@example.invalid';
  * versions, coverage, coverage signers and authority events, P4A cases, case sources and authority
  * selections with their pinned coverage, P4B reported items, works, use mappings, case facts and
  * their supports, P4C captured correspondence and its case bindings, P4E prompt snapshots, P4F
- * notice candidates), in foreign-key deletion order. Source references and the records that point
- * at them reference each other (canonical bindings, revision chains, citations), routes ⇄ coverage,
- * cases ⇄ selections and the version / coverage / event / fact / binding / candidate chains point at
- * their own tables, so those pointers are cleared first (see cleanup).
+ * notice candidates, P4G validation runs and their issues), in foreign-key deletion order. Source
+ * references and the records that point at them reference each other (canonical bindings,
+ * revision chains, citations), routes ⇄ coverage, cases ⇄ selections and the version / coverage /
+ * event / fact / binding / candidate chains point at their own tables, so those pointers are
+ * cleared first (see cleanup).
  */
 const TABLES = [
   'idempotency_records',
   'audit_events',
+  'validation_issues',
+  'validation_runs',
   'notice_candidates',
   'prompt_snapshots',
   'correspondence_bindings',

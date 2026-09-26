@@ -71,6 +71,18 @@
 # records in the disposable CI tb_notice_dev only (it refuses to run outside CI). A candidate is an
 # unsigned draft artifact: nothing is validated, approved, signed, sent or retracted, and no AI
 # provider is called.
+# P4G: smoke:local also checks that the compiled validation operations are session-protected and
+# that assessments onward stay unrouted; smoke:p4g builds the same kind of synthetic case with an
+# INITIAL DRAFTING prompt per case, imports a clean candidate, reads the current context of its
+# prompt's scope and validates exactly that artifact and digest (TECHNICAL_PASS with all 29 rules of
+# TB-TECHNICAL-RULESET-v1 executed and semantic review still required), replays the same key, then
+# two pending slots (BLOCKED, deterministic), attachment wording without a planned file
+# (REVIEW_REQUIRED, heuristic), another artifact (412 ARTIFACT_CHANGED), an authority event and the
+# earlier digest (412 CONTEXT_CHANGED), a new read (drift since the prompt is review required), a
+# second case's run from its own context only, the rows written and that no run update, assessment,
+# readiness, export, signing or sending route exists, leaving synthetic records in the disposable CI
+# tb_notice_dev only (it refuses to run outside CI). A technical validation is not a G1-G6 review,
+# approval or readiness; nothing is signed, exported or sent, and no AI provider is called.
 name: CI
 
 on:
@@ -225,6 +237,8 @@ jobs:
         run: yarn smoke:p4e --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"
       - name: P4F compiled candidate import → exact hashes → replay → revision → fork refusal → supersession → refusals (yarn smoke:p4f, synthetic; no AI provider, nothing signed or sent)
         run: yarn smoke:p4f --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"
+      - name: P4G compiled technical validation → TECHNICAL_PASS → replay → BLOCKED slot → heuristic wording → stale 412 → drift (yarn smoke:p4g, synthetic; technical checks only, nothing assessed, signed or sent)
+        run: yarn smoke:p4g --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"
       - name: P1.1 recovery commands (synthetic account; P0 actor untouched)
         run: |
           E=p1-ci-admin@example.invalid

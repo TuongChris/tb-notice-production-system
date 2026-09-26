@@ -26,9 +26,9 @@
 //   (the PREPARATION digest for DRAFTING, INITIAL with a parent, another case's selection, a prior
 //   named twice, no Idempotency-Key, an unknown case) → each accepted generation wrote exactly one
 //   snapshot and one audit event, refusals and replays none, and no later-phase record exists (row
-//   counts read through the runtime account) → no assessment, validation, readiness, export, prompt
-//   update or delete route exists (404; candidates are routed since P4F, with their own smoke:p4f)
-//   → logout.
+//   counts read through the runtime account) → no assessment, readiness, export, prompt update or
+//   delete route exists (404; candidates are routed since P4F and technical validation since P4G,
+//   with their own smoke:p4f and smoke:p4g) → logout.
 import { spawn, type ChildProcess } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
@@ -798,11 +798,7 @@ async function main(): Promise<void> {
     ['PATCH /prompts/{id}', 'PATCH', `/prompts/${s1.id}`],
     ['DELETE /prompts/{id}', 'DELETE', `/prompts/${s1.id}`],
     ['POST /candidates/{id}/assessments', 'POST', `/candidates/${randomUUID()}/assessments`],
-    [
-      'POST /candidates/{id}/validation-runs',
-      'POST',
-      `/candidates/${randomUUID()}/validation-runs`,
-    ],
+    ['POST /candidates/{id}/assessments', 'POST', `/candidates/${randomUUID()}/assessments`],
     ['GET /candidates/{id}/readiness', 'GET', `/candidates/${randomUUID()}/readiness`],
     [
       'POST /candidates/{id}/unsigned-exports',
