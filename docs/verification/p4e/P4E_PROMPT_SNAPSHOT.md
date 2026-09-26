@@ -2,7 +2,7 @@
 
 Mission **TB_R11_CLOSEOUT_MERGE_AND_P4E_PROMPT_SNAPSHOT_TO_R12**, steps 10–12. Branch `feature/p4e-prompt-snapshot`, created from the exact post-P4D `main` `b7878b7` (merge commit of PR #7), with the R11 closeout checkpoint `3e53bbf` (documentation only). P4E implements **three** contracted operations — `generatePrompt`, `listCasePrompts` and `getPrompt` — and the prompt pages of a case.
 
-Submitted for review gate **R12 — PENDING**. No P4E pull request, no merge, and nothing of a later phase (NoticeCandidate, validation, assessments, readiness, unsigned export) is started. No AI provider, signature, sending, mailbox or Drive action exists.
+**R12 result (operator, 2026-09-26): PASS.** P4E = **VERIFIED_COMPLETE**; the active wire contract stays **TB-SCHEMA-API-v1.2.0** and `TB-PROMPT-TEMPLATE-v1` is the accepted internal prompt template. P4E is authorized for merge to `main` by a normal merge commit (mission TB_R12_CLOSEOUT_MERGE_AND_P4F_NOTICE_CANDIDATE_TO_R13; §29). P4F (NoticeCandidate) is **NOT_STARTED** at this record. No AI provider, signature, sending, mailbox or Drive action exists.
 
 Persistent rules (they stay in force after R12; `CLAUDE.md` carries them):
 
@@ -28,10 +28,12 @@ Persistent rules (they stay in force after R12; `CLAUDE.md` carries them):
 | Browser verification (Playwright MCP, `tb_notice_test`) | **PASS** — 30/30; one finding (F1) fixed and re-verified; one limitation of the automation profile recorded (§19) |
 | Negative controls | **PASS** — 30/30 on `cc0d62d`, all 38 responsible commands failing on an AssertionError (§20) |
 | Full regression (§48 of the mission) | **PASS** — 21/21 steps exit 0 on `cc0d62d`, lint 0 warnings (§21, `evidence/p4e-first-pc-sweep.txt`) |
-| Exact final branch CI | Recorded in the R12 report (the final head is the commit that adds this record); the code head's run: push run 36207244597 on `cc0d62d` — **success**, both jobs (`evidence/p4e-ci-run-36207244597.txt`) |
+| Exact final branch CI | **PASS** — push run 36208469062 on the R12 submission head `5e57dbc`, both jobs (§29.2); the code head's run: push run 36207244597 on `cc0d62d` — success, both jobs (`evidence/p4e-ci-run-36207244597.txt`) |
 | Schema / migration | **No change** (§23) |
 | Wire contract | **No change** — TB-SCHEMA-API-v1.2.0 (§24) |
-| R12 review | **PENDING** — no pull request, no merge |
+| R12 review | **PASS** (operator, 2026-09-26) — no remediation (§29) |
+| P4E_STATUS | **VERIFIED_COMPLETE** |
+| P4E_MERGE | **NOT_MERGED at this record — AUTHORIZED_FOR_MERGE** (§29) |
 
 ## 1. Operation matrix and design (contract-first)
 
@@ -90,7 +92,7 @@ Recorded in `docs/verification/p4d/P4D_PRODUCTION_CONTEXT.md` §29–§30 (verif
 | `e1e2de6` | Fix from the browser pass (finding F1): "Prompt generated" said once, not again on reload + web test | run 36206226613 success |
 | `9bffe24` | Test: the concurrency test counts the generations that passed the case lock (from the negative-control design) | (pushed with `cc0d62d`) |
 | `cc0d62d` | Test: the stale-context and other-case web tests assert the outcome directly (from negative-control run 1) — the code head | run 36207244597 success (with `9bffe24`) |
-| (this record) | R12 submission: this record, the evidence, `CLAUDE.md`, `CURRENT_STATE.md` (documentation only) | reported at R12 |
+| `5e57dbc` | R12 submission: this record, the evidence, `CLAUDE.md`, `CURRENT_STATE.md` (documentation only; the accepted head) | run 36208469062 success |
 
 ## 4. Generation transaction
 
@@ -228,7 +230,7 @@ Teardown after each session: sandbox rows deleted, `db:verify test --expect-empt
 | Earlier smokes | unchanged counts except `smoke:p4d` 88 → 87: its "POST /cases/{caseId}/prompts not routed" probe was removed (prompts are routed since P4E); `smoke:p3a` 24, `smoke:p3b` 36, `smoke:p4a` 50, `smoke:p4b` 64, `smoke:p4c` 62 (their prompt probes now probe candidates) |
 | Full regression (§48), 2026-09-26T01:07:18Z–01:14:23Z on `cc0d62d` | **21/21 steps exit 0** (`evidence/p4e-first-pc-sweep.txt`): `reference:check` and `reference:helper-tests` (27 pass), `contracts:check`, `install --immutable`, `typecheck`, `lint` and `oxlint --deny-warnings` ("Found 0 warnings and 0 errors."), `format:check`, `yarn test` 1431, `yarn test:db` 455, `db:verify test --expect-empty` and `db:verify dev` (metadata and a row count only), `db:status test` and `dev`, both drift diffs empty, `build` (entry 326.69 kB, prompt chunk 15.54 kB, no chunk advisory), `smoke:local` 52, `dev:verify-shutdown` 4/4, then `reference:check` and `db:verify test --expect-empty` again |
 
-CI: run 36204659697 (`97f4e0c`, first run with `smoke:p4e`), run 36206226613 (`e1e2de6`), run 36207244597 (`cc0d62d`, the code head) — all success, both jobs (`evidence/p4e-ci-run-36207244597.txt`: the key lines of both jobs and every `smoke:p4e` check). The exact final head's run is reported at R12. `yarn test:transition-baseline` stays a documented historical oracle, not a gate.
+CI: run 36204659697 (`97f4e0c`, first run with `smoke:p4e`), run 36206226613 (`e1e2de6`), run 36207244597 (`cc0d62d`, the code head) — all success, both jobs (`evidence/p4e-ci-run-36207244597.txt`: the key lines of both jobs and every `smoke:p4e` check). The exact final head's run: push run 36208469062 on `5e57dbc`, success, both jobs (§29.2). `yarn test:transition-baseline` stays a documented historical oracle, not a gate.
 
 ## 22. Contamination tests
 
@@ -269,4 +271,53 @@ None. No stop condition was reached: no authentication, GitHub approval, materia
 
 ## 28. Proposed next phase (not started)
 
-P4F — imported NoticeCandidate (`importCandidate` and its reads): the exact draft returned from the drafting step outside the application, stored as an immutable candidate artifact bound to one prompt snapshot, with its single pending signature slot. Not started; it needs its own approved mission. Validation, assessments, readiness and unsigned export follow in later phases; signing, sending and G7 never exist in the application.
+P4F — imported NoticeCandidate (`importCandidate` and its reads): the exact draft returned from the drafting step outside the application, stored as an immutable candidate artifact bound to one prompt snapshot, with its single pending signature slot. Not started; it needs its own approved mission. Validation, assessments, readiness and unsigned export follow in later phases; signing, sending and G7 never exist in the application. *(Authorized at R12 by mission TB_R12_CLOSEOUT_MERGE_AND_P4F_NOTICE_CANDIDATE_TO_R13 as P4F — NoticeCandidate, the five contracted operations `importCandidate`, `listCaseCandidates`, `getCandidate`, `reviseCandidate` and `supersedeCandidate`; NOT_STARTED at the R12 closeout, §29.)*
+
+## 29. R12 — PASS and closeout (2026-09-26, home PC)
+
+Mission TB_R12_CLOSEOUT_MERGE_AND_P4F_NOTICE_CANDIDATE_TO_R13. This section records the operator's R12 result and the R12 closeout before the P4E pull request. Sections 1–28 keep the state at their time.
+
+### 29.1 Result (operator)
+
+| Item | Recorded value |
+|---|---|
+| **R12** | **PASS** (2026-09-26) — no remediation |
+| **P4E** | **VERIFIED_COMPLETE** — `generatePrompt`, `listCasePrompts`, `getPrompt` (§1.1) and the prompt pages |
+| Merge | **AUTHORIZED_FOR_MERGE** — pull request `feature/p4e-prompt-snapshot` → `main`, normal GitHub merge commit (no squash, no rebase, no force-push, no admin bypass, the branch kept) after the exact closeout head and the pull request checks are green |
+| **Active wire contract** | **TB-SCHEMA-API-v1.2.0**, unchanged by P4E; both release records pinned and never edited; the frozen historical reference TB-SCHEMA-API-v1.0.0 unchanged |
+| PFC wire id | `PFC-YT-EMAIL-v1.1` (unchanged) |
+| Prompt template | `TB-PROMPT-TEMPLATE-v1` — the accepted internal prompt template: an implementation identifier stored in `templateVersion`, not a wire or PFC release and no legal or policy approval (§7, §25 item 1) |
+| Decisions | ADR-0001, ADR-0002, ADR-0003, ADR-0004 and ADR-0005 — all ACCEPTED; P4E adds no ADR |
+| R12 semantics | The permanent P4E rules stay in force, unchanged in substance in `CLAUDE.md`: a PromptSnapshot is not a NoticeCandidate (nor a notice) and not a legal conclusion; deterministic prompt rendering; exact context freeze; exact dependency freeze; stale context is 412 `CONTEXT_CHANGED`, never a silent regeneration; historical PromptSnapshots are immutable; no AI provider; no G1–G7 decision; no READY_FOR_SIGNER; the signature stays HUMAN_PENDING (exactly one pending signature slot); no signature; no external action; untrusted data stays delimited. `CLAUDE.md` now names "NoticeCandidate", READY_FOR_SIGNER and HUMAN_PENDING in these rules explicitly |
+| `yarn test:transition-baseline` | A historical opt-in oracle that fails by design since the v1.1.0 edit; not a gate and not "fixed" |
+| P4F | **NOT_STARTED** at this record — NoticeCandidate (`importCandidate`, `listCaseCandidates`, `getCandidate`, `reviseCandidate`, `supersedeCandidate`), authorized by the same mission on `feature/p4f-notice-candidate`, created from the exact post-merge `main` once its CI is green; it stops at review gate R13 |
+
+### 29.2 Heads
+
+| Name | Commit |
+|---|---|
+| `P4E_ACCEPTED_CODE_HEAD` (named by the operator) | `5e57dbca0597159d045ceffcb5a81bec761d0caa` — the R12 submission, documentation on the code head `cc0d62d` |
+| R12 final CI | push run [36208469062](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36208469062) on `5e57dbc`, 2026-09-26T01:27:11Z–01:34:10Z, **success**: "Non-DB checks (cold install)" (job 108309928867) and "Database, seed and smoke (MySQL 8.4.11)" (job 108309929104) — `reference:check` and `contracts:check` OK, lint "Found 0 warnings and 0 errors.", Prettier clean, `yarn test` 1431 / 44 files, `yarn test:db` 455 / 12 files, both drift diffs empty, seed digest `0ee26dc3…b775`, `smoke:local` 52, `smoke:auth` 4, `smoke:directory` 14, `smoke:p3a` 24, `smoke:p3b` 36, `smoke:p4a` 50, `smoke:p4b` 64, `smoke:p4c` 62, `smoke:p4d` 87, `smoke:p4e` 84 |
+| `P4E_R12_CLOSEOUT_HEAD` | the commit that adds this section (documentation); its CI run and the merge are recorded on `feature/p4f-notice-candidate` |
+
+### 29.3 Closeout checks
+
+Pre-flight on `5e57dbc`, after `git fetch origin`:
+
+- branch `feature/p4e-prompt-snapshot` in sync with origin, worktree clean;
+- `origin/main` = `b7878b764f12e3a567b6315dc90a1c08f7392a3f`, unchanged since the branch was created;
+- no P4E pull request (pull requests #1–#7, all merged); `gh` authenticated as the repository owner's account; `main` has no branch protection and no rulesets;
+- run 36208469062 completed with success;
+- `reference:check` and `contracts:check` OK.
+
+The closeout is one documentation-only commit: this section, the header and status rows, the commit table, the §21 and §28 pointers, `CURRENT_STATE.md` and `CLAUDE.md`. No product code, test, contract source, generated artefact, release record, `docs/reference/**`, migration or lockfile changes.
+
+Checks on the complete closeout tree before committing:
+
+- `reference:check` and `contracts:check` OK;
+- `typecheck` OK;
+- `lint` and `oxlint --deny-warnings --format default` report "Found 0 warnings and 0 errors.";
+- `format:check` clean;
+- `yarn test` 1431 passed in 44 files (unchanged).
+
+`yarn test:db` was not rerun because no code changed; it runs in CI on the closeout head.
