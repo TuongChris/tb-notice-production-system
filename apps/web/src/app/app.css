@@ -1542,3 +1542,19 @@ code.hash {
   overflow-wrap: anywhere;
   word-break: break-all;
 }
+
+/* Prompt snapshots (P4E). The prompt text is shown exactly as stored, in the plain-text treatment
+   of captured text, in a bounded scrollable (and so focusable: the global focus ring applies)
+   frame; the copy action and its status sit together. No badge or state stamp: a snapshot is not
+   a verdict. */
+.prompt-text {
+  max-height: 36rem;
+  overflow: auto;
+}
+
+.copy-prompt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}

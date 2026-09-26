@@ -2,9 +2,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { ContextView } from '@tb/contracts';
 import { Prisma } from '../../../generated/prisma/client.js';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
-import { apiErrors } from '../../infrastructure/http/api-error.js';
 import type { QueryValues } from '../../infrastructure/write/request-parsing.js';
-import { assembleContext, exceededLimit } from './context-assembly.js';
+import { assembleContext, assertDeliverable } from './context-assembly.js';
 import { CONTEXT_READ_OBSERVER, type ContextReadObserver } from './context-read-observer.js';
 import { contextScope } from './context-scope.js';
 import { readContextRows } from './context-snapshot.js';
@@ -49,20 +48,7 @@ export class ProductionContextService {
       SNAPSHOT_OPTIONS,
     );
     const { view, blocking } = assembleContext(rows, scope);
-    const exceeded = exceededLimit(view);
-    if (exceeded) {
-      throw apiErrors.productionContextTooLarge(exceeded.field, exceeded.count, exceeded.maximum);
-    }
-    if (scope.generationMode === 'DRAFTING' && blocking.length > 0) {
-      if (blocking.includes('REPLY_PARENT_NOT_SELECTED')) {
-        throw apiErrors.replyParentRequired({
-          field: 'parentBindingId',
-          reason: 'NOT_SELECTED',
-          missing: blocking,
-        });
-      }
-      throw apiErrors.draftingInputMissing(blocking);
-    }
+    assertDeliverable(view, scope, blocking);
     return view;
   }
 }

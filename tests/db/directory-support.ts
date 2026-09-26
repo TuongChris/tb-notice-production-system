@@ -24,6 +24,8 @@ import {
 export const DIRECTORY_SUITE_TABLES = [
   'idempotency_records',
   'audit_events',
+  // P4E prompt snapshots (they name cases, authority selections and correspondence bindings).
+  'prompt_snapshots',
   // P4C correspondence bindings (they name cases, reported items and captured correspondence).
   'correspondence_bindings',
   // P4B case intake material (children before parents).

@@ -465,4 +465,19 @@ export const apiErrors = {
       'The recorded context exceeds a contracted bound of the production context. Nothing is cut off, so it cannot be returned.',
       { field, count, maximum },
     ),
+  /** A prompt is generated only against the exact context revision and digest the caller reviewed. */
+  contextChanged: (field: 'expectedContextRevision' | 'expectedDependencyDigest') =>
+    new ApiError(
+      412,
+      'CONTEXT_CHANGED',
+      'The recorded context changed after it was read. Review the current context before generating again; no prompt was generated.',
+      { field },
+    ),
+  promptTooLarge: (field: string, count: number, maximum: number) =>
+    new ApiError(
+      409,
+      'PROMPT_TOO_LARGE',
+      'The prompt snapshot would exceed a contracted bound. Nothing is cut off, so no prompt was generated.',
+      { field, count, maximum },
+    ),
 } as const;

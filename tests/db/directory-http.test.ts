@@ -2660,7 +2660,7 @@ describe('SECURITY / VALIDATION / CONTRACT', () => {
     expect(await countRows(prisma, 'source_references')).toBe(0);
   });
 
-  it('exposes exactly the P1 routes plus the 76 directory, source, route and authority operations, the 40 case operations, the 5 correspondence operations and the production-context read', async () => {
+  it('exposes exactly the P1 routes plus the 76 directory, source, route and authority operations, the 40 case operations, the 5 correspondence operations, the production-context read and the 3 prompt operations', async () => {
     const express = t.app.getHttpAdapter().getInstance() as {
       router: { stack: Array<{ route?: { path: string; methods: Record<string, boolean> } }> };
     };
@@ -2678,8 +2678,9 @@ describe('SECURITY / VALIDATION / CONTRACT', () => {
     // TB-SCHEMA-API-v1.1.0 (ADR-0004, R8); P4B: the 22 ReportedItem, CaseWork, UseMapping and
     // CaseFact operations, plus the read-back getCaseFactSources of TB-SCHEMA-API-v1.2.0 (ADR-0005,
     // R9); P4C: the 5 Correspondence-tagged operations (capture, list and read correspondence, bind
-    // it to a case, list a case's bindings); P4D: the read-only getProductionContext. No prompt,
-    // candidate, validation, assessment, readiness or export operation is routed.
+    // it to a case, list a case's bindings); P4D: the read-only getProductionContext; P4E: the 3
+    // prompt operations (generatePrompt, listCasePrompts, getPrompt). No candidate, validation,
+    // assessment, readiness or export operation is routed.
     const directory = operations
       .filter((operation) =>
         /^\/(agencies|owners|legal-subjects|signers|owner-subjects|sources|routes|mandates|mandate-versions|coverages|coverage-signers)(\/|$)/.test(
@@ -2758,12 +2759,21 @@ describe('SECURITY / VALIDATION / CONTRACT', () => {
     ]);
     const production = operations
       .filter((operation) => (operation.tags as readonly string[]).includes('Production'))
-      .filter((operation) => operation.operationId === 'getProductionContext')
+      .filter((operation) =>
+        ['getProductionContext', 'generatePrompt', 'listCasePrompts', 'getPrompt'].includes(
+          operation.operationId,
+        ),
+      )
       .map(
         (operation) =>
           `${operation.method.toUpperCase()} /api/v1${operation.path.replace(/\{([A-Za-z]+)\}/g, ':$1')}`,
       );
-    expect(production).toEqual(['GET /api/v1/cases/:caseId/production-context']);
+    expect(production).toEqual([
+      'GET /api/v1/cases/:caseId/production-context',
+      'POST /api/v1/cases/:caseId/prompts',
+      'GET /api/v1/cases/:caseId/prompts',
+      'GET /api/v1/prompts/:id',
+    ]);
     expect(routes).toEqual(
       [
         'GET /api/v1/auth/session',

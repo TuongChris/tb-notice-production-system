@@ -375,9 +375,9 @@ async function main(): Promise<void> {
     fail('the route of the link is not listed');
   }
   await call(
-    'POST /cases/{caseId}/prompts (later phase, not routed)',
+    'POST /cases/{caseId}/candidates (later phase, not routed)',
     'POST',
-    `/cases/${randomUUID()}/prompts`,
+    `/cases/${randomUUID()}/candidates`,
     404,
     null,
     {

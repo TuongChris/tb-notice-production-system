@@ -103,6 +103,10 @@ const BindCorrespondencePage = pagesOf(() => import('./cases/case-correspondence
 const ProductionContextPage = pagesOf(() => import('./cases/production-context.js'))(
   'ProductionContextPage',
 );
+const prompts = pagesOf(() => import('./cases/prompts.js'));
+const PromptHistoryPage = prompts('PromptHistoryPage');
+const GeneratePromptPage = prompts('GeneratePromptPage');
+const PromptDetailPage = prompts('PromptDetailPage');
 const correspondence = pagesOf(() => import('./correspondence/correspondence.js'));
 const CorrespondenceListPage = correspondence('CorrespondenceListPage');
 const NewCorrespondencePage = correspondence('NewCorrespondencePage');
@@ -112,8 +116,10 @@ const CorrespondenceDetailPage = correspondence('CorrespondenceDetailPage');
  * Web app: Login, session check, the protected shell, the Directory, Sources, the Representation
  * pages (routes, mandates, versions, coverage, coverage signers and authority events), Cases (case
  * records, linked sources, authority selected for evaluation, the case intake — reported items,
- * works, use mappings and facts — correspondence bindings and the read-only production context of
- * a case, which determines nothing) and Correspondence (captured messages; nothing is sent).
+ * works, use mappings and facts — correspondence bindings, the read-only production context of a
+ * case, which determines nothing, and its prompt snapshots: immutable prompts generated from one
+ * reviewed context, never a notice, approval, readiness decision, signature or transmission) and
+ * Correspondence (captured messages; nothing is sent).
  */
 export function App({ api }: { api: ApiClient }) {
   const directory = useMemo(() => createDirectoryApi(api), [api]);
@@ -205,6 +211,9 @@ export function App({ api }: { api: ApiClient }) {
                   element={<BindCorrespondencePage />}
                 />
                 <Route path="cases/:id/production-context" element={<ProductionContextPage />} />
+                <Route path="cases/:id/prompts" element={<PromptHistoryPage />} />
+                <Route path="cases/:id/prompts/new" element={<GeneratePromptPage />} />
+                <Route path="cases/:id/prompts/:promptId" element={<PromptDetailPage />} />
                 <Route path="correspondence" element={<CorrespondenceListPage />} />
                 <Route path="correspondence/new" element={<NewCorrespondencePage />} />
                 <Route path="correspondence/:id" element={<CorrespondenceDetailPage />} />

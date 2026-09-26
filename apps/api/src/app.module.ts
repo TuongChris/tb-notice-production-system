@@ -7,6 +7,7 @@ import { CasesModule } from './modules/cases/cases.module.js';
 import { CorrespondenceModule } from './modules/correspondence/correspondence.module.js';
 import { DirectoryModule } from './modules/directory/directory.module.js';
 import { ProductionModule } from './modules/production/production.module.js';
+import { PromptsModule } from './modules/prompts/prompts.module.js';
 import { RepresentationModule } from './modules/representation/representation.module.js';
 import { SourcesModule } from './modules/sources/sources.module.js';
 import { HealthModule } from './modules/health/health.module.js';
@@ -17,8 +18,9 @@ import { HealthModule } from './modules/health/health.module.js';
 // MandateCoverage, CoverageSigner and AuthorityEvent. P4A: Case, CaseSource and
 // CaseAuthoritySelection. P4B: reported items, case works, use mappings and case facts. P4C:
 // correspondence capture and case bindings (records only; nothing is sent). P4D: the read-only
-// production context (recorded input only; no G1–G7 decision or readiness). No prompt, candidate,
-// validation, assessment, readiness, signing or sending endpoints.
+// production context (recorded input only; no G1–G7 decision or readiness). P4E: prompt snapshots —
+// a prompt rendered locally and deterministically from one exact context and frozen with it (no AI
+// provider call). No candidate, validation, assessment, readiness, signing or sending endpoints.
 @Module({
   imports: [
     DatabaseModule,
@@ -30,6 +32,7 @@ import { HealthModule } from './modules/health/health.module.js';
     CasesModule,
     CorrespondenceModule,
     ProductionModule,
+    PromptsModule,
   ],
   providers: [{ provide: APP_FILTER, useClass: ApiExceptionFilter }],
 })

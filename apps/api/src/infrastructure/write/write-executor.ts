@@ -14,6 +14,12 @@
 // Method, normalized path and precondition target come from the contract operation metadata, never
 // from the caller. Nothing outside the database happens inside the transaction. Success is only
 // reported after commit; a response lost after commit is recovered by replaying the same key.
+//
+// Options (per operation, never per request): a stricter isolation level (generatePrompt runs
+// SERIALIZABLE, INVARIANTS §5 "Prompt generation"), and for a write that creates one immutable
+// record, `replayRecord`: the idempotency record then keeps the response status, meta and the
+// record's type and id — not a second copy of its data — and a replay reads that immutable record
+// back, so it returns exactly what the original response returned.
 import { setTimeout as delay } from 'node:timers/promises';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { AffectedResource } from '@tb/contracts';
@@ -35,6 +41,17 @@ const TRANSACTION_OPTIONS = {
   maxWait: 2000,
   timeout: 5000,
 } as const;
+
+export interface WriteOptions {
+  /** The transaction's isolation level (READ COMMITTED unless the operation's recipe says otherwise). */
+  readonly isolationLevel?: Prisma.TransactionIsolationLevel;
+  /**
+   * For a write whose response `data` is one immutable record it created: reads that record back
+   * by id (null when it does not exist). The idempotency record then stores no copy of the data,
+   * and a replay returns the record as stored.
+   */
+  readonly replayRecord?: (id: string) => Promise<WireEntity | null>;
+}
 
 /** Who sent the write and the conditional headers they sent (from the authenticated request). */
 export interface WriteRequester {
@@ -120,6 +137,7 @@ export class WriteExecutor {
   async execute(
     command: WriteCommand,
     work: (context: WriteContext) => Promise<WriteOutcome>,
+    options: WriteOptions = {},
   ): Promise<WriteReply> {
     const operation = contractOperation(command.operationId);
     if (!operation.idempotentWrite) {
@@ -141,7 +159,15 @@ export class WriteExecutor {
       digest,
       now,
     );
-    if (claim.kind === 'replay') return replay(claim, requester.requestId);
+    if (claim.kind === 'replay') {
+      return options.replayRecord === undefined
+        ? replay(claim, requester.requestId)
+        : replayStoredRecord(claim, requester.requestId, options.replayRecord);
+    }
+    const transactionOptions = {
+      ...TRANSACTION_OPTIONS,
+      isolationLevel: options.isolationLevel ?? TRANSACTION_OPTIONS.isolationLevel,
+    };
 
     for (let attempt = 1; ; attempt += 1) {
       try {
@@ -182,7 +208,10 @@ export class WriteExecutor {
                 };
           await this.idempotency.complete(tx, claim.recordId, {
             status: outcome.status,
-            body: body === undefined ? null : toJsonObject(body),
+            body:
+              body === undefined
+                ? null
+                : toJsonObject(options.replayRecord === undefined ? body : { meta: body.meta }),
             resourceType: outcome.resource.type,
             resourceId: outcome.resource.id,
           });
@@ -200,7 +229,7 @@ export class WriteExecutor {
                 }),
             replayed: false,
           };
-        }, TRANSACTION_OPTIONS);
+        }, transactionOptions);
       } catch (error) {
         const retryable = isRetryableTransactionError(error);
         if (retryable && attempt < MAX_TRANSACTION_ATTEMPTS) {
@@ -248,6 +277,28 @@ function replay(claim: Extract<Claim, { kind: 'replay' }>, requestId: string): W
   };
 }
 
-function toJsonObject(body: ResponseBody): Prisma.InputJsonObject {
+/**
+ * The replay of a write whose record is immutable: its stored status and meta, and the record read
+ * back by the id the idempotency record names (never a stored copy, never regenerated).
+ */
+async function replayStoredRecord(
+  claim: Extract<Claim, { kind: 'replay' }>,
+  requestId: string,
+  read: (id: string) => Promise<WireEntity | null>,
+): Promise<WriteReply> {
+  const data = claim.resourceId === null ? null : await read(claim.resourceId);
+  if (data === null) throw new Error('the record of a completed idempotent write is missing');
+  const stored = claim.body as { meta?: { affectedResources?: unknown } } | null;
+  const affectedResources = Array.isArray(stored?.meta?.affectedResources)
+    ? (stored.meta.affectedResources as AffectedResource[])
+    : [];
+  return {
+    status: claim.status,
+    body: { data, meta: { requestId, affectedResources } },
+    replayed: true,
+  };
+}
+
+function toJsonObject(body: object): Prisma.InputJsonObject {
   return JSON.parse(JSON.stringify(body)) as Prisma.InputJsonObject;
 }

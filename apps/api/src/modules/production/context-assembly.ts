@@ -18,6 +18,7 @@ import {
   type SourceManifestEntry,
 } from '@tb/contracts';
 import type { SourceReference } from '../../../generated/prisma/client.js';
+import { apiErrors } from '../../infrastructure/http/api-error.js';
 import { toSelectionView } from '../cases/case-views.js';
 import {
   toCaseFactView,
@@ -491,4 +492,33 @@ export function exceededLimit(
     }
   }
   return null;
+}
+
+/**
+ * The refusals a production step applies to an assembled context before using it: a context above
+ * a contracted bound is refused whole (409 PRODUCTION_CONTEXT_TOO_LARGE), never cut; DRAFTING needs
+ * the Production Form Contract's required input — a reply without its named NMI parent is 422
+ * REPLY_PARENT_REQUIRED, any other missing required input 422 DRAFTING_INPUT_MISSING, both naming
+ * every blocking missing code. PREPARATION is never refused for gaps. Shared by
+ * getProductionContext (P4D) and generatePrompt (P4E), so both apply exactly the same gate.
+ */
+export function assertDeliverable(
+  view: ContextView,
+  scope: ContextScope,
+  blocking: readonly string[],
+): void {
+  const exceeded = exceededLimit(view);
+  if (exceeded) {
+    throw apiErrors.productionContextTooLarge(exceeded.field, exceeded.count, exceeded.maximum);
+  }
+  if (scope.generationMode === 'DRAFTING' && blocking.length > 0) {
+    if (blocking.includes('REPLY_PARENT_NOT_SELECTED')) {
+      throw apiErrors.replyParentRequired({
+        field: 'parentBindingId',
+        reason: 'NOT_SELECTED',
+        missing: blocking,
+      });
+    }
+    throw apiErrors.draftingInputMissing(blocking);
+  }
 }

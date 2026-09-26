@@ -1,0 +1,181 @@
+P4E Prompt generation and PromptSnapshot — CI evidence (GitHub Actions, workflow "CI")
+=====================================================================================
+Logs were read with the authenticated `gh api repos/TuongChris/tb-notice-production-system/actions/jobs/<id>/logs`
+and the run metadata with `gh run view <id> --json …`; key lines below (timestamps UTC, ANSI codes removed). A commit
+cannot record its own run: the run of the documentation commit that adds this file (the R12 submission head) is
+reported with the R12 report.
+
+1. The API, the pages and the compiled smoke, 97f4e0c (first run of smoke:p4e)
+-------------------------------------------------------------------------------
+Run:      36204659697 — https://github.com/TuongChris/tb-notice-production-system/actions/runs/36204659697
+Event:    push to feature/p4e-prompt-snapshot
+Head:     97f4e0c86bf186a6222a65c1b93abb72b4b6d4f8  (API 2c5dcc5, pages 1effa4c, smoke:p4e 97f4e0c)
+Created:  2026-09-26T00:23:14Z   Completed: 2026-09-26T00:29:37Z
+Result:   completed / success
+Jobs:
+  108298501071 Non-DB checks (cold install)             success 00:23:17Z → 00:25:39Z
+  108298501180 Database, seed and smoke (MySQL 8.4.11)  success 00:23:17Z → 00:29:36Z
+Commits on the post-R11 checkpoint 3e53bbf (on main b7878b7): 2c5dcc5, 1effa4c, 97f4e0c.
+  smoke:p4e on 97f4e0c: [smoke:p4e] PASS (84 checks)
+
+2. The browser-pass fix e1e2de6 (finding F1)
+--------------------------------------------
+Run:      36206226613 — https://github.com/TuongChris/tb-notice-production-system/actions/runs/36206226613
+Event:    push to feature/p4e-prompt-snapshot
+Head:     e1e2de68d8aee81262afe5623128fe17126b4af1  ("Prompt generated" said once; web test)
+Created:  2026-09-26T00:49:04Z   Completed: 2026-09-26T00:55:49Z
+Result:   completed / success
+Jobs:
+  108303240161 Database, seed and smoke (MySQL 8.4.11)  success 00:49:07Z → 00:55:48Z
+  108303240426 Non-DB checks (cold install)             success 00:49:07Z → 00:51:29Z
+Commit: e1e2de6.
+
+3. The code head cc0d62d (the last CI-verified code commit; every P4E code and test change is in it)
+---------------------------------------------------------------------------------------------------
+Run:      36207244597 — https://github.com/TuongChris/tb-notice-production-system/actions/runs/36207244597
+Event:    push to feature/p4e-prompt-snapshot
+Head:     cc0d62d3d1d4df80cfc5eb19d79cb99e5fbd3814  (concurrency and web tests assert directly)
+Created:  2026-09-26T01:05:54Z   Completed: 2026-09-26T01:10:25Z
+Result:   completed / success
+Jobs:
+  108306227790 Non-DB checks (cold install)             success 01:05:56Z → 01:08:16Z
+  108306228022 Database, seed and smoke (MySQL 8.4.11)  success 01:05:56Z → 01:10:24Z
+Commits: 9bffe24 (DB test), cc0d62d (web tests).
+
+Non-DB job
+01:06:11Z [reference:check] pinned identity (REFERENCE_BASELINE.json): 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c matches
+01:06:11Z [reference:check] OK — frozen references intact.
+01:06:11Z [reference:helper-tests] frozen helper tests: pass 27, fail 0; exit 0
+01:06:11Z [reference:helper-tests] references after run: intact
+01:06:14Z [contracts:check] OK — 3 generated outputs match the active source.
+01:06:32Z Found 0 warnings and 0 errors.
+01:06:42Z All matched files use Prettier code style!
+01:08:05Z  Test Files  44 passed (44)
+01:08:05Z       Tests  1431 passed (1431)
+01:08:14Z dist/assets/index-vw8VfAlk.css                19.13 kB │ gzip:   4.78 kB
+01:08:14Z dist/assets/prompts-SWmIhzYa.js               15.54 kB │ gzip:   4.48 kB
+01:08:14Z dist/assets/cases-Cs66JOx5.js                 25.52 kB │ gzip:   7.56 kB
+01:08:14Z dist/assets/production-context-CYoKmwPg.js    31.33 kB │ gzip:   8.19 kB
+01:08:14Z dist/assets/index-ClFEfVzS.js                326.69 kB │ gzip: 101.75 kB
+01:08:14Z [reference:check] pinned identity (REFERENCE_BASELINE.json): 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c matches
+01:08:14Z [reference:check] OK — frozen references intact.
+(no "(!) Some chunks are larger than 500 kB" advisory)
+
+Database job
+01:06:39Z Database schema is up to date!
+01:06:40Z [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+01:06:40Z [verify] domain rows total: 0
+01:06:40Z [verify] PASS: metadata matches the reviewed inventory.
+01:09:08Z  Test Files  12 passed (12)
+01:09:08Z       Tests  455 passed (455)
+01:09:13Z [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+01:09:13Z [verify] domain rows total: 0
+01:09:13Z [verify] PASS: metadata matches the reviewed inventory.
+01:09:17Z [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+01:09:17Z [verify] domain rows total: 0
+01:09:17Z [verify] PASS: metadata matches the reviewed inventory.
+01:09:17Z [db:seed] canonical digest 0ee26dc3ee5f3a1030fb78a6cadaf4dabef1f5a296b58163248584e1e0bfb775 (identical on every PC)
+01:09:17Z [verify] domain rows total: 1
+01:09:21Z -- This is an empty migration.
+01:09:28Z [smoke] PASS (52 checks)
+01:09:34Z [smoke:auth] PASS (4 checks)
+01:09:35Z [smoke:directory] PASS (14 checks)
+01:09:37Z [smoke:p3a] PASS (24 checks)
+01:09:39Z [smoke:p3b] PASS (36 checks)
+01:09:40Z [smoke:p4a] PASS (50 checks)
+01:09:42Z [smoke:p4b] PASS (64 checks)
+01:09:44Z [smoke:p4c] PASS (62 checks)
+01:09:46Z [smoke:p4d] PASS (87 checks)
+01:09:48Z [smoke:p4e] PASS (84 checks)
+01:09:54Z [smoke:auth] PASS (1 checks)
+01:10:00Z [smoke:auth] PASS (4 checks)
+01:10:04Z [smoke:auth] PASS (1 checks)
+01:10:05Z [smoke:auth] PASS (4 checks)
+01:10:08Z [db:seed] canonical digest 0ee26dc3ee5f3a1030fb78a6cadaf4dabef1f5a296b58163248584e1e0bfb775 (identical on every PC)
+
+smoke:p4e on cc0d62d (the compiled API; CI only — it writes synthetic records into the disposable CI database)
+01:09:47Z [smoke:p4e] PASS login → 200 with a session cookie and CSRF token
+01:09:47Z [smoke:p4e] PASS POST /agencies → 201
+01:09:47Z [smoke:p4e] PASS POST /sources → 201
+01:09:47Z [smoke:p4e] PASS POST /owners → 201
+01:09:47Z [smoke:p4e] PASS POST /legal-subjects → 201
+01:09:47Z [smoke:p4e] PASS GET /owners/46fa9cf3-5eef-4c52-bb72-1bdf74742a99 → 200
+01:09:47Z [smoke:p4e] PASS POST /owners/{id}/subjects → 201
+01:09:47Z [smoke:p4e] PASS POST /routes → 201
+01:09:47Z [smoke:p4e] PASS POST /signers → 201
+01:09:47Z [smoke:p4e] PASS POST /mandates → 201
+01:09:47Z [smoke:p4e] PASS GET /mandates/dc66d30a-980c-4523-8585-00a186d7b4be → 200
+01:09:47Z [smoke:p4e] PASS POST /mandates/{id}/versions → 201
+01:09:47Z [smoke:p4e] PASS POST /sources → 201
+01:09:47Z [smoke:p4e] PASS GET /mandate-versions/fbb313b8-c0a7-4e86-b8ce-0b57efe6ac34 → 200
+01:09:47Z [smoke:p4e] PASS POST /mandate-versions/{id}/coverages → 201
+01:09:47Z [smoke:p4e] PASS GET /coverages/06d58c36-4c1f-465c-ba8d-7472750cbc51 → 200
+01:09:47Z [smoke:p4e] PASS POST /coverages/{id}/signers → 201
+01:09:47Z [smoke:p4e] PASS GET /mandate-versions/fbb313b8-c0a7-4e86-b8ce-0b57efe6ac34 → 200
+01:09:47Z [smoke:p4e] PASS POST /mandate-versions/{id}/freeze → 200
+01:09:47Z [smoke:p4e] PASS POST /cases → 201
+01:09:47Z [smoke:p4e] PASS POST /cases → 201
+01:09:47Z [smoke:p4e] PASS POST /sources → 201
+01:09:47Z [smoke:p4e] PASS GET /cases/18ae5326-6cdc-4915-a53d-7fbed25da28c → 200
+01:09:47Z [smoke:p4e] PASS POST /cases/{caseId}/sources → 201
+01:09:47Z [smoke:p4e] PASS GET /cases/18ae5326-6cdc-4915-a53d-7fbed25da28c → 200
+01:09:47Z [smoke:p4e] PASS POST /cases/{caseId}/authority-selections → 201
+01:09:47Z [smoke:p4e] PASS GET /cases/a27bf857-908b-4004-aa69-49aff7dcebe6 → 200
+01:09:47Z [smoke:p4e] PASS POST /cases/{caseId}/authority-selections → 201
+01:09:47Z [smoke:p4e] PASS GET /cases/18ae5326-6cdc-4915-a53d-7fbed25da28c → 200
+01:09:47Z [smoke:p4e] PASS POST /cases/{caseId}/reported-items → 201
+01:09:47Z [smoke:p4e] PASS GET /cases/18ae5326-6cdc-4915-a53d-7fbed25da28c → 200
+01:09:47Z [smoke:p4e] PASS POST /cases/{caseId}/works → 201
+01:09:47Z [smoke:p4e] PASS POST /sources → 201
+01:09:47Z [smoke:p4e] PASS GET /cases/18ae5326-6cdc-4915-a53d-7fbed25da28c → 200
+01:09:47Z [smoke:p4e] PASS POST /cases/{caseId}/mappings → 201
+01:09:47Z [smoke:p4e] PASS GET /cases/18ae5326-6cdc-4915-a53d-7fbed25da28c → 200
+01:09:47Z [smoke:p4e] PASS POST /cases/{caseId}/facts → 201
+01:09:47Z [smoke:p4e] PASS GET /cases/18ae5326-6cdc-4915-a53d-7fbed25da28c → 200
+01:09:47Z [smoke:p4e] PASS POST /cases/{caseId}/facts → 201
+01:09:47Z [smoke:p4e] PASS GET /cases/18ae5326-6cdc-4915-a53d-7fbed25da28c → 200
+01:09:47Z [smoke:p4e] PASS POST /cases/{caseId}/facts → 201
+01:09:47Z [smoke:p4e] PASS POST /correspondence (inbound NMI) → 201
+01:09:47Z [smoke:p4e] PASS GET /cases/18ae5326-6cdc-4915-a53d-7fbed25da28c → 200
+01:09:47Z [smoke:p4e] PASS POST /cases/{caseId}/correspondence-bindings → 201
+01:09:47Z [smoke:p4e] PASS POST /correspondence (outbound notice, operator reported) → 201
+01:09:47Z [smoke:p4e] PASS GET /cases/18ae5326-6cdc-4915-a53d-7fbed25da28c → 200
+01:09:47Z [smoke:p4e] PASS POST /cases/{caseId}/correspondence-bindings → 201
+01:09:47Z [smoke:p4e] PASS GET /cases/{caseId}/production-context (INITIAL + PREPARATION) → 200
+01:09:47Z [smoke:p4e] PASS POST /cases/{caseId}/prompts (INITIAL + PREPARATION) → 201
+01:09:47Z [smoke:p4e] PASS INITIAL + PREPARATION: exact context, revision, digest, manifests, gaps and conflicts frozen
+01:09:47Z [smoke:p4e] PASS the snapshot keeps the recorded MISSING and CONFLICT entries
+01:09:47Z [smoke:p4e] PASS POST /cases/{caseId}/prompts (the same key again) → 201
+01:09:47Z [smoke:p4e] PASS POST /cases/{caseId}/prompts (the same key, another body) → 409
+01:09:48Z [smoke:p4e] PASS GET /prompts/{id} → 200
+01:09:48Z [smoke:p4e] PASS GET /cases/{caseId}/prompts → 200
+01:09:48Z [smoke:p4e] PASS replay, idempotency conflict, read-back and summary list as contracted
+01:09:48Z [smoke:p4e] PASS instruction-like captured text is quoted case data only; the boundary is stated
+01:09:48Z [smoke:p4e] PASS GET /mandates/dc66d30a-980c-4523-8585-00a186d7b4be → 200
+01:09:48Z [smoke:p4e] PASS POST /mandates/{id}/events (TERMINATION, as reported) → 201
+01:09:48Z [smoke:p4e] PASS POST /cases/{caseId}/prompts (the expectation read before the event) → 412
+01:09:48Z [smoke:p4e] PASS stale digest (case revision unchanged): 412 CONTEXT_CHANGED, nothing written
+01:09:48Z [smoke:p4e] PASS GET /cases/{caseId}/production-context (INITIAL + PREPARATION after the event) → 200
+01:09:48Z [smoke:p4e] PASS POST /cases/{caseId}/prompts (INITIAL + PREPARATION, reviewed again) → 201
+01:09:48Z [smoke:p4e] PASS INITIAL version 2: exact context, revision, digest, manifests, gaps and conflicts frozen
+01:09:48Z [smoke:p4e] PASS GET /prompts/{id} (the first snapshot after the change) → 200
+01:09:48Z [smoke:p4e] PASS the first snapshot is unchanged byte for byte after the change
+01:09:48Z [smoke:p4e] PASS GET /cases/{caseId}/production-context (NMI_REPLY + PREPARATION, explicit parent and prior) → 200
+01:09:48Z [smoke:p4e] PASS POST /cases/{caseId}/prompts (NMI_REPLY + PREPARATION) → 201
+01:09:48Z [smoke:p4e] PASS NMI_REPLY + PREPARATION: exact context, revision, digest, manifests, gaps and conflicts frozen
+01:09:48Z [smoke:p4e] PASS reply: version 1 of NMI_REPLY; the operator-reported prior keeps its posture and gap
+01:09:48Z [smoke:p4e] PASS POST /cases/{caseId}/prompts (the PREPARATION digest for DRAFTING) → 412
+01:09:48Z [smoke:p4e] PASS POST /cases/{caseId}/prompts (INITIAL with a parent binding) → 422
+01:09:48Z [smoke:p4e] PASS POST /cases/{caseId}/prompts (another case’s selection) → 422
+01:09:48Z [smoke:p4e] PASS POST /cases/{caseId}/prompts (a prior named twice) → 422
+01:09:48Z [smoke:p4e] PASS POST /cases/{caseId}/prompts (no Idempotency-Key) → 400
+01:09:48Z [smoke:p4e] PASS POST /cases/{caseId}/prompts (unknown case) → 404
+01:09:48Z [smoke:p4e] PASS three snapshots and four audit events (three prompts, one event); no later-phase record
+01:09:48Z [smoke:p4e] PASS PATCH /prompts/{id} (not routed) → 404
+01:09:48Z [smoke:p4e] PASS DELETE /prompts/{id} (not routed) → 404
+01:09:48Z [smoke:p4e] PASS POST /cases/{caseId}/candidates (not routed) → 404
+01:09:48Z [smoke:p4e] PASS POST /candidates/{id}/validation-runs (not routed) → 404
+01:09:48Z [smoke:p4e] PASS GET /candidates/{id}/readiness (not routed) → 404
+01:09:48Z [smoke:p4e] PASS POST /candidates/{id}/unsigned-exports (not routed) → 404
+01:09:48Z [smoke:p4e] PASS logout → 204
+01:09:48Z [smoke:p4e] PASS (84 checks)

@@ -46,9 +46,19 @@
 # and DRAFTING, explicit selectors only) and checks the exact pinned authority, MISSING and CONFLICT
 # kept as recorded, a deterministic digest that ignores route defaults and follows a later authority
 # event, the expected refusals, that the reads wrote nothing (row counts read through the runtime
-# account) and that no prompt, candidate, validation, readiness or export route exists, leaving
-# synthetic records in the disposable CI tb_notice_dev only (it refuses to run outside CI). The
-# context determines no G1-G7 or readiness; nothing is generated, signed or sent.
+# account) and that no candidate, validation, readiness or export route exists, leaving synthetic
+# records in the disposable CI tb_notice_dev only (it refuses to run outside CI). The context
+# determines no G1-G7 or readiness; nothing is generated, signed or sent.
+# P4E: smoke:local also checks that the compiled prompt operations are session-protected and that
+# candidates onward stay unrouted; smoke:p4e builds the same kind of synthetic case, generates a
+# prompt against exactly the context it read (the exact context, revision, digest, manifests, gaps
+# and conflicts frozen; SHA-256 of the exact UTF-8 bytes; captured text only as quoted case data),
+# replays the same key, refuses a stale expectation after a later authority event (412
+# CONTEXT_CHANGED, nothing written), generates version 2 and an NMI_REPLY prompt, checks the
+# expected refusals, the rows written and that no candidate, validation, readiness, export or
+# prompt update route exists, leaving synthetic records in the disposable CI tb_notice_dev only (it
+# refuses to run outside CI). A prompt snapshot is not a notice, approval, readiness decision,
+# signature or transmission; no AI provider is called and nothing is sent.
 name: CI
 
 on:
@@ -199,6 +209,8 @@ jobs:
         run: yarn smoke:p4c --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"
       - name: P4D compiled production context → INITIAL and NMI_REPLY reads → pinning, digest and refusals (yarn smoke:p4d, synthetic setup; the context reads write nothing)
         run: yarn smoke:p4d --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"
+      - name: P4E compiled prompt generation → frozen snapshot → replay → stale refusal → version 2 → NMI_REPLY (yarn smoke:p4e, synthetic; no AI provider, nothing sent)
+        run: yarn smoke:p4e --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"
       - name: P1.1 recovery commands (synthetic account; P0 actor untouched)
         run: |
           E=p1-ci-admin@example.invalid
