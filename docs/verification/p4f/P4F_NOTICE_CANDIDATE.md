@@ -2,7 +2,7 @@
 
 Mission **TB_R12_CLOSEOUT_MERGE_AND_P4F_NOTICE_CANDIDATE_TO_R13**, steps 9–11. Branch `feature/p4f-notice-candidate`, created from the exact post-P4E `main` `79db09b` (merge commit of PR #8), with the post-R12 checkpoint `a417b6a` (documentation only). P4F implements **five** contracted operations — `importCandidate`, `listCaseCandidates`, `getCandidate`, `reviseCandidate` and `supersedeCandidate` — and the candidate pages of a case.
 
-**R13 result (operator, 2026-09-26): PASS.** P4F = **VERIFIED_COMPLETE**; the active wire contract stays **TB-SCHEMA-API-v1.2.0**; `TB-PROMPT-TEMPLATE-v1` and `TB-CANDIDATE-ARTIFACT-v1` are the accepted internal identifiers. P4F is authorized for merge to `main` by a normal merge commit (mission TB_R13_CLOSEOUT_MERGE_AND_P4G_TECHNICAL_VALIDATION_TO_R14; §28). P4G (technical validation) is **NOT_STARTED** at this record. No validation run, validation issue workflow, candidate assessment, readiness, unsigned export, G1–G7 decision, READY_FOR_SIGNER, signature, sending, mailbox, Drive or AI-provider action exists.
+**R13 result (operator, 2026-09-26): PASS.** P4F = **VERIFIED_COMPLETE**; the active wire contract stays **TB-SCHEMA-API-v1.2.0**; `TB-PROMPT-TEMPLATE-v1` and `TB-CANDIDATE-ARTIFACT-v1` are the accepted internal identifiers. P4F is authorized for merge to `main` by a normal merge commit (mission TB_R13_CLOSEOUT_MERGE_AND_P4G_TECHNICAL_VALIDATION_TO_R14; §28) and **merged** by pull request #9 (merge commit `5aa9248`; §29). P4G (technical validation) is **NOT_STARTED** at these records. No validation run, validation issue workflow, candidate assessment, readiness, unsigned export, G1–G7 decision, READY_FOR_SIGNER, signature, sending, mailbox, Drive or AI-provider action exists.
 
 Persistent rules (they stay in force; `CLAUDE.md` carries them):
 
@@ -34,6 +34,7 @@ Persistent rules (they stay in force; `CLAUDE.md` carries them):
 | Schema / migration | **No change** (§22) |
 | Wire contract | **No change** — TB-SCHEMA-API-v1.2.0 (§23) |
 | R13 review | **PASS** (operator, 2026-09-26) — no remediation; the §24 interpretations accepted (§28) |
+| Merge | **MERGED_TO_MAIN** — pull request #9, merge commit `5aa9248` (method: merge commit), merged 2026-09-26T07:46:08Z; `main` push CI run 36227787808 success (§29) |
 
 ## 1. Operation matrix and design (contract-first)
 
@@ -333,3 +334,34 @@ Checks on the complete closeout tree before committing (2026-09-26T07:20:03Z–0
 - `yarn test` 1465 passed in 46 files (unchanged).
 
 `yarn test:db` was not rerun because no code changed (the sandbox script's change is a comment); it runs in CI on the closeout head.
+
+## 29. R13 closeout — merge reconciliation (2026-09-26, home PC)
+
+Mission TB_R13_CLOSEOUT_MERGE_AND_P4G_TECHNICAL_VALIDATION_TO_R14, recorded on `feature/p4g-technical-validation` after the merge. `P4F = MERGED_TO_MAIN`. Sections 1–28 keep the state at their time (for example "not merged at this record" in §28).
+
+### 29.1 Merge reconciliation (verified with `git` and authenticated `gh`, not assumed)
+
+| Item | Observed value |
+|---|---|
+| `P4F_ACCEPTED_CODE_HEAD` | `ffadd40ddc2c9f2a2b60610af0d44cffbf4037f7` (as named by the operator) |
+| `P4F_R13_CLOSEOUT_HEAD` | `85d0aed8ce35fed4953d4145b83655a1b1f824be` — the R13 record (§28) and the UI sandbox's header comment, documentation only. Push run [36226531126](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36226531126), 2026-09-26T07:21:33Z–07:35:12Z, success: "Non-DB checks (cold install)" (job 108361545206) and "Database, seed and smoke (MySQL 8.4.11)" (job 108361545059). Results: `reference:check` and `contracts:check` OK; lint "Found 0 warnings and 0 errors."; `yarn test` 1465 / 46 files; `yarn test:db` 494 / 13 files; both drift diffs empty; `smoke:local` 57, `smoke:auth` 4, `smoke:directory` 14, `smoke:p3a` 24, `smoke:p3b` 36, `smoke:p4a` 50, `smoke:p4b` 64, `smoke:p4c` 62, `smoke:p4d` 87, `smoke:p4e` 84, `smoke:p4f` 92 |
+| Pull request | [#9](https://github.com/TuongChris/tb-notice-production-system/pull/9) `feature/p4f-notice-candidate` → `main`, "P4F: Immutable NoticeCandidate artifacts — R13", opened 2026-09-26T07:37:12Z. `headRefOid` = `85d0aed` (8 commits); `main` unchanged at `79db09b` since the branch was created. pull_request run [36227333647](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36227333647), 2026-09-26T07:37:15Z–07:44:52Z, success: "Non-DB checks (cold install)" (job 108363744890) and "Database, seed and smoke (MySQL 8.4.11)" (job 108363744982). All four check runs on `85d0aed` completed with success; merge state CLEAN; no required review; `main` has no branch protection |
+| `P4F_MERGE_METHOD` | **merge commit** — `gh pr merge 9 --merge --match-head-commit 85d0aed…`. Not squash, not rebase, no bypass of checks, branch not deleted. `5aa9248` has two parents, `79db09b` (previous `main`) and `85d0aed`. Message "Merge pull request #9 from TuongChris/feature/p4f-notice-candidate", committed by GitHub, merged 2026-09-26T07:46:08Z by the repository owner's authenticated account |
+| `P4F_MERGED_MAIN_HEAD` | `5aa9248e1ef615558c09a0895fe7d951cf9e96a6` |
+| Ancestry / content | `git merge-base --is-ancestor 85d0aed origin/main` → exit 0. The previous `main` `79db09b` is an ancestor of `85d0aed` (the branch started there), so the merge introduced nothing else: the trees of `5aa9248` and `85d0aed` are identical (`e8d838f38ce7b43b9169a250bfb663e127392c5c`; `git diff 85d0aed 5aa9248` empty), and `git log 85d0aed..origin/main` lists only the merge commit |
+| `MAIN_POST_P4F_CI` | **PASS** — push run [36227787808](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36227787808) on `5aa9248`, 2026-09-26T07:46:11Z–07:53:39Z: "Non-DB checks (cold install)" (job 108365029292) and "Database, seed and smoke (MySQL 8.4.11)" (job 108365029193) both success. Results: lint "Found 0 warnings and 0 errors."; `yarn test` 1465 / 46 files; `yarn test:db` 494 / 13 files; both drift diffs empty; `smoke:local` 57, `smoke:auth` 4, `smoke:directory` 14, `smoke:p3a` 24, `smoke:p3b` 36, `smoke:p4a` 50, `smoke:p4b` 64, `smoke:p4c` 62, `smoke:p4d` 87, `smoke:p4e` 84, `smoke:p4f` 92 |
+
+### 29.2 History preserved
+
+Nothing was amended, rebased, rewritten or force-pushed, and no tag or release was created. `feature/p4f-notice-candidate` stays at `85d0aed` (local and origin); every earlier phase branch is unchanged. The local `main` was fast-forwarded to `origin/main`; no commit was made on it.
+
+### 29.3 Status
+
+| Scope | Status |
+|---|---|
+| R13 review | **PASS** (operator, 2026-09-26) |
+| P4F_STATUS | **VERIFIED_COMPLETE** |
+| P4F_MERGE | **MERGED_TO_MAIN** — PR #9, merge commit `5aa9248` (method: merge commit), merged 2026-09-26T07:46:08Z; `main` push CI run 36227787808 success |
+| Active contract | **TB-SCHEMA-API-v1.2.0** (ADR-0004 and ADR-0005 ACCEPTED; frozen historical reference TB-SCHEMA-API-v1.0.0; PFC wire id `PFC-YT-EMAIL-v1.1`); accepted internal identifiers `TB-PROMPT-TEMPLATE-v1` and `TB-CANDIDATE-ARTIFACT-v1` |
+| Database / dependencies | **No change** — `20260923103912_initial_schema` is still the only migration; lockfile unchanged |
+| P4G | Branch `feature/p4g-technical-validation` created from the exact `origin/main` `5aa9248` (not from `feature/p4f-notice-candidate`) and pushed with upstream (push run 36228202205 on the same commit). At creation, local and origin pointed at `5aa9248`, the worktree was clean, and `reference:check` and `contracts:check` passed. **P4G implementation = NOT_STARTED** at this checkpoint; `docs/verification/p4g/` will record it when written |
