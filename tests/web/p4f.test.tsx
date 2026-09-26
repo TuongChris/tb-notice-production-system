@@ -759,7 +759,7 @@ describe('P4F candidate pages', () => {
     expectNoClaimsOrActions();
   });
 
-  it(`supersession: "${SUPERSEDE_TITLE}" with its exact meaning; a reason is required; it is recorded once, the candidate stays readable and unchanged, and it is never called a retraction; a second supersession is refused`, async () => {
+  it('supersession: "Supersede this draft artifact" with its exact meaning; a reason is required; it is recorded once, the candidate stays readable and unchanged, and it is never called a retraction; a second supersession is refused', async () => {
     const api = new FakeDirectory();
     const w = world(api);
     const prompt = await initialPrompt(api, w);
@@ -780,6 +780,7 @@ describe('P4F candidate pages', () => {
     expect(SUPERSEDE_MEANING).toBe(
       'Superseding marks this candidate as no longer the active draft artifact. It does not contact the platform or retract anything previously sent.',
     );
+    expect(SUPERSEDE_TITLE).toBe('Supersede this draft artifact');
     expect(
       all('h2').some((heading) => heading.textContent === 'Supersede this draft artifact'),
     ).toBe(true);
@@ -883,9 +884,17 @@ describe('P4F candidate pages', () => {
     ]) {
       await unmount();
       await render(api, path);
-      await waitFor(() => q('[data-testid="candidate-not-found"]') !== null, path);
+      await waitFor(
+        () =>
+          q('[data-testid="candidate-not-found"]') !== null ||
+          q('[data-testid="candidate-body"]') !== null ||
+          q('[data-testid="candidate-form"]') !== null,
+        path,
+      );
+      // Shown like an unknown candidate: nothing of the other case's candidate appears.
       expect(q('[data-testid="candidate-body"]')).toBeNull();
       expect(q('[data-testid="candidate-form"]')).toBeNull();
+      expect(q('[data-testid="candidate-not-found"]')).not.toBeNull();
       expect(pageText()).not.toContain('SYNTHETIC-B-ONLY');
     }
   });
@@ -910,7 +919,7 @@ describe('P4F candidate pages', () => {
     expect(q('[data-testid="candidate-supersede-form"]')).toBeNull();
     expect(q('[data-testid="open-revise-candidate"]')).toBeNull();
     expect(all('article.sheet [aria-disabled="true"]').map((action) => action.textContent)).toEqual(
-      [SUPERSEDE_TITLE, 'Import a revision of this candidate'],
+      ['Supersede this draft artifact', 'Import a revision of this candidate'],
     );
     await unmount();
     await render(api, `/cases/${w.caseA.id}/candidates/${candidate.id}/revise`);

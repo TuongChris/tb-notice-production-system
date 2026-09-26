@@ -1552,10 +1552,34 @@ describe('VERSIONS, IDEMPOTENCY AND TRANSACTIONS', () => {
 describe('REVISION — a new candidate; the revised one never changes', () => {
   it('a revision is a new candidate of the same case and task: new id, parentCandidateId, the next version, its own hashes and reason; the revised candidate’s stored row is byte-identical, so what names its id and artifact (a later validation run) stays with it', async () => {
     const p = await promptWorld();
-    const base = await importCandidate(p.caseId, draft(p.prompt));
+    const base = await importCandidate(
+      p.caseId,
+      draft(p.prompt, {
+        preparedDocuments: [plan(p.basis.id)],
+        authoringTool: 'SYNTHETIC drafting tool A',
+      }),
+    );
     const before = await candidateRow(base.id);
+    // Every content field of the revision differs, so an in-place write of any of them into the
+    // revised row would show there.
     const body = {
-      ...draft(p.prompt, { bodyText: `${DRAFT_BODY}SYNTHETIC added paragraph.\n` }),
+      ...draft(p.prompt, {
+        subject: 'SYNTHETIC revised notice subject',
+        envelope: {
+          to: 'synthetic-platform-revised@example.invalid',
+          replyTo: 'synthetic-reply-revised@example.invalid',
+        },
+        bodyText: `${DRAFT_BODY}SYNTHETIC added paragraph.\n`,
+        preparedDocuments: [
+          plan(p.basis.id, {
+            purpose: 'SYNTHETIC revised purpose',
+            state: 'UNKNOWN',
+            fileName: 'synthetic-revised.pdf',
+            limitations: 'SYNTHETIC revised limitation',
+          }),
+        ],
+        authoringTool: 'SYNTHETIC drafting tool B',
+      }),
       revisionReason: 'SYNTHETIC wording corrected (not a finding)',
     };
     t.clock.advance(1_000);
