@@ -1425,17 +1425,22 @@ describe('VERSIONS, IDEMPOTENCY AND TRANSACTIONS', () => {
     const secondKey = newKey();
     let second: Promise<HttpResult> | null = null;
     let committedWhileHeld = -1;
+    let lockedWhileHeld = -1;
+    const lockedBefore = promptObserver.calls;
     promptObserver.hooks.afterCaseLock = async () => {
       second = post(p.caseId, body, secondKey);
       // The second request has claimed its key and waits for the case row held here.
       await claimed(secondKey);
       committedWhileHeld = await countRows(prisma, 'prompt_snapshots');
+      lockedWhileHeld = promptObserver.calls - lockedBefore;
     };
     const firstResult = await post(p.caseId, body);
     if (second === null) throw new Error('the concurrent generation did not start');
     const secondResult: HttpResult = await second;
-    // While the first generation held the case, the second wrote nothing.
+    // While the first generation held the case, the second neither held it nor wrote anything.
+    expect(lockedWhileHeld).toBe(1);
     expect(committedWhileHeld).toBe(0);
+    expect(promptObserver.calls - lockedBefore).toBe(2);
     const first = immutable<PromptSnapshot>(firstResult, 201);
     const secondSnapshot = immutable<PromptSnapshot>(secondResult, 201);
     expect([first.version, secondSnapshot.version]).toEqual([1, 2]);
