@@ -28,6 +28,7 @@ import {
   VALIDATION_ARTIFACT_CHANGED,
   VALIDATION_BOUNDARY,
   VALIDATION_CONTEXT_CHANGED,
+  VALIDATION_DIGEST_STALE,
 } from '../../apps/web/src/app/cases/validation.js';
 import {
   all,
@@ -570,9 +571,14 @@ describe('P4G technical validation on the candidate page', () => {
     expect(q('[data-testid="validation-run-button"]')).toBeNull();
     expect(q('[data-testid="validation-read-context"]')).not.toBeNull();
     expect(document.activeElement).toBe(q('[data-testid="validation-outcome"]'));
+    // The earlier read's digest is no longer shown as the current one.
+    expect(q('[data-testid="validation-current-digest"]')).toBeNull();
+    expect(q('[data-testid="validation-expected"]')?.textContent).not.toContain(DIGEST_READ);
+    expect(q('[data-testid="validation-digest-stale"]')?.textContent).toBe(VALIDATION_DIGEST_STALE);
     expect(runRequests(candidate.id)).toHaveLength(1);
     expect(api_.validationRuns).toEqual([]);
     await readContext();
+    expect(q('[data-testid="validation-digest-stale"]')).toBeNull();
     expect(q('[data-testid="validation-current-digest"]')?.textContent).toBe(DIGEST_LATER);
     await runValidation();
     await waitFor(() => q('[data-testid="validation-result"]') !== null, 'the result');

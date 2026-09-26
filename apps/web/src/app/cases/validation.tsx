@@ -47,6 +47,9 @@ export const VALIDATION_BOUNDARY =
   'A technical validation checks this stored artifact — its exact text and hashes, envelope and thread, document plan and internal markers — against the current recorded context with a fixed technical ruleset. It reviews nothing substantively: authority, rights, identification, evidence, permission and whether the text is legally sufficient belong to the separate G1–G6 review.';
 export const VALIDATION_CONTEXT_CHANGED =
   'Context changed. Read the current context before validating again.';
+/** The digest row after a 412: the earlier read's digest is no longer the current one. */
+export const VALIDATION_DIGEST_STALE =
+  'Changed since the last read: not known until the current context is read again.';
 export const VALIDATION_ARTIFACT_CHANGED =
   'Artifact changed. The stored artifact is not the one shown on this page: reload the page before validating.';
 export const RESULT_LABEL: Readonly<Record<ValidationRun['result'], string>> = {
@@ -263,6 +266,11 @@ function RunValidation({
               view === null ? (
                 <span className="absent" data-testid="validation-digest-unread">
                   Not read yet
+                </span>
+              ) : changed === 'CONTEXT_CHANGED' ? (
+                // The read's digest is known to be stale: it is never shown as the current one.
+                <span className="absent" data-testid="validation-digest-stale">
+                  {VALIDATION_DIGEST_STALE}
                 </span>
               ) : (
                 <code className="digest" data-testid="validation-current-digest">
