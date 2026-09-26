@@ -468,7 +468,14 @@ describe('P4E prompt pages', () => {
     // A relevant authority event is recorded elsewhere: the digest changes, the revision does not.
     api.contextReplies.set(w.caseA.id, answer(viewOf(w, {}, 'c'.repeat(64))));
     await click(generateButton() as HTMLElement);
-    await waitFor(() => q('[data-testid="prompt-context-changed"]') !== null, 'the refusal');
+    await waitFor(
+      () =>
+        q('[data-testid="prompt-context-changed"]') !== null ||
+        q('[data-testid="prompt-detail"]') !== null,
+      'the outcome of the generation',
+    );
+    // Refused, and the page stays on the refused read: nothing was read again or generated instead.
+    expect(q('[data-testid="prompt-detail"]')).toBeNull();
     expect(q('[data-testid="prompt-context-changed"]')?.textContent).toContain(
       CONTEXT_CHANGED_MESSAGE,
     );
@@ -663,9 +670,15 @@ describe('P4E prompt pages', () => {
     expect(q('[data-testid="prompts"]')?.textContent).not.toContain(foreign.id);
     await unmount();
     await render(api, `/cases/${w.caseA.id}/prompts/${foreign.id}`);
-    await waitFor(() => q('[data-testid="prompt-not-found"]') !== null, 'not in this case');
-    expect(q('[data-testid="prompt-detail"]')?.textContent).not.toContain('SYNTHETIC-B-ONLY');
+    await waitFor(
+      () =>
+        q('[data-testid="prompt-not-found"]') !== null || q('[data-testid="prompt-text"]') !== null,
+      'the prompt page',
+    );
+    // Shown like an unknown prompt: nothing of the other case's snapshot appears.
     expect(q('[data-testid="prompt-text"]')).toBeNull();
+    expect(q('[data-testid="prompt-not-found"]')).not.toBeNull();
+    expect(q('[data-testid="prompt-detail"]')?.textContent).not.toContain('SYNTHETIC-B-ONLY');
     expect(own).toHaveLength(27);
   });
 
