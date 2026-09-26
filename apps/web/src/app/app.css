@@ -1581,3 +1581,77 @@ code.hash {
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
+
+/* Technical validation (P4G). A technical result, never a verdict: no result gets the success
+   treatment. The label sits in a ruled box in neutral ink for a technical pass and in the caution
+   or danger ink for review required, blocked and error; the permanent qualifier stays beside it.
+   A heuristic signal is set apart from a deterministic check by a dashed rule and italic kind
+   label, so a pattern in text never reads as a proven finding. Rule ids and long field paths wrap. */
+.validation-result {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--rule-strong);
+  border-left-width: 4px;
+  background: var(--sheet);
+}
+
+.validation-result h3 {
+  margin-top: 0;
+}
+
+.validation-technical_pass {
+  border-left-color: var(--ink-3);
+}
+
+.validation-review_required {
+  border-left-color: var(--caution);
+}
+
+.validation-blocked,
+.validation-error {
+  border-left-color: var(--danger);
+}
+
+.rule-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  columns: 16rem auto;
+  column-gap: 1.5rem;
+}
+
+.rule-list code,
+.validation-issues code {
+  overflow-wrap: anywhere;
+}
+
+.check-kind {
+  display: inline-block;
+  padding: 0 0.3rem;
+  border: 1px solid var(--rule-strong);
+  white-space: nowrap;
+}
+
+.check-kind-heuristic {
+  border-style: dashed;
+  font-style: italic;
+}
+
+.validation-issues .validation-issue-message {
+  min-width: 14rem;
+  overflow-wrap: anywhere;
+}
+
+.validation-history {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.validation-history > li {
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--rule);
+}
+
+.validation-history .digest {
+  overflow-wrap: anywhere;
+}
