@@ -828,10 +828,11 @@ describe('SECURITY', () => {
     // version, coverage and coverage-signer operations, P4A the case, case-source and authority
     // selection operations, R8 the selection read-back of TB-SCHEMA-API-v1.1.0, P4B the case intake
     // operations, R9 the fact-source read-back of TB-SCHEMA-API-v1.2.0, P4C the correspondence
-    // capture and case-binding operations, P4D the read-only production context and P4E the prompt
-    // operations (exact inventory: directory-http.test.ts); nothing else.
+    // capture and case-binding operations, P4D the read-only production context, P4E the prompt
+    // operations and P4F the candidate operations (exact inventory: directory-http.test.ts);
+    // nothing else (a candidate has no send route: see below).
     const directory =
-      /^[A-Z]+ \/api\/v1\/(agencies|owners|legal-subjects|signers|owner-subjects|sources|routes|mandates|mandate-versions|coverages|coverage-signers|cases|case-sources|correspondence|prompts)(\/|$)/;
+      /^[A-Z]+ \/api\/v1\/(agencies|owners|legal-subjects|signers|owner-subjects|sources|routes|mandates|mandate-versions|coverages|coverage-signers|cases|case-sources|correspondence|prompts|candidates)(\/|$)/;
     expect(routes.filter((route) => !directory.test(route))).toEqual([
       'GET /api/v1/auth/session',
       'GET /api/v1/health',

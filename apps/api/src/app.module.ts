@@ -3,6 +3,7 @@ import { APP_FILTER } from '@nestjs/core';
 import { DatabaseModule } from './infrastructure/database/database.module.js';
 import { ApiExceptionFilter } from './infrastructure/http/api-exception.filter.js';
 import { AuthModule } from './modules/auth/auth.module.js';
+import { CandidatesModule } from './modules/candidates/candidates.module.js';
 import { CasesModule } from './modules/cases/cases.module.js';
 import { CorrespondenceModule } from './modules/correspondence/correspondence.module.js';
 import { DirectoryModule } from './modules/directory/directory.module.js';
@@ -20,7 +21,9 @@ import { HealthModule } from './modules/health/health.module.js';
 // correspondence capture and case bindings (records only; nothing is sent). P4D: the read-only
 // production context (recorded input only; no G1–G7 decision or readiness). P4E: prompt snapshots —
 // a prompt rendered locally and deterministically from one exact context and frozen with it (no AI
-// provider call). No candidate, validation, assessment, readiness, signing or sending endpoints.
+// provider call). P4F: notice candidates — the exact unsigned draft artifact drafted outside the
+// application from one prompt snapshot, stored with its hashes (no AI provider call, no
+// validation). No validation, assessment, readiness, export, signing or sending endpoints.
 @Module({
   imports: [
     DatabaseModule,
@@ -33,6 +36,7 @@ import { HealthModule } from './modules/health/health.module.js';
     CorrespondenceModule,
     ProductionModule,
     PromptsModule,
+    CandidatesModule,
   ],
   providers: [{ provide: APP_FILTER, useClass: ApiExceptionFilter }],
 })

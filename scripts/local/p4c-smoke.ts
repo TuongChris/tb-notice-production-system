@@ -575,7 +575,11 @@ async function main(): Promise<void> {
     ['DELETE /correspondence/{id}', 'DELETE', `/correspondence/${nmi.data.id}`],
     ['GET /cases/{caseId}/readiness', 'GET', `/cases/${caseId}/readiness`],
     ['POST /cases/{caseId}/production-context', 'POST', `/cases/${caseId}/production-context`],
-    ['POST /cases/{caseId}/candidates', 'POST', `/cases/${caseId}/candidates`],
+    [
+      'POST /candidates/{id}/validation-runs',
+      'POST',
+      `/candidates/${randomUUID()}/validation-runs`,
+    ],
   ] as const) {
     const refused = await call(
       `${label} (not routed)`,

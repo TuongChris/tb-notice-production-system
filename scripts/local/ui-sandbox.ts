@@ -33,15 +33,16 @@ const SANDBOX_EMAIL = 'p2-ui-sandbox@example.invalid';
  * Every table the running app can write (P2 directory, P3A sources and routes, P3B mandates,
  * versions, coverage, coverage signers and authority events, P4A cases, case sources and authority
  * selections with their pinned coverage, P4B reported items, works, use mappings, case facts and
- * their supports, P4C captured correspondence and its case bindings, P4E prompt snapshots), in
- * foreign-key deletion order. Source references and the records that point at them reference each other (canonical
- * bindings, revision chains, citations), routes ⇄ coverage, cases ⇄ selections and the version /
- * coverage / event / fact / binding chains point at their own tables, so those pointers are cleared
- * first (see cleanup).
+ * their supports, P4C captured correspondence and its case bindings, P4E prompt snapshots, P4F
+ * notice candidates), in foreign-key deletion order. Source references and the records that point
+ * at them reference each other (canonical bindings, revision chains, citations), routes ⇄ coverage,
+ * cases ⇄ selections and the version / coverage / event / fact / binding / candidate chains point at
+ * their own tables, so those pointers are cleared first (see cleanup).
  */
 const TABLES = [
   'idempotency_records',
   'audit_events',
+  'notice_candidates',
   'prompt_snapshots',
   'correspondence_bindings',
   'fact_sources',
@@ -72,8 +73,8 @@ const TABLES = [
 
 /**
  * Pointers cleared before deleting rows (canonical bindings, citations, revision chains, preferred
- * coverage, version / coverage lineage, event, fact and binding supersession and a case's selection
- * pointer).
+ * coverage, version / coverage lineage, event, fact and binding supersession, candidate lineage and
+ * a case's selection pointer).
  */
 const SOURCE_POINTERS = [
   'UPDATE `cases` SET `current_authority_selection_id` = NULL, `packet_source_id` = NULL, `canonical_binding_source_id` = NULL',
@@ -90,6 +91,7 @@ const SOURCE_POINTERS = [
   'UPDATE `source_references` SET `supersedes_source_id` = NULL',
   'UPDATE `case_facts` SET `supersedes_fact_id` = NULL',
   'UPDATE `correspondence_bindings` SET `supersedes_binding_id` = NULL',
+  'UPDATE `notice_candidates` SET `parent_candidate_id` = NULL',
 ] as const;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
