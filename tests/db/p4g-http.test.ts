@@ -54,10 +54,14 @@ import {
   OperationErrorSchema,
   operations,
 } from '../../packages/contracts/src/index.js';
+import { assembleContext } from '../../apps/api/src/modules/production/context-assembly.js';
+import { NO_CONTEXT_READ_OBSERVER } from '../../apps/api/src/modules/production/context-read-observer.js';
+import { readContextRows } from '../../apps/api/src/modules/production/context-snapshot.js';
 import {
   REQUIRED_RULES,
   RULE_ERROR_MESSAGE,
 } from '../../apps/api/src/modules/validation/technical-ruleset.js';
+import { validationScope } from '../../apps/api/src/modules/validation/validation-scope.js';
 import {
   ALLOWED_ORIGIN,
   cookieHeader,
@@ -1619,6 +1623,48 @@ describe('P4G recorded context, preparation, drift and history', () => {
         details: { promptSnapshotId: p.prompt.id, generationMode: 'PREPARATION' },
       }),
     ]);
+  });
+
+  it('a DRAFTING prompt’s candidate whose context lost a blocking input after the read: the reviewed digest is stale (412) and the fresh read is refused by the P4D gate naming the gap — nothing is recorded, filled in or downgraded to PREPARATION', async () => {
+    const p = await validationWorld();
+    const read = await context(p.caseId, scopeOf(p.prompt));
+    // The case's only use mapping is archived after the prompt: USE_MAPPINGS_ABSENT (DRAFTING-blocking).
+    const mapping = versioned<UseMapping>(
+      await client.get('getUseMapping', `/cases/${p.caseId}/mappings/${p.mapping.data.id}`),
+      200,
+    );
+    versioned<UseMapping>(
+      await client.write(
+        'archiveUseMapping',
+        'POST',
+        `/cases/${p.caseId}/mappings/${p.mapping.data.id}/archive`,
+        { reason: 'SYNTHETIC archived after the prompt' },
+        { ifMatch: mapping.etag },
+      ),
+      200,
+    );
+    const refused = await validatePost(p.candidate.id, expectations(p.candidate, read));
+    expect(outcome(refused)).toEqual([412, 'CONTEXT_CHANGED']);
+    const fresh = await client.get(
+      'getProductionContext',
+      contextPath(p.caseId, scopeOf(p.prompt)),
+    );
+    expect(outcome(fresh)).toEqual([422, 'DRAFTING_INPUT_MISSING']);
+    expect(detailsOf(fresh)['missing']).toEqual(['USE_MAPPINGS_ABSENT']);
+    // A caller that holds the current digest (the refused read shows none) meets the same gate.
+    const promptRow = await prisma.promptSnapshot.findUniqueOrThrow({ where: { id: p.prompt.id } });
+    const scope = validationScope(promptRow);
+    const rows = await prisma.$transaction((tx) =>
+      readContextRows(tx, scope, NO_CONTEXT_READ_OBSERVER),
+    );
+    const gated = await validatePost(p.candidate.id, {
+      expectedArtifactSha256: p.candidate.artifactSha256,
+      expectedDependencyDigest: assembleContext(rows, scope).view.dependencyDigest,
+    });
+    expect(outcome(gated)).toEqual([422, 'DRAFTING_INPUT_MISSING']);
+    expect(detailsOf(gated)['missing']).toEqual(['USE_MAPPINGS_ABSENT']);
+    expect(await countRows(prisma, 'validation_runs')).toBe(0);
+    expect(await countRows(prisma, 'validation_issues')).toBe(0);
   });
 
   it('drift since the prompt: a record changed after generation is review required and named — the prompt itself never changes; the run evaluates the current context', async () => {
