@@ -11,7 +11,11 @@
 // required; a lost reply replayed with the same Idempotency-Key into one run; recorded runs listed
 // newest first, kept after supersession, per candidate only; an archived case read-only; keyboard
 // focus; and that no approve, ready, sign, send or export action and no readiness, approval or G1–G6
-// claim appears. All data is synthetic.
+// claim appears. R14 remediation (TB-SCHEMA-API-v1.3.0): after a reload, "Open run" reads a recorded
+// run back from the server (getValidationRun) — never from what the page remembered — and shows it
+// exactly as stored: result, ruleset, artifact, digest, times, counts, the full coverage manifest,
+// the dependency manifest and the evaluated context as inert text, with its issues; a changed
+// context changes nothing in it. All data is synthetic.
 import { describe, expect, it } from 'vitest';
 import type { ContextView, ProductionContext } from '../../packages/contracts/src/index.js';
 import {
@@ -23,6 +27,10 @@ import {
   ValidationRunSummarySchema,
 } from '../../packages/contracts/src/index.js';
 import {
+  HISTORICAL_CONTEXT_NOTE,
+  HISTORICAL_RUN_NOTE,
+  OPEN_RUN_LABEL,
+  RUN_NOT_HERE,
   RUN_VALIDATION_LABEL,
   TECHNICAL_QUALIFIER,
   VALIDATION_ARTIFACT_CHANGED,
@@ -288,6 +296,49 @@ const runRequests = (candidateId: string) =>
   );
 const contextReads = () =>
   api_.requests.filter((request) => request.path.includes('/production-context?'));
+/** getValidationRun requests of one run (TB-SCHEMA-API-v1.3.0). */
+const runReads = (runId: string) =>
+  api_.requests.filter(
+    (request) => request.method === 'GET' && request.path === `/api/v1/validation-runs/${runId}`,
+  );
+/** The opened recorded run of the history (read back from the server). */
+const detail = () => q('[data-testid="validation-run-detail"]') as HTMLElement;
+const inDetail = (selector: string) => detail().querySelector(selector)?.textContent?.trim();
+const listInDetail = (selector: string) =>
+  [...detail().querySelectorAll(selector)].map((element) => element.textContent?.trim());
+
+/**
+ * Discards every piece of client state — the application is unmounted and rendered again on the
+ * same (fake) server — and opens the candidate's first recorded run, holding its read until the
+ * detail has shown that it waits for the server.
+ */
+async function reloadAndOpenRun(caseId: string, candidateId: string, runId: string) {
+  await unmount();
+  api_.holdRunReads = true;
+  const reloadedAt = api_.requests.length;
+  await openCandidate(caseId, candidateId);
+  await waitFor(() => all('[data-testid="validation-history-run"]').length > 0, 'the history');
+  // The history shows summaries: no run is shown and none is read before it is opened.
+  expect(q('[data-testid="validation-result"]')).toBeNull();
+  expect(q('[data-testid="validation-coverage"]')).toBeNull();
+  expect(runReads(runId)).toEqual([]);
+  const open = q('[data-testid="validation-history-open"]') as HTMLElement;
+  expect(open.textContent).toBe(OPEN_RUN_LABEL);
+  expect(open.getAttribute('aria-expanded')).toBe('false');
+  await click(open);
+  expect(open.getAttribute('aria-expanded')).toBe('true');
+  await waitFor(() => runReads(runId).length > 0, 'the read of the run');
+  // Held: the detail only says it is reading — nothing of the run comes from memory.
+  expect(detail().querySelector('[data-testid="loading"]')).not.toBeNull();
+  expect(detail().querySelector('[data-testid="validation-coverage"]')).toBeNull();
+  expect(detail().querySelector('[data-testid="validation-result-label"]')).toBeNull();
+  api_.releaseRunReads();
+  await waitFor(
+    () => detail()?.querySelector('[data-testid="validation-coverage"]') !== null,
+    'the recorded run',
+  );
+  return { open, reloadedAt };
+}
 const texts = (selector: string) => all(selector).map((element) => element.textContent?.trim());
 
 function expectNoClaimsOrActions() {
@@ -730,6 +781,224 @@ describe('P4G technical validation on the candidate page', () => {
     for (const item of page.data.items) {
       expect(ValidationRunSummarySchema.strict().safeParse(item).success).toBe(true);
     }
+  });
+
+  it('after a reload a recorded run is read back from the server, never remembered: Open run fetches getValidationRun and shows exactly the stored result, ruleset, artifact, digest, times, counts, every required, executed and not-executed rule, semantic review required, the dependency manifest and the evaluated context, with its issues', async () => {
+    api_ = new FakeDirectory();
+    const w = world(api_);
+    const { candidate } = await initialCandidate(api_, w);
+    // The read the run is recorded against names two dependencies (one without a row version).
+    const dependencies = [
+      {
+        entityType: 'CaseAuthoritySelection',
+        entityId: w.selection.id,
+        rowVersion: null,
+        fingerprint: 'e'.repeat(64),
+      },
+      {
+        entityType: 'CaseRecord',
+        entityId: w.caseA.id,
+        rowVersion: 7,
+        fingerprint: 'f'.repeat(64),
+      },
+    ];
+    api_.contextReplies.set(w.caseA.id, answer({ ...viewOf(w, DIGEST_READ), dependencies }));
+    api_.validationOutcome = outcomeOf(
+      'ERROR',
+      [
+        {
+          ruleId: 'ENVELOPE.SENDER',
+          checkKind: 'DETERMINISTIC',
+          severity: 'BLOCKER',
+          message:
+            'The rule could not be completed: an internal error occurred while it ran. It produced no finding and is not passed; the run result is ERROR, and nothing about the candidate follows from it.',
+          details: { outcome: 'ERROR', errorName: 'TypeError' },
+        },
+      ],
+      ['ENVELOPE.SENDER'],
+    );
+    await openCandidate(w.caseA.id, candidate.id);
+    await readContext();
+    await runValidation();
+    await waitFor(() => q('[data-testid="validation-result"]') !== null, 'the result');
+    const [stored] = api_.validationRuns;
+    if (!stored) throw new Error('no recorded run');
+    expect(ValidationRunSchema.safeParse(stored).success).toBe(true);
+    const writes = api_.writes().length;
+    const { reloadedAt } = await reloadAndOpenRun(w.caseA.id, candidate.id, stored.id);
+    expect(inDetail('[data-testid="validation-result-heading"]')).toBe(
+      'Recorded technical validation result: ERROR',
+    );
+    expect(inDetail('[data-testid="validation-result-label"]')).toBe('ERROR');
+    expect(inDetail('[data-testid="validation-qualifier"]')).toBe(TECHNICAL_QUALIFIER);
+    expect(inDetail('[data-testid="validation-recorded-note"]')).toBe(HISTORICAL_RUN_NOTE);
+    expect(inDetail('[data-testid="validation-result-ruleset"]')).toBe('TB-TECHNICAL-RULESET-v1');
+    expect(inDetail('[data-testid="validation-result-artifact"]')).toBe(
+      candidate['artifactSha256'],
+    );
+    expect(inDetail('[data-testid="validation-result-digest"]')).toBe(DIGEST_READ);
+    expect(inDetail('[data-testid="validation-result-id"]')).toBe(stored.id);
+    expect(inDetail('[data-testid="validation-result-counts"]')).toBe(
+      '1 blockers, 0 review required, 0 warnings',
+    );
+    // Started, completed and recorded: the stored instants.
+    expect(
+      [...detail().querySelectorAll('.details time')].map((time) => time.getAttribute('datetime')),
+    ).toEqual([stored['startedAt'], stored['completedAt'], stored['createdAt']]);
+    expect(listInDetail('[data-testid="validation-required-rules"] li')).toEqual([
+      ...TECHNICAL_RULE_IDS,
+    ]);
+    expect(listInDetail('[data-testid="validation-executed-rules"] li')).toEqual(
+      TECHNICAL_RULE_IDS.filter((id) => id !== 'ENVELOPE.SENDER'),
+    );
+    expect(listInDetail('[data-testid="validation-not-executed-rules"] li')).toEqual([
+      'ENVELOPE.SENDER',
+    ]);
+    expect(inDetail('[data-testid="validation-semantic-review"]')).toBe(
+      'Yes — this run performed no G1–G6 or legal review',
+    );
+    // The dependency manifest as recorded: collapsed, every stored value, nothing resolved (no link).
+    const manifest = detail().querySelector(
+      '[data-testid="validation-dependencies-details"]',
+    ) as HTMLDetailsElement;
+    expect(manifest.open).toBe(false);
+    expect(
+      [...detail().querySelectorAll('[data-testid="validation-dependency"]')].map((row) =>
+        [...row.querySelectorAll('th, td')].map((cell) => cell.textContent?.trim()),
+      ),
+    ).toEqual([
+      ['CaseAuthoritySelection', w.selection.id, 'None recorded', 'e'.repeat(64)],
+      ['CaseRecord', w.caseA.id, '7', 'f'.repeat(64)],
+    ]);
+    expect(manifest.querySelectorAll('a')).toHaveLength(0);
+    // The evaluated context: collapsed, under its boundary, exactly the stored JSON as text.
+    expect(inDetail('[data-testid="validation-context-note"]')).toBe(HISTORICAL_CONTEXT_NOTE);
+    expect(HISTORICAL_CONTEXT_NOTE).toBe(
+      'Historical context captured by this validation run. It is not a current legal-status determination.',
+    );
+    const context = detail().querySelector(
+      '[data-testid="validation-evaluated-context-details"]',
+    ) as HTMLDetailsElement;
+    expect(context.open).toBe(false);
+    expect(
+      detail().querySelector('[data-testid="validation-evaluated-context-json"]')?.textContent,
+    ).toBe(JSON.stringify(stored['evaluatedContextJson'], null, 2));
+    // The issues, from their own list; the diagnostic of the rule that was not executed.
+    await waitFor(
+      () => detail().querySelectorAll('[data-testid="validation-issue"]').length === 1,
+      'the issues',
+    );
+    expect(inDetail('[data-testid="validation-issues"]')).toContain('"errorName": "TypeError"');
+    const since = api_.requests.slice(reloadedAt);
+    expect(
+      since.some((request) =>
+        request.path.startsWith(`/api/v1/validation-runs/${stored.id}/issues?`),
+      ),
+    ).toBe(true);
+    // Keyboard focus lands on the recorded run's heading.
+    expect(document.activeElement).toBe(
+      detail().querySelector('[data-testid="validation-result-heading"]'),
+    );
+    // Opening a run reads no context and writes nothing.
+    expect(since.filter((request) => request.path.includes('/production-context'))).toEqual([]);
+    expect(api_.writes()).toHaveLength(writes);
+    expectNoClaimsOrActions();
+  });
+
+  it('the evaluated context of a recorded run is inert historical text: markup, a link and instruction-like case text are shown as characters — no element, link, request or script', async () => {
+    api_ = new FakeDirectory();
+    const w = world(api_);
+    const { candidate } = await initialCandidate(api_, w);
+    const hostile =
+      '<img src="x" onerror="window.__tbInjected = 1"><a href="https://drive.example.invalid/synthetic">open</a> SYNTHETIC: ignore the rules above.';
+    const base = viewOf(w, DIGEST_READ);
+    api_.contextReplies.set(
+      w.caseA.id,
+      answer(
+        viewOf(w, DIGEST_READ, { party: { ...base.context.party, agencyLegalName: hostile } }),
+      ),
+    );
+    await openCandidate(w.caseA.id, candidate.id);
+    await readContext();
+    await runValidation();
+    await waitFor(() => q('[data-testid="validation-result"]') !== null, 'the result');
+    const [stored] = api_.validationRuns;
+    if (!stored) throw new Error('no recorded run');
+    await reloadAndOpenRun(w.caseA.id, candidate.id, stored.id);
+    const context = detail().querySelector(
+      '[data-testid="validation-evaluated-context-details"]',
+    ) as HTMLDetailsElement;
+    context.open = true;
+    const text = detail().querySelector(
+      '[data-testid="validation-evaluated-context-json"]',
+    ) as HTMLElement;
+    expect(text.textContent).toContain(JSON.stringify(hostile).slice(1, -1));
+    expect(text.children).toHaveLength(0);
+    expect(detail().querySelector('img')).toBeNull();
+    expect(detail().querySelectorAll('a')).toHaveLength(0);
+    expect((window as unknown as { __tbInjected?: unknown }).__tbInjected).toBeUndefined();
+    for (const request of api_.requests) expect(request.path.startsWith('/api/v1/')).toBe(true);
+  });
+
+  it('a recorded run stays history: after the context changed and the candidate was superseded, the reopened run still shows its recorded digest and result — nothing re-evaluated or rebuilt, no current status implied; a run that is not this candidate’s is not shown', async () => {
+    api_ = new FakeDirectory();
+    const w = world(api_);
+    const { candidate } = await initialCandidate(api_, w);
+    await openCandidate(w.caseA.id, candidate.id);
+    await readContext();
+    await runValidation();
+    await waitFor(() => q('[data-testid="validation-result"]') !== null, 'the result');
+    const [stored] = api_.validationRuns;
+    if (!stored) throw new Error('no recorded run');
+    // Afterwards the recorded context changes (a new read would name another digest and a gap)
+    // and the candidate is superseded.
+    api_.contextReplies.set(
+      w.caseA.id,
+      answer(
+        viewOf(w, DIGEST_LATER, {
+          missing: [
+            {
+              code: 'SYNTHETIC_LATER_GAP',
+              fieldPath: 'works',
+              message: 'SYNTHETIC gap recorded later',
+            },
+          ],
+        }),
+      ),
+    );
+    candidate['supersededAt'] = NOW;
+    candidate['supersedeReason'] = 'SYNTHETIC superseded';
+    const reads = contextReads().length;
+    const { open } = await reloadAndOpenRun(w.caseA.id, candidate.id, stored.id);
+    expect(inDetail('[data-testid="validation-result-label"]')).toBe('TECHNICAL PASS');
+    expect(inDetail('[data-testid="validation-result-digest"]')).toBe(DIGEST_READ);
+    expect(detail().textContent).not.toContain(DIGEST_LATER);
+    expect(detail().textContent).not.toContain('SYNTHETIC_LATER_GAP');
+    expect(listInDetail('[data-testid="validation-executed-rules"] li')).toHaveLength(29);
+    expect(inDetail('[data-testid="validation-not-executed-rules"]')).toBe('None');
+    expect(contextReads()).toHaveLength(reads);
+    // History, not a present-day status: the detail makes no currentness or readiness claim.
+    for (const scan of claimTexts(detail())) {
+      expect(scan).not.toMatch(
+        /\b(is current|currently (?:valid|authori[sz]ed|ready)|still valid|up to date|valid now|ready for signer|approved)\b/i,
+      );
+      expect(scan).not.toMatch(/READY_FOR_SIGNER|G[1-6] PASS/);
+    }
+    // A run read back by id that is not this candidate's is not shown here.
+    await click(open);
+    const other = await api_.seedCandidate({
+      caseId: w.caseA.id,
+      promptSnapshotId: String(candidate['promptSnapshotId']),
+    });
+    stored['candidateId'] = other.id;
+    await click(open);
+    await waitFor(
+      () => q('[data-testid="validation-run-not-here"]') !== null,
+      'the refusal to show another candidate’s run',
+    );
+    expect(q('[data-testid="validation-run-not-here"]')?.textContent).toBe(RUN_NOT_HERE);
+    expect(detail().querySelector('[data-testid="validation-coverage"]')).toBeNull();
+    expect(detail().textContent).not.toContain(DIGEST_READ);
   });
 
   it('an archived case: the run is inert with its reason; recorded runs stay listed; nothing is read or written', async () => {

@@ -2,7 +2,10 @@
 // is checked against (the artifact SHA-256, the current dependency digest of the prompt snapshot's
 // scope, the candidate's task, the prompt's mode and the ruleset), the action that records a run,
 // the run's result with its permanent qualifier, its coverage manifest and issues, and the recorded
-// runs of this candidate with their issues.
+// runs of this candidate. A recorded run, opened, is read back from the server by its id
+// (getValidationRun, TB-SCHEMA-API-v1.3.0) and shown exactly as stored — its result, coverage
+// manifest, dependency manifest, evaluated context and issues — never from what this page remembers,
+// never rebuilt from the current context and never re-evaluated.
 //
 // A run is a technical result only: the technical ruleset checks the stored artifact — exact text,
 // hashes, envelope and thread, document plan, internal markers — against the current recorded
@@ -23,6 +26,7 @@ import type {
 } from '@tb/contracts';
 import { ApiError } from '../api/client.js';
 import type { ContextQuery } from '../api/directory.js';
+import { useSession } from '../auth/session.js';
 import { Time } from '../directory/agencies.js';
 import { TASK_TYPE_LABEL } from '../directory/format.js';
 import { useDirectoryApi, useIntentKey, useLoad, useWrite } from '../directory/hooks.js';
@@ -33,6 +37,7 @@ import {
   Section,
   UnavailableAction,
 } from '../directory/ui.js';
+import { RecordedBy } from '../representation/authority-ui.js';
 import { CASE_ARCHIVED_READ_ONLY } from './intake-ui.js';
 import { allPages, MODE_LABEL } from './production-context.js';
 
@@ -88,7 +93,20 @@ const SUPERSEDED_NOTE =
 const RECIPIENT_NOTE =
   'Recipients are compared only with exact records (a reply’s parent message); whether a recipient is the right one is not assessed here.';
 const HISTORY_NOTE =
-  'Every run of this candidate stays readable exactly as recorded, also after the candidate is superseded. A run’s full coverage manifest is returned only when it is recorded — the contract offers no read of a stored run — so a recorded run shows its summary and its issues, which name every rule that was not executed.';
+  'Every run of this candidate stays readable exactly as recorded, also after the candidate is superseded. Open a run to read its stored record back from the server: its result, coverage manifest, dependency manifest, evaluated context and issues.';
+/** Opens one recorded run: it is read back from the server by its id, never from memory. */
+export const OPEN_RUN_LABEL = 'Open run';
+/** What a recorded run is: history, read back as stored — not a present-day check. */
+export const HISTORICAL_RUN_NOTE =
+  'Read back exactly as this run recorded it. Nothing was checked again: later changes to the case, its sources, its authority records or this candidate do not change a recorded run. Only a new run checks the context as it is now.';
+/** The evaluated context of a run (mission §13, verbatim). */
+export const HISTORICAL_CONTEXT_NOTE =
+  'Historical context captured by this validation run. It is not a current legal-status determination.';
+/** The dependency manifest of a run: recorded values, not resolved to present-day records. */
+export const DEPENDENCY_MANIFEST_NOTE =
+  'The records this run evaluated, with the row versions and fingerprints they had when it ran. They are not looked up again, and nothing here says whether they are current.';
+export const RUN_NOT_HERE =
+  'This run could not be shown here: it is not a recorded run of this candidate.';
 const ISSUE_PAGES = 10;
 
 /**
@@ -160,14 +178,16 @@ export function CandidateValidation({
           }}
         />
       )}
-      {latest !== null && <RunResult run={latest} fresh />}
+      {latest !== null && <RunRecord run={latest} focus recorded={false} />}
       <h3>Recorded runs of this candidate</h3>
       <p className="hint">{HISTORY_NOTE}</p>
       {runs.status === 'loading' && <LoadingNotice label="Loading validation runs…" />}
       {runs.status === 'error' && (
         <ErrorNotice error={runs.error} recordLabel="validation runs" onRetry={reloadRuns} />
       )}
-      {runs.status === 'ready' && <RunHistory runs={runs.value} />}
+      {runs.status === 'ready' && (
+        <RunHistory runs={runs.value} caseId={caseId} candidateId={candidate.id} />
+      )}
     </Section>
   );
 }
@@ -354,30 +374,57 @@ function RunValidation({
   );
 }
 
-/** One run: its result with the permanent qualifier, its values, coverage manifest and issues. */
-function RunResult({ run, fresh }: { run: ValidationRun; fresh: boolean }) {
+/**
+ * One run: its result with the permanent qualifier, its values, coverage manifest, dependency
+ * manifest and evaluated context, and its issues. `recorded` marks a run read back from the server
+ * (a recorded run of the history); otherwise it is the run this page has just recorded.
+ */
+function RunRecord({
+  run,
+  focus,
+  recorded,
+}: {
+  run: ValidationRun;
+  focus: boolean;
+  recorded: boolean;
+}) {
   const heading = useRef<HTMLHeadingElement>(null);
+  const { state: session } = useSession();
+  const currentUserId = session.status === 'authenticated' ? session.session.user.id : '';
   useEffect(() => {
-    if (fresh) heading.current?.focus();
-  }, [fresh, run.id]);
+    if (focus) heading.current?.focus();
+  }, [focus, run.id]);
   const coverage = run.coverageManifest;
+  // Nested under the history's heading, a recorded run's headings go one level deeper.
+  const Heading = recorded ? 'h4' : 'h3';
+  const Subheading = recorded ? 'h5' : 'h4';
   return (
     <div
       className={`validation-result validation-${run.result.toLowerCase()}`}
       data-testid="validation-result"
     >
-      <h3 ref={heading} tabIndex={-1} data-testid="validation-result-heading">
-        Technical validation result:{' '}
+      <Heading ref={heading} tabIndex={-1} data-testid="validation-result-heading">
+        {recorded ? 'Recorded technical validation result' : 'Technical validation result'}:{' '}
         <span data-testid="validation-result-label">{RESULT_LABEL[run.result]}</span>
-      </h3>
+      </Heading>
       <p className="context-boundary" role="note" data-testid="validation-qualifier">
         {TECHNICAL_QUALIFIER}
       </p>
+      {recorded && (
+        <p className="record-boundary" data-testid="validation-recorded-note">
+          {HISTORICAL_RUN_NOTE}
+        </p>
+      )}
       <p data-testid="validation-result-meaning">{RESULT_MEANING[run.result]}</p>
       <Details
         rows={[
-          ['Ruleset', <code>{run.rulesetVersion}</code>],
-          ['Artifact SHA-256', <code className="digest">{run.artifactSha256}</code>],
+          ['Ruleset', <code data-testid="validation-result-ruleset">{run.rulesetVersion}</code>],
+          [
+            'Artifact SHA-256',
+            <code className="digest" data-testid="validation-result-artifact">
+              {run.artifactSha256}
+            </code>,
+          ],
           [
             'Dependency digest evaluated',
             <code className="digest" data-testid="validation-result-digest">
@@ -386,15 +433,20 @@ function RunResult({ run, fresh }: { run: ValidationRun; fresh: boolean }) {
           ],
           ['Started', <Time iso={run.startedAt} />],
           ['Completed', <Time iso={run.completedAt} />],
+          ['Recorded', <Time iso={run.createdAt} />],
+          ['Recorded by', <RecordedBy userId={run.createdById} currentUserId={currentUserId} />],
           [
             'Issues',
-            `${run.blockerCount} blockers, ${run.reviewRequiredCount} review required, ${run.warningCount} warnings`,
+            <span data-testid="validation-result-counts">
+              {run.blockerCount} blockers, {run.reviewRequiredCount} review required,{' '}
+              {run.warningCount} warnings
+            </span>,
           ],
-          ['Run id', <code>{run.id}</code>],
+          ['Run id', <code data-testid="validation-result-id">{run.id}</code>],
         ]}
       />
       <div data-testid="validation-coverage">
-        <h4>Coverage manifest</h4>
+        <Subheading>Coverage manifest</Subheading>
         <Details
           rows={[
             [
@@ -418,14 +470,111 @@ function RunResult({ run, fresh }: { run: ValidationRun; fresh: boolean }) {
             ],
             [
               'Semantic review required',
+              // As recorded: the contract makes it always true.
               <span data-testid="validation-semantic-review">
-                Yes — this run performed no G1–G6 or legal review
+                {coverage.semanticReviewRequired
+                  ? 'Yes — this run performed no G1–G6 or legal review'
+                  : String(coverage.semanticReviewRequired)}
               </span>,
             ],
           ]}
         />
       </div>
+      <RecordedDependencies run={run} Subheading={Subheading} />
+      <RecordedContext run={run} Subheading={Subheading} />
       <IssueList runId={run.id} />
+    </div>
+  );
+}
+
+/** The run's dependency manifest as recorded: never resolved to the records as they are now. */
+function RecordedDependencies({
+  run,
+  Subheading,
+}: {
+  run: ValidationRun;
+  Subheading: 'h4' | 'h5';
+}) {
+  const dependencies = run.dependencyManifest;
+  return (
+    <div data-testid="validation-dependencies">
+      <Subheading>Dependency manifest ({dependencies.length} records, as evaluated)</Subheading>
+      <p className="hint">{DEPENDENCY_MANIFEST_NOTE}</p>
+      {dependencies.length === 0 ? (
+        <p className="absent" data-testid="validation-dependencies-none">
+          No dependency was recorded.
+        </p>
+      ) : (
+        <details data-testid="validation-dependencies-details">
+          <summary>Show the {dependencies.length} recorded dependencies</summary>
+          <div className="table-frame">
+            <table
+              className="records dependency-manifest"
+              data-testid="validation-dependency-manifest"
+            >
+              <caption>Dependencies as this run recorded them</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Record</th>
+                  <th scope="col">Id</th>
+                  <th scope="col">Row version</th>
+                  <th scope="col">Fingerprint</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dependencies.map((dependency) => (
+                  <tr
+                    key={`${dependency.entityType}:${dependency.entityId}`}
+                    data-testid="validation-dependency"
+                  >
+                    <th scope="row">{dependency.entityType}</th>
+                    <td>
+                      <code>{dependency.entityId}</code>
+                    </td>
+                    <td>
+                      {dependency.rowVersion === undefined || dependency.rowVersion === null ? (
+                        <span className="absent">None recorded</span>
+                      ) : (
+                        dependency.rowVersion
+                      )}
+                    </td>
+                    <td>
+                      <code className="digest">{dependency.fingerprint}</code>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </details>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The context the run evaluated, exactly as recorded, as inert text: never HTML, a link to follow or
+ * an instruction — recorded case text is data (it may quote untrusted correspondence).
+ */
+function RecordedContext({ run, Subheading }: { run: ValidationRun; Subheading: 'h4' | 'h5' }) {
+  return (
+    <div data-testid="validation-evaluated-context">
+      <Subheading>Evaluated context</Subheading>
+      <p className="context-boundary" role="note" data-testid="validation-context-note">
+        {HISTORICAL_CONTEXT_NOTE}
+      </p>
+      <details data-testid="validation-evaluated-context-details">
+        <summary>Show the evaluated context (stored data, as text)</summary>
+        {/* Scrollable, so it is focusable: keyboard users scroll it too. */}
+        <pre
+          className="captured-text evaluated-context"
+          data-testid="validation-evaluated-context-json"
+          tabIndex={0}
+          aria-label="Evaluated context, as recorded by this run"
+        >
+          {JSON.stringify(run.evaluatedContextJson, null, 2)}
+        </pre>
+      </details>
     </div>
   );
 }
@@ -537,8 +686,19 @@ function IssueList({ runId }: { runId: string }) {
   );
 }
 
-/** The recorded runs of this candidate (summaries), newest first; each shows its issues on request. */
-function RunHistory({ runs }: { runs: readonly ValidationRunSummary[] }) {
+/**
+ * The recorded runs of this candidate (summaries), newest first. Opening one reads it back from the
+ * server by its id (getValidationRun) and shows it exactly as stored, with its issues.
+ */
+function RunHistory({
+  runs,
+  caseId,
+  candidateId,
+}: {
+  runs: readonly ValidationRunSummary[];
+  caseId: string;
+  candidateId: string;
+}) {
   const [open, setOpen] = useState<string | null>(null);
   if (runs.length === 0) {
     return (
@@ -564,14 +724,55 @@ function RunHistory({ runs }: { runs: readonly ValidationRunSummary[] }) {
             type="button"
             className="button button-quiet"
             aria-expanded={open === run.id}
+            aria-controls={`validation-run-${run.id}`}
             onClick={() => setOpen(open === run.id ? null : run.id)}
-            data-testid="validation-history-toggle"
+            data-testid="validation-history-open"
           >
-            {open === run.id ? 'Hide issues' : 'Show issues'}
+            {open === run.id ? 'Close run' : OPEN_RUN_LABEL}
           </button>
-          {open === run.id && <IssueList runId={run.id} />}
+          {open === run.id && (
+            <div
+              id={`validation-run-${run.id}`}
+              className="validation-run-detail"
+              data-testid="validation-run-detail"
+            >
+              <RecordedRun runId={run.id} caseId={caseId} candidateId={candidateId} />
+            </div>
+          )}
         </li>
       ))}
     </ul>
   );
+}
+
+/**
+ * One recorded run, read back from the server by its id every time it is opened — never taken from
+ * what this page remembers of a run it recorded. A run of another candidate or case is not shown.
+ */
+function RecordedRun({
+  runId,
+  caseId,
+  candidateId,
+}: {
+  runId: string;
+  caseId: string;
+  candidateId: string;
+}) {
+  const api = useDirectoryApi();
+  const [state, reload] = useLoad(`validation-run:${runId}`, () =>
+    api.cases.candidates.validation.get(runId),
+  );
+  if (state.status === 'loading') return <LoadingNotice label="Reading the recorded run…" />;
+  if (state.status === 'error') {
+    return <ErrorNotice error={state.error} recordLabel="validation run" onRetry={reload} />;
+  }
+  const run = state.value;
+  if (run.id !== runId || run.candidateId !== candidateId || run.caseId !== caseId) {
+    return (
+      <p className="notice notice-error" role="alert" data-testid="validation-run-not-here">
+        {RUN_NOT_HERE}
+      </p>
+    );
+  }
+  return <RunRecord run={run} focus recorded />;
 }

@@ -247,6 +247,12 @@ export class FakeDirectory {
    * the issues the server would store. Default: TECHNICAL_PASS with every rule executed.
    */
   validationOutcome: ValidationOutcome = passingValidation();
+  /**
+   * Holds getValidationRun replies (TB-SCHEMA-API-v1.3.0) until `releaseRunReads()`: proves that the
+   * page shows a recorded run only from what it read back, never from what it remembers.
+   */
+  holdRunReads = false;
+  private readonly heldRunReads: Array<() => void> = [];
   /** First results of correspondence and prompt writes by Idempotency-Key (a retry replays them). */
   private readonly replays = new Map<string, { body: string; response: Record<string, unknown> }>();
   /** The next correspondence write is recorded, but its reply is lost (a 500 reaches the page). */
@@ -723,6 +729,9 @@ export class FakeDirectory {
     }
     if (collection === 'candidates' && id && action === 'validation-runs' && !childId) {
       return this.validationRunsRequest(method, id, url, headers, body);
+    }
+    if (collection === 'validation-runs' && id && action === undefined) {
+      return method === 'GET' ? this.validationRunRequest(id) : failure(404, 'NOT_FOUND');
     }
     if (collection === 'validation-runs' && id && action === 'issues' && !childId) {
       return method === 'GET' ? this.validationIssuesRequest(id, url) : failure(404, 'NOT_FOUND');
@@ -1449,6 +1458,21 @@ export class FakeDirectory {
     return this.idempotent(headers, body, () =>
       this.recordValidation(candidate, body as Record<string, unknown>),
     );
+  }
+
+  /** getValidationRun: the stored run exactly as recorded (404 for an unknown id). */
+  private validationRunRequest(runId: string): Response | Promise<Response> {
+    const run = this.validationRuns.find((row) => row.id === runId);
+    if (!run) return failure(404, 'NOT_FOUND');
+    const reply = () => json(200, { data: run, meta: { requestId: 'r', affectedResources: [] } });
+    if (!this.holdRunReads) return reply();
+    return new Promise((resolve) => this.heldRunReads.push(() => resolve(reply())));
+  }
+
+  /** Answers every held getValidationRun request (and stops holding new ones). */
+  releaseRunReads(): void {
+    this.holdRunReads = false;
+    for (const release of this.heldRunReads.splice(0)) release();
   }
 
   private validationIssuesRequest(runId: string, url: URL): Response {

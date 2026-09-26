@@ -1655,3 +1655,18 @@ code.hash {
 .validation-history .digest {
   overflow-wrap: anywhere;
 }
+
+/* A recorded run opened from the history (TB-SCHEMA-API-v1.3.0): read back as stored, its dependency
+   manifest and evaluated context are history — collapsed, the context as inert, scrollable text. */
+.validation-run-detail {
+  margin-top: 0.5rem;
+}
+
+.dependency-manifest code {
+  overflow-wrap: anywhere;
+}
+
+.evaluated-context {
+  max-height: 36rem;
+  overflow: auto;
+}
