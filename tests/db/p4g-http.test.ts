@@ -1651,7 +1651,7 @@ describe('P4G recorded context, preparation, drift and history', () => {
     expect((await listRuns(p.candidate.id)).items.map((item) => item.id)).toEqual([run.id]);
   });
 
-  it('lists: a candidate’s runs newest first as summaries, paged; q exactly an id, digest or result; issues in the ruleset’s order, paged, q exactly an id, rule, severity or kind; 404 for an unknown candidate or run', async () => {
+  it('lists: a candidate’s runs newest first as summaries, only its own, paged; q exactly an id, digest or result; issues in the ruleset’s order, paged, q exactly an id, rule, severity or kind; 404 for an unknown candidate or run', async () => {
     const p = await promptWorld();
     const candidate = await importCandidate(
       p.caseId,
@@ -1660,6 +1660,16 @@ describe('P4G recorded context, preparation, drift and history', () => {
     const first = await validate(candidate, p.prompt);
     t.clock.advance(1000);
     const second = await validate(candidate, p.prompt);
+    // A later run of another candidate of the same case is never listed with this one.
+    const other = await importCandidate(p.caseId, draft(p.prompt));
+    t.clock.advance(1000);
+    const otherRun = await validate(other, p.prompt);
+    expect((await listRuns(candidate.id)).items.map((item) => item.id)).toEqual([
+      second.run.id,
+      first.run.id,
+    ]);
+    expect((await listRuns(other.id)).items.map((item) => item.id)).toEqual([otherRun.run.id]);
+    expect((await listRuns(candidate.id, `?q=${otherRun.run.id}`)).items).toHaveLength(0);
     const pageOne = await listRuns(candidate.id, '?limit=1');
     expect(pageOne.items.map((item) => item.id)).toEqual([second.run.id]);
     expect(Object.keys(pageOne.items[0] ?? {}).sort()).toEqual(
