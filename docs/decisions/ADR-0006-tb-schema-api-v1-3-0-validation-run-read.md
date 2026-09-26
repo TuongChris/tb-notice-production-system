@@ -4,6 +4,7 @@ Status: **PROPOSED** — 2026-09-26, with the R14 remediation (mission TB_R14_PO
 Acceptance boundary: an engineering contract change only. It creates no legal or factual authority, no finding, no review, no G1–G7 decision and no readiness implication.
 Scope: `packages/contracts/src/**` (one schema, one operation, the document version, the release constant), the generated artifacts `packages/contracts/{schemas,openapi}/**`, the release record `docs/contracts/TB-SCHEMA-API-v1.3.0/`, the parity tests `tests/contracts/**`, and the API/UI that implement the read.
 Related: ADR-0002 §6 (an intentional wire change needs a new approved baseline: release + ADR), ADR-0004 and ADR-0005 (the releases this one extends and the pattern it follows), API_CONTRACT_v1 §6 (ETags for mutable resources only) and §11 ("Full bodies/manifests are fetched through detail endpoints"), P4G report §29–§30 (V13, the gap).
+Verification: P4G report §35 — implemented on `feature/r14-validation-run-readback` (code head `31df6d7`); tests, browser pass, negative controls, regression sweep and CI recorded there and in `docs/verification/p4g/evidence/r14-*`; the R14 result and the P4G merge in §34.
 
 ## Context
 

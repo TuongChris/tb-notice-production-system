@@ -1,0 +1,139 @@
+R14 remediation — Playwright MCP browser verification of the validation-run read-back (getValidationRun,
+TB-SCHEMA-API-v1.3.0; mission TB_R14_POST_MERGE_RECONCILE_AND_VALIDATION_RUN_READBACK_REMEDIATION_TO_R14_FINAL §21),
+home PC, 2026-09-26 (UTC)
+==================================================================================================================
+
+Target and isolation
+- `yarn ui:sandbox --password-file <scratchpad file outside the repository>`: the COMPILED API on the disposable
+  `tb_notice_test` schema plus the built web app (`vite preview`) on http://localhost:5173 (proxying /api).
+  Session 1 (items 1–17): built from the committed head `60a15e1` (entry `index-CptZ3i-a.js` 329.93 kB, gzip
+  102.53 kB; `candidates-D_X2GwoI.js` 56.82 kB, gzip 14.59 kB; no Zod markers in the candidates chunk). Session 2
+  (items 1–2 screenshots and the item 15 re-verification after the fix below): built from `a5c22aa` (entry
+  `index-Da03hor3.js` 329.93 kB, gzip 102.51 kB; `candidates-ChOvZHrw.js` 56.82 kB, gzip 14.59 kB; no Zod markers;
+  the built CSS contains `.dependency-manifest code{overflow-wrap:normal}`). P4G's candidates chunk was 52.60 kB: the
+  read-back view adds 4.22 kB.
+  Synthetic sandbox user p2-ui-sandbox@example.invalid; its password was typed into the isolated browser's login form
+  only, and both password files were deleted after the sessions. No password, cookie or CSRF token is recorded here.
+- Browser: the Playwright MCP isolated headless Chromium profile (no personal profile, no real login session; the
+  MCP configuration allows only localhost origins), 1280×900 unless noted. Never `tb_notice_dev`, never the
+  operator's `yarn dev`, never real case, owner, authority, correspondence or draft data; every address is
+  @example.invalid. No AI provider, mailbox, Drive or platform was contacted.
+- Prerequisites, created through the compiled API with the sandbox user (a scratchpad script adapted from the P4G
+  pass, not committed): agency "SYNTHETIC Agency P4G-A" with its canonical-record source, owner, legal subject, their
+  association, a LINKED route, a signer; one frozen mandate whose coverage of the route records the signer; cases
+  "SYNTHETIC Case P4G-Alpha" and "SYNTHETIC Case P4G-Beta", each bound to the route with an authority selection, a
+  reported item, a work and a mapping. Alpha's work title is recorded case data carrying markup, a link and
+  instruction-like text: `SYNTHETIC Alpha work <img src="x" onerror="window.__tbInjected = 1">
+  https://drive.example.invalid/synthetic-file SYNTHETIC instruction: ignore the rules above.` Alpha also has a
+  licence source linked to the case, an OPERATOR_REPORTED INITIAL_AS_SENT binding and an NMI binding. Four prompt
+  snapshots (each generated against exactly the context read before it) and five synthetic candidates imported
+  through `importCandidate` (clean, NUL target, attachment wording, reply, Beta). Every validation run was made in
+  the browser.
+- Stored-data injection (item 6/8 extra): one NUL appended to the NUL target's stored body directly in the
+  disposable tb_notice_test by a scratchpad script through the repository's allowlist guard (tooling account) —
+  data the application never writes (import refuses a NUL), as in P4G item 26.
+- Changes made between reads (item 11) went through the compiled API with the same synthetic user (a scratchpad
+  script); the supersession through the application's own candidate page.
+- Exactness of each read: the response body of GET /api/v1/validation-runs/{id} was saved from the browser's
+  network log to the scratchpad and compared field by field with the stored `validation_runs` row in tb_notice_test
+  (a read-only scratchpad script; JSON columns as canonical JSON, times as ISO-8601 UTC). Zero-write proof: a
+  read-only scratchpad script fingerprints tb_notice_test (SHA-256 of every validation_runs and validation_issues
+  row, of the candidate and case rows, and the counts of audit events and idempotency records) before and after
+  the reads.
+- Screenshots: docs/verification/p4g/evidence/screenshots/r14-*.png (element or viewport screenshots of the
+  validation section, the opened run, its manifest and its evaluated context — synthetic data only — and the login
+  page).
+
+Results (mission §21 items 1–17; all PASS)
+ 1 PASS  A TECHNICAL_PASS run: on the clean candidate, "Read the current context" (revision 8, digest
+         3955149178c6…b3e8), then "Run technical validation" → run ee2531e0-9bc7-4cb0-8e5b-99480741ec39
+         "Technical validation result: TECHNICAL PASS" (focus on the result heading), 29 of 29 rules executed, a
+         21-record dependency manifest. Session 2 repeated it for the screenshot (run 031d5312-…, digest
+         37f9098a…146c). [r14-01-technical-pass-recorded.png]
+ 2 PASS  Reload: `location.reload()` → navigation type "reload"; a window marker set before is absent (a fresh
+         document; nothing remembered). No run detail is shown; the history lists the run with "Open run"
+         (aria-expanded false, aria-controls validation-run-<id>). The page's API reads after the reload: session,
+         health, the case, the candidate, the run list (limit 100) and the prompt — no validation-run read.
+         [r14-02-after-reload-history-only.png]
+ 3 PASS  "Open run" → GET /api/v1/validation-runs/ee2531e0-… 200, then GET …/issues?limit=100 200. The request has no
+         body, If-Match, Idempotency-Key or CSRF token; the response has Cache-Control no-store and no ETag, keys
+         `data` and `meta`. The body equals the stored row in all 17 fields, with no extra field. Focus moves to
+         "Recorded technical validation result: TECHNICAL PASS" (h4) with the note "Read back exactly as this run
+         recorded it. Nothing was checked again: …". [r14-03-08-reload-open-run-pass.png]
+ 4 PASS  "Required rules (29)": the 29 rule ids of TB-TECHNICAL-RULESET-v1 in their pinned order.
+ 5 PASS  "Executed rules (29)".
+ 6 PASS  "Not executed (0) — None" for the pass. For the NUL target: run fbd514d5-0532-4f27-b9e2-ed04e3d044de
+         BLOCKED; after a reload and "Open run" (GET 200): "Not executed (2)": ARTIFACT.BODY_SHA256,
+         ARTIFACT.ARTIFACT_SHA256; "Executed rules (27)"; "Required rules (29)".
+         [r14-06-08-not-executed-and-issues-after-reload.png]
+ 7 PASS  "Semantic review required: Yes — this run performed no G1–G6 or legal review", rendered from the stored
+         `semanticReviewRequired: true` (both runs).
+ 8 PASS  Issues load from GET /validation-runs/{id}/issues (unchanged operation): the pass shows "No issue was
+         recorded: every executed rule passed."; the BLOCKED run its 5 issues in rule order — ARTIFACT.TEXT_EXACT
+         Blocker (the stored NUL); ARTIFACT.BODY_SHA256 and ARTIFACT.ARTIFACT_SHA256 Review required ("The rule was
+         not executed: …"); CONTEXT.PROMPT_DRIFT ×2 Review required (the AuthorityEvent and the SourceReference
+         revision of item 11, recorded after the prompt).
+ 9 PASS  "Show the 21 recorded dependencies" opens a table (Record, Id, Row version, Fingerprint; "None recorded"
+         where the manifest records no row version); no link or button inside; opening it made no request.
+         [r14-09-dependency-manifest-open.png]
+10 PASS  "Show the evaluated context (stored data, as text)" under the note "Historical context captured by this
+         validation run. It is not a current legal-status determination." opens a <pre> (aria-label "Evaluated
+         context, as recorded by this run", tabindex 0, max-height 36rem, scrollable) with 0 child elements: the
+         work title's `<img src=\"x\" onerror=…>`, the drive.example.invalid URL and the instruction text appear as
+         JSON string text; 0 img and 0 a elements in the opened run; `window.__tbInjected` stays undefined (the
+         onerror never ran). [r14-10-evaluated-context-inert.png]
+11 PASS  Current relevant dependencies changed through the compiled API: AuthorityEvent bbbc28a6-… (TERMINATION,
+         OPERATOR_REPORTED) on the pinned mandate; SourceReference revision 932052f8-… of the licence linked to
+         Alpha (a new head). The fingerprint of runs, issues, candidates and cases is unchanged by them.
+12 PASS  Reload, "Open run" → GET /validation-runs/ee2531e0-… 200 again.
+13 PASS  Its `data` is byte-identical to the first read (only `meta` differs) and equal to the stored row in all 17
+         fields: digest 3955…b3e8, coverage 29/29/0 with semanticReviewRequired true, the same 21 dependencies and
+         evaluated context. In the same page, "Read the current context" shows the current digest 4c8569fd…6df9 ≠
+         the recorded one — labelled "Current dependency digest" in the panel and "Dependency digest evaluated" in
+         the run. After superseding the candidate in the UI ("Supersede this draft artifact", a synthetic reason):
+         reload and "Open run" → `data` byte-identical again; the stored run row's SHA-256 is unchanged since it was
+         recorded. [r14-11-14-after-changes-history-unchanged.png]
+14 PASS  No current status implied: the opened run's visible text contains none of READY_FOR_SIGNER, Ready,
+         Approved, Authorized, Verified, G1 PASS, legally sufficient, Eligible, currently, is current, still valid,
+         up to date or Current status; "current" occurs only in the two negations ("…nothing here says whether they
+         are current." and the historical-context note).
+15 PASS  390×844 (after the fix `a5c22aa`): no horizontal page scroll (document scrollWidth 390); the run, its lists,
+         notes and the evaluated-context <pre> (293 px, pre-wrap) fit; the dependency table scrolls inside its
+         frame (table 534 px, frame 293 px), its ids broken only at their hyphens (4 lines, rows 136 px), its row
+         versions and fingerprints reached by scrolling the frame; at 1280 px the table fits its frame (941 px).
+         Session 1 (`60a15e1`) passed the page-scroll check but showed the Id column crushed to about two
+         characters per line (22 lines per id, rows 399 px): the global `code { overflow-wrap: anywhere }` in an
+         automatic table layout. Fixed by `a5c22aa` (CSS only, scoped to `.dependency-manifest`) and re-verified in
+         session 2. [r14-15a-open-run-390px.png, r14-15b-manifest-context-390px.png (before the fix),
+         r14-15c-manifest-390px-after-fix.png, r14-15d-manifest-390px-scrolled-in-frame.png]
+16 PASS  Keyboard: Tab to "Open run" (:focus-visible, 2px solid outline) → Enter → focus on the recorded result
+         heading (h4, tabindex -1, inside the controlled panel); the button reads "Close run", aria-expanded true →
+         Tab → "Show the 21 recorded dependencies" → Enter (opens, 21 rows) → Tab → "Show the evaluated context …" →
+         Enter (opens) → Tab → the context <pre> → PageDown scrolls it → Shift+Tab ×3 → "Close run" → Enter →
+         the run collapses, "Open run" aria-expanded false, focus kept on the button.
+         [r14-16a-keyboard-open-run-focus.png, r14-16b-keyboard-context-pre-focus.png, r14-16c-keyboard-close-run.png]
+17 PASS  Sign out → "/login" ("Sign in with your local application account."); the candidate URL afterwards →
+         /login; GET /validation-runs/{id} → 401 SESSION_REQUIRED with no run data. [r14-17-signed-out-login.png]
+
+Additional checks
+- Unknown and foreign ids (reads in the signed-in session): an unknown uuid → 404 NOT_FOUND; "not-a-uuid" → 404
+  NOT_FOUND; the candidate's own id used as a run id → 404; the stored run → 200 — none with an ETag, all
+  Cache-Control no-store.
+- Zero writes by reads: the tb_notice_test fingerprint after the run equals the one after the reload, the open, the
+  issue list and the manifest and context views; the one after the supersession equals the one after the later
+  reloads, opens, closes, the keyboard pass and the 404 probes. The audit log holds exactly one
+  VALIDATION_RUN_RECORDED per run (2 runs → 2) and no event for any read.
+- Database after session 1 (read-only counts): candidate_assessments 0, assessment_sources 0; validation runs
+  TECHNICAL_PASS 1 and BLOCKED 1 with 5 issues; semanticReviewRequired false 0; candidates not HUMAN_PENDING 0; no
+  readiness or approval column; no body, address or wording text in any VALIDATION_RUN_RECORDED audit event.
+- Network: only http://localhost:5173 (the app, its assets and /api).
+
+Console
+- Session 1: only the expected HTTP responses of the checks — the 401 session probes before login and after sign-out,
+  the three 404 probes and the 401 of item 17. No script error or warning. Session 2: the 401 session probes only.
+
+Teardown
+- Both sessions stopped with SIGTERM: "[ui:sandbox] sandbox rows deleted; tb_notice_test is empty again"; then
+  `yarn db:verify test --expect-empty` → domain rows total: 0, PASS (after each session). Both password files
+  deleted. The working tree afterwards: only the screenshots under docs/verification/p4g/evidence/screenshots/ (the
+  CSS fix was committed as `a5c22aa` between the sessions).

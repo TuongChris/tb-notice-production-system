@@ -2,7 +2,9 @@
 
 Mission **TB_R13_CLOSEOUT_MERGE_AND_P4G_TECHNICAL_VALIDATION_TO_R14**, steps 9–11. Branch `feature/p4g-technical-validation`, created from the exact post-P4F `main` `5aa9248` (merge commit of PR #9), with the post-R13 checkpoint `b71a2e0` (documentation only). P4G implements **three** contracted operations — `validateCandidate`, `listValidationRuns` and `listValidationIssues` — and the technical-validation section of the candidate page.
 
-**Submitted for review gate R14 (PENDING).** No P4G pull request or merge. No CandidateAssessment, G1–G6 review, readiness, READY_FOR_SIGNER, unsigned export, G7, signature, sending, mailbox, Drive or AI-provider action exists.
+**R14 result (operator, 2026-09-26): PASS_WITH_ONE_CONTRACT_REMEDIATION.** P4G is functionally accepted: interpretations V1–V12 and `ENVELOPE.REPLY_RECIPIENT` are ACCEPTED, and V13 is a CONFIRMED CONTRACT READ-BACK GAP (no contracted `GET /validation-runs/{id}`, §30). It is remediated by the mission TB_R14_POST_MERGE_RECONCILE_AND_VALIDATION_RUN_READBACK_REMEDIATION_TO_R14_FINAL (2026-09-26) on `feature/r14-validation-run-readback`: the additive contract release **TB-SCHEMA-API-v1.3.0** (ADR-0006, PROPOSED) and its one new read, `getValidationRun` (§35). The remediation is submitted for **R14 final (PENDING)**. Until the operator's final review, R14 stays **PASS_WITH_ONE_CONTRACT_REMEDIATION** and V13 is **REMEDIATION_IMPLEMENTED_PENDING_R14_FINAL_REVIEW**.
+
+**Merged (2026-09-26, by the operator):** `P4G = MERGED_TO_MAIN` (`MERGED_TO_MAIN_FOR_IMPLEMENTED_SCOPE`) — pull request #10, merge commit `c73cbda` (parents `5aa9248` and the R14 submission head `6fc5605`); `main` push CI run 36242994330 success. `P4G_IMPLEMENTATION = VERIFIED_FOR_IMPLEMENTED_SCOPE` (§34). No CandidateAssessment, G1–G6 review, readiness, READY_FOR_SIGNER, unsigned export, G7, signature, sending, mailbox, Drive or AI-provider action exists.
 
 Persistent rules (they stay in force; `CLAUDE.md` carries them):
 
@@ -20,15 +22,16 @@ Persistent rules (they stay in force; `CLAUDE.md` carries them):
 |---|---|
 | R13 closeout, merge and branch (steps 1–8) | **DONE** — R13 = PASS recorded (`85d0aed`); P4F merged to `main` by PR #9 (merge commit `5aa9248`); post-merge `main` CI green; branch created from `5aa9248`; checkpoint `b71a2e0` (`P4F_NOTICE_CANDIDATE.md` §28–§29; §2) |
 | P4G implementation (step 9) | **IMPLEMENTED** on `feature/p4g-technical-validation` — code head `608800e` (§3) |
-| P4G home-PC automated tests | **PASS** — `yarn test` 1515 in 48 files and `yarn test:db` 520 in 14 files on the code head `608800e`; P4G: 36 rule-engine and 3 WriteExecutor unit tests, 11 web, 26 DB (§26) |
+| P4G home-PC automated tests | **PASS** — `yarn test` 1515 in 48 files and `yarn test:db` 520 in 14 files on the code head `608800e`; P4G: 36 rule-engine and 3 WriteExecutor unit tests, 11 web, 26 DB (§26). R14 remediation: `yarn test` 1532 in 49 files, `yarn test:db` 526 in 14 files on `31df6d7` (§35.6) |
 | Consistency / transaction tests | **PASS** — capture in one REPEATABLE READ snapshot, the ruleset outside any lock, one short SERIALIZABLE commit with the rechecks: a change committed after the capture is 412 with nothing written, a dependency write that never locks the case waits for the commit, an audit failure rolls back the run, its issues and the idempotency record (DB tests; negative controls NC-P4G-18, -19, -20) (§6) |
-| Browser verification (Playwright MCP, `tb_notice_test`) | **PASS** 32/32 — two sandbox sessions; one finding (F1) fixed in `3b56a41` and re-verified; limitations L1–L4 (§24) |
-| Negative controls | **PASS** 33/33 in the final run on `608800e` — all 22 control kinds of mission §43 plus 11 further; 60 responsible commands, each failing on an AssertionError (§25) |
-| Full regression (mission §48) | **PASS** — 21/21 steps exit 0 on the code head `608800e` (§26) |
-| Exact final branch CI | **PASS** for the code head `608800e` — push run 36233916154, both jobs success; the run of this record's own commit (the R14 submission head, documentation only) is reported with the R14 report, since a commit cannot record its own run (§26) |
-| Schema / migration | **No change** (§28) |
-| Wire contract | **No change** — TB-SCHEMA-API-v1.2.0 (§29) |
-| R14 review | **PENDING** |
+| Browser verification (Playwright MCP, `tb_notice_test`) | **PASS** 32/32 — two sandbox sessions; one finding (F1) fixed in `3b56a41` and re-verified; limitations L1–L4 (§24). R14 read-back **PASS** 17/17 — one finding (the 390 px dependency table) fixed in `a5c22aa` and re-verified (§35.8) |
+| Negative controls | **PASS** 33/33 in the final run on `608800e` — all 22 control kinds of mission §43 plus 11 further; 60 responsible commands, each failing on an AssertionError (§25). R14 remediation **PASS** 24/24 on `31df6d7` — the 11 mandatory kinds plus 13 further; 32 commands, each failing on an AssertionError (§35.9) |
+| Full regression (mission §48) | **PASS** — 21/21 steps exit 0 on the code head `608800e` (§26). R14 remediation 21/21 on `31df6d7` (§35.10) |
+| Exact final branch CI | **PASS** for the code head `608800e` — push run 36233916154, both jobs success; the R14 submission head `6fc5605` — push run 36234677791 success. R14 remediation code head `31df6d7` — push run 36248642530, both jobs success (§35.10); the run of the remediation's documentation head is reported with the R14-final report |
+| Schema / migration | **No change** (§28; the R14 remediation made none either, §35.11) |
+| Wire contract | **No change in P4G** — TB-SCHEMA-API-v1.2.0 (§29). The R14 remediation adds the additive release **TB-SCHEMA-API-v1.3.0** (one read, one envelope schema; ADR-0006 **PROPOSED**, §35.3) |
+| R14 review | **PASS_WITH_ONE_CONTRACT_REMEDIATION** (operator, 2026-09-26) — V1–V12 and `ENVELOPE.REPLY_RECIPIENT` ACCEPTED; V13 **REMEDIATION_IMPLEMENTED_PENDING_R14_FINAL_REVIEW** on `feature/r14-validation-run-readback`, submitted for **R14 final (PENDING)** (§34, §35) |
+| P4G status / merge | **MERGED_TO_MAIN_FOR_IMPLEMENTED_SCOPE** — pull request #10, merge commit `c73cbda` (merge commit method; 2026-09-26T12:46:40Z); `main` push CI run 36242994330 success; `P4G_IMPLEMENTATION = VERIFIED_FOR_IMPLEMENTED_SCOPE`. The R14 remediation is **not merged** (§34) |
 
 ## 1. Operation matrix and design (contract-first)
 
@@ -358,3 +361,302 @@ None. No schema change, contract change, legal approval, credential or external 
 ## 33. Proposed next phase (not started)
 
 **CandidateAssessment (G1–G6 substantive review records)** — `captureCandidateAssessment` and `listCandidateAssessments` exactly as contracted in TB-SCHEMA-API-v1.2.0: human-performed, sourced assessments of one exact artifact (G1 authority through G6 human adoption), each bound to its artifact and dependency digest; a technical pass stays separate and decides none of them. Readiness (`getCandidateReadiness`, READY_FOR_SIGNER derived) and the unsigned export come after it. Not started; it needs its own approved mission. Signing, sending and G7 never exist in the application.
+
+## 34. R14 result and merge reconciliation (2026-09-26, home PC)
+
+Mission TB_R14_POST_MERGE_RECONCILE_AND_VALIDATION_RUN_READBACK_REMEDIATION_TO_R14_FINAL, §0–§3. Recorded on `feature/r14-validation-run-readback`. Sections 1–33 keep the state at their time (the R14 submission).
+
+### 34.1 Result (operator)
+
+| Item | Recorded value |
+|---|---|
+| **R14** | **PASS_WITH_ONE_CONTRACT_REMEDIATION** (2026-09-26) — P4G functionally accepted; the one gap is V13 (§30) |
+| Interpretations (§30) | V1–V12 **ACCEPTED**; `ENVELOPE.REPLY_RECIPIENT` **ACCEPTED**; V13 **CONFIRMED CONTRACT READ-BACK GAP** — there is no contracted `GET /validation-runs/{id}`, so after a reload the exact stored dependency manifest, evaluated context and coverage manifest (required, executed and not-executed rule ids, `semanticReviewRequired`) and the other full ValidationRun fields cannot be read back from the API |
+| Remediation | Directed: the smallest additive historical read, `GET /validation-runs/{id}` (`getValidationRun`), returning the unchanged `ValidationRun`, in the additive release TB-SCHEMA-API-v1.3.0 with ADR-0006 — implemented in §35 and submitted for **R14 final (PENDING)** |
+| **P4G** | **MERGED_TO_MAIN** (`MERGED_TO_MAIN_FOR_IMPLEMENTED_SCOPE`); `P4G_IMPLEMENTATION = VERIFIED_FOR_IMPLEMENTED_SCOPE` (the three contracted validation operations). P4G is not recorded as VERIFIED_COMPLETE, and R14 not as PASS, until the operator accepts the remediation at R14 final |
+| **V13** | **REMEDIATION_IMPLEMENTED_PENDING_R14_FINAL_REVIEW** (§35) |
+| Constraints | The merged `feature/p4g-technical-validation` takes no remediation commit and is neither rewritten nor force-pushed; no CandidateAssessment, readiness, export, signing or sending |
+
+### 34.2 Merge reconciliation (verified with `git` and authenticated `gh`, not assumed)
+
+| Item | Observed value |
+|---|---|
+| `P4G_SUBMITTED_HEAD` | `6fc5605db61c5f15798b0ba3abc03e293b8a6a32` — the R14 submission (documentation on the code head `608800e`); push run [36234677791](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36234677791) success (2026-09-26T10:04:31Z–10:12:56Z, both jobs) |
+| Pull request | [#10](https://github.com/TuongChris/tb-notice-production-system/pull/10) `feature/p4g-technical-validation` → `main`, "Feature/p4g technical validation", 11 commits, `headRefOid` = `6fc5605`; opened 2026-09-26T12:15:37Z and merged 12:46:40Z by the repository owner's account. Its pull_request run [36241362949](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36241362949) succeeded before the merge (12:15:42Z–12:23:58Z) |
+| `P4G_MERGE_METHOD` | **merge commit** (not squash, not rebase): `c73cbda` has two parents, `5aa9248` (previous `main`) and `6fc5605`; message "Merge pull request #10 from TuongChris/feature/p4g-technical-validation"; committed through GitHub 2026-09-26T19:46:39+07:00 |
+| `P4G_MERGED_MAIN_HEAD` | `c73cbdad1fe5d09813525930b4df9ed9123fd9de` |
+| Ancestry / content | `git merge-base --is-ancestor 6fc5605 origin/main` exits 0. `5aa9248` is an ancestor of `6fc5605` (the branch started there), so the merge introduced nothing else: the trees of `c73cbda` and `6fc5605` are identical (`b4322b193d9f7d18e19af4eb39a897fa59bd16db`), and `git log 6fc5605..origin/main` lists only the merge commit |
+| `MAIN_POST_P4G_CI` | **PASS** — push run [36242994330](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36242994330) on `c73cbda`, 2026-09-26T12:46:42Z–12:54:53Z. At the operator's review it was still in progress; before any remediation step it was verified completed with both jobs success (mission §1): "Non-DB checks (cold install)" (job 108406905313, 12:46:45Z–12:49:11Z) and "Database, seed and smoke (MySQL 8.4.11)" (job 108406905408, 12:46:45Z–12:54:52Z) — `reference:check` OK and the 27 helper tests, `contracts:check` OK, lint "Found 0 warnings and 0 errors.", `yarn test` 1515 / 48 files, `yarn test:db` 520 / 14 files, migration replay and metadata verification, the seed digest unchanged, both drift diffs empty, `smoke:local` 61, `smoke:auth` 4, `smoke:directory` 14, `smoke:p3a` 24, `smoke:p3b` 36, `smoke:p4a` 50, `smoke:p4b` 64, `smoke:p4c` 62, `smoke:p4d` 87, `smoke:p4e` 84, `smoke:p4f` 90, `smoke:p4g` 86, `yarn dev` clean shutdown 4/4 (`evidence/r14-ci-run-36248642530.txt` §0) |
+
+Nothing was amended, rebased, rewritten or force-pushed, and no tag or release was created. `feature/p4g-technical-validation` stays at `6fc5605`. The local `main` branch was not updated (it stays at `5aa9248`); the remediation branch was created from `origin/main` (`c73cbda`). No commit was made on `main`.
+
+## 35. R14 remediation — ValidationRun read-back (TB-SCHEMA-API-v1.3.0)
+
+Mission TB_R14_POST_MERGE_RECONCILE_AND_VALIDATION_RUN_READBACK_REMEDIATION_TO_R14_FINAL, 2026-09-26 (UTC), home PC. Submitted for **R14 final (PENDING)**: no merge of the remediation and no later phase.
+
+### 35.1 Scope and branch
+
+- **Directed** (R14 result): the smallest additive historical read, `GET /validation-runs/{id}` (`getValidationRun`), returning the existing `ValidationRun` in `{data, meta}`, in the new additive release TB-SCHEMA-API-v1.3.0 with ADR-0006, composed on the accepted v1.2.0.
+- **Never edited:** the frozen v1.0.0 pack (`docs/reference/**`), the accepted v1.1.0 and v1.2.0 records, and ADR-0004 and ADR-0005. `PFC-YT-EMAIL-v1.1` and `TB-TECHNICAL-RULESET-v1` are unchanged (no rule semantics change), and no pre-existing operation or schema changed.
+- **Excluded, and not used:** AuditEvent parsing, client-remembered POST responses, database queries from the UI, uncontracted fields in the summary or the issue list, and rebuilding a run from present-day state or by re-running the ruleset.
+- **Branch.** `feature/r14-validation-run-readback`, created from the exact `origin/main` `c73cbda` once its CI was green (not from `feature/p4g-technical-validation`) and pushed with upstream.
+  - At creation, local and origin pointed at `c73cbda` and the worktree was clean.
+  - Branch-creation push run [36244685180](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36244685180): success, both jobs (13:17:46Z–13:26:02Z).
+
+### 35.2 The new operation (exact)
+
+| Item | Value |
+|---|---|
+| operationId | `getValidationRun` (tag `Validation`) |
+| Method and path | GET `/validation-runs/{id}` — path parameter `id` (uuid, 36 characters), the run id already used by `listValidationIssues` (`/validation-runs/{id}/issues`) |
+| Request | none (no body, no query) |
+| Success | 200 `GetValidationRunResponse` = `{ data: ValidationRun, meta: ResponseMeta }` (strict), the same shape as `ValidateCandidateResponse` |
+| Read model | the unchanged v1.0.0 `ValidationRun` — no new semantic schema |
+| Errors | 400/401/403/404/409/413/422/429/500 (those of `getCandidate` and `getPrompt`) |
+| Security | session cookie; `x-precondition-target: null`; `x-idempotent-write: false` |
+| ETag / If-Match / Idempotency-Key | none / none / none — a read of an immutable record; nothing is mutated |
+
+**Naming and shape follow the contract's conventions** (ADR-0006 §2–§3).
+- It is a `get*` by id like `getPrompt` and `getCandidate`, and returns one record, not a page.
+- Every operation with a response body has its own `<OperationId>Response` envelope; in v1.2.0 that is 134 operations, none sharing one. So the only added schema is that envelope.
+
+### 35.3 Release, immutability and compatibility
+
+- **New release.** **TB-SCHEMA-API-v1.3.0**, additive (semantic minor). It is the accepted TB-SCHEMA-API-v1.2.0, unchanged (the frozen v1.0.0 reference + the ADR-0004 and ADR-0005 amendments), plus `docs/contracts/TB-SCHEMA-API-v1.3.0/amendment.json` (sha256 `6b74c09aba024dcf8cb2e0a0c6e374bbce17b45298d2aec83cc2e3ab166a1630`) and its `README.md`.
+  - Decision: `docs/decisions/ADR-0006-tb-schema-api-v1-3-0-validation-run-read.md`, **PROPOSED** for acceptance at R14 final.
+  - Base identity: the record names its base by the v1.2.0 record's digest (`b5cae658a3f47639500e2220e4a91fcfb81c34972d8426a4fa9fd1146cdbc294`) and the digests of the v1.2.0 documents.
+  - Delta (the record holds only its own): `GetValidationRunResponse` after `ListValidationRunsResponse`; the path `/validation-runs/{id}` (get) after `/candidates/{candidateId}/validation-runs`, so it precedes `/validation-runs/{id}/issues`; OpenAPI `info.version` 1.2.0 → 1.3.0.
+  - Result: 289 schemas (288 + 1), 144 operations (143 + 1) and 99 paths (98 + 1).
+  - Generated artifacts, byte-identical to "frozen v1.0.0 + v1.1.0 + v1.2.0 + v1.3.0": `api-schemas.json` `5868d90ee84356643fe4c368a44a1b3a200502c40bb5e294146127423e956a8c`, `openapi.json` `3743fba314fb5b976be17d6368c9ce3316ad35b97cf97d7a7591c9384312dd36`, `openapi.yaml` `ad80e8ad27c5128807cd0688270d469efb2ef423c5d22e7c821c8f5b919c0ded` (v1.2.0: `f4b8d7e1…5ef4`, `0391b408…e10a511`, `9c305a97…083e`).
+  - `@tb/contracts` exports `CONTRACT_BASELINE = 'TB-SCHEMA-API-v1.3.0'` and `FROZEN_REFERENCE_RELEASE = 'TB-SCHEMA-API-v1.0.0'`.
+- **v1.0.0, v1.1.0 and v1.2.0 immutable** (mission §7, §9).
+  - `git diff c73cbda..31df6d7` touches nothing under `docs/reference`, `docs/contracts/TB-SCHEMA-API-v1.1.0` or `docs/contracts/TB-SCHEMA-API-v1.2.0`, and neither ADR-0004 nor ADR-0005.
+  - Their digests are unchanged: v1.1.0 `amendment.json` `2f4df697…dfda85` and `README.md` `4856068f…ecb56d`; v1.2.0 `amendment.json` `b5cae658…c294` and `README.md` `f18e69d0…6eba`; ADR-0004 `1c8061c4…2b3d`; ADR-0005 `f40a8c81…886c`.
+  - `yarn reference:check` passes before and after (`MANIFEST.sha256` `42c2a419…6e9c` matches the pin). Nothing is generated into `docs/reference`, and `verify_contracts.py` was not run.
+  - `release-v1-2-0.test.ts` and `release-v1-1-0.test.ts` pin the accepted records and reproduce their documents from their compositions to the digests recorded at acceptance. `release-v1-3-0.test.ts` pins this record, its base identity and byte identity with the generated artifacts, and proves additivity over all three earlier releases (§35.6).
+  - Negative controls NC-R14-13 (one word of the v1.2.0 record) and NC-R14-14 (the v1.1.0 record) fail them (§35.9).
+- **Unchanged.**
+  - All 288 schemas and 143 operations of v1.2.0 are byte-identical and in their order, and therefore all of v1.1.0 (286 / 142) and v1.0.0 (284 / 141) too. This includes `ValidationRun`, `ValidationRunSummary`, `CoverageManifest`, `ValidateCandidateResponse` and the three P4G operations.
+  - Also unchanged: `$id` `urn:tb:api-contract:v1`, OpenAPI 3.1.1, servers, tags, security, shared parameters and responses; `PFC-YT-EMAIL-v1.1`; `TB-TECHNICAL-RULESET-v1`; `AppMeta.schemaRelease` (`'TB-SCHEMA-API-v1.0.0'`, as recorded); the database schema.
+- **Compatibility: additive only.** No existing operation, path, parameter, schema, required field, enum, format, status code, header, security requirement or error code changed. A v1.0.0–v1.2.0 client keeps working. `listValidationRuns`, `listValidationIssues` and the `validateCandidate` response are unchanged (DB and release tests, §35.6).
+- **Identifiers that follow the active release** (ADR-0006, Consequences; by the accepted P4D, P4E and P4G designs, not a change of them — for the operator's review, §35.12):
+  - The P4D dependency digest hashes `contract: CONTRACT_BASELINE`, so an unchanged context has another digest under v1.3.0 than under v1.2.0.
+  - A new prompt snapshot records `contractVersion` TB-SCHEMA-API-v1.3.0 and the header line "Wire contract: TB-SCHEMA-API-v1.3.0".
+  - A candidate drafted from a v1.2.0-era prompt, when validated, gets one REVIEW_REQUIRED `CONTEXT.PROMPT_DRIFT` issue (change `IDENTIFIERS`).
+  - `MARKER.INTERNAL_IDENTIFIERS` scans the v1.3.0 identifier string.
+
+  No stored digest, prompt or run is rewritten. The tests that pin these identifiers now name v1.3.0:
+  - the P4D, P4E and P4F DB tests' `contractVersion`;
+  - the P4D rule tests' contract;
+  - `smoke:p4e`.
+
+  The TB-PROMPT-TEMPLATE-v1 byte pin renders with the explicit argument `'TB-SCHEMA-API-v1.2.0'` and keeps its hashes, so the template bytes are unchanged.
+- **Transition oracle.** `yarn test:transition-baseline` fails by design, as it has since the v1.1.0 edit. It is not a gate and was not run.
+
+### 35.4 Read semantics
+
+- **Meaning, only this.** "This is the exact ValidationRun recorded for this id." Never a present-day evaluation, a freshness decision, G1–G6, legal approval, readiness, READY_FOR_SIGNER, a signature or permission to send. TECHNICAL_PASS keeps exactly its P4G meaning, and `semanticReviewRequired` is returned as stored (`true`).
+- **Implementation** (`apps/api/src/modules/validation/validation.service.ts` `get`, `validation.controller.ts`):
+  - The route is session-protected by the global guard (401 without a session; nothing is read).
+  - The path parameter is parsed by the contract; a malformed id is 404.
+  - The run is `findUnique({ where: { id } })`, 404 `NOT_FOUND` when absent, then `toValidationRunView` — the same mapping as the run's 201 and replay responses. No other table is read: no case, candidate, prompt, production context, authority event or source.
+  - `resourceReply` sends no ETag.
+- **Historical only.** The read never runs the ruleset, recomputes the result, coverage or counts, rebuilds the current context, follows a newer authority record or source revision, replaces the stored digest, hides a not-executed rule or derives readiness. A later change to the case, its sources, its authority records or the candidate (its supersession included) never alters a stored run. A present-day evaluation is a new run against a new read.
+- **Scope.** Global by id, like `getPrompt` and `getCandidate` (R13 decision 12). An unknown id, a malformed id and a candidate's id are the same 404 `NOT_FOUND`. The case pages keep case isolation: they list and open only the runs of the candidate they show.
+- **Issues** are not embedded; `listValidationIssues` is unchanged and the page combines the two reads.
+- **Read-only.** No ETag, If-Match or Idempotency-Key; the WriteExecutor is not involved.
+  - Nothing is written: no run, issue, audit event or idempotency record, no case `rowVersion` or `contextRevision`, and no candidate, prompt or source change.
+  - The only row a read can change is P1's session activity touch: `auth_sessions.last_seen_at`, at most once per `LAST_SEEN_WRITE_INTERVAL_MS` (60 s), as for every authenticated request. It is not a change to any run (DB test "reading writes nothing").
+- **Integrity.** The stored JSON columns are returned as stored; nothing is repaired or normalized.
+
+### 35.5 UI
+
+`apps/web/src/app/cases/validation.tsx`; the page still imports only types from `@tb/contracts`.
+- **Opening a run.** Each run of "Recorded runs of this candidate" has **Open run** (`aria-expanded`, `aria-controls`; "Close run" while open).
+- **The read.** Opening it reads `GET /validation-runs/{id}` from the server every time — keyed by the run id, nothing kept from the validation's POST response. It says it is reading until the reply arrives.
+- **The guard.** A run whose id, candidate or case is not this page's is not shown: "This run could not be shown here: it is not a recorded run of this candidate."
+- **The recorded run.** Focus moves to the heading "Recorded technical validation result: …". The view shows:
+  - the permanent qualifier "Technical checks only. This is not G1–G6 review, legal approval, readiness, signature, or permission to send.";
+  - the note "Read back exactly as this run recorded it. Nothing was checked again: later changes to the case, its sources, its authority records or this candidate do not change a recorded run. Only a new run checks the context as it is now.";
+  - the result's meaning, the ruleset, the artifact SHA-256 and "Dependency digest evaluated";
+  - the started, completed and recorded instants, "Recorded by", the issue counts and the run id;
+  - the **coverage manifest**: required, executed and not-executed rules ("None" only when the stored list is empty) and "Semantic review required", rendered from the stored value;
+  - the **dependency manifest**: collapsed, a table of record, id, row version ("None recorded" when absent) and fingerprint, with the note that the records are not looked up again and nothing says whether they are current. No link is offered and nothing is resolved;
+  - the **evaluated context**: under "Historical context captured by this validation run. It is not a current legal-status determination.", a collapsed, focusable `<pre>` of the stored JSON. It is plain text: no HTML, link, request or script;
+  - the run's **issues** from `listValidationIssues`, unchanged.
+- **The fresh result** after a run uses the same view.
+- **Readable at 390 px.** Browser finding (§35.8): the table's ids wrapped to about two characters per line at 390 px. Fixed in `a5c22aa` (CSS only): ids break only at their hyphens, and the table scrolls inside its frame.
+- **Wording.** Neutral: no current, valid, approved, ready or G1–G6 claim, and no action beyond Open/Close run and the existing "Run technical validation".
+- **Bundle.** The candidates chunk is 56.83 kB (P4G: 52.60 kB), with no Zod; the entry is 329.93 kB; no chunk-size advisory.
+
+### 35.6 Tests
+
+| Suite | R14 change | Covers |
+|---|---|---|
+| `tests/db/p4g-http.test.ts` | +6 (32) | R14 getValidationRun:<br>• **TECHNICAL_PASS read back later**: every stored field equals the write's, its replay's and the stored row's, with no ETag; the summary and the issue list are unchanged.<br>• **BLOCKED, REVIEW_REQUIRED and ERROR read back exactly**: result, counts, every required, executed and not-executed rule and `semanticReviewRequired`. This includes a stored body with a NUL (2 rules not executed) and an ERROR run; the counts agree with the unchanged issue list.<br>• **A run under another ruleset**: a historical row set directly in `tb_notice_test`, read back exactly — nothing re-evaluated under the current ruleset.<br>• **A stored run is history**: after a new authority event, a newer source revision, a paused case source, a fact revision, a mapping edit and the candidate's supersession, the read is deep-equal and byte-equal each time, while a new run records the changed context.<br>• **Reading writes nothing**: every suite table plus `auth_sessions` and `users` stay byte-identical, except P1's `last_seen_at` touch once per interval.<br>• **Unknown or malformed id**: 404 like any unknown record (a candidate's id is not a run's); 401 without a session.<br>The contamination test also reads A's and B's runs back; the boundaries test keeps PATCH and DELETE unrouted; the collected-response test checks the four validation operations |
+| `tests/db/directory-http.test.ts` | ±0 (updated) | the routed inventory: four validation operations, 134 business operations |
+| `tests/db/p4d-http`, `p4e-http`, `p4f-http` | ±0 (updated) | the pinned `contractVersion` / `CONTRACT_BASELINE` is TB-SCHEMA-API-v1.3.0 |
+| `tests/contracts/release-v1-3-0.test.ts` | +13 (new) | • the record digest and base identity (the v1.2.0 record and documents reproduced to their recorded digests);<br>• the constants;<br>• byte-identical composition (bundle, OpenAPI) and the committed artifacts (YAML included);<br>• every v1.0.0, v1.1.0 and v1.2.0 schema and operation unchanged and in place, with only this amendment's additions;<br>• only `info.version` changed at document level;<br>• every validation schema and operation an existing client uses unchanged since v1.0.0;<br>• the added read: GET by id, session only, no body, If-Match or Idempotency-Key, not a list, the same parameters and responses as `getCandidate` and `getPrompt`;<br>• the response is exactly the unchanged `ValidationRun` in `{data, meta}`, equal to `ValidateCandidateResponse`;<br>• no new semantic schema and no current, re-evaluated, readiness, G1–G6, approval or issue field |
+| `tests/contracts/release-v1-2-0.test.ts` | 13 → 12 (rewritten) | the accepted v1.2.0 record pinned and its documents reproduced to their recorded digests; its additions unchanged in the active contract (a historical accepted-release test, as `release-v1-1-0`) |
+| `tests/contracts/release-v1-1-0.test.ts` | ±0 (12) | unchanged apart from its header comment |
+| `tests/contracts/inventory-openapi.test.ts` | +1 (444) | compared with the v1.3.0 release; itemized inventory of each of the five additions against its own amendment; 144 operations |
+| `tests/contracts/runtime-parity.test.ts` | +1 (322) | three-way parity (baseline Ajv, generated Ajv, Zod) for all 289 schemas |
+| `tests/api/prompt-rules.test.ts`, `production-context-rules.test.ts` | ±0 (updated) | the TB-PROMPT-TEMPLATE-v1 byte pin rendered with the explicit `'TB-SCHEMA-API-v1.2.0'` argument (hashes unchanged); the header line and the P4D contract name v1.3.0 |
+| `tests/web/p4g.test.tsx` | +3 (14) | **After a reload a recorded run is read back from the server, never remembered**: validate; unmount; reload; the history shows summaries only and nothing is read; "Open run" requests `GET /validation-runs/{id}` (held: only "reading" shown, nothing from memory); then the stored ERROR run — result, qualifier, note, ruleset, artifact, digest, the three instants, counts, run id, every required, executed and not-executed rule (`ENVELOPE.SENDER`), semantic review, the dependency rows, the context JSON, its issues; focus on the heading; no context read or write.<br>**The evaluated context is inert text**: markup, a link and instruction-like case text shown as characters — no element, link, request or script.<br>**A recorded run stays history**: after the context changed and the candidate was superseded, the reopened run shows its recorded digest and result, with no currentness or readiness claim; a run read back with another candidate is not shown. `tests/web/support.tsx` serves the read and can hold it |
+| `scripts/local/p4g-smoke.ts` (CI) | 86 → 94 checks | the pass, the blocked run, the pass after the authority event, the run of a new read and case B's run read back by id and compared exactly (no ETag); an unknown id → 404; reading wrote nothing; PATCH and DELETE of a run stay unrouted (the earlier "GET not routed" probe removed) |
+| `scripts/local/smoke.ts` | +1 check (62) | the read without a session → 401 |
+
+**Mission §19, item by item:**
+
+| # | Requirement | Covered by |
+|---|---|---|
+| 1 | TECHNICAL_PASS read-back | DB "TECHNICAL_PASS read back later"; web "a recorded run stays history"; browser 1–3; `smoke:p4g` |
+| 2 | BLOCKED read-back | DB "BLOCKED, REVIEW_REQUIRED and ERROR …"; browser 6 (the NUL run); `smoke:p4g` |
+| 3 | REVIEW_REQUIRED read-back | DB "BLOCKED, REVIEW_REQUIRED and ERROR …" |
+| 4 | ERROR read-back | DB "BLOCKED, REVIEW_REQUIRED and ERROR …"; web "after a reload …" (an ERROR run) |
+| 5 | exact artifactSha256 | DB "TECHNICAL_PASS …" (equal to the write, the replay and the stored row); web; browser 3; `smoke:p4g` |
+| 6 | exact dependencyDigest | DB "TECHNICAL_PASS …", "a stored run is history"; web; browser 13; NC-R14-08 |
+| 7 | exact rulesetVersion | DB "TECHNICAL_PASS …", "a run recorded under another ruleset"; NC-R14-01 |
+| 8 | exact dependencyManifest | DB "TECHNICAL_PASS …", "a stored run is history"; web; browser 9; NC-R14-07 |
+| 9 | exact evaluatedContextJson | DB "TECHNICAL_PASS …", "a stored run is history"; web (and "inert"); browser 10; NC-R14-02 |
+| 10 | exact coverageManifest | DB "BLOCKED …", "another ruleset"; web; browser 4–7; NC-R14-01 |
+| 11 | exact requiredRuleIds | DB "BLOCKED …", "another ruleset" (the stored list of another ruleset); web; browser 4 |
+| 12 | exact executedRuleIds | DB "BLOCKED …", "another ruleset"; web; browser 5, 6 |
+| 13 | exact notExecutedRuleIds | DB "BLOCKED …" (2 rules not executed; the ERROR run), "another ruleset"; web (`ENVELOPE.SENDER`); browser 6; NC-R14-03, -04 |
+| 14 | exact semanticReviewRequired | DB (every read-back test; the collected-response contract check); web; browser 7; NC-R14-05, -06 |
+| 15 | exact issue counts | DB "BLOCKED …" (the counts agree with the unchanged issue list), "another ruleset" |
+| 16 | exact timestamps | DB "TECHNICAL_PASS …", "another ruleset" (2026-01-02T03:04:05.678Z); web (the stored instants) |
+| 17 | unknown run 404 | DB "an unknown or malformed id is 404 …"; browser (probes); `smoke:p4g` |
+| 18 | repeated reads, no business writes | DB "reading writes nothing"; browser (fingerprints before and after); `smoke:p4g`; NC-R14-10, -11 |
+| 19 | a current dependency change does not alter the run | DB "a stored run is history"; web "a recorded run stays history"; browser 11–13; `smoke:p4g`; NC-R14-02, -07, -08, -09 |
+| 20 | candidate supersession does not alter the run | DB "a stored run is history"; web; browser (supersession); NC-R14-21 |
+| 21 | an old run remains readable | DB "another ruleset", "a stored run is history"; browser 12–13 |
+| 22 | listValidationRuns backward compatible | DB "TECHNICAL_PASS …" (the summary unchanged) and the unchanged P4G list tests; release test "an existing client keeps working …" |
+| 23 | listValidationIssues backward compatible | DB "TECHNICAL_PASS …", "BLOCKED …" (the issue list unchanged); release test |
+| 24 | validation POST response unchanged | DB "TECHNICAL_PASS …" (the read equals the write and its replay); release test (`ValidateCandidateResponse` and `ValidationRun` unchanged; the read's response has the write's shape); the unchanged P4G validation tests |
+| UI (§20) | validate → unmount → reload → list → open the exact run → GET → coverage, not-executed rules, semantic review, issues; not from remembered POST data | web "after a reload a recorded run is read back from the server, never remembered" (the read held until released: nothing shown from memory); browser 1–8; NC-R14-12 |
+
+Totals: `yarn test` **1532** in 49 files (P4G: 1515 in 48); `yarn test:db` **526** in 14 files (P4G: 520) — home PC and CI identical.
+
+### 35.7 Commits
+
+| Commit | Content | CI |
+|---|---|---|
+| `7972103` | Contract: TB-SCHEMA-API-v1.3.0 — `GetValidationRunResponse`, `getValidationRun`, `info.version` 1.3.0, `CONTRACT_BASELINE`; regenerated artifacts; the release record (`docs/contracts/TB-SCHEMA-API-v1.3.0/`) and ADR-0006 (PROPOSED); `tests/contracts/release.ts` (three releases composed in order), `release-v1-3-0.test.ts` (new), `release-v1-2-0.test.ts` (rewritten as a historical accepted-release test), inventory and runtime parity against v1.3.0; the identifier pins that follow the active release (prompt byte pin with an explicit contract argument, P4D rule tests, `smoke:p4e`) | (pushed with `60a15e1`) |
+| `11bdf0f` | API: the read (`validation.service.ts` `get`, `validation.controller.ts`, `validation.module.ts`); DB tests (+6) and the routed inventories (four validation operations, 134 business operations); the other DB suites' `contractVersion` pins; `smoke:p4g` read-backs and `smoke:local`'s 401 boundary | (pushed with `60a15e1`) |
+| `60a15e1` | UI: "Open run" reads a recorded run back from the server (`validation.tsx`, API client, CSS); web tests (+3) and the fake API's held run reads (`tests/web/support.tsx`) | run 36247026781 success — `smoke:p4g` 94 checks, `smoke:local` 62 |
+| `a5c22aa` | Fix from the browser pass: the recorded dependency ids stay readable at 390 px (CSS only) | run 36248047310 success |
+| `31df6d7` | Test: the read-back web tests fail on their own assertion (from negative-control run 1; test code only) — the code head | run 36248642530 success |
+| (this record) | R14-final submission: §34–§35, the evidence `r14-*` and screenshots, ADR-0006 and v1.3.0 README verification pointers, `CLAUDE.md`, `CURRENT_STATE.md` (documentation only) | reported with the R14-final report |
+
+### 35.8 Browser verification (Playwright MCP)
+
+**17/17 PASS** — every item of mission §21 (`evidence/r14-playwright-mcp-verification.txt`; screenshots `evidence/screenshots/r14-*`). Target: `yarn ui:sandbox` (the compiled API on the disposable `tb_notice_test` and the built web app), an isolated headless browser, synthetic data only. Two sessions: session 1 built from `60a15e1` (items 1–17), session 2 from `a5c22aa` (the fix of the one finding; items 1, 2 and 15 again).
+
+- **Recorded, reloaded, opened.**
+  - A TECHNICAL_PASS run, then a full reload: a fresh document, no run held and none read.
+  - "Open run" then read `GET /validation-runs/{id}` — 200, no ETag, `no-store`, and no body, If-Match, Idempotency-Key or CSRF token in the request.
+  - The response equals the stored `validation_runs` row in all 17 fields, with no extra field.
+- **Coverage and issues.** The pass shows 29 required and 29 executed rules, "Not executed (0) — None" and "Semantic review required: Yes — this run performed no G1–G6 or legal review".
+  - A run of a candidate whose stored body was given a NUL in `tb_notice_test` (BLOCKED) shows after a reload "Not executed (2)" (ARTIFACT.BODY_SHA256, ARTIFACT.ARTIFACT_SHA256), 27 executed rules and its 5 issues in rule order.
+- **Dependency manifest and evaluated context.**
+  - The dependency manifest opens as a table of the 21 recorded dependencies, with no link and no request.
+  - The evaluated context opens as a `<pre>` with no child element. The work title's `<img … onerror>`, a drive.example.invalid URL and instruction-like text are shown as characters; the handler never ran.
+- **History stays history.**
+  - After a new authority event and a new source revision, the reopened run's `data` is byte-identical to the first read. The panel's current digest (`4c85…6df9`) and the run's evaluated digest (`3955…b3e8`) are shown apart.
+  - After the candidate's supersession, the run is byte-identical again, and the stored row's SHA-256 is unchanged.
+  - No current or readiness wording appears.
+- **One finding, fixed.** At 390 px the page did not scroll sideways, but the dependency table's Id column shrank to about two characters per line (22 lines per id). This was the global `code { overflow-wrap: anywhere }` in an automatic table layout. Fixed in `a5c22aa` (ids break only at hyphens: 4 lines; the table scrolls inside its frame) and re-verified.
+- **Keyboard.** Tab reaches "Open run"; Enter moves focus to the recorded heading. Both summaries open with Enter, the context `<pre>` takes focus and scrolls with PageDown, and "Close run" keeps focus.
+- **Sign-out.** Sign-out leads to the login page, a candidate URL then redirects to it, and the read is 401 SESSION_REQUIRED.
+- **Reads write nothing.** The fingerprint of runs, issues, candidates and cases and the counts of audit events and idempotency records are identical before and after the reads. The audit log holds exactly one VALIDATION_RUN_RECORDED per run.
+- **Cleanup.** Sandbox rows were deleted, `db:verify test --expect-empty` PASS after each session, and both password files were deleted.
+
+### 35.9 Negative controls
+
+**24/24 caught and restored byte-identically** (`evidence/r14-negative-controls.txt`).
+- **Final run 2** on `31df6d7`, 2026-09-26T14:27:17Z–14:28:40Z: every one of the 32 responsible commands failed and named its test, each first failure an AssertionError. The working-tree fingerprint was identical before and after, and `tb_notice_test` was empty afterwards.
+- The unmutated baseline before each run passed (13 distinct commands, each selecting at least one test).
+
+| Mission §22 control | Controls |
+|---|---|
+| historical coverage rebuilt from current ruleset | NC-R14-01 |
+| historical context rebuilt from current Case state | NC-R14-02 |
+| notExecuted rules hidden on reload | NC-R14-03 (API), NC-R14-04 (UI) |
+| semanticReviewRequired dropped | NC-R14-05 (API), NC-R14-06 (UI) |
+| dependencyManifest rebuilt current | NC-R14-07 |
+| historical digest rewritten | NC-R14-08 |
+| current ruleset result substituted for stored result | NC-R14-09 |
+| read writes AuditEvent | NC-R14-10 |
+| read mutates Case | NC-R14-11 |
+| UI uses cached POST response rather than GET | NC-R14-12 |
+| v1.2.0 amended in place | NC-R14-13 (and NC-R14-14: v1.1.0) |
+| also | NC-R14-15 (a present-day field added to the read's schema), 16 (`CONTRACT_BASELINE` left at v1.2.0), 17 (the read not routed), 18 (the read without a session), 19 (an ETag on an immutable run), 20 (issues embedded in the read), 21 (a superseded candidate's run hidden), 22 (the evaluated context rendered as HTML), 23 (another candidate's run shown), 24 (the dependency manifest resolved to present-day records) |
+
+Run 1 (on `a5c22aa`) also caught 24/24, but three commands failed on a wait helper's timeout rather than an assertion: NC-R14-12 in two tests and NC-R14-23. The fix `31df6d7` (test code only) makes both tests wait for a neutral outcome and then assert. A re-run of the two controls and the final run 2 then failed on AssertionErrors only.
+
+### 35.10 Regression sweep and CI
+
+**Sweep** (mission §25): 2026-09-26T14:29:29Z–14:38:12Z on `31df6d7`. All 21 steps exit 0 (`evidence/r14-first-pc-sweep.txt`).
+
+| Command | Result |
+|---|---|
+| `yarn reference:check` (before and after) | frozen references intact (`MANIFEST.sha256` `42c2a419…` matches the pin) |
+| `yarn reference:helper-tests` | 27 pass, 0 fail |
+| `yarn contracts:check` | 3 generated outputs match the active source |
+| `yarn install --immutable` | lockfile unchanged (pre-existing YN0086 note) |
+| `yarn typecheck` · `yarn format:check` | exit 0 |
+| `yarn lint` · `oxlint --deny-warnings --format default` | exit 0 · exit 0 — **0 warnings** ("Found 0 warnings and 0 errors." on 325 files) |
+| `yarn test` | 1532 / 1532 in 49 files |
+| `yarn test:db` | 526 / 526 in 14 files (`tb_notice_test`) |
+| `yarn db:verify test --expect-empty` (before and after) | PASS, domain rows 0 |
+| `yarn db:verify dev` | PASS (metadata and a row count only: 5, unchanged — nothing written to `tb_notice_dev`) |
+| `yarn db:status test` / `dev` | up to date (1 migration) |
+| `yarn db:drift:diff-migrations` / `db:drift:diff-datasource dev` | empty migration (no drift) |
+| `yarn build` | exit 0, no chunk-size advisory (entry 329.93 kB, candidates chunk 56.82 kB) |
+| `yarn smoke:local` | 62 checks (P4G: 61; the new one: the read without a session → 401) |
+| `yarn dev:verify-shutdown` | 4 / 4 scenarios |
+
+`smoke:auth`, `smoke:directory`, `smoke:p3a`, `smoke:p3b` and `smoke:p4a`–`smoke:p4g` write records and run only in CI. They are all kept and pass there.
+
+**CI** (`evidence/r14-ci-run-36248642530.txt`).
+
+- **Code head `31df6d7`:** push run [36248642530](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36248642530) (2026-09-26T14:28:50Z–14:35:44Z), **success**, both jobs:
+  - "Non-DB checks (cold install)" (job 108422410416): the reference check and the 27 helper tests, `contracts:check`, lint "Found 0 warnings and 0 errors.", format, `yarn test` 1532 / 49 files, build, the frozen references and the working tree unchanged.
+  - "Database, seed and smoke (MySQL 8.4.11)" (job 108422410339): migration and metadata verification on test, replay and dev; `yarn test:db` 526 / 14 files; the seed twice with the canonical digest unchanged; both drift diffs empty; `smoke:local` 62; `smoke:auth` 4; `smoke:directory` 14; `smoke:p3a` 24; `smoke:p3b` 36; `smoke:p4a` 50; `smoke:p4b` 64; `smoke:p4c` 62; `smoke:p4d` 87; `smoke:p4e` 84; `smoke:p4f` 90; **`smoke:p4g` 94** (the read-backs included); the P1.1 recovery commands; `yarn dev` clean shutdown 4 / 4.
+- **Earlier runs, all success, both jobs** (each commit pushed only after the previous run finished):
+  - the post-merge `main` `c73cbda` (run 36242994330, §34.2);
+  - the branch at creation (run 36244685180);
+  - `60a15e1` (run 36247026781: the contract, API and UI commits; `smoke:p4g` 94 and `smoke:local` 62 for the first time);
+  - `a5c22aa` (run 36248047310).
+- **Documentation head:** its run is reported with the R14-final report.
+
+### 35.11 Schema, migration and dependencies
+
+- **None changed.** No migration was needed, created or applied: `validation_runs` already holds every returned field. `20260923103912_initial_schema` is still the only migration, and both drift diffs are empty. No `db push`, `migrate reset`, FK disabling or applied-migration edit.
+- **Nothing else outside the change.** `git diff c73cbda..31df6d7` (36 files) touches nothing under `apps/api/prisma`, `docs/reference`, `docs/contracts/TB-SCHEMA-API-v1.1.0`, `docs/contracts/TB-SCHEMA-API-v1.2.0`, ADR-0004, ADR-0005, `yarn.lock`, `.yarnrc.yml`, `.nvmrc` or any `package.json`. No dependency was added.
+
+### 35.12 Warnings and open items for the operator (not decided here)
+
+1. **Acceptance of ADR-0006** (PROPOSED) and of TB-SCHEMA-API-v1.3.0 as the active release, at R14 final. Until then `main` carries v1.2.0.
+2. **Identifiers that follow the active release** (§35.3; ADR-0006, Consequences). Under v1.3.0 the same context has another P4D dependency digest, and new prompts name v1.3.0. A candidate drafted from a v1.2.0-era prompt therefore validates as REVIEW_REQUIRED (one `CONTEXT.PROMPT_DRIFT` issue, change `IDENTIFIERS`) rather than TECHNICAL_PASS until it is re-drafted from a v1.3.0 prompt. Stored digests, prompts and runs are never rewritten. This follows from the accepted designs; the operator's confirmation is asked.
+3. **`AppMeta.schemaRelease`** stays `'TB-SCHEMA-API-v1.0.0'` as recorded (ADR-0004–ADR-0006).
+4. **The transition oracle** fails by design (§35.3).
+5. **Pre-existing, non-blocking:**
+   - the YN0086 peer-dependency note of `yarn install`;
+   - P4G limitation L4: long rule ids wrap in the narrow Rule column of the issues table, which the recorded run's issue list reuses;
+   - the accepted count wording "1 blockers".
+6. **Evidence limitations:**
+   - the BLOCKED run with not-executed rules came from a NUL written directly into a stored synthetic body in `tb_notice_test`, as P4G limitation L2 did;
+   - the historical-row DB test sets one run under another ruleset identifier directly in `tb_notice_test` (data the application never writes).
+
+### 35.13 Status
+
+| Scope | Status |
+|---|---|
+| R14 review | **PASS_WITH_ONE_CONTRACT_REMEDIATION** (operator, 2026-09-26) — until the operator's R14-final review; not marked PASS here |
+| V13 | **REMEDIATION_IMPLEMENTED_PENDING_R14_FINAL_REVIEW** — implemented and verified on `feature/r14-validation-run-readback` (code head `31df6d7`), submitted for **R14 final (PENDING)**; not merged |
+| ADR-0006 / TB-SCHEMA-API-v1.3.0 | **PROPOSED** (active on the remediation branch; `main` carries the accepted v1.2.0) |
+| P4G | **MERGED_TO_MAIN_FOR_IMPLEMENTED_SCOPE** (`c73cbda`), `P4G_IMPLEMENTATION = VERIFIED_FOR_IMPLEMENTED_SCOPE`; not VERIFIED_COMPLETE until R14 final |
+| Database / dependencies | **No change** |
+| CandidateAssessment and later phases | **NOT_STARTED** |
