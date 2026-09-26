@@ -322,6 +322,18 @@ function CaseDetail({ id }: { id: string }) {
           </Link>
         </p>
       </Section>
+      <Section title="Candidates">
+        <p className="hint">
+          Unsigned draft artifacts drafted outside this application from a prompt snapshot of this
+          case and imported exactly. None is an approval, signature, readiness decision or
+          transmission.
+        </p>
+        <p>
+          <Link to={`/cases/${item.id}/candidates`} data-testid="open-candidates">
+            Open the candidates of this case
+          </Link>
+        </p>
+      </Section>
       <Section title="Notes">
         {item.notes ? <p className="prose">{item.notes}</p> : <Absent />}
       </Section>

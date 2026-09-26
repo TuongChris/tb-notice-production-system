@@ -195,19 +195,21 @@ export const apiErrors = {
       'DOCUMENT_REVIEWED is only recorded with the reviewer who reviewed the document.',
       { field },
     ),
-  revisionNotHead: (headId: string | null, subject: 'source' | 'fact' = 'source') =>
+  revisionNotHead: (headId: string | null, subject: 'source' | 'fact' | 'candidate' = 'source') =>
     new ApiError(
       409,
       'REVISION_NOT_HEAD',
       {
         source: 'Only the current revision of a source can be revised.',
         fact: 'Only the current revision of a case fact can be revised.',
+        candidate:
+          'Only the latest version of a candidate chain can be revised: a candidate history does not fork. Revise the latest version instead.',
       }[subject],
       headId === null ? {} : { headId },
     ),
   revisionScopeChange: (
     fields: readonly string[],
-    subject: 'source' | 'fact' | 'binding' = 'source',
+    subject: 'source' | 'fact' | 'binding' | 'candidate' = 'source',
   ) =>
     new ApiError(
       422,
@@ -218,6 +220,8 @@ export const apiErrors = {
         fact: "A revision keeps the fact's type and scope; a different type or scope needs a new fact.",
         binding:
           'A correction keeps the captured message of the binding it corrects; another message needs its own binding.',
+        candidate:
+          "A revision keeps the candidate's case and task: its prompt snapshot must be of the same case and task. A draft for another task needs its own candidate.",
       }[subject],
       { fields },
     ),
@@ -479,5 +483,47 @@ export const apiErrors = {
       'PROMPT_TOO_LARGE',
       'The prompt snapshot would exceed a contracted bound. Nothing is cut off, so no prompt was generated.',
       { field, count, maximum },
+    ),
+
+  // Notice candidates (P4F): REFERENCE_NOT_FOUND, CROSS_CASE_REFERENCE, REPLY_PARENT_REQUIRED,
+  // REVISION_NOT_HEAD and REVISION_SCOPE_CHANGE above are reused. ENVELOPE_PARENT_MISMATCH,
+  // ENVELOPE_SENDER_MISMATCH, DOCUMENT_PLAN_UNSUPPORTED and CANDIDATE_ALREADY_SUPERSEDED are
+  // operation-specific codes in the free-string `code` field with the contracted statuses (R6
+  // interpretation 10).
+  envelopeParentMismatch: (promptParentBindingId: string | null) =>
+    new ApiError(
+      422,
+      'ENVELOPE_PARENT_MISMATCH',
+      "A candidate keeps the reply thread of its prompt snapshot: envelope.parentBindingId must be the prompt's parent binding, and none when the prompt named none. Nothing is chosen for you.",
+      { field: 'envelope.parentBindingId', promptParentBindingId },
+    ),
+  envelopeSenderMismatch: (authoritySelectionId: string) =>
+    new ApiError(
+      422,
+      'ENVELOPE_SENDER_MISMATCH',
+      'The prompt snapshot pinned an authority selection: envelope.from must be exactly its intended sender mailbox. Another mailbox needs its own selection and prompt.',
+      { field: 'envelope.from', authoritySelectionId },
+    ),
+  documentPlanUnsupported: (
+    field: string,
+    reason: 'HASH_NOT_RECORDED' | 'NOT_RECORDED_AS_SUPPLIED',
+  ) =>
+    new ApiError(
+      422,
+      'DOCUMENT_PLAN_UNSUPPORTED',
+      {
+        HASH_NOT_RECORDED:
+          'A planned document names only the SHA-256 recorded on its source revision, whose hash target says what that hash covers. Any other hash is not recorded anywhere.',
+        NOT_RECORDED_AS_SUPPLIED:
+          "PREVIOUSLY_SUPPLIED needs a prior transmission in the prompt snapshot's context whose captured attachments name this exact source. A source, a sent message or a plan alone does not record that it was supplied.",
+      }[reason],
+      { field, reason },
+    ),
+  candidateAlreadySuperseded: (supersededAt: string) =>
+    new ApiError(
+      409,
+      'CANDIDATE_ALREADY_SUPERSEDED',
+      'This draft artifact is already superseded. A supersession is recorded once and never changed.',
+      { supersededAt },
     ),
 } as const;

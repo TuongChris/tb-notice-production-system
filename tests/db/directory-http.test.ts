@@ -2660,7 +2660,7 @@ describe('SECURITY / VALIDATION / CONTRACT', () => {
     expect(await countRows(prisma, 'source_references')).toBe(0);
   });
 
-  it('exposes exactly the P1 routes plus the 76 directory, source, route and authority operations, the 40 case operations, the 5 correspondence operations, the production-context read and the 3 prompt operations', async () => {
+  it('exposes exactly the P1 routes plus the 76 directory, source, route and authority operations, the 40 case operations, the 5 correspondence operations, the production-context read, the 3 prompt operations and the 5 candidate operations', async () => {
     const express = t.app.getHttpAdapter().getInstance() as {
       router: { stack: Array<{ route?: { path: string; methods: Record<string, boolean> } }> };
     };
@@ -2679,8 +2679,9 @@ describe('SECURITY / VALIDATION / CONTRACT', () => {
     // CaseFact operations, plus the read-back getCaseFactSources of TB-SCHEMA-API-v1.2.0 (ADR-0005,
     // R9); P4C: the 5 Correspondence-tagged operations (capture, list and read correspondence, bind
     // it to a case, list a case's bindings); P4D: the read-only getProductionContext; P4E: the 3
-    // prompt operations (generatePrompt, listCasePrompts, getPrompt). No candidate, validation,
-    // assessment, readiness or export operation is routed.
+    // prompt operations (generatePrompt, listCasePrompts, getPrompt); P4F: the 5 candidate
+    // operations (importCandidate, listCaseCandidates, getCandidate, reviseCandidate,
+    // supersedeCandidate). No validation, assessment, readiness or export operation is routed.
     const directory = operations
       .filter((operation) =>
         /^\/(agencies|owners|legal-subjects|signers|owner-subjects|sources|routes|mandates|mandate-versions|coverages|coverage-signers)(\/|$)/.test(
@@ -2760,9 +2761,17 @@ describe('SECURITY / VALIDATION / CONTRACT', () => {
     const production = operations
       .filter((operation) => (operation.tags as readonly string[]).includes('Production'))
       .filter((operation) =>
-        ['getProductionContext', 'generatePrompt', 'listCasePrompts', 'getPrompt'].includes(
-          operation.operationId,
-        ),
+        [
+          'getProductionContext',
+          'generatePrompt',
+          'listCasePrompts',
+          'getPrompt',
+          'importCandidate',
+          'listCaseCandidates',
+          'getCandidate',
+          'reviseCandidate',
+          'supersedeCandidate',
+        ].includes(operation.operationId),
       )
       .map(
         (operation) =>
@@ -2773,6 +2782,11 @@ describe('SECURITY / VALIDATION / CONTRACT', () => {
       'POST /api/v1/cases/:caseId/prompts',
       'GET /api/v1/cases/:caseId/prompts',
       'GET /api/v1/prompts/:id',
+      'POST /api/v1/cases/:caseId/candidates',
+      'GET /api/v1/cases/:caseId/candidates',
+      'GET /api/v1/candidates/:id',
+      'POST /api/v1/candidates/:id/revisions',
+      'POST /api/v1/candidates/:id/supersede',
     ]);
     expect(routes).toEqual(
       [

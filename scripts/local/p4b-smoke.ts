@@ -679,7 +679,11 @@ async function main(): Promise<void> {
   for (const [label, method, suffix] of [
     ['GET /cases/{caseId}/readiness', 'GET', `/cases/${caseId}/readiness`],
     ['POST /cases/{caseId}/production-context', 'POST', `/cases/${caseId}/production-context`],
-    ['POST /cases/{caseId}/candidates', 'POST', `/cases/${caseId}/candidates`],
+    [
+      'POST /candidates/{id}/validation-runs',
+      'POST',
+      `/candidates/${randomUUID()}/validation-runs`,
+    ],
     ['POST /cases/{caseId}/g1', 'POST', `/cases/${caseId}/g1`],
   ] as const) {
     const refused = await call(

@@ -39,6 +39,11 @@ import {
   PROMPT_GENERATION_OBSERVER,
   type PromptGenerationObserver,
 } from '../../apps/api/src/modules/prompts/prompt-generation-observer.js';
+import {
+  CANDIDATE_WRITE_OBSERVER,
+  NO_CANDIDATE_WRITE_OBSERVER,
+  type CandidateWriteObserver,
+} from '../../apps/api/src/modules/candidates/candidate-write-observer.js';
 import { AuditWriter } from '../../apps/api/src/infrastructure/write/audit-writer.js';
 import { driverConfig, loadRootEnv, resolveTarget } from '../../scripts/db/lib/targets.mjs';
 
@@ -160,6 +165,8 @@ export async function startTestApp(
     contextObserver?: ContextReadObserver;
     /** Called inside the prompt-generation transaction (P4E consistency tests); a no-op otherwise. */
     promptObserver?: PromptGenerationObserver;
+    /** Called inside the candidate write transactions (P4F concurrency tests); a no-op otherwise. */
+    candidateObserver?: CandidateWriteObserver;
   } = {},
 ): Promise<TestApp> {
   const clock = overrides.clock ?? new TestClock();
@@ -180,6 +187,8 @@ export async function startTestApp(
     .useValue(overrides.contextObserver ?? NO_CONTEXT_READ_OBSERVER)
     .overrideProvider(PROMPT_GENERATION_OBSERVER)
     .useValue(overrides.promptObserver ?? NO_PROMPT_GENERATION_OBSERVER)
+    .overrideProvider(CANDIDATE_WRITE_OBSERVER)
+    .useValue(overrides.candidateObserver ?? NO_CANDIDATE_WRITE_OBSERVER)
     .compile();
   const app = moduleRef.createNestApplication<NestExpressApplication>({
     bodyParser: false,

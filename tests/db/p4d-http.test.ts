@@ -2733,18 +2733,14 @@ describe('SECURITY AND ISOLATION — session-protected, read-only, no network, n
     ).toEqual([]);
   });
 
-  it('candidates, validation, assessments, readiness and unsigned export stay unrouted; P4D creates no later-phase record', async () => {
+  it('validation, assessments, readiness and unsigned export stay unrouted; P4D creates no later-phase record', async () => {
     const p = await productionWorld();
     const id = p.caseId;
     const other = randomUUID();
     const before = await suiteDump();
-    // Prompts are routed since P4E (tests/db/p4e-http.test.ts); P4D still generates none.
+    // Prompts are routed since P4E (tests/db/p4e-http.test.ts) and candidates since P4F
+    // (tests/db/p4f-http.test.ts); P4D still generates or stores neither.
     const paths: Array<['GET' | 'POST', string]> = [
-      ['POST', `/cases/${id}/candidates`],
-      ['GET', `/cases/${id}/candidates`],
-      ['GET', `/candidates/${other}`],
-      ['POST', `/candidates/${other}/revisions`],
-      ['POST', `/candidates/${other}/supersede`],
       ['POST', `/candidates/${other}/validation-runs`],
       ['GET', `/candidates/${other}/validation-runs`],
       ['GET', `/validation-runs/${other}/issues`],

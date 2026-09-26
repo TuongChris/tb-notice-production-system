@@ -107,6 +107,11 @@ const prompts = pagesOf(() => import('./cases/prompts.js'));
 const PromptHistoryPage = prompts('PromptHistoryPage');
 const GeneratePromptPage = prompts('GeneratePromptPage');
 const PromptDetailPage = prompts('PromptDetailPage');
+const candidates = pagesOf(() => import('./cases/candidates.js'));
+const CandidateHistoryPage = candidates('CandidateHistoryPage');
+const ImportCandidatePage = candidates('ImportCandidatePage');
+const CandidateDetailPage = candidates('CandidateDetailPage');
+const ReviseCandidatePage = candidates('ReviseCandidatePage');
 const correspondence = pagesOf(() => import('./correspondence/correspondence.js'));
 const CorrespondenceListPage = correspondence('CorrespondenceListPage');
 const NewCorrespondencePage = correspondence('NewCorrespondencePage');
@@ -117,9 +122,10 @@ const CorrespondenceDetailPage = correspondence('CorrespondenceDetailPage');
  * pages (routes, mandates, versions, coverage, coverage signers and authority events), Cases (case
  * records, linked sources, authority selected for evaluation, the case intake — reported items,
  * works, use mappings and facts — correspondence bindings, the read-only production context of a
- * case, which determines nothing, and its prompt snapshots: immutable prompts generated from one
- * reviewed context, never a notice, approval, readiness decision, signature or transmission) and
- * Correspondence (captured messages; nothing is sent).
+ * case, which determines nothing, its prompt snapshots: immutable prompts generated from one
+ * reviewed context, never a notice, approval, readiness decision, signature or transmission, and
+ * its notice candidates: unsigned draft artifacts imported exactly from outside the application,
+ * never approved, signed, ready or sent) and Correspondence (captured messages; nothing is sent).
  */
 export function App({ api }: { api: ApiClient }) {
   const directory = useMemo(() => createDirectoryApi(api), [api]);
@@ -214,6 +220,13 @@ export function App({ api }: { api: ApiClient }) {
                 <Route path="cases/:id/prompts" element={<PromptHistoryPage />} />
                 <Route path="cases/:id/prompts/new" element={<GeneratePromptPage />} />
                 <Route path="cases/:id/prompts/:promptId" element={<PromptDetailPage />} />
+                <Route path="cases/:id/candidates" element={<CandidateHistoryPage />} />
+                <Route path="cases/:id/candidates/new" element={<ImportCandidatePage />} />
+                <Route path="cases/:id/candidates/:candidateId" element={<CandidateDetailPage />} />
+                <Route
+                  path="cases/:id/candidates/:candidateId/revise"
+                  element={<ReviseCandidatePage />}
+                />
                 <Route path="correspondence" element={<CorrespondenceListPage />} />
                 <Route path="correspondence/new" element={<NewCorrespondencePage />} />
                 <Route path="correspondence/:id" element={<CorrespondenceDetailPage />} />

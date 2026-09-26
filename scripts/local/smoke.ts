@@ -15,10 +15,10 @@
 //  6. Business boundary of the compiled API, read-only: every directory (P2), source and route
 //     (P3A), representation-authority (P3B), case (P4A), case intake (P4B) and correspondence (P4C)
 //     collection, the read-backs of TB-SCHEMA-API-v1.1.0 and v1.2.0, the production-context read
-//     (P4D) and the prompt operations (P4E) are routed and session-protected (no cookie → 401, also
-//     through the web proxy), unsafe writes without Origin → 403 before any handler, canonical
-//     bindings and freezes are session-protected, and later case phases (candidates onward) are not
-//     routed (404).
+//     (P4D), the prompt operations (P4E) and the candidate operations (P4F) are routed and
+//     session-protected (no cookie → 401, also through the web proxy), unsafe writes without Origin
+//     → 403 before any handler, canonical bindings and freezes are session-protected, and later case
+//     phases (validation onward) are not routed (404).
 //  7. Terminate both processes (SIGTERM, bounded wait, SIGKILL fallback) and verify ports 3000 and
 //     5173 are released. Any failure exits non-zero.
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
@@ -530,10 +530,47 @@ async function checkBusinessBoundary(): Promise<void> {
       401,
       'SESSION_REQUIRED',
     ],
-    // Candidates and every later case record are later phases: not routed.
+    // P4F: candidate import, revision, supersession and the candidate reads are behind the same
+    // guard (session, Origin).
     [
-      'POST /cases/{caseId}/candidates (later phase, not routed)',
+      'POST /cases/{caseId}/candidates without a session',
       `${api}/cases/${id}/candidates`,
+      { method: 'POST', headers: { ...json, Origin: origin }, body: '{}' },
+      401,
+      'SESSION_REQUIRED',
+    ],
+    [
+      'POST /candidates/{id}/revisions without Origin',
+      `${api}/candidates/${id}/revisions`,
+      { method: 'POST', headers: json, body: '{}' },
+      403,
+      'ORIGIN_REJECTED',
+    ],
+    [
+      'POST /candidates/{id}/supersede without a session',
+      `${api}/candidates/${id}/supersede`,
+      { method: 'POST', headers: { ...json, Origin: origin }, body: '{}' },
+      401,
+      'SESSION_REQUIRED',
+    ],
+    [
+      'GET /cases/{caseId}/candidates without a session',
+      `${api}/cases/${id}/candidates`,
+      {},
+      401,
+      'SESSION_REQUIRED',
+    ],
+    [
+      'GET /candidates/{id} through the web proxy without a session',
+      `http://localhost:${WEB_PORT}/api/v1/candidates/${id}`,
+      {},
+      401,
+      'SESSION_REQUIRED',
+    ],
+    // Validation and every later case record are later phases: not routed.
+    [
+      'POST /candidates/{id}/validation-runs (later phase, not routed)',
+      `${api}/candidates/${id}/validation-runs`,
       { method: 'POST', headers: { ...json, Origin: origin }, body: '{}' },
       404,
       'NOT_FOUND',

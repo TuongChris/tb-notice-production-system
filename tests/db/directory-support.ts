@@ -24,6 +24,8 @@ import {
 export const DIRECTORY_SUITE_TABLES = [
   'idempotency_records',
   'audit_events',
+  // P4F notice candidates (they name cases, prompt snapshots and their parent candidates).
+  'notice_candidates',
   // P4E prompt snapshots (they name cases, authority selections and correspondence bindings).
   'prompt_snapshots',
   // P4C correspondence bindings (they name cases, reported items and captured correspondence).
@@ -93,6 +95,7 @@ export async function cleanSuiteTables(prisma: PrismaClient): Promise<void> {
   await prisma.$executeRawUnsafe(
     'UPDATE `correspondence_bindings` SET `supersedes_binding_id` = NULL',
   );
+  await prisma.$executeRawUnsafe('UPDATE `notice_candidates` SET `parent_candidate_id` = NULL');
   for (const table of DIRECTORY_SUITE_TABLES) {
     await prisma.$executeRawUnsafe(`DELETE FROM \`${table}\``);
   }

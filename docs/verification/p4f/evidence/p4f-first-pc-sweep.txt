@@ -1,0 +1,228 @@
+P4F NoticeCandidate — first-PC regression sweep (mission §48), home PC, 2026-09-26 (UTC)
+=========================================================================================
+Tree: the code head dcc4289 (P4F commits 8a964ce, b798b59, 7b33d9c, e1039b5, dcc4289 on the post-R12 checkpoint
+a417b6a, which sits on the post-merge main 79db09b), clean except the untracked docs/verification/p4f/ (this record's
+evidence). Every step runs even after a failure; exit codes below. Ports 3000/5173 were free before the sweep (no
+operator dev servers running). Nothing was written to tb_notice_dev: db:verify dev reads metadata and a row count
+only, db:status and the drift diffs only compare, and smoke:local checks the connection and unauthenticated
+boundaries only.
+
+Step summary
+------------
+sweep start 2026-09-26T04:43:30.696Z head dcc42890d0eb8a3dc883e1666b23926713c457eb (status: ?? docs/verification/p4f/ )
+reference:check                                  exit 0       0s  reference:check.log
+reference:helper-tests                           exit 0       1s  reference:helper-tests.log
+contracts:check                                  exit 0       2s  contracts:check.log
+install --immutable                              exit 0       1s  install_--immutable.log
+typecheck                                        exit 0      10s  typecheck.log
+lint                                             exit 0       0s  lint.log
+oxlint --deny-warnings --format default          exit 0       0s  oxlint_--deny-warnings_--format_default.log
+format:check                                     exit 0       6s  format:check.log
+test                                             exit 0      44s  test.log
+test:db                                          exit 0     358s  test:db.log
+db:verify test --expect-empty                    exit 0       1s  db:verify_test_--expect-empty.log
+db:verify dev                                    exit 0       0s  db:verify_dev.log
+db:status test                                   exit 0       1s  db:status_test.log
+db:status dev                                    exit 0       1s  db:status_dev.log
+db:drift:diff-migrations                         exit 0      23s  db:drift:diff-migrations.log
+db:drift:diff-datasource dev                     exit 0       1s  db:drift:diff-datasource_dev.log
+build                                            exit 0       5s  build.log
+smoke:local                                      exit 0       7s  smoke:local.log
+dev:verify-shutdown                              exit 0      14s  dev:verify-shutdown.log
+reference:check (after)                          exit 0       0s  reference:check_after.log
+db:verify test --expect-empty (after)            exit 0       1s  db:verify_test_--expect-empty_after.log
+sweep end 2026-09-26T04:51:26.124Z status: ?? docs/verification/p4f/ 
+FAILURES 0 — 21/21 steps exit 0
+
+Key output lines
+----------------
+  [reference:check] pinned identity (REFERENCE_BASELINE.json): 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c matches
+  [reference:check] OK — frozen references intact.
+  [reference:helper-tests] frozen helper tests: pass 27, fail 0; exit 0
+  [reference:helper-tests] references after run: intact
+  [contracts:check] OK — 3 generated outputs match the active source.
+  install --immutable: YN0000: · Done with warnings in 0s 716ms
+    (the warning is YN0086: │ Some peer dependencies are incorrectly met by dependencies; run yarn explain peer-requirements for details. — pre-existing,
+    as at P4B–P4E; the lockfile is unchanged by P4F)
+  typecheck: exit 0 (0 error TS lines)
+  lint: exit 0; oxlint --deny-warnings --format default: exit 0 —
+    Found 0 warnings and 0 errors.
+    Finished in 46ms on 310 files with 96 rules using 20 threads.
+  All matched files use Prettier code style!
+  yarn test: Test Files  46 passed (46) · Tests  1465 passed (1465)
+  yarn test:db: Test Files  13 passed (13) · Tests  494 passed (494)
+    [guard] test:db target: tb_migrate@127.0.0.1:3307/tb_notice_test
+  db_verify_test_--expect-empty:
+    [verify] target tb_migrate@127.0.0.1:3307/tb_notice_test — MySQL 8.4.11 (MySQL Community Server - GPL)
+    [verify] reviewed migration sha256 b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+    [verify] tables 33/33 (InnoDB 33, utf8mb4_0900_bin 33); columns 541/541 (character columns with binary collation 391)
+    [verify] primary keys 33/33; unique keys 50/50; indexes 34/34; implicit FK indexes 97
+    [verify] foreign keys 125/125 RESTRICT/RESTRICT (composite 27); CHECK constraints 30/30 semantically matching and ENFORCED=YES
+    [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+    [verify] domain rows total: 0
+    [verify] PASS: metadata matches the reviewed inventory.
+  db_verify_dev (metadata and a row count only; nothing written):
+    [verify] domain rows total: 5
+    [verify] PASS: metadata matches the reviewed inventory.
+  db_status_test: 1 migration found in prisma/migrations · Database schema is up to date!
+  db_status_dev: 1 migration found in prisma/migrations · Database schema is up to date!
+  db_drift_diff-migrations: -- This is an empty migration.
+  db_drift_diff-datasource_dev: -- This is an empty migration.
+  build (no Vite chunk-size advisory — 0 advisory lines; the entry, the stylesheet, the case page, the P4D
+  chunk, the P4E prompt chunk and the P4F candidates chunk of 28 JavaScript files):
+    dist/assets/index-CGaIBKVl.css                19.36 kB │ gzip:   4.85 kB
+    dist/assets/prompts-DNvV29PT.js               15.54 kB │ gzip:   4.46 kB
+    dist/assets/cases-CnYpYH3u.js                 25.94 kB │ gzip:   7.66 kB
+    dist/assets/production-context-CfTlFjV5.js    31.33 kB │ gzip:   8.17 kB
+    dist/assets/candidates-BWrUgG5b.js            39.41 kB │ gzip:  10.41 kB
+    dist/assets/index-CcG44J3d.js                329.53 kB │ gzip: 102.48 kB
+    ✓ built in 211ms
+  smoke:local:
+    [smoke] PASS MySQL compose service is healthy
+    [smoke] PASS database reachable as tb_dev@% on tb_notice_dev (MySQL 8.4.11)
+    [smoke] PASS Prisma client, contracts, API and web built (yarn build)
+    [smoke] PASS api listening on 127.0.0.1:3000
+    [smoke] PASS web listening on 127.0.0.1:5173
+    [smoke] PASS API /api/v1/health: 200, no-store, valid GetHealthResponse, status ok
+    [smoke] PASS web proxy /api/v1/health: 200, no-store, valid GetHealthResponse, status ok
+    [smoke] PASS web shell served on http://localhost:5173/ with bundle /assets/index-CcG44J3d.js
+    [smoke] PASS auth boundary: GET /auth/session without a cookie → 401 SESSION_REQUIRED, no-store, no CORS
+    [smoke] PASS auth boundary: POST /auth/login without Origin → 403 ORIGIN_REJECTED, no-store, no CORS
+    [smoke] PASS auth boundary: POST /auth/login for a synthetic unknown account → 403 INVALID_CREDENTIALS, no-store, no CORS
+    [smoke] PASS auth boundary: POST /auth/logout without a session → 401 SESSION_REQUIRED, no-store, no CORS
+    [smoke] PASS auth boundary: GET /auth/session through the web proxy → 401 SESSION_REQUIRED, no-store, no CORS
+    [smoke] PASS business boundary: GET /agencies without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /owners without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /legal-subjects without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /signers without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /owners/{ownerId}/subjects without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /owner-subjects/{id} through the web proxy without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /agencies without Origin → 403 ORIGIN_REJECTED, no-store
+    [smoke] PASS business boundary: POST /agencies/{id}/canonical-bindings without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /sources without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /sources/{id}/revisions without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /routes through the web proxy without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /routes without Origin → 403 ORIGIN_REJECTED, no-store
+    [smoke] PASS business boundary: POST /routes/{id}/canonical-bindings without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /mandates without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /mandates/{id}/versions without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /mandate-versions/{id}/freeze without Origin → 403 ORIGIN_REJECTED, no-store
+    [smoke] PASS business boundary: GET /coverages/{id}/signers through the web proxy without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /mandates/{id}/events without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /cases without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /cases/{caseId}/authority-selections without Origin → 403 ORIGIN_REJECTED, no-store
+    [smoke] PASS business boundary: GET /cases/{caseId}/authority-selections/{id} without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /case-sources/{id} through the web proxy without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /cases/{caseId}/reported-items without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /cases/{caseId}/works without Origin → 403 ORIGIN_REJECTED, no-store
+    [smoke] PASS business boundary: GET /cases/{caseId}/mappings/{id} without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /cases/{caseId}/facts/{id}/revisions without Origin → 403 ORIGIN_REJECTED, no-store
+    [smoke] PASS business boundary: GET /cases/{caseId}/facts/{id}/sources without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /correspondence without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /correspondence without Origin → 403 ORIGIN_REJECTED, no-store
+    [smoke] PASS business boundary: POST /cases/{caseId}/correspondence-bindings without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /correspondence/{id} through the web proxy without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /cases/{caseId}/production-context without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /cases/{caseId}/production-context through the web proxy without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /cases/{caseId}/prompts without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /cases/{caseId}/prompts without Origin → 403 ORIGIN_REJECTED, no-store
+    [smoke] PASS business boundary: GET /cases/{caseId}/prompts without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /prompts/{id} through the web proxy without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /cases/{caseId}/candidates without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /candidates/{id}/revisions without Origin → 403 ORIGIN_REJECTED, no-store
+    [smoke] PASS business boundary: POST /candidates/{id}/supersede without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /cases/{caseId}/candidates without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /candidates/{id} through the web proxy without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /candidates/{id}/validation-runs (later phase, not routed) → 404 NOT_FOUND, no-store
+    [smoke] PASS processes stopped; ports 3000 and 5173 released
+    [smoke] PASS (57 checks)
+  dev:verify-shutdown:
+    [verify-dev] scripts/local/dev.ts [terminal-ctrl-c]: started=true exit=0 in 608ms portsReleased=true leftovers=0 → PASS
+    [verify-dev] scripts/local/dev.ts [top-sigint]: started=true exit=0 in 643ms portsReleased=true leftovers=0 → PASS
+    [verify-dev] scripts/local/dev.ts [top-sigterm]: started=true exit=0 in 606ms portsReleased=true leftovers=0 → PASS
+    [verify-dev] yarn dev [terminal-ctrl-c]: started=true exit=0 in 605ms portsReleased=true leftovers=0 → PASS
+    [verify-dev] PASS (4/4 scenarios)
+  reference:check (after): [reference:check] OK — frozen references intact.
+  db:verify test --expect-empty (after): [verify] domain rows total: 0
+
+Per-file test counts (JSON reporter, output outside the repository; run right after the sweep on the same code
+dcc4289, 2026-09-26T04:52:25Z–04:59:04Z; afterwards `db:verify test --expect-empty` PASS, no .vitest/ directory in the
+repository, status unchanged)
+---------------------------------------------------------------------------------------------------------------------
+yarn test: 1465/1465 passed in 46 files
+     14  tests/api/admin-cli-runner.test.ts
+     12  tests/api/admin-cli.test.ts
+     23  tests/api/auth-config.test.ts
+     38  tests/api/authority-rules.test.ts
+     23  tests/api/candidate-rules.test.ts
+      7  tests/api/cli-target.test.ts
+     14  tests/api/correspondence-rules.test.ts
+      5  tests/api/credentials.test.ts
+     15  tests/api/directory-rules.test.ts
+     56  tests/api/intake-rules.test.ts
+      8  tests/api/login-throttle.test.ts
+      2  tests/api/password-hasher-work.test.ts
+      6  tests/api/password-hasher.test.ts
+     12  tests/api/production-context-rules.test.ts
+     25  tests/api/prompt-rules.test.ts
+      5  tests/api/request-middleware.test.ts
+      7  tests/api/runtime-database-url.test.ts
+      5  tests/api/session-cookie.test.ts
+      6  tests/api/session-tokens.test.ts
+     54  tests/api/source-rules.test.ts
+     47  tests/api/storability.test.ts
+      7  tests/api/write-executor.test.ts
+     13  tests/api/write-primitives.test.ts
+     21  tests/contracts/formats-unicode.test.ts
+    443  tests/contracts/inventory-openapi.test.ts
+     28  tests/contracts/lowering-health.test.ts
+     30  tests/contracts/port-fail-closed.test.ts
+     12  tests/contracts/release-v1-1-0.test.ts
+     13  tests/contracts/release-v1-2-0.test.ts
+    321  tests/contracts/runtime-parity.test.ts
+     11  tests/contracts/tooling.test.ts
+      8  tests/tooling/admin-guard.test.ts
+      6  tests/tooling/env-file.test.ts
+     12  tests/tooling/seed-guard.test.ts
+     10  tests/web/app.test.tsx
+      1  tests/web/claim-texts.test.tsx
+     22  tests/web/directory.test.tsx
+     18  tests/web/p3a.test.tsx
+     17  tests/web/p3b.test.tsx
+     17  tests/web/p4a.test.tsx
+     24  tests/web/p4b.test.tsx
+     17  tests/web/p4c.test.tsx
+      8  tests/web/p4d.test.tsx
+      8  tests/web/p4e.test.tsx
+     11  tests/web/p4f.test.tsx
+      3  tests/web/routing.test.tsx
+yarn test:db: 494/494 passed in 13 files
+      5  tests/db/admin-create.test.ts
+     14  tests/db/admin-recovery.test.ts
+     37  tests/db/auth-http.test.ts
+     71  tests/db/directory-http.test.ts
+     45  tests/db/p3a-http.test.ts
+     62  tests/db/p3b-http.test.ts
+     45  tests/db/p4a-http.test.ts
+     39  tests/db/p4b-http.test.ts
+     40  tests/db/p4c-http.test.ts
+     42  tests/db/p4d-http.test.ts
+     33  tests/db/p4e-http.test.ts
+     39  tests/db/p4f-http.test.ts
+     22  tests/db/structural.test.ts
+
+Baseline (P4E code head cc0d62d = main 79db09b, the same method): yarn test 1431 in 44 files; yarn test:db 455 in 12
+files; smoke:local 52 checks. Per-file comparison with those counts (computed):
+  +tests/api/candidate-rules.test.ts: new → 23
+  +tests/web/p4f.test.tsx: new → 11
+  +tests/db/p4f-http.test.ts: new → 39
+  every other file keeps its count — the route inventory (tests/db/directory-http.test.ts), the session regex
+    (tests/db/auth-http.test.ts) and the later-phase checks (tests/db/p4a-, p4b-, p4c-, p4d-, p4e-http.test.ts:
+    candidates are routed now, validation onward stays unrouted) were updated in place;
+  = yarn test +34 (1465), yarn test:db +39 (494); smoke:local 52 → 57 checks (five candidate guard checks replace
+    the "candidates not routed" probe, and a "validation runs not routed" probe is added).
+
+Transition check (ADR-0002 §6, opt-in, not part of yarn test or CI; never a success gate)
+------------------------------------------------------------------------------------------
+`yarn test:transition-baseline` was not run for P4F: it has failed by design since the approved v1.1.0 edit
+(ADR-0004) and P4F changes no contract source. It is not "fixed" and not a gate.

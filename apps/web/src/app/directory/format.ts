@@ -251,6 +251,22 @@ export const OUTCOME_LABEL = {
   OTHER: 'Other',
 } as const;
 
+/**
+ * Notice candidates (P4F). A planned document's state is a plan for a later human composition,
+ * never a record that anything was attached, uploaded or sent (there is no "attached" state).
+ */
+export const PLAN_STATE_LABEL = {
+  REFERENCE_ONLY: 'Reference only',
+  PREPARED_FOR_ATTACHMENT: 'Prepared for attachment (planned, not attached)',
+  PREVIOUSLY_SUPPLIED: 'Previously supplied (as recorded)',
+  UNKNOWN: 'Unknown',
+} as const;
+/** Whether a planned document's disclosure was reviewed, as entered — never an approval. */
+export const DISCLOSURE_REVIEW_LABEL = {
+  PENDING: 'Disclosure review pending',
+  REVIEWED_WITH_LIMITS: 'Reviewed with limits',
+} as const;
+
 /** Why a capture's posture was refused (CAPTURE_POSTURE_UNSUPPORTED reasons). */
 const CAPTURE_POSTURE_REASON_TEXT: Record<string, string> = {
   RAW_SOURCE_NOT_REFERENCED:
@@ -559,6 +575,9 @@ export function describeError(error: unknown, recordLabel = 'record'): string {
       }
       return 'That source is already recorded as another owner’s material, so it cannot be used for this owner.';
     case 'CROSS_CASE_REFERENCE':
+      if (details['field'] === 'promptSnapshotId') {
+        return 'That prompt snapshot belongs to another case. A candidate is drafted from a prompt snapshot of its own case, and a revision stays in its case.';
+      }
       if (isContextSelector(details['field'])) {
         return 'That selection or binding belongs to another case. A production context uses only this case’s own records.';
       }
@@ -600,11 +619,17 @@ export function describeError(error: unknown, recordLabel = 'record'): string {
     case 'DUPLICATE_ROUTE':
       return 'A route for this agency, association and platform already exists. Open that route instead.';
     case 'REVISION_NOT_HEAD':
+      if (recordLabel === 'candidate') {
+        return 'This candidate already has a revision. A candidate history does not fork: open the latest version and revise that one.';
+      }
       if (recordLabel === 'fact') {
         return 'A newer revision of this fact exists. Only the current revision can be revised: open it and revise that one.';
       }
       return 'A newer revision of this source exists. Only the current revision can be revised.';
     case 'REVISION_SCOPE_CHANGE':
+      if (stringList(details['fields']).includes('promptSnapshotId')) {
+        return 'A revision keeps the candidate’s task: choose a prompt snapshot of the same task. A draft for another task needs its own candidate.';
+      }
       if (stringList(details['fields']).includes('correspondenceId')) {
         return 'A corrected interpretation keeps the captured message of the binding it corrects. Another message needs its own binding.';
       }
@@ -688,6 +713,9 @@ export function describeError(error: unknown, recordLabel = 'record'): string {
     case 'SELECTOR_NOT_FOR_TASK':
       return 'An initial notice has no parent message and no prior transmissions. Those selectors apply to a reply to a request for more information only.';
     case 'REPLY_PARENT_REQUIRED':
+      if (details['reason'] === 'NOT_IN_ENVELOPE') {
+        return 'A reply keeps the thread of its prompt snapshot: the envelope names the prompt’s parent binding. None is chosen for you.';
+      }
       return details['reason'] === 'NOT_NMI'
         ? 'That binding is not recorded as a request for more information (NMI). A reply starts from the exact NMI binding it answers.'
         : 'Drafting a reply needs the exact binding of the request for more information (NMI) it answers. Name it; none is chosen for you.';
@@ -701,6 +729,16 @@ export function describeError(error: unknown, recordLabel = 'record'): string {
       return `The request named an invalid value (${String(details['parameter'])}). Choose again.`;
     case 'CONTEXT_CHANGED':
       return 'Context changed. Review the current context before generating again.';
+    case 'ENVELOPE_PARENT_MISMATCH':
+      return 'A candidate keeps the reply thread of its prompt snapshot: the envelope’s parent binding is the prompt’s own, and none when the prompt named none.';
+    case 'ENVELOPE_SENDER_MISMATCH':
+      return 'The prompt snapshot names an authority selection: the sender must be exactly its intended mailbox. Another mailbox needs its own selection and prompt.';
+    case 'DOCUMENT_PLAN_UNSUPPORTED':
+      return details['reason'] === 'NOT_RECORDED_AS_SUPPLIED'
+        ? '“Previously supplied” needs a prior transmission in this prompt snapshot’s context whose captured attachments name that exact source. A source or a sent message alone does not record it.'
+        : 'A planned document can name only the SHA-256 recorded on its source revision, whose hash target says what that hash covers.';
+    case 'CANDIDATE_ALREADY_SUPERSEDED':
+      return 'This draft artifact is already superseded. A supersession is recorded once and never changed.';
     case 'PROMPT_TOO_LARGE':
       return `The prompt would be larger than the contract allows (${String(details['field'])}: ${String(details['count'])}, at most ${String(details['maximum'])}). Nothing is cut to fit, so no prompt was generated.`;
     case 'EVENT_ALREADY_SUPERSEDED':
