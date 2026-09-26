@@ -16,15 +16,14 @@
 // candidate) id, and a candidate is shown only under its own case.
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import {
-  codePointLength,
-  type CreateCandidate,
-  type NoticeCandidate,
-  type PromptSnapshot,
-  type PromptSnapshotSummary,
-  type ReviseCandidate,
-  type SourceManifestEntry,
-  type SourceReference,
+import type {
+  CreateCandidate,
+  NoticeCandidate,
+  PromptSnapshot,
+  PromptSnapshotSummary,
+  ReviseCandidate,
+  SourceManifestEntry,
+  SourceReference,
 } from '@tb/contracts';
 import { ApiError } from '../api/client.js';
 import { useSession } from '../auth/session.js';
@@ -1419,7 +1418,7 @@ function CandidateForm({
                 Body loaded from the file {body.name}
               </p>
               <p className="hint" data-testid="candidate-body-file-meaning">
-                {BODY_FILE_MEANING} {codePointLength(body.text)} characters.
+                {BODY_FILE_MEANING} {Array.from(body.text).length} characters.
               </p>
               <pre
                 id="candidate-body-preview"
