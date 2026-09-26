@@ -1558,3 +1558,26 @@ code.hash {
   align-items: center;
   gap: 0.5rem;
 }
+
+/* Notice candidates (P4F). An unsigned draft artifact, never a verdict: the body is shown exactly
+   as stored in the plain-text treatment of captured text, in a bounded scrollable (and so
+   focusable) frame; a superseded artifact gets a neutral ink stamp — superseding is an internal
+   lifecycle step, not a failure, retraction or approval. Long subjects and plan texts wrap. */
+.candidate-text {
+  max-height: 36rem;
+  overflow: auto;
+}
+
+.candidate-form textarea#candidate-bodyText {
+  min-height: 16rem;
+}
+
+.stamp-superseded {
+  color: var(--ink-3);
+}
+
+.candidate-subject-cell,
+.candidate-plan-text {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}

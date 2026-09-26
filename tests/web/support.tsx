@@ -24,7 +24,14 @@
 // generation reads the case's stated context reply for the requested scope (its refusals apply
 // unchanged), is 412 CONTEXT_CHANGED unless the expected revision and digest are that reply's, and
 // stores the test's prompt text with that context, versioned per case and task; snapshots are
-// immutable (no ETag), listed as summaries per case and read by id. All data is synthetic.
+// immutable (no ETag), listed as summaries per case and read by id. Notice candidates (P4F) follow
+// the storing rules the candidate pages rely on: a prompt snapshot of this case, the envelope's
+// reply thread and sender as the prompt's parent binding and selected mailbox, a planned document's
+// hash only as its source records it, "previously supplied" only for a source a prior transmission
+// of the prompt's context lists among its attachments, versions per case and task, a revision only
+// of a chain's latest version and of the same task (the revised row never changes), and a
+// supersession recorded once; the artifact hash is a synthetic stand-in (the server's algorithm is
+// pinned by the API tests). All data is synthetic.
 import { act, StrictMode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter, useNavigate } from 'react-router';
@@ -221,6 +228,8 @@ export class FakeDirectory {
   readonly prompts: Array<Record<string, unknown> & { id: string; caseId: string }> = [];
   /** The rendered text stored with the next generated prompt (the fake renders nothing). */
   promptText = 'SYNTHETIC rendered prompt text\n';
+  /** Notice candidates (P4F), in import order; content immutable, read by id. */
+  readonly candidates: Array<Record<string, unknown> & { id: string; caseId: string }> = [];
   /** First results of correspondence and prompt writes by Idempotency-Key (a retry replays them). */
   private readonly replays = new Map<string, { body: string; response: Record<string, unknown> }>();
   /** The next correspondence write is recorded, but its reply is lost (a 500 reaches the page). */
@@ -692,6 +701,12 @@ export class FakeDirectory {
     if (collection === 'cases' && id && action === 'prompts' && !childId) {
       return this.promptsRequest(method, id, url, headers, body);
     }
+    if (collection === 'cases' && id && action === 'candidates' && !childId) {
+      return this.caseCandidatesRequest(method, id, url, headers, body);
+    }
+    if (collection === 'candidates' && id) {
+      return this.candidateRequest(method, id, action, headers, body);
+    }
     if (collection === 'prompts' && id && action === undefined) {
       const prompt = method === 'GET' ? this.prompts.find((row) => row.id === id) : undefined;
       return prompt ? json(200, { data: prompt, meta }) : failure(404, 'NOT_FOUND');
@@ -1037,6 +1052,7 @@ export class FakeDirectory {
     headers: Record<string, string>,
     body: unknown,
     perform: () => Promise<Response | Record<string, unknown>> | Response | Record<string, unknown>,
+    status = 201,
   ): Promise<Response> {
     const key = headers['Idempotency-Key'] ?? '';
     const digest = JSON.stringify(body);
@@ -1044,7 +1060,7 @@ export class FakeDirectory {
     const meta = { requestId: 'r', affectedResources: [] };
     if (earlier) {
       if (earlier.body !== digest) return failure(409, 'IDEMPOTENCY_CONFLICT');
-      return json(201, { data: earlier.response, meta });
+      return json(status, { data: earlier.response, meta });
     }
     const outcome = await perform();
     if (outcome instanceof Response) return outcome;
@@ -1053,7 +1069,7 @@ export class FakeDirectory {
       this.loseNextReply = false;
       return failure(500, 'INTERNAL_ERROR');
     }
-    return json(201, { data: outcome, meta });
+    return json(status, { data: outcome, meta });
   }
 
   private correspondenceRequest(
@@ -1135,7 +1151,7 @@ export class FakeDirectory {
       contextRevision: 1,
       dependencyDigest: 'd'.repeat(64),
       dependencyManifest: [],
-      contextJson: { priorCorrespondenceIds: [] },
+      contextJson: { priorCorrespondenceIds: [], correspondence: [], authority: null },
       sourceManifest: [],
       missingItems: [],
       conflicts: [],
@@ -1252,6 +1268,298 @@ export class FakeDirectory {
       conflicts: view.context.conflicts,
       renderedPrompt: this.promptText,
     });
+  }
+
+  // Notice candidates (P4F) ---------------------------------------------------------------------
+
+  /** Seeds one stored candidate of a case (for history, detail and isolation tests). */
+  async seedCandidate(
+    fields: Record<string, unknown> & { caseId: string; promptSnapshotId: string },
+  ): Promise<Record<string, unknown> & { id: string; caseId: string }> {
+    const content = {
+      subject: 'SYNTHETIC seeded subject',
+      envelopeJson: {
+        from: 'synthetic-sender@example.invalid',
+        to: 'synthetic-platform@example.invalid',
+        replyTo: null,
+        parentBindingId: null,
+      },
+      bodyText: 'SYNTHETIC seeded body\n',
+      preparedDocuments: [],
+      ...fields,
+    };
+    const taskType = fields['taskType'] ?? 'INITIAL';
+    // Hashed first: the version is then allocated and the row stored without an await between.
+    const bodySha256 = await sha256(String(content.bodyText));
+    const artifactSha256 = await sha256(
+      JSON.stringify([
+        content.subject,
+        content.bodyText,
+        content.envelopeJson,
+        content.preparedDocuments,
+      ]),
+    );
+    const row = {
+      id: this.id(),
+      parentCandidateId: null,
+      version:
+        this.candidates.filter((c) => c.caseId === fields.caseId && c['taskType'] === taskType)
+          .length + 1,
+      taskType,
+      signatureState: 'HUMAN_PENDING',
+      authoringTool: null,
+      revisionReason: null,
+      supersededAt: null,
+      supersedeReason: null,
+      createdAt: NOW,
+      createdById: USER_ID,
+      ...content,
+      bodySha256,
+      artifactSha256,
+    };
+    this.candidates.push(row);
+    return row;
+  }
+
+  private caseCandidatesRequest(
+    method: string,
+    caseId: string,
+    url: URL,
+    headers: Record<string, string>,
+    body: unknown,
+  ): Response | Promise<Response> {
+    if (!this.rows.CaseRecord.has(caseId)) return failure(404, 'NOT_FOUND');
+    if (method === 'GET') {
+      const q = url.searchParams.get('q');
+      const limit = Number(url.searchParams.get('limit') ?? 25);
+      const start = Number(url.searchParams.get('cursor')?.replace('p', '') ?? 0);
+      const summaries = this.candidates
+        .filter((row) => row.caseId === caseId)
+        .filter(
+          (row) =>
+            !q ||
+            row.id === q ||
+            row['promptSnapshotId'] === q ||
+            row['bodySha256'] === q ||
+            row['artifactSha256'] === q,
+        )
+        .reverse()
+        .map((row) =>
+          Object.fromEntries(
+            [
+              'id',
+              'caseId',
+              'promptSnapshotId',
+              'version',
+              'taskType',
+              'subject',
+              'bodySha256',
+              'artifactSha256',
+              'signatureState',
+              'supersededAt',
+              'createdAt',
+            ].map((field) => [field, row[field]]),
+          ),
+        );
+      const items = summaries.slice(start, start + limit);
+      const nextCursor = start + limit < summaries.length ? `p${start + limit}` : null;
+      return json(200, {
+        data: { items, nextCursor },
+        meta: { requestId: 'r', affectedResources: [] },
+      });
+    }
+    if (method !== 'POST') return failure(404, 'NOT_FOUND');
+    return this.idempotent(headers, body, () =>
+      this.storeCandidate(caseId, body as Record<string, unknown>, null),
+    );
+  }
+
+  private candidateRequest(
+    method: string,
+    id: string,
+    action: string | undefined,
+    headers: Record<string, string>,
+    body: unknown,
+  ): Response | Promise<Response> {
+    const row = this.candidates.find((candidate) => candidate.id === id);
+    if (!row) return failure(404, 'NOT_FOUND');
+    if (method === 'GET' && action === undefined) {
+      return json(200, { data: row, meta: { requestId: 'r', affectedResources: [] } });
+    }
+    if (method === 'POST' && action === 'revisions') {
+      return this.idempotent(headers, body, () =>
+        this.storeCandidate(row.caseId, body as Record<string, unknown>, row),
+      );
+    }
+    if (method === 'POST' && action === 'supersede') {
+      return this.idempotent(
+        headers,
+        body,
+        () => this.supersedeCandidate(row, body as Record<string, unknown>),
+        200,
+      );
+    }
+    return failure(404, 'NOT_FOUND');
+  }
+
+  /** The candidate-writing refusals of an archived case, as the server words them. */
+  private candidateCaseRefusal(caseId: string, operation: string): Response | null {
+    const caseRow = this.rows.CaseRecord.get(caseId);
+    if (!caseRow) return failure(404, 'NOT_FOUND');
+    if (caseRow['archivedAt'] !== null && caseRow['archivedAt'] !== undefined) {
+      return failure(409, 'RECORD_STATE_CONFLICT', {
+        record: 'CaseRecord',
+        state: 'ARCHIVED',
+        operation,
+      });
+    }
+    return null;
+  }
+
+  private async storeCandidate(
+    caseId: string,
+    request: Record<string, unknown>,
+    parent: (Record<string, unknown> & { id: string }) | null,
+  ): Promise<Response | Record<string, unknown>> {
+    const refusal = this.candidateCaseRefusal(
+      caseId,
+      parent === null ? 'importCandidate' : 'reviseCandidate',
+    );
+    if (refusal) return refusal;
+    const texts: Array<[string, unknown]> = [
+      ['subject', request['subject']],
+      ['bodyText', request['bodyText']],
+    ];
+    const nul = texts.find(([, value]) => typeof value === 'string' && value.includes('\u0000'));
+    if (nul) {
+      return failure(422, 'VALIDATION_FAILED', {
+        issues: [{ path: nul[0], message: 'Contains a NUL character, which is not stored' }],
+      });
+    }
+    if (parent !== null) {
+      const successor = this.candidates.find((row) => row['parentCandidateId'] === parent.id);
+      if (successor) {
+        let head = successor;
+        for (
+          let next = this.candidates.find((row) => row['parentCandidateId'] === head.id);
+          next;
+          next = this.candidates.find((row) => row['parentCandidateId'] === head.id)
+        ) {
+          head = next;
+        }
+        return failure(409, 'REVISION_NOT_HEAD', { headId: head.id });
+      }
+    }
+    const prompt = this.prompts.find((row) => row.id === request['promptSnapshotId']);
+    if (!prompt) return failure(422, 'REFERENCE_NOT_FOUND', { field: 'promptSnapshotId' });
+    if (prompt.caseId !== caseId) {
+      return failure(422, 'CROSS_CASE_REFERENCE', { field: 'promptSnapshotId', target: 'record' });
+    }
+    if (parent !== null && prompt['taskType'] !== parent['taskType']) {
+      return failure(422, 'REVISION_SCOPE_CHANGE', { fields: ['promptSnapshotId'] });
+    }
+    const envelope = request['envelope'] as Record<string, unknown>;
+    const envelopeParent = (envelope['parentBindingId'] as string | undefined) ?? null;
+    if (envelopeParent !== prompt['parentBindingId']) {
+      return envelopeParent === null
+        ? failure(422, 'REPLY_PARENT_REQUIRED', {
+            field: 'envelope.parentBindingId',
+            reason: 'NOT_IN_ENVELOPE',
+            promptParentBindingId: prompt['parentBindingId'],
+          })
+        : failure(422, 'ENVELOPE_PARENT_MISMATCH', {
+            field: 'envelope.parentBindingId',
+            promptParentBindingId: prompt['parentBindingId'],
+          });
+    }
+    const context = prompt['contextJson'] as {
+      authority: { selection: { id: string; intendedFromEmail: string } } | null;
+      priorCorrespondenceIds: string[];
+      correspondence: Array<{
+        id: string;
+        attachmentsManifest?: Array<{ sourceId?: string }> | null;
+      }>;
+    };
+    const selection = context.authority?.selection ?? null;
+    if (selection !== null && envelope['from'] !== selection.intendedFromEmail) {
+      return failure(422, 'ENVELOPE_SENDER_MISMATCH', {
+        field: 'envelope.from',
+        authoritySelectionId: selection.id,
+      });
+    }
+    const plans = request['preparedDocuments'] as Array<Record<string, unknown>>;
+    const supplied = new Set(
+      context.correspondence
+        .filter((message) => context.priorCorrespondenceIds.includes(message.id))
+        .flatMap((message) => (message.attachmentsManifest ?? []).map((a) => a.sourceId)),
+    );
+    for (const [index, plan] of plans.entries()) {
+      const source = this.sources.get(String(plan['sourceId']));
+      if (!source) {
+        return failure(422, 'REFERENCE_NOT_FOUND', {
+          field: `preparedDocuments.${index}.sourceId`,
+        });
+      }
+      const named = (plan['contentSha256'] as string | null | undefined) ?? null;
+      if (named !== null && named !== source['contentSha256']) {
+        return failure(422, 'DOCUMENT_PLAN_UNSUPPORTED', {
+          field: `preparedDocuments.${index}.contentSha256`,
+          reason: 'HASH_NOT_RECORDED',
+        });
+      }
+      if (plan['state'] === 'PREVIOUSLY_SUPPLIED' && !supplied.has(source.id)) {
+        return failure(422, 'DOCUMENT_PLAN_UNSUPPORTED', {
+          field: `preparedDocuments.${index}.state`,
+          reason: 'NOT_RECORDED_AS_SUPPLIED',
+        });
+      }
+    }
+    return this.seedCandidate({
+      caseId,
+      promptSnapshotId: prompt.id,
+      taskType: prompt['taskType'],
+      parentCandidateId: parent?.id ?? null,
+      subject: request['subject'],
+      envelopeJson: {
+        from: envelope['from'],
+        to: envelope['to'],
+        replyTo: envelope['replyTo'] ?? null,
+        parentBindingId: envelopeParent,
+      },
+      bodyText: request['bodyText'],
+      preparedDocuments: plans.map((plan) => ({
+        sourceId: plan['sourceId'],
+        purpose: plan['purpose'],
+        state: plan['state'],
+        fileName: plan['fileName'] ?? null,
+        contentSha256: plan['contentSha256'] ?? null,
+        disclosureReview: plan['disclosureReview'],
+        limitations: plan['limitations'] ?? null,
+      })),
+      authoringTool: request['authoringTool'] ?? null,
+      revisionReason: request['revisionReason'] ?? null,
+    });
+  }
+
+  private supersedeCandidate(
+    row: Record<string, unknown> & { id: string; caseId: string },
+    request: Record<string, unknown>,
+  ): Response | Record<string, unknown> {
+    const refusal = this.candidateCaseRefusal(row.caseId, 'supersedeCandidate');
+    if (refusal) return refusal;
+    if (typeof request['reason'] !== 'string' || request['reason'] === '') {
+      return failure(422, 'VALIDATION_FAILED', {
+        issues: [{ path: 'reason', message: 'Must contain at least 1 Unicode code points' }],
+      });
+    }
+    if (row['supersededAt'] !== null) {
+      return failure(409, 'CANDIDATE_ALREADY_SUPERSEDED', { supersededAt: row['supersededAt'] });
+    }
+    Object.assign(row, {
+      supersededAt: '2026-09-24T10:00:00.000Z',
+      supersedeReason: request['reason'],
+    });
+    return row;
   }
 
   private async capture(
