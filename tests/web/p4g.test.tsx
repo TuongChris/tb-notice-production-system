@@ -327,7 +327,9 @@ async function reloadAndOpenRun(caseId: string, candidateId: string, runId: stri
   expect(open.getAttribute('aria-expanded')).toBe('false');
   await click(open);
   expect(open.getAttribute('aria-expanded')).toBe('true');
-  await waitFor(() => runReads(runId).length > 0, 'the read of the run');
+  await waitFor(() => detail() !== null, 'the opened run');
+  // Opening it reads the run from the server (StrictMode may request it twice).
+  expect(runReads(runId).length).toBeGreaterThan(0);
   // Held: the detail only says it is reading — nothing of the run comes from memory.
   expect(detail().querySelector('[data-testid="loading"]')).not.toBeNull();
   expect(detail().querySelector('[data-testid="validation-coverage"]')).toBeNull();
@@ -993,8 +995,8 @@ describe('P4G technical validation on the candidate page', () => {
     stored['candidateId'] = other.id;
     await click(open);
     await waitFor(
-      () => q('[data-testid="validation-run-not-here"]') !== null,
-      'the refusal to show another candidate’s run',
+      () => detail() !== null && detail().querySelector('[data-testid="loading"]') === null,
+      'the reopened run to be read',
     );
     expect(q('[data-testid="validation-run-not-here"]')?.textContent).toBe(RUN_NOT_HERE);
     expect(detail().querySelector('[data-testid="validation-coverage"]')).toBeNull();
