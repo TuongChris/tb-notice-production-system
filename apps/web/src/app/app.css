@@ -1662,8 +1662,11 @@ code.hash {
   margin-top: 0.5rem;
 }
 
+/* Record ids break only at their hyphens: breaking them anywhere (the global code rule) lets an
+   automatic table layout crush the column to a character or two on a narrow screen. The
+   fingerprints keep the digest treatment; the table scrolls inside its frame. */
 .dependency-manifest code {
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
 }
 
 .evaluated-context {
