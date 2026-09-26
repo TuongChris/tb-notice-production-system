@@ -11,6 +11,7 @@ import { ProductionModule } from './modules/production/production.module.js';
 import { PromptsModule } from './modules/prompts/prompts.module.js';
 import { RepresentationModule } from './modules/representation/representation.module.js';
 import { SourcesModule } from './modules/sources/sources.module.js';
+import { ValidationModule } from './modules/validation/validation.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 
 // P1: health + local authentication (login/session/logout) behind a secure-by-default global guard.
@@ -22,8 +23,10 @@ import { HealthModule } from './modules/health/health.module.js';
 // production context (recorded input only; no G1–G7 decision or readiness). P4E: prompt snapshots —
 // a prompt rendered locally and deterministically from one exact context and frozen with it (no AI
 // provider call). P4F: notice candidates — the exact unsigned draft artifact drafted outside the
-// application from one prompt snapshot, stored with its hashes (no AI provider call, no
-// validation). No validation, assessment, readiness, export, signing or sending endpoints.
+// application from one prompt snapshot, stored with its hashes (no AI provider call). P4G: technical
+// validation — the technical ruleset's result for one exact candidate artifact against the current
+// context of its prompt's scope (technical checks only; no G1–G6 review, approval or readiness). No
+// assessment, readiness, export, signing or sending endpoints.
 @Module({
   imports: [
     DatabaseModule,
@@ -37,6 +40,7 @@ import { HealthModule } from './modules/health/health.module.js';
     ProductionModule,
     PromptsModule,
     CandidatesModule,
+    ValidationModule,
   ],
   providers: [{ provide: APP_FILTER, useClass: ApiExceptionFilter }],
 })

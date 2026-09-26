@@ -24,6 +24,9 @@ import {
 export const DIRECTORY_SUITE_TABLES = [
   'idempotency_records',
   'audit_events',
+  // P4G validation runs and their issues (a run names its candidate and case).
+  'validation_issues',
+  'validation_runs',
   // P4F notice candidates (they name cases, prompt snapshots and their parent candidates).
   'notice_candidates',
   // P4E prompt snapshots (they name cases, authority selections and correspondence bindings).

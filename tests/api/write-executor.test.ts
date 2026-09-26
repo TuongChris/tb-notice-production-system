@@ -275,6 +275,74 @@ describe('WriteExecutor', () => {
     expect(db.rows).toEqual([]);
   });
 
+  it('prepare runs once for a new claim, after the claim and outside the transaction; every attempt receives its value', async () => {
+    const { db, executor } = setup();
+    db.failures = [deadlock(), deadlock()];
+    const calls: Array<{ now: Date; claimState: string | undefined; transactions: number }> = [];
+    const received: unknown[] = [];
+    const reply = await executor.execute(
+      patchCommand(),
+      async (context, prepared: { value: string }) => {
+        received.push(prepared);
+        return patchWork(context);
+      },
+      {
+        prepare: async (now) => {
+          calls.push({ now, claimState: db.rows[0]?.state, transactions: db.transactions });
+          return { value: 'prepared-once' };
+        },
+      },
+    );
+    expect(reply.status).toBe(200);
+    expect(calls).toEqual([{ now: NOW, claimState: 'IN_PROGRESS', transactions: 0 }]);
+    expect(db.transactions).toBe(3);
+    expect(received).toEqual([
+      { value: 'prepared-once' },
+      { value: 'prepared-once' },
+      { value: 'prepared-once' },
+    ]);
+    expect(new Set(received).size).toBe(1);
+  });
+
+  it('a replay never runs prepare', async () => {
+    const { db, executor } = setup();
+    let prepared = 0;
+    const options = {
+      prepare: async () => {
+        prepared += 1;
+        return null;
+      },
+    };
+    await executor.execute(patchCommand(), patchWork, options);
+    const replay = await executor.execute(
+      patchCommand({ requestId: 'request-2' }),
+      patchWork,
+      options,
+    );
+    expect(replay.replayed).toBe(true);
+    expect(prepared).toBe(1);
+    expect(db.transactions).toBe(1);
+  });
+
+  it('a prepare failure releases the claim, runs no transaction and stores nothing for replay', async () => {
+    const { db, audit, executor } = setup();
+    const refusal = new ApiError(412, 'CONTEXT_CHANGED', 'changed', { field: 'x' });
+    const error = await rejection(
+      executor.execute(patchCommand(), patchWork, {
+        prepare: async () => {
+          throw refusal;
+        },
+      }),
+    );
+    expect(error).toBe(refusal);
+    expect(db.transactions).toBe(0);
+    expect(db.rows).toEqual([]);
+    expect(audit.entries).toEqual([]);
+    // The same key is free again: the next request with it runs as a new claim.
+    const reply = await executor.execute(patchCommand(), patchWork);
+    expect(reply).toMatchObject({ status: 200, replayed: false });
+  });
+
   it('refuses operations that are not idempotent writes in the contract', async () => {
     const { executor } = setup();
     await expect(

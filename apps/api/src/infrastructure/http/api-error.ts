@@ -526,4 +526,23 @@ export const apiErrors = {
       'This draft artifact is already superseded. A supersession is recorded once and never changed.',
       { supersededAt },
     ),
+
+  // Technical validation (P4G): the frozen stable codes ARTIFACT_CHANGED and CONTEXT_CHANGED (412,
+  // "context/artifact digest precondition", API_CONTRACT_v1 §5).
+  /** A run is recorded only for exactly the artifact the caller expects (a candidate never changes). */
+  artifactChanged: (field: 'expectedArtifactSha256') =>
+    new ApiError(
+      412,
+      'ARTIFACT_CHANGED',
+      'The expected artifact SHA-256 is not the stored artifact of this candidate. A candidate never changes: read it again, or validate the candidate whose artifact you reviewed. No validation run was recorded.',
+      { field },
+    ),
+  /** A run is recorded only against exactly the current context the caller reviewed. */
+  validationContextChanged: (field: 'expectedDependencyDigest' | 'preparedDocuments') =>
+    new ApiError(
+      412,
+      'CONTEXT_CHANGED',
+      'The recorded context changed after it was read. Read the current context before validating again; no validation run was recorded.',
+      { field },
+    ),
 } as const;
