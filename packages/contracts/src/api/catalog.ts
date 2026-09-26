@@ -9,8 +9,10 @@
 // port is provenance only and must not be re-run over it. Build wire schemas with the `tb`
 // builders only — the JSON Schema/OpenAPI lowering rejects anything else.
 // Amended additively by TB-SCHEMA-API-v1.1.0 (ADR-0004, docs/contracts/TB-SCHEMA-API-v1.1.0): two
-// schemas after ListCaseAuthoritySelectionsResponse; and by TB-SCHEMA-API-v1.2.0 (ADR-0005,
-// docs/contracts/TB-SCHEMA-API-v1.2.0): two schemas after GetCaseFactResponse.
+// schemas after ListCaseAuthoritySelectionsResponse; by TB-SCHEMA-API-v1.2.0 (ADR-0005,
+// docs/contracts/TB-SCHEMA-API-v1.2.0): two schemas after GetCaseFactResponse; and by
+// TB-SCHEMA-API-v1.3.0 (ADR-0006, docs/contracts/TB-SCHEMA-API-v1.3.0): one schema after
+// ListValidationRunsResponse.
 
 import type { SchemaCatalog } from '../generation/artifacts.js';
 import * as schemas from './schemas/index.js';
@@ -298,6 +300,7 @@ export const apiSchemaCatalog = [
   ['ValidationRunSummary', schemas.ValidationRunSummarySchema],
   ['ValidationRunPage', schemas.ValidationRunPageSchema],
   ['ListValidationRunsResponse', schemas.ListValidationRunsResponseSchema],
+  ['GetValidationRunResponse', schemas.GetValidationRunResponseSchema],
   ['ValidationIssuePage', schemas.ValidationIssuePageSchema],
   ['ListValidationIssuesResponse', schemas.ListValidationIssuesResponseSchema],
   ['CaptureCandidateAssessmentResponse', schemas.CaptureCandidateAssessmentResponseSchema],

@@ -578,7 +578,7 @@ async function main(): Promise<void> {
       a.sourceId < b.sourceId ? -1 : a.sourceId > b.sourceId ? 1 : 0,
     );
     if (
-      snapshot.contractVersion !== 'TB-SCHEMA-API-v1.2.0' ||
+      snapshot.contractVersion !== 'TB-SCHEMA-API-v1.3.0' ||
       snapshot.templateVersion !== 'TB-PROMPT-TEMPLATE-v1' ||
       snapshot.contextRevision !== view.contextRevision ||
       snapshot.dependencyDigest !== view.dependencyDigest ||

@@ -2,7 +2,7 @@
   "openapi": "3.1.1",
   "info": {
     "title": "TB Notice Production System — API Contract v1",
-    "version": "1.2.0",
+    "version": "1.3.0",
     "description": "LOCAL-FIRST contract, not a deployed API. Terminal product: unsigned candidate. Technical validation does not certify rights/G1-G6. No send, signature, G7 or raw evidence export route."
   },
   "servers": [
@@ -13565,6 +13565,88 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ListValidationRunsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "x-precondition-target": null,
+        "x-idempotent-write": false
+      }
+    },
+    "/validation-runs/{id}": {
+      "get": {
+        "operationId": "getValidationRun",
+        "tags": [
+          "Validation"
+        ],
+        "summary": "Read one stored validation run exactly as recorded; a historical technical result, never re-evaluated, not G1–G6 review or readiness.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 36,
+              "minLength": 36,
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; source-based truth and human gates remain separate.",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Strong entity row-version ETag when the resource is mutable."
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetValidationRunResponse"
                 }
               }
             }
@@ -33479,6 +33561,22 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/ValidationRunPage"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "GetValidationRunResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ValidationRun"
           },
           "meta": {
             "$ref": "#/components/schemas/ResponseMeta"

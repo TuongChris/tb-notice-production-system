@@ -1,0 +1,138 @@
+{
+  "release": "TB-SCHEMA-API-v1.3.0",
+  "kind": "ADDITIVE",
+  "decision": "docs/decisions/ADR-0006-tb-schema-api-v1-3-0-validation-run-read.md",
+  "summary": "Adds the read-back of one stored ValidationRun exactly as recorded (R14 remediation, V13). Nothing of TB-SCHEMA-API-v1.2.0 — and so nothing of TB-SCHEMA-API-v1.1.0 or TB-SCHEMA-API-v1.0.0 — is changed or removed.",
+  "base": {
+    "release": "TB-SCHEMA-API-v1.2.0",
+    "path": "docs/contracts/TB-SCHEMA-API-v1.2.0",
+    "amendmentSha256": "b5cae658a3f47639500e2220e4a91fcfb81c34972d8426a4fa9fd1146cdbc294",
+    "files": {
+      "packages/contracts/schemas/api-schemas.json": "f4b8d7e1fb6fe85be8bd89b9a4d514fc5e805f924da3edb89f2af14389ed5ef4",
+      "packages/contracts/openapi/openapi.json": "0391b408344f0f09811d444b4df3ec061eeaf6b639b59867548e4e182e10a511",
+      "packages/contracts/openapi/openapi.yaml": "9c305a974eb47acf3329e0d73629355a7660602e5af4e180a9f63a9e6309083e"
+    }
+  },
+  "openApiInfoVersion": {
+    "from": "1.2.0",
+    "to": "1.3.0"
+  },
+  "schemas": {
+    "refForm": "JSON Schema $defs (#/$defs/<name>); in OpenAPI components.schemas the same schemas use #/components/schemas/<name>",
+    "insertAfter": "ListValidationRunsResponse",
+    "added": {
+      "GetValidationRunResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/ValidationRun"
+          },
+          "meta": {
+            "$ref": "#/$defs/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "operations": {
+    "insertAfterPath": "/candidates/{candidateId}/validation-runs",
+    "added": {
+      "/validation-runs/{id}": {
+        "get": {
+          "operationId": "getValidationRun",
+          "tags": [
+            "Validation"
+          ],
+          "summary": "Read one stored validation run exactly as recorded; a historical technical result, never re-evaluated, not G1–G6 review or readiness.",
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "maxLength": 36,
+                "minLength": 36,
+                "format": "uuid"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Success; source-based truth and human gates remain separate.",
+              "headers": {
+                "ETag": {
+                  "schema": {
+                    "type": "string"
+                  },
+                  "description": "Strong entity row-version ETag when the resource is mutable."
+                },
+                "Cache-Control": {
+                  "schema": {
+                    "type": "string"
+                  },
+                  "example": "no-store"
+                }
+              },
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/GetValidationRunResponse"
+                  }
+                }
+              }
+            },
+            "400": {
+              "$ref": "#/components/responses/Error"
+            },
+            "401": {
+              "$ref": "#/components/responses/Error"
+            },
+            "403": {
+              "$ref": "#/components/responses/Error"
+            },
+            "404": {
+              "$ref": "#/components/responses/Error"
+            },
+            "409": {
+              "$ref": "#/components/responses/Error"
+            },
+            "413": {
+              "$ref": "#/components/responses/Error"
+            },
+            "422": {
+              "$ref": "#/components/responses/Error"
+            },
+            "429": {
+              "$ref": "#/components/responses/Error"
+            },
+            "500": {
+              "$ref": "#/components/responses/Error"
+            }
+          },
+          "security": [
+            {
+              "SessionCookie": []
+            }
+          ],
+          "x-precondition-target": null,
+          "x-idempotent-write": false
+        }
+      }
+    }
+  },
+  "result": {
+    "schemaCount": 289,
+    "operationCount": 144,
+    "files": {
+      "packages/contracts/schemas/api-schemas.json": "5868d90ee84356643fe4c368a44a1b3a200502c40bb5e294146127423e956a8c",
+      "packages/contracts/openapi/openapi.json": "3743fba314fb5b976be17d6368c9ce3316ad35b97cf97d7a7591c9384312dd36",
+      "packages/contracts/openapi/openapi.yaml": "ad80e8ad27c5128807cd0688270d469efb2ef423c5d22e7c821c8f5b919c0ded"
+    }
+  }
+}

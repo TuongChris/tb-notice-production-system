@@ -19264,6 +19264,22 @@
       ],
       "additionalProperties": false
     },
+    "GetValidationRunResponse": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/ValidationRun"
+        },
+        "meta": {
+          "$ref": "#/$defs/ResponseMeta"
+        }
+      },
+      "required": [
+        "data",
+        "meta"
+      ],
+      "additionalProperties": false
+    },
     "ValidationIssuePage": {
       "type": "object",
       "properties": {

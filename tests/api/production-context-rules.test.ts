@@ -163,12 +163,12 @@ const DEPENDENCIES: Dependency[] = [
 describe('dependencyDigest — the closure and the scope, never a row version or a clock', () => {
   it('is the SHA-256 of the TB canonical JSON of the algorithm, contract, PFC version, scope (priors as a sorted set) and the dependencies without row versions', () => {
     expect(DEPENDENCY_DIGEST_ALGORITHM).toBe('TB-PRODUCTION-CONTEXT-DIGEST-v1');
-    expect(CONTRACT_BASELINE).toBe('TB-SCHEMA-API-v1.2.0');
+    expect(CONTRACT_BASELINE).toBe('TB-SCHEMA-API-v1.3.0');
     expect(PFC_SCHEMA_VERSION).toBe('PFC-YT-EMAIL-v1.1');
     expect(dependencyDigest(scope(), DEPENDENCIES)).toBe(
       tbCanonicalSha256({
         algorithm: 'TB-PRODUCTION-CONTEXT-DIGEST-v1',
-        contract: 'TB-SCHEMA-API-v1.2.0',
+        contract: 'TB-SCHEMA-API-v1.3.0',
         schemaVersion: 'PFC-YT-EMAIL-v1.1',
         scope: {
           caseId: CASE,

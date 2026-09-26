@@ -9,8 +9,10 @@
 // port is provenance only and must not be re-run over it. Build wire schemas with the `tb`
 // builders only — the JSON Schema/OpenAPI lowering rejects anything else.
 // Amended additively by TB-SCHEMA-API-v1.1.0 (ADR-0004, docs/contracts/TB-SCHEMA-API-v1.1.0): the
-// operation getCaseAuthoritySelection after listCaseAuthoritySelections; and by TB-SCHEMA-API-v1.2.0
-// (ADR-0005, docs/contracts/TB-SCHEMA-API-v1.2.0): the operation getCaseFactSources after getCaseFact.
+// operation getCaseAuthoritySelection after listCaseAuthoritySelections; by TB-SCHEMA-API-v1.2.0
+// (ADR-0005, docs/contracts/TB-SCHEMA-API-v1.2.0): the operation getCaseFactSources after
+// getCaseFact; and by TB-SCHEMA-API-v1.3.0 (ADR-0006, docs/contracts/TB-SCHEMA-API-v1.3.0): the
+// operation getValidationRun after listValidationRuns.
 
 import { tb } from '../primitives/wire.js';
 import type { OperationSpec } from './operation-types.js';
@@ -106,6 +108,7 @@ import {
   GetSignerResponseSchema,
   GetSourceResponseSchema,
   GetUseMappingResponseSchema,
+  GetValidationRunResponseSchema,
   ImportCandidateResponseSchema,
   LinkCaseSourceSchema,
   LinkCaseSourceResponseSchema,
@@ -3453,6 +3456,31 @@ export const operations = [
       { name: 'q', in: 'query', schema: tb.string({ maxLength: 200 }) },
     ],
     success: { status: '200', schema: ListValidationRunsResponseSchema },
+    errors: ['400', '401', '403', '404', '409', '413', '422', '429', '500'],
+    security: 'session',
+    preconditionTarget: null,
+    idempotentWrite: false,
+  },
+  // TB-SCHEMA-API-v1.3.0 (ADR-0006, additive): the read-back of one stored ValidationRun exactly as
+  // recorded. Same shape as the other global reads by id (getPrompt, getCandidate: `/…/{id}`, the
+  // {data, meta} envelope, no ETag for an immutable record); the run's issues stay with
+  // listValidationIssues.
+  {
+    operationId: 'getValidationRun',
+    method: 'get',
+    path: '/validation-runs/{id}',
+    tags: ['Validation'],
+    summary:
+      'Read one stored validation run exactly as recorded; a historical technical result, never re-evaluated, not G1–G6 review or readiness.',
+    parameters: [
+      {
+        name: 'id',
+        in: 'path',
+        required: true,
+        schema: tb.string({ maxLength: 36, minLength: 36, format: 'uuid' }),
+      },
+    ],
+    success: { status: '200', schema: GetValidationRunResponseSchema },
     errors: ['400', '401', '403', '404', '409', '413', '422', '429', '500'],
     security: 'session',
     preconditionTarget: null,
