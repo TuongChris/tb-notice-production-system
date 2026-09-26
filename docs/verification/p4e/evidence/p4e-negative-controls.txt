@@ -1,0 +1,509 @@
+P4E Prompt generation and PromptSnapshot — negative controls (mission §43), home PC, 2026-09-26 (UTC)
+====================================================================================================
+
+Method (scratchpad runner outside Git, the P4A–P4D method): each control disables exactly one protection of
+generatePrompt, listCasePrompts, getPrompt or their pages by an exact text replacement — or injects the forbidden
+behaviour — then runs every responsible test command. Each command must FAIL with a non-zero exit AND name at
+least one failed test; the first failure message is recorded to show that the failure is the test's assertion,
+not a crash of a broken mutation or a backstop. Every mutated file is then restored and verified byte-identical
+by SHA-256. Every anchor is checked to occur exactly once before a control runs. DB commands run on the
+disposable tb_notice_test only (synthetic example.invalid records; every test cleans up). The working tree is
+fingerprinted (git diff HEAD + SHA-256 of every untracked file) before and after a run. No control touches
+docs/reference/**, a migration, the generated contract artifacts or a release record.
+
+A mutation of the shared P4D reader (NC-P4E-04, -05, -17) changes the reviewed read and the generation alike, so
+the expected digest still matches and the digest check cannot stop the request first: the responsible P4E test
+must see the auto-selected record or the other case's item in the stored snapshot itself.
+
+Final run (run 2): 2026-09-26T01:05:08.795Z – 2026-09-26T01:06:43.250Z, head cc0d62d3d1d4df80cfc5eb19d79cb99e5fbd3814
+(the code head; clean tree except the untracked docs/verification/p4e/ evidence), runner exit 0.
+  30 controls, 30 caught and restored (38 responsible commands, every one failed and named a test).
+  Working-tree fingerprint before and after: 01fd8ba4b67105aeb2ca83d7146916532d26ea11384b9b67e56a227cd85352f2 (identical)
+  Afterwards `yarn db:verify test --expect-empty`: [verify] domain rows total: 0; [verify] PASS: metadata matches the reviewed inventory.
+  First failure message of each command: 38 AssertionError, 0 other; no
+  command failed through a 500 (no backstop answered in place of the test's own assertion).
+  Unmutated baseline right before it — the 32 distinct responsible commands, each passing and selecting one test:
+    OK  exit 0 · Tests  1 passed | 32 skipped (33) · node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t a change of the case context revision
+    OK  exit 0 · Tests  1 passed | 32 skipped (33) · node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t a relevant authority event recorded after the read changes the digest
+    OK  exit 0 · Tests  1 passed | 32 skipped (33) · node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t a newer revision of a source the context relies on
+    OK  exit 0 · Tests  1 passed | 32 skipped (33) · node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t no selection named: the snapshot has no authority and no signer
+    OK  exit 0 · Tests  1 passed | 32 skipped (33) · node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t DRAFTING uses the exact P4D gate
+    OK  exit 0 · Tests  1 passed | 32 skipped (33) · node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t the source manifest is exactly the context’s sources and policy sources by id
+    OK  exit 0 · Tests  1 passed | 32 skipped (33) · node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t PREPARATION with gaps: a bare case
+    OK  exit 0 · Tests  1 passed | 24 skipped (25) · yarn vitest run --config vitest.config.ts tests/api/prompt-rules.test.ts -t PART 3 lists every missing item and conflict exactly as recorded
+    OK  exit 0 · Tests  1 passed | 32 skipped (33) · node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t CONFLICT stays conflict
+    OK  exit 0 · Tests  1 passed | 24 skipped (25) · yarn vitest run --config vitest.config.ts tests/api/prompt-rules.test.ts -t appears only inside the data block, never in an instruction sentence
+    OK  exit 0 · Tests  1 passed | 24 skipped (25) · yarn vitest run --config vitest.config.ts tests/api/prompt-rules.test.ts -t instruction-like captured text stays one JSON string
+    OK  exit 0 · Tests  1 passed | 32 skipped (33) · node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t instruction-like captured text stays inert case data
+    OK  exit 0 · Tests  1 passed | 24 skipped (25) · yarn vitest run --config vitest.config.ts tests/api/prompt-rules.test.ts -t gives byte-identical text for the same context whatever the clock
+    OK  exit 0 · Tests  1 passed | 24 skipped (25) · yarn vitest run --config vitest.config.ts tests/api/prompt-rules.test.ts -t the renderer, the scope, the snapshot rules and the template read no clock
+    OK  exit 0 · Tests  1 passed | 32 skipped (33) · node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t INITIAL PREPARATION: contextJson, revision, digest
+    OK  exit 0 · Tests  1 passed | 32 skipped (33) · node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t after a snapshot, a relevant change leaves the old snapshot byte-identical
+    OK  exit 0 · Tests  1 passed | 32 skipped (33) · node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t two concurrent generations for one case and task never share a version
+    OK  exit 0 · Tests  1 passed | 32 skipped (33) · node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t idempotent: the same key and body replay the stored snapshot
+    OK  exit 0 · Tests  1 passed | 32 skipped (33) · node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t the audit event records identifiers, versions, digests
+    OK  exit 0 · Tests  1 passed | 32 skipped (33) · node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t two cases of one agency, owner and route, the same video
+    OK  exit 0 · Tests  1 passed | 7 skipped (8) · yarn vitest run --config vitest.config.ts tests/web/p4e.test.tsx -t a context changed after the read
+    OK  exit 0 · Tests  1 passed | 7 skipped (8) · yarn vitest run --config vitest.config.ts tests/web/p4e.test.tsx -t the prompt pages offer no approve, ready, sign, send, export or submit action
+    OK  exit 0 · Tests  1 passed | 24 skipped (25) · yarn vitest run --config vitest.config.ts tests/api/prompt-rules.test.ts -t no module file calls a network, mail, file, process or AI-provider API
+    OK  exit 0 · Tests  1 passed | 32 skipped (33) · node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t generation, list and get open no outbound connection
+    OK  exit 0 · Tests  1 passed | 24 skipped (25) · yarn vitest run --config vitest.config.ts tests/api/prompt-rules.test.ts -t the web prompt pages reach only the application API
+    OK  exit 0 · Tests  1 passed | 24 skipped (25) · node node_modules/vitest/vitest.mjs run --config vitest.config.ts tests/api/prompt-rules.test.ts -t no workspace manifest depends on an AI-provider SDK
+    OK  exit 0 · Tests  1 passed | 32 skipped (33) · node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t SERIALIZABLE: what the generation read stays as read
+    OK  exit 0 · Tests  1 passed | 32 skipped (33) · node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t generation writes exactly one snapshot, one audit event and one idempotency record
+    OK  exit 0 · Tests  1 passed | 32 skipped (33) · node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t a rendered prompt above 1,000,000 code points is refused whole
+    OK  exit 0 · Tests  1 passed | 32 skipped (33) · node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t the list shows this case’s snapshots only, newest first, as summaries
+    OK  exit 0 · Tests  1 passed | 7 skipped (8) · yarn vitest run --config vitest.config.ts tests/web/p4e.test.tsx -t the history lists this case’s summaries only, newest first, with pages
+    OK  exit 0 · Tests  1 passed | 7 skipped (8) · yarn vitest run --config vitest.config.ts tests/web/p4e.test.tsx -t says once that it was generated
+    32 distinct commands, 0 problems
+
+RESULT: 30/30 — every disabled protection made its responsible tests fail; every file restored byte-identically.
+
+History (nothing hidden; every run kept in the scratchpad)
+- While the controls were designed, I expected the concurrency test to prove the case lock only indirectly
+  (through the version numbers) and added a direct count of the generations that passed the case lock while the
+  first one held it (commit 9bffe24; exactly one). That expectation was wrong, and its reason in the 9bffe24
+  commit message ("InnoDB could still serialize the two inserts … into versions 1 and 2, so the version numbers
+  alone would not show a missing lock") is corrected here: a check after the runs — the test file as of e1e2de6,
+  with NC-P4E-14's mutation, three runs, both files restored byte-identically — failed every time on the
+  original direct assertion that nothing commits while the first generation holds the case ("expected 1 to be
+  +0": without the lock the second generation commits version 1 first). So the original test already caught the
+  missing lock; 9bffe24 adds a second direct assertion and was not needed for NC-P4E-14. No history was rewritten.
+- Run 1: 2026-09-26T01:00:32.508Z – 2026-09-26T01:02:11.867Z, head 9bffe24, fingerprint 01fd8ba4b67105aeb2ca83d7146916532d26ea11384b9b67e56a227cd85352f2
+  (identical after): 30 controls, 30 caught and restored, 38 commands; afterwards
+  `db:verify test --expect-empty`: [verify] domain rows total: 0; [verify] PASS: metadata matches the reviewed inventory. Its unmutated baseline: 32 distinct commands,
+  0 problems. 36 of the 38 commands failed on an AssertionError; two web tests failed
+  on their wait for the expected state instead:
+  * NC-P4E-18 (silent retry after 412): "Error: timed out waiting for the refusal" — the page re-read and generated by itself, so the
+    "Context changed" alert the test waited for never came;
+  * NC-P4E-25 (another case's prompt shown): "Error: timed out waiting for not in this case" — the page showed the other case's
+    prompt instead of the notice the test waited for.
+  Both were caught, but by a timeout rather than an assertion on the protection. Commit cc0d62d makes both tests
+  wait for either outcome and then assert it (no detail page after a 412; no prompt text under another case).
+- Run 2 (final, above), on cc0d62d: NC-P4E-18 now fails on "AssertionError: expected <article class="sheet" …(1)>…(9)</article> to be null",
+  NC-P4E-25 on "AssertionError: expected <pre …(4)></pre> to be null".
+
+Mission §43 coverage (the twenty listed kinds, then the further P4E protections)
+- stale expectedContextRevision ignored: NC-P4E-01
+- stale dependencyDigest ignored: NC-P4E-02
+- relevant AuthorityEvent omitted: NC-P4E-03
+- auto-latest authority selection: NC-P4E-04
+- auto-latest NMI: NC-P4E-05
+- source revision auto-follow: NC-P4E-06
+- MISSING removed (stored snapshot): NC-P4E-07a
+- MISSING removed (rendered prompt): NC-P4E-07b
+- CONFLICT removed (stored snapshot): NC-P4E-08a
+- CONFLICT removed (rendered prompt): NC-P4E-08b
+- untrusted text treated as instruction: NC-P4E-09
+- prompt renderer uses clock: NC-P4E-10
+- prompt renderer uses randomness: NC-P4E-11
+- promptSha256 hashes normalized text: NC-P4E-12
+- second generation overwrites first snapshot: NC-P4E-13
+- version race duplicates version: NC-P4E-14
+- idempotent replay creates a new snapshot: NC-P4E-15
+- audit stores full rendered prompt: NC-P4E-16
+- cross-case contamination: NC-P4E-17
+- UI silently retries after 412: NC-P4E-18
+- UI shows readiness/approval action: NC-P4E-19
+- AI provider/network call introduced (API): NC-P4E-20a
+- AI provider/network call introduced (web page): NC-P4E-20b
+- AI provider SDK dependency introduced: NC-P4E-20c
+- generation not SERIALIZABLE: NC-P4E-21
+- prompt not history-bearing: NC-P4E-22
+- oversized prompt truncated: NC-P4E-23
+- list leaks the prompt text: NC-P4E-24
+- UI shows another case's prompt: NC-P4E-25
+- UI repeats "Prompt generated" on reload: NC-P4E-26
+
+Notes on single controls
+- NC-P4E-01 removes both expected-revision checks. The stale revision then reaches the digest check, which still
+  refuses (the case record's fingerprint changed with it) — but on expectedDependencyDigest: the test's assertion
+  of the exact field ({field: expectedContextRevision}) fails. The two checks are separate protections; a context
+  whose revision moved is refused as such.
+- NC-P4E-03 removes the authority events from the dependency closure: a new event then changes neither the
+  revision nor the digest, and the test's own assertion that the digest changed fails.
+- NC-P4E-04 / -05 make the shared P4D reader fill an omitted selector with the case's current selection / its
+  latest NMI binding. The reviewed read and the generation then agree, so no 412 masks it: the no-selection test
+  finds an authority block in the stored snapshot; the DRAFTING-gate test gets DRAFTING_INPUT_MISSING (the parent
+  gap filled in) instead of REPLY_PARENT_REQUIRED.
+- NC-P4E-06 lets the snapshot's source manifest follow each source to its newest revision; the manifest then
+  names the newer revision instead of the pinned one.
+- NC-P4E-07a/b and 08a/b separate the stored lists (missingItems, conflicts) from the rendered PART 3.
+- NC-P4E-09 interpolates the parent's captured body into the reply instruction — recorded text in an instruction
+  sentence; three tests (two unit, one DB) fail on it.
+- NC-P4E-10 / -11 put a timestamp / a random nonce into the header: the determinism test (fake clock, fixed
+  Math.random, another time zone) and the module's purity scan both fail.
+- NC-P4E-13 deletes the task's earlier snapshots before an insert: the historical snapshot's read is 404.
+- NC-P4E-14 replaces the case lock with a plain read: the second generation passes the case while the first holds
+  it (the count is 2).
+- NC-P4E-15 gives every request a fresh idempotency key: the replay creates a second snapshot.
+- NC-P4E-20a/b/c: a provider-like POST during generation (the module scan and the DB test's fetch spy both
+  fail), in the Copy prompt handler (the page scan fails) and an "openai" dependency in apps/api/package.json
+  (the manifest scan fails; run without Yarn so the mutated manifest meets no install-state check).
+- NC-P4E-21 runs the generation at READ COMMITTED: the concurrent authority event commits during the generation
+  (the SERIALIZABLE test's own count).
+- NC-P4E-22 to -26 are further P4E protections: a prompt makes its case history-bearing; an oversized prompt is
+  refused whole, never cut; the list returns summaries only; the detail page shows a prompt only under its own
+  case; "Prompt generated" is said once (the fix of the R12 browser finding F1).
+
+Controls (replacement shown shortened; "must fail" = the responsible commands)
+------------------------------------------------------------------------------
+NC-P4E-01 — [stale expectedContextRevision ignored] a stale expected context revision is refused (412 CONTEXT_CHANGED on expectedContextRevision): both revision checks removed
+  file: apps/api/src/modules/prompts/prompts.service.ts
+  replace: "        if (current.contextRevision !== body.expectedContextRevision) {\n          throw apiErrors.contextChanged('expectedContextRevision');\n        }\n"
+  with:    ""
+  file: apps/api/src/modules/prompts/prompts.service.ts
+  replace: "        if (view.contextRevision !== body.expectedContextRevision) {\n          throw apiErrors.contextChanged('expectedContextRevision');\n        }\n"
+  with:    ""
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t a change of the case context revision
+NC-P4E-02 — [stale dependencyDigest ignored] a stale expected dependency digest is refused (412 CONTEXT_CHANGED on expectedDependencyDigest): the digest check removed
+  file: apps/api/src/modules/prompts/prompts.service.ts
+  replace: "        if (view.dependencyDigest !== body.expectedDependencyDigest) {\n          throw apiErrors.contextChanged('expectedDependencyDigest');\n        }\n"
+  with:    ""
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t a relevant authority event recorded after the read changes the digest
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t a newer revision of a source the context relies on
+NC-P4E-03 — [relevant AuthorityEvent omitted] the authority events of the pinned chain are dependencies of the context, so a new one changes the digest (removed from the closure)
+  file: apps/api/src/modules/production/context-dependencies.ts
+  replace: "  for (const row of rows.events) {\n    add('AuthorityEvent', row.id, null, semantic(toAuthorityEventView(row)));\n  }\n"
+  with:    ""
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t a relevant authority event recorded after the read changes the digest
+NC-P4E-04 — [auto-latest authority selection] no selection is chosen for an omitted selector (the reader falls back to the case's current selection, for the reviewed read and the generation alike)
+  file: apps/api/src/modules/production/context-snapshot.ts
+  replace: "  const selection =\n    scope.authoritySelectionId === null\n      ? null\n      : await namedSelection(tx, caseRow.id, scope.authoritySelectionId);\n"
+  with:    "  const selection =\n    scope.authoritySelectionId === null\n      ? caseRow.currentAuthoritySelectionId === null\n        ? null\n        : await namedSelection(tx, case..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t no selection named: the snapshot has no authority and no signer
+NC-P4E-05 — [auto-latest NMI] no parent is chosen for a reply without a named parent (the reader falls back to the case's latest NMI binding, for the reviewed read and the generation alike)
+  file: apps/api/src/modules/production/context-snapshot.ts
+  replace: "      ? null\n      : await namedBinding(tx, caseRow.id, scope.parentBindingId, 'parentBindingId', 'parent');\n"
+  with:    "      ? scope.taskType === 'NMI_REPLY'\n        ? await tx.correspondenceBinding.findFirst({\n            where: { caseId: caseRow.id, eventType: 'NMI' },\n            or..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t DRAFTING uses the exact P4D gate
+NC-P4E-06 — [source revision auto-follow] the snapshot's source manifest keeps the exact revisions the context lists (each entry follows its revision chain to the newest head instead)
+  file: apps/api/src/modules/prompts/prompts.service.ts
+  replace: "        const sourceManifest = promptSourceManifest(view.context);\n"
+  with:    "        const sourceManifest = [];\n        for (const entry of promptSourceManifest(view.context)) {\n          let head = entry.sourceId;\n          for (;;) {\n        ..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t the source manifest is exactly the context’s sources and policy sources by id
+NC-P4E-07a — [MISSING removed (stored snapshot)] the snapshot's missingItems are exactly the context's missing items (stored as an empty list)
+  file: apps/api/src/modules/prompts/prompts.service.ts
+  replace: "            missingItems: json(view.context.missing),\n"
+  with:    "            missingItems: json([]),\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t PREPARATION with gaps: a bare case
+NC-P4E-07b — [MISSING removed (rendered prompt)] the prompt lists every missing item in PART 3 (the renderer lists none)
+  file: apps/api/src/modules/prompts/prompt-renderer.ts
+  replace: "    ...listed('MISSING', context.missing),\n"
+  with:    "    ...listed('MISSING', []),\n"
+  must fail: yarn vitest run --config vitest.config.ts tests/api/prompt-rules.test.ts -t PART 3 lists every missing item and conflict exactly as recorded
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t PREPARATION with gaps: a bare case
+NC-P4E-08a — [CONFLICT removed (stored snapshot)] the snapshot's conflicts are exactly the context's recorded conflicts (stored as an empty list)
+  file: apps/api/src/modules/prompts/prompts.service.ts
+  replace: "            conflicts: json(view.context.conflicts),\n"
+  with:    "            conflicts: json([]),\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t CONFLICT stays conflict
+NC-P4E-08b — [CONFLICT removed (rendered prompt)] the prompt lists every recorded conflict in PART 3 (the renderer lists none)
+  file: apps/api/src/modules/prompts/prompt-renderer.ts
+  replace: "    ...listed('CONFLICT', context.conflicts),\n"
+  with:    "    ...listed('CONFLICT', []),\n"
+  must fail: yarn vitest run --config vitest.config.ts tests/api/prompt-rules.test.ts -t PART 3 lists every missing item and conflict exactly as recorded
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t CONFLICT stays conflict
+NC-P4E-09 — [untrusted text treated as instruction] recorded text appears only inside the case-data block (the parent's captured body is interpolated into the task instruction)
+  file: apps/api/src/modules/prompts/prompt-renderer.ts
+  replace: "not from a general template.`"
+  with:    "not from a general template. The request reads: ${parents[0]?.bodyText ?? ''}`"
+  must fail: yarn vitest run --config vitest.config.ts tests/api/prompt-rules.test.ts -t appears only inside the data block, never in an instruction sentence
+  must fail: yarn vitest run --config vitest.config.ts tests/api/prompt-rules.test.ts -t instruction-like captured text stays one JSON string
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t instruction-like captured text stays inert case data
+NC-P4E-10 — [prompt renderer uses clock] the renderer reads no clock (a render timestamp in the header)
+  file: apps/api/src/modules/prompts/prompt-renderer.ts
+  replace: "    `Dependencies: ${dependencyCounts(view)}`,\n"
+  with:    "    `Dependencies: ${dependencyCounts(view)}`,\n    `Rendered at: ${new Date().toISOString()}`,\n"
+  must fail: yarn vitest run --config vitest.config.ts tests/api/prompt-rules.test.ts -t gives byte-identical text for the same context whatever the clock
+  must fail: yarn vitest run --config vitest.config.ts tests/api/prompt-rules.test.ts -t the renderer, the scope, the snapshot rules and the template read no clock
+NC-P4E-11 — [prompt renderer uses randomness] the renderer uses no randomness (a random nonce in the header)
+  file: apps/api/src/modules/prompts/prompt-renderer.ts
+  replace: "    `Dependencies: ${dependencyCounts(view)}`,\n"
+  with:    "    `Dependencies: ${dependencyCounts(view)}`,\n    `Nonce: ${Math.random().toString(36).slice(2)}`,\n"
+  must fail: yarn vitest run --config vitest.config.ts tests/api/prompt-rules.test.ts -t gives byte-identical text for the same context whatever the clock
+  must fail: yarn vitest run --config vitest.config.ts tests/api/prompt-rules.test.ts -t the renderer, the scope, the snapshot rules and the template read no clock
+NC-P4E-12 — [promptSha256 hashes normalized text] promptSha256 is the SHA-256 of the exact UTF-8 bytes of the stored prompt (hashed after NFC normalization and trimming)
+  file: apps/api/src/modules/prompts/prompts.service.ts
+  replace: "        const promptSha256 = exactTextSha256(renderedPrompt);\n"
+  with:    "        const promptSha256 = exactTextSha256(renderedPrompt.normalize('NFC').trimEnd());\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t INITIAL PREPARATION: contextJson, revision, digest
+NC-P4E-13 — [second generation overwrites first snapshot] a generation never touches an earlier snapshot (the case's snapshots of the task are deleted before the insert)
+  file: apps/api/src/modules/prompts/prompts.service.ts
+  replace: "        await this.observer.beforeInsert(caseId);\n"
+  with:    "        await tx.promptSnapshot.deleteMany({ where: { caseId, taskType: scope.taskType } });\n        await this.observer.beforeInsert(caseId);\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t after a snapshot, a relevant change leaves the old snapshot byte-identical
+NC-P4E-14 — [version race duplicates version] the version is allocated under the case lock (FOR UPDATE replaced by a plain read, so a concurrent generation is no longer held)
+  file: apps/api/src/modules/prompts/prompts.service.ts
+  replace: "        const current = await lockCase(tx, caseId);\n"
+  with:    "        const current = await tx.caseRecord.findUniqueOrThrow({ where: { id: caseId } });\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t two concurrent generations for one case and task never share a version
+NC-P4E-15 — [idempotent replay creates a new snapshot] a replay of the same key and body returns the stored snapshot (every request gets a fresh idempotency key)
+  file: apps/api/src/modules/prompts/prompts.service.ts
+  replace: "      { operationId: 'generatePrompt', pathParams: { caseId }, body, requester },\n"
+  with:    "      {\n        operationId: 'generatePrompt',\n        pathParams: { caseId },\n        body,\n        requester: { ...requester, idempotencyKey: `${requester.idempotenc..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t idempotent: the same key and body replay the stored snapshot
+NC-P4E-16 — [audit stores full rendered prompt] the PROMPT_GENERATED audit event keeps lengths and digests, never the prompt (the rendered prompt added to it)
+  file: apps/api/src/modules/prompts/prompts.service.ts
+  replace: "            renderedPromptCodePoints: codePointLength(renderedPrompt),\n"
+  with:    "            renderedPromptCodePoints: codePointLength(renderedPrompt),\n            renderedPrompt,\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t the audit event records identifiers, versions, digests
+NC-P4E-17 — [cross-case contamination] a prompt's context holds this case's reported items only (the item query of the shared reader loses its case filter)
+  file: apps/api/src/modules/production/context-snapshot.ts
+  replace: "  const items = await tx.reportedItem.findMany({\n    where: { caseId, archivedAt: null },\n"
+  with:    "  const items = await tx.reportedItem.findMany({\n    where: { archivedAt: null },\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t two cases of one agency, owner and route, the same video
+NC-P4E-18 — [UI silently retries after 412] after a 412 the page shows "Context changed…" and generates nothing until the operator reads the current context (it re-reads and generates by itself)
+  file: apps/web/src/app/cases/prompts.tsx
+  replace: "      if (error instanceof ApiError && error.status === 412) setChangedRead(view);\n      else setFailure(error);\n"
+  with:    "      if (error instanceof ApiError && error.status === 412) {\n        const fresh = await api.cases.productionContext(caseId, scope);\n        const retried = requestO..."
+  must fail: yarn vitest run --config vitest.config.ts tests/web/p4e.test.tsx -t a context changed after the read
+NC-P4E-19 — [UI shows readiness/approval action] the prompt pages offer no approve, ready, sign, send or export action (a "Mark ready for signer" button on the detail page)
+  file: apps/web/src/app/cases/prompts.tsx
+  replace: "      <Section title=\"Prompt text\" actions={<CopyPrompt text={prompt.renderedPrompt} />}>\n"
+  with:    "      <button type=\"button\" className=\"button\">\n        Mark ready for signer\n      </button>\n      <Section title=\"Prompt text\" actions={<CopyPrompt text={prompt.rend..."
+  must fail: yarn vitest run --config vitest.config.ts tests/web/p4e.test.tsx -t the prompt pages offer no approve, ready, sign, send, export or submit action
+NC-P4E-20a — [AI provider/network call introduced (API)] generation calls no AI provider or network (the rendered prompt POSTed to a provider-like address during generation)
+  file: apps/api/src/modules/prompts/prompts.service.ts
+  replace: "        const promptSha256 = exactTextSha256(renderedPrompt);\n"
+  with:    "        const promptSha256 = exactTextSha256(renderedPrompt);\n        void fetch('https://api.openai.invalid/v1/chat/completions', { method: 'POST', body: renderedProm..."
+  must fail: yarn vitest run --config vitest.config.ts tests/api/prompt-rules.test.ts -t no module file calls a network, mail, file, process or AI-provider API
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t generation, list and get open no outbound connection
+NC-P4E-20b — [AI provider/network call introduced (web page)] the prompt pages reach only the application API (Copy prompt also POSTs the text to a provider-like address)
+  file: apps/web/src/app/cases/prompts.tsx
+  replace: "      await navigator.clipboard.writeText(text);\n"
+  with:    "      await navigator.clipboard.writeText(text);\n      void fetch('https://api.openai.invalid/v1/chat/completions', { method: 'POST', body: text }).catch(() => undefin..."
+  must fail: yarn vitest run --config vitest.config.ts tests/api/prompt-rules.test.ts -t the web prompt pages reach only the application API
+NC-P4E-20c — [AI provider SDK dependency introduced] no workspace manifest depends on an AI-provider SDK (apps/api/package.json gains "openai")
+  file: apps/api/package.json
+  replace: "  \"dependencies\": {\n    \"@nestjs/common\": \"12.0.4\",\n"
+  with:    "  \"dependencies\": {\n    \"openai\": \"4.0.0\",\n    \"@nestjs/common\": \"12.0.4\",\n"
+  must fail: node node_modules/vitest/vitest.mjs run --config vitest.config.ts tests/api/prompt-rules.test.ts -t no workspace manifest depends on an AI-provider SDK
+NC-P4E-21 — [generation not SERIALIZABLE] the generation transaction is SERIALIZABLE, so a dependency write that never locks the case waits for the snapshot (READ COMMITTED instead)
+  file: apps/api/src/modules/prompts/prompts.service.ts
+  replace: "        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,\n"
+  with:    "        isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t SERIALIZABLE: what the generation read stays as read
+NC-P4E-22 — [prompt not history-bearing] a prompt snapshot makes its case history-bearing (a later route correction is 409 naming PROMPT_SNAPSHOT) — PROMPT_SNAPSHOT removed from the history list
+  file: apps/api/src/modules/cases/case-rules.ts
+  replace: "  ['PROMPT_SNAPSHOT', (tx, caseId) => tx.promptSnapshot.count({ where: { caseId } })],\n"
+  with:    ""
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t generation writes exactly one snapshot, one audit event and one idempotency record
+NC-P4E-23 — [oversized prompt truncated] a rendered prompt above 1,000,000 code points is refused whole, never cut (the prompt is cut to the bound instead)
+  file: apps/api/src/modules/prompts/prompts.service.ts
+  replace: "        const renderedPrompt = renderPrompt(view, CONTRACT_BASELINE);\n"
+  with:    "        const renderedPrompt = Array.from(renderPrompt(view, CONTRACT_BASELINE)).slice(0, 1_000_000).join('');\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t a rendered prompt above 1,000,000 code points is refused whole
+NC-P4E-24 — [list leaks the prompt text] the list returns summaries only — never the prompt text (the summary gains renderedPrompt)
+  file: apps/api/src/modules/prompts/prompt-views.ts
+  replace: "  promptSha256: true,\n  createdAt: true,\n} as const;"
+  with:    "  promptSha256: true,\n  createdAt: true,\n  renderedPrompt: true,\n} as const;"
+  file: apps/api/src/modules/prompts/prompt-views.ts
+  replace: "    promptSha256: row.promptSha256,\n    createdAt: row.createdAt.toISOString(),\n  };\n}"
+  with:    "    promptSha256: row.promptSha256,\n    createdAt: row.createdAt.toISOString(),\n    renderedPrompt: (row as { renderedPrompt?: string }).renderedPrompt,\n  } as PromptS..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t the list shows this case’s snapshots only, newest first, as summaries
+NC-P4E-25 — [UI shows another case's prompt] a prompt is shown only under its own case — another case's is shown like an unknown one (the case check of the detail page removed)
+  file: apps/web/src/app/cases/prompts.tsx
+  replace: "    (state.status === 'ready' && state.value.caseId !== caseId);\n"
+  with:    "    false;\n"
+  must fail: yarn vitest run --config vitest.config.ts tests/web/p4e.test.tsx -t the history lists this case’s summaries only, newest first, with pages
+NC-P4E-26 — [UI repeats "Prompt generated" on reload] the "Prompt generated" status is said once and cleared from the history entry (read from the kept navigation state instead — the R12 browser finding F1)
+  file: apps/web/src/app/cases/prompts.tsx
+  replace: "import { Link, useNavigate, useParams, useSearchParams } from 'react-router';\n"
+  with:    "import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';\n"
+  file: apps/web/src/app/cases/prompts.tsx
+  replace: "  const generated = useFlashMessage();\n"
+  with:    "  const generated = (useLocation().state as FlashState | null)?.flash ?? null;\n"
+  must fail: yarn vitest run --config vitest.config.ts tests/web/p4e.test.tsx -t says once that it was generated
+
+Final run log (run 2)
+---------------------
+# P4E negative controls — start 2026-09-26T01:05:08.795Z — head cc0d62d3d1d4df80cfc5eb19d79cb99e5fbd3814 — tree fingerprint 01fd8ba4b67105aeb2ca83d7146916532d26ea11384b9b67e56a227cd85352f2
+[NC-P4E-01] CAUGHT · restored byte-identical · [stale expectedContextRevision ignored] a stale expected context revision is refused (412 CONTEXT_CHANGED on expectedContextRevision): both revision checks removed
+    exit 1 · Tests  1 failed | 32 skipped (33) · node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t a change of the case context revision
+      × a change of the case context revision (the intake label, a new reported item) → 412 on expectedContextRevision
+      FAIL  tests/db/p4e-http.test.ts > STALE CONTEXT — 412 CONTEXT_CHANGED; nothing is written, nothing is rebuilt silently > a change of the case context revision (the intake label, a new reported item) → 412 on expectedContextRevision
+        ↳ AssertionError: expected { field: 'expectedDependencyDigest' } to deeply equal { field: 'expectedContextRevision' }
+[NC-P4E-02] CAUGHT · restored byte-identical · [stale dependencyDigest ignored] a stale expected dependency digest is refused (412 CONTEXT_CHANGED on expectedDependencyDigest): the digest check removed
+    exit 1 · Tests  1 failed | 32 skipped (33) · node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t a relevant authority event recorded after the read changes the digest
+      × a relevant authority event recorded after the read changes the digest without moving the case revision → 412 on expectedDependencyDigest; no snapshot is written
+      FAIL  tests/db/p4e-http.test.ts > STALE CONTEXT — 412 CONTEXT_CHANGED; nothing is written, nothing is rebuilt silently > a relevant authority event recorded after the read changes the digest without moving the case revision → 412 on expectedDependencyDigest; no snapshot is written
+        ↳ AssertionError: expected [ 201, '(no error: HTTP 201)' ] to deeply equal [ 412, 'CONTEXT_CHANGED' ]
+    exit 1 · Tests  1 failed | 32 skipped (33) · node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t a newer revision of a source the context relies on
+      × a newer revision of a source the context relies on → 412 on expectedDependencyDigest
+      FAIL  tests/db/p4e-http.test.ts > STALE CONTEXT — 412 CONTEXT_CHANGED; nothing is written, nothing is rebuilt silently > a newer revision of a source the context relies on → 412 on expectedDependencyDigest
+        ↳ AssertionError: expected [ 201, '(no error: HTTP 201)' ] to deeply equal [ 412, 'CONTEXT_CHANGED' ]
+[NC-P4E-03] CAUGHT · restored byte-identical · [relevant AuthorityEvent omitted] the authority events of the pinned chain are dependencies of the context, so a new one changes the digest (removed from the closure)
+    exit 1 · Tests  1 failed | 32 skipped (33) · node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t a relevant authority event recorded after the read changes the digest
+      × a relevant authority event recorded after the read changes the digest without moving the case revision → 412 on expectedDependencyDigest; no snapshot is written
+      FAIL  tests/db/p4e-http.test.ts > STALE CONTEXT — 412 CONTEXT_CHANGED; nothing is written, nothing is rebuilt silently > a relevant authority event recorded after the read changes the digest without moving the case revision → 412 on expectedDependencyDigest; no snapshot is written
+        ↳ AssertionError: expected 'ebdc3db1d44514daa5827b7ddeb51e4a2223f…' not to be 'ebdc3db1d44514daa5827b7ddeb51e4a2223f…' // Object.is equality
+[NC-P4E-04] CAUGHT · restored byte-identical · [auto-latest authority selection] no selection is chosen for an omitted selector (the reader falls back to the case's current selection, for the reviewed read and the generation alike)
+    exit 1 · Tests  1 failed | 32 skipped (33) · node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t no selection named: the snapshot has no authority and no signer
+      × no selection named: the snapshot has no authority and no signer although the case has a current selection; the route’s default signer is never used
+      FAIL  tests/db/p4e-http.test.ts > EXACT FREEZE — the snapshot is exactly the context read, rendered deterministically > no selection named: the snapshot has no authority and no signer although the case has a current selection; the route’s default signer is never used
+        ↳ AssertionError: expected { coverages: [ { …(4) } ], …(1) } to be null
+[NC-P4E-05] CAUGHT · restored byte-identical · [auto-latest NMI] no parent is chosen for a reply without a named parent (the reader falls back to the case's latest NMI binding, for the reviewed read and the generation alike)
+    exit 1 · Tests  1 failed | 32 skipped (33) · node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t DRAFTING uses the exact P4D gate
+      × DRAFTING uses the exact P4D gate: with the digest of the DRAFTING scope, missing required input is refused before any snapshot (422 DRAFTING_INPUT_MISSING naming every blocking code; REPLY_PARENT_REQUIRED for a reply without its parent); a PREPARATION digest does not stand in for DRAFTING; with the input recorded DRAFTING freezes its non-blocking gaps
+      FAIL  tests/db/p4e-http.test.ts > EXACT FREEZE — the snapshot is exactly the context read, rendered deterministically > DRAFTING uses the exact P4D gate: with the digest of the DRAFTING scope, missing required input is refused before any snapshot (422 DRAFTING_INPUT_MISSING naming every blocking code; REPLY_PARENT_REQUIRED for a reply without its parent); a PREPARATION digest does not stand in for DRAFTING; with the input recorded DRAFTING freezes its non-blocking gaps
+        ↳ AssertionError: expected [ 422, 'DRAFTING_INPUT_MISSING' ] to deeply equal [ 422, 'REPLY_PARENT_REQUIRED' ]
+[NC-P4E-06] CAUGHT · restored byte-identical · [source revision auto-follow] the snapshot's source manifest keeps the exact revisions the context lists (each entry follows its revision chain to the newest head instead)
+    exit 1 · Tests  1 failed | 32 skipped (33) · node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t the source manifest is exactly the context’s sources and policy sources by id
+      × the source manifest is exactly the context’s sources and policy sources by id, each as listed (role, provenance, pinned revision); newer revisions are not followed and unrelated registry sources are absent
+      FAIL  tests/db/p4e-http.test.ts > EXACT FREEZE — the snapshot is exactly the context read, rendered deterministically > the source manifest is exactly the context’s sources and policy sources by id, each as listed (role, provenance, pinned revision); newer revisions are not followed and unrelated registry sources are absent
+        ↳ AssertionError: expected [ …(5) ] to deeply equal [ …(5) ]
+[NC-P4E-07a] CAUGHT · restored byte-identical · [MISSING removed (stored snapshot)] the snapshot's missingItems are exactly the context's missing items (stored as an empty list)
+    exit 1 · Tests  1 failed | 32 skipped (33) · node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t PREPARATION with gaps: a bare case
+      × PREPARATION with gaps: a bare case (no route, selection or intake) freezes every missing item exactly and lists each in the prompt; nothing is filled in
+      FAIL  tests/db/p4e-http.test.ts > EXACT FREEZE — the snapshot is exactly the context read, rendered deterministically > PREPARATION with gaps: a bare case (no route, selection or intake) freezes every missing item exactly and lists each in the prompt; nothing is filled in
+        ↳ AssertionError: expected [] to deeply equal [ { …(3) }, { …(3) }, { …(3) }, …(2) ]
+[NC-P4E-07b] CAUGHT · restored byte-identical · [MISSING removed (rendered prompt)] the prompt lists every missing item in PART 3 (the renderer lists none)
+    exit 1 · Tests  1 failed | 24 skipped (25) · yarn vitest run --config vitest.config.ts tests/api/prompt-rules.test.ts -t PART 3 lists every missing item and conflict exactly as recorded
+      × PART 3 lists every missing item and conflict exactly as recorded — code, field path and message as a JSON string — with counts; an empty list says only that none is recorded
+      FAIL  tests/api/prompt-rules.test.ts > renderPrompt — deterministic (TB-PROMPT-TEMPLATE-v1) > PART 3 lists every missing item and conflict exactly as recorded — code, field path and message as a JSON string — with counts; an empty list says only that none is recorded
+        ↳ AssertionError: expected [ …(61) ] to include 'MISSING (1):'
+    exit 1 · Tests  1 failed | 32 skipped (33) · node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t PREPARATION with gaps: a bare case
+      × PREPARATION with gaps: a bare case (no route, selection or intake) freezes every missing item exactly and lists each in the prompt; nothing is filled in
+      FAIL  tests/db/p4e-http.test.ts > EXACT FREEZE — the snapshot is exactly the context read, rendered deterministically > PREPARATION with gaps: a bare case (no route, selection or intake) freezes every missing item exactly and lists each in the prompt; nothing is filled in
+        ↳ AssertionError: expected 'TB NOTICE PRODUCTION SYSTEM — PROMPT\…' to contain '- CASE_ROUTE_UNBOUND (party.legalSubj…'
+[NC-P4E-08a] CAUGHT · restored byte-identical · [CONFLICT removed (stored snapshot)] the snapshot's conflicts are exactly the context's recorded conflicts (stored as an empty list)
+    exit 1 · Tests  1 failed | 32 skipped (33) · node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t CONFLICT stays conflict
+      × CONFLICT stays conflict: a mapping recorded with CONFLICT and a fact with resolution CONFLICT are frozen in conflicts, listed in the prompt and kept in the case data
+      FAIL  tests/db/p4e-http.test.ts > EXACT FREEZE — the snapshot is exactly the context read, rendered deterministically > CONFLICT stays conflict: a mapping recorded with CONFLICT and a fact with resolution CONFLICT are frozen in conflicts, listed in the prompt and kept in the case data
+        ↳ AssertionError: expected [] to deeply equal [ { …(3) }, { …(3) } ]
+[NC-P4E-08b] CAUGHT · restored byte-identical · [CONFLICT removed (rendered prompt)] the prompt lists every recorded conflict in PART 3 (the renderer lists none)
+    exit 1 · Tests  1 failed | 24 skipped (25) · yarn vitest run --config vitest.config.ts tests/api/prompt-rules.test.ts -t PART 3 lists every missing item and conflict exactly as recorded
+      × PART 3 lists every missing item and conflict exactly as recorded — code, field path and message as a JSON string — with counts; an empty list says only that none is recorded
+      FAIL  tests/api/prompt-rules.test.ts > renderPrompt — deterministic (TB-PROMPT-TEMPLATE-v1) > PART 3 lists every missing item and conflict exactly as recorded — code, field path and message as a JSON string — with counts; an empty list says only that none is recorded
+        ↳ AssertionError: expected [ …(60) ] to include 'CONFLICT (2):'
+    exit 1 · Tests  1 failed | 32 skipped (33) · node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t CONFLICT stays conflict
+      × CONFLICT stays conflict: a mapping recorded with CONFLICT and a fact with resolution CONFLICT are frozen in conflicts, listed in the prompt and kept in the case data
+      FAIL  tests/db/p4e-http.test.ts > EXACT FREEZE — the snapshot is exactly the context read, rendered deterministically > CONFLICT stays conflict: a mapping recorded with CONFLICT and a fact with resolution CONFLICT are frozen in conflicts, listed in the prompt and kept in the case data
+        ↳ AssertionError: expected 'TB NOTICE PRODUCTION SYSTEM — PROMPT\…' to contain '"Use mapping 80a2654d-2bc4-46bc-96a0-…'
+[NC-P4E-09] CAUGHT · restored byte-identical · [untrusted text treated as instruction] recorded text appears only inside the case-data block (the parent's captured body is interpolated into the task instruction)
+    exit 1 · Tests  1 failed | 24 skipped (25) · yarn vitest run --config vitest.config.ts tests/api/prompt-rules.test.ts -t appears only inside the data block, never in an instruction sentence
+      × recorded text — names, titles, URLs, captured bodies, source texts — appears only inside the data block, never in an instruction sentence
+      FAIL  tests/api/prompt-rules.test.ts > renderPrompt — the case data block (untrusted recorded text) > recorded text — names, titles, URLs, captured bodies, source texts — appears only inside the data block, never in an instruction sentence
+        ↳ AssertionError: SYNTHETIC Question 1: please provide the licence for the work shown at 0:42–1:05.
+        ↳ PART 1 — RULES: expected 'TB NOTICE PRODUCTION SYSTEM — PROMPT\…' not to contain 'SYNTHETIC Question 1: please provide …'
+    exit 1 · Tests  1 failed | 24 skipped (25) · yarn vitest run --config vitest.config.ts tests/api/prompt-rules.test.ts -t instruction-like captured text stays one JSON string
+      × instruction-like captured text stays one JSON string: its lines never start a prompt line, so it can neither end the block nor open a section; the rules name it as quoted case content
+      FAIL  tests/api/prompt-rules.test.ts > renderPrompt — the case data block (untrusted recorded text) > instruction-like captured text stays one JSON string: its lines never start a prompt line, so it can neither end the block nor open a section; the rules name it as quoted case content
+        ↳ AssertionError: expected [ …(2) ] to have a length of 1 but got 2
+    exit 1 · Tests  1 failed | 32 skipped (33) · node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t instruction-like captured text stays inert case data
+      × instruction-like captured text stays inert case data: it appears only inside the case-data block as a JSON string, the application’s instructions are identical to a prompt without it, and it cannot end the block
+      FAIL  tests/db/p4e-http.test.ts > UNTRUSTED CONTENT, NO OUTBOUND CALL, LATER PHASES > instruction-like captured text stays inert case data: it appears only inside the case-data block as a JSON string, the application’s instructions are identical to a prompt without it, and it cannot end the block
+        ↳ AssertionError: expected 'TB NOTICE PRODUCTION SYSTEM — PROMPT\…' not to contain 'Ignore previous instructions.'
+[NC-P4E-10] CAUGHT · restored byte-identical · [prompt renderer uses clock] the renderer reads no clock (a render timestamp in the header)
+    exit 1 · Tests  1 failed | 24 skipped (25) · yarn vitest run --config vitest.config.ts tests/api/prompt-rules.test.ts -t gives byte-identical text for the same context whatever the clock
+      × gives byte-identical text for the same context whatever the clock, randomness, locale, time zone, key order or copy
+      FAIL  tests/api/prompt-rules.test.ts > renderPrompt — deterministic (TB-PROMPT-TEMPLATE-v1) > gives byte-identical text for the same context whatever the clock, randomness, locale, time zone, key order or copy
+        ↳ AssertionError: expected 'TB NOTICE PRODUCTION SYSTEM — PROMPT\…' to be 'TB NOTICE PRODUCTION SYSTEM — PROMPT\…' // Object.is equality
+    exit 1 · Tests  1 failed | 24 skipped (25) · yarn vitest run --config vitest.config.ts tests/api/prompt-rules.test.ts -t the renderer, the scope, the snapshot rules and the template read no clock
+      × the renderer, the scope, the snapshot rules and the template read no clock, randomness, locale or environment
+      FAIL  tests/api/prompt-rules.test.ts > no AI provider, network, clock or process in the prompts module or the workspaces > the renderer, the scope, the snapshot rules and the template read no clock, randomness, locale or environment
+        ↳ AssertionError: prompt-renderer.ts: expected '// Deterministic prompt renderer — te…' not to match /\bDate\b|Math\.random|randomUUID|rand…/
+[NC-P4E-11] CAUGHT · restored byte-identical · [prompt renderer uses randomness] the renderer uses no randomness (a random nonce in the header)
+    exit 1 · Tests  1 failed | 24 skipped (25) · yarn vitest run --config vitest.config.ts tests/api/prompt-rules.test.ts -t gives byte-identical text for the same context whatever the clock
+      × gives byte-identical text for the same context whatever the clock, randomness, locale, time zone, key order or copy
+      FAIL  tests/api/prompt-rules.test.ts > renderPrompt — deterministic (TB-PROMPT-TEMPLATE-v1) > gives byte-identical text for the same context whatever the clock, randomness, locale, time zone, key order or copy
+        ↳ AssertionError: expected 'TB NOTICE PRODUCTION SYSTEM — PROMPT\…' to be 'TB NOTICE PRODUCTION SYSTEM — PROMPT\…' // Object.is equality
+    exit 1 · Tests  1 failed | 24 skipped (25) · yarn vitest run --config vitest.config.ts tests/api/prompt-rules.test.ts -t the renderer, the scope, the snapshot rules and the template read no clock
+      × the renderer, the scope, the snapshot rules and the template read no clock, randomness, locale or environment
+      FAIL  tests/api/prompt-rules.test.ts > no AI provider, network, clock or process in the prompts module or the workspaces > the renderer, the scope, the snapshot rules and the template read no clock, randomness, locale or environment
+        ↳ AssertionError: prompt-renderer.ts: expected '// Deterministic prompt renderer — te…' not to match /\bDate\b|Math\.random|randomUUID|rand…/
+[NC-P4E-12] CAUGHT · restored byte-identical · [promptSha256 hashes normalized text] promptSha256 is the SHA-256 of the exact UTF-8 bytes of the stored prompt (hashed after NFC normalization and trimming)
+    exit 1 · Tests  1 failed | 32 skipped (33) · node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t INITIAL PREPARATION: contextJson, revision, digest
+      × INITIAL PREPARATION: contextJson, revision, digest, dependency and source manifests, missing items and conflicts are exactly the context read; the prompt is the renderer’s text of that context; promptSha256 is the SHA-256 of its exact UTF-8 bytes (MySQL agrees)
+      FAIL  tests/db/p4e-http.test.ts > EXACT FREEZE — the snapshot is exactly the context read, rendered deterministically > INITIAL PREPARATION: contextJson, revision, digest, dependency and source manifests, missing items and conflicts are exactly the context read; the prompt is the renderer’s text of that context; promptSha256 is the SHA-256 of its exact UTF-8 bytes (MySQL agrees)
+        ↳ AssertionError: expected '694abaa7a3dab2b359e82aee9c86c88cd59b4…' to be '0fa05604bb275982079835837fef9a769189c…' // Object.is equality
+[NC-P4E-13] CAUGHT · restored byte-identical · [second generation overwrites first snapshot] a generation never touches an earlier snapshot (the case's snapshots of the task are deleted before the insert)
+    exit 1 · Tests  1 failed | 32 skipped (33) · node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t after a snapshot, a relevant change leaves the old snapshot byte-identical
+      × after a snapshot, a relevant change leaves the old snapshot byte-identical; the old digest is refused; a fresh review generates version 2
+      FAIL  tests/db/p4e-http.test.ts > STALE CONTEXT — 412 CONTEXT_CHANGED; nothing is written, nothing is rebuilt silently > after a snapshot, a relevant change leaves the old snapshot byte-identical; the old digest is refused; a fresh review generates version 2
+        ↳ AssertionError: {"error":{"code":"NOT_FOUND","message":"The requested resource does not exist.","details":{},"requestId":"f6c53567-37f5-4add-bd3c-bdb308feb8cb"}}: expected 404 to be 200 // Object.is equality
+[NC-P4E-14] CAUGHT · restored byte-identical · [version race duplicates version] the version is allocated under the case lock (FOR UPDATE replaced by a plain read, so a concurrent generation is no longer held)
+    exit 1 · Tests  1 failed | 32 skipped (33) · node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t two concurrent generations for one case and task never share a version
+      × two concurrent generations for one case and task never share a version: the second waits for the case lock and allocates the next one
+      FAIL  tests/db/p4e-http.test.ts > VERSIONS, IDEMPOTENCY AND TRANSACTIONS > two concurrent generations for one case and task never share a version: the second waits for the case lock and allocates the next one
+        ↳ AssertionError: expected 2 to be 1 // Object.is equality
+[NC-P4E-15] CAUGHT · restored byte-identical · [idempotent replay creates a new snapshot] a replay of the same key and body returns the stored snapshot (every request gets a fresh idempotency key)
+    exit 1 · Tests  1 failed | 32 skipped (33) · node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t idempotent: the same key and body replay the stored snapshot
+      × idempotent: the same key and body replay the stored snapshot (same id and version, no new row or audit event), even after the case changed; the same key with another body is 409; the idempotency record holds no copy of the prompt or context
+      FAIL  tests/db/p4e-http.test.ts > VERSIONS, IDEMPOTENCY AND TRANSACTIONS > idempotent: the same key and body replay the stored snapshot (same id and version, no new row or audit event), even after the case changed; the same key with another body is 409; the idempotency record holds no copy of the prompt or context
+        ↳ AssertionError: expected { …(20) } to deeply equal { …(20) }
+[NC-P4E-16] CAUGHT · restored byte-identical · [audit stores full rendered prompt] the PROMPT_GENERATED audit event keeps lengths and digests, never the prompt (the rendered prompt added to it)
+    exit 1 · Tests  1 failed | 32 skipped (33) · node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t the audit event records identifiers, versions, digests
+      × the audit event records identifiers, versions, digests, the prompt SHA-256, the selectors, counts and lengths — never the prompt, the context or a captured text
+      FAIL  tests/db/p4e-http.test.ts > VERSIONS, IDEMPOTENCY AND TRANSACTIONS > the audit event records identifiers, versions, digests, the prompt SHA-256, the selectors, counts and lengths — never the prompt, the context or a captured text
+        ↳ AssertionError: expected { …(15) } to deeply equal { …(14) }
+[NC-P4E-17] CAUGHT · restored byte-identical · [cross-case contamination] a prompt's context holds this case's reported items only (the item query of the shared reader loses its case filter)
+    exit 1 · Tests  1 failed | 32 skipped (33) · node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t two cases of one agency, owner and route, the same video
+      × two cases of one agency, owner and route, the same video, the same source URL and one message bound to both: each prompt holds only its own case’s items, works, facts, sources, selection and correspondence; the shared message appears only through each case’s own binding; registry sources are not dumped
+      FAIL  tests/db/p4e-http.test.ts > CONTAMINATION — nothing of one case appears in another case’s prompt > two cases of one agency, owner and route, the same video, the same source URL and one message bound to both: each prompt holds only its own case’s items, works, facts, sources, selection and correspondence; the shared message appears only through each case’s own binding; registry sources are not dumped
+        ↳ AssertionError: ce93001d-74e0-4ed8-a26c-4841de895be3: expected '{"id":"b3c80352-8303-4382-a839-562eb9…' not to contain 'ce93001d-74e0-4ed8-a26c-4841de895be3'
+[NC-P4E-18] CAUGHT · restored byte-identical · [UI silently retries after 412] after a 412 the page shows "Context changed…" and generates nothing until the operator reads the current context (it re-reads and generates by itself)
+    exit 1 · Tests  1 failed | 7 skipped (8) · yarn vitest run --config vitest.config.ts tests/web/p4e.test.tsx -t a context changed after the read
+      × a context changed after the read: the exact message "Context changed. Review the current context before generating again.", no prompt, no retry, no generation offered from that read; reading the current context allows a new generation against it, under a new key
+      FAIL  tests/web/p4e.test.tsx > P4E prompt pages > a context changed after the read: the exact message "Context changed. Review the current context before generating again.", no prompt, no retry, no generation offered from that read; reading the current context allows a new generation against it, under a new key
+        ↳ AssertionError: expected <article class="sheet" …(1)>…(9)</article> to be null
+[NC-P4E-19] CAUGHT · restored byte-identical · [UI shows readiness/approval action] the prompt pages offer no approve, ready, sign, send or export action (a "Mark ready for signer" button on the detail page)
+    exit 1 · Tests  1 failed | 7 skipped (8) · yarn vitest run --config vitest.config.ts tests/web/p4e.test.tsx -t the prompt pages offer no approve, ready, sign, send, export or submit action
+      × the prompt pages offer no approve, ready, sign, send, export or submit action and make no readiness or G1–G7 claim
+      FAIL  tests/web/p4e.test.tsx > P4E prompt pages > the prompt pages offer no approve, ready, sign, send, export or submit action and make no readiness or G1–G7 claim
+        ↳ AssertionError: expected [ 'Mark ready for signer', …(2) ] to deeply equal []
+[NC-P4E-20a] CAUGHT · restored byte-identical · [AI provider/network call introduced (API)] generation calls no AI provider or network (the rendered prompt POSTed to a provider-like address during generation)
+    exit 1 · Tests  1 failed | 24 skipped (25) · yarn vitest run --config vitest.config.ts tests/api/prompt-rules.test.ts -t no module file calls a network, mail, file, process or AI-provider API
+      × no module file calls a network, mail, file, process or AI-provider API
+      FAIL  tests/api/prompt-rules.test.ts > no AI provider, network, clock or process in the prompts module or the workspaces > no module file calls a network, mail, file, process or AI-provider API
+        ↳ AssertionError: prompts.service.ts: expected '// PromptSnapshot (P4E) — generatePro…' not to match /\bfetch\s*\(|XMLHttpRequest|WebSocke…/i
+        ↳ //             precondition target: the expected context revision and dependency digest in the body
+        ↳ //               → the expected context revision must be the case's (412 CONTEXT_CHANGED)
+    exit 1 · Tests  1 failed | 32 skipped (33) · node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t generation, list and get open no outbound connection
+      × generation, list and get open no outbound connection and call no fetch — no AI provider, network or mail call exists
+      FAIL  tests/db/p4e-http.test.ts > UNTRUSTED CONTENT, NO OUTBOUND CALL, LATER PHASES > generation, list and get open no outbound connection and call no fetch — no AI provider, network or mail call exists
+        ↳ AssertionError: expected 1 to be +0 // Object.is equality
+[NC-P4E-20b] CAUGHT · restored byte-identical · [AI provider/network call introduced (web page)] the prompt pages reach only the application API (Copy prompt also POSTs the text to a provider-like address)
+    exit 1 · Tests  1 failed | 24 skipped (25) · yarn vitest run --config vitest.config.ts tests/api/prompt-rules.test.ts -t the web prompt pages reach only the application API
+      × the web prompt pages reach only the application API: no fetch, socket, beacon or outside address; Copy prompt uses the local clipboard only
+      FAIL  tests/api/prompt-rules.test.ts > no AI provider, network, clock or process in the prompts module or the workspaces > the web prompt pages reach only the application API: no fetch, socket, beacon or outside address; Copy prompt uses the local clipboard only
+        ↳ AssertionError: expected '// Prompt snapshots (P4E) of one case…' not to match /\bfetch\s*\(|XMLHttpRequest|WebSocke…/\
+[NC-P4E-20c] CAUGHT · restored byte-identical · [AI provider SDK dependency introduced] no workspace manifest depends on an AI-provider SDK (apps/api/package.json gains "openai")
+    exit 1 · Tests  1 failed | 24 skipped (25) · node node_modules/vitest/vitest.mjs run --config vitest.config.ts tests/api/prompt-rules.test.ts -t no workspace manifest depends on an AI-provider SDK
+      × no workspace manifest depends on an AI-provider SDK, and the lockfile resolves none
+      FAIL  tests/api/prompt-rules.test.ts > no AI provider, network, clock or process in the prompts module or the workspaces > no workspace manifest depends on an AI-provider SDK, and the lockfile resolves none
+        ↳ AssertionError: apps/api/package.json: expected 'openai' not to match /^(openai|@anthro…/.*|anthropic|@google\
+[NC-P4E-21] CAUGHT · restored byte-identical · [generation not SERIALIZABLE] the generation transaction is SERIALIZABLE, so a dependency write that never locks the case waits for the snapshot (READ COMMITTED instead)
+    exit 1 · Tests  1 failed | 32 skipped (33) · node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t SERIALIZABLE: what the generation read stays as read
+      × SERIALIZABLE: what the generation read stays as read until it commits — a dependency write that never locks the case (an authority event of the pinned mandate) waits for the snapshot, so no snapshot is older than a change committed before it
+      FAIL  tests/db/p4e-http.test.ts > VERSIONS, IDEMPOTENCY AND TRANSACTIONS > SERIALIZABLE: what the generation read stays as read until it commits — a dependency write that never locks the case (an authority event of the pinned mandate) waits for the snapshot, so no snapshot is older than a change committed before it
+        ↳ AssertionError: expected 1 to be +0 // Object.is equality
+[NC-P4E-22] CAUGHT · restored byte-identical · [prompt not history-bearing] a prompt snapshot makes its case history-bearing (a later route correction is 409 naming PROMPT_SNAPSHOT) — PROMPT_SNAPSHOT removed from the history list
+    exit 1 · Tests  1 failed | 32 skipped (33) · node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t generation writes exactly one snapshot, one audit event and one idempotency record
+      × generation writes exactly one snapshot, one audit event and one idempotency record; the case row is locked, not changed; a prompt alone makes the case history-bearing (a route correction is 409 naming PROMPT_SNAPSHOT) and the case cannot be deleted; no later-phase record exists
+      FAIL  tests/db/p4e-http.test.ts > VERSIONS, IDEMPOTENCY AND TRANSACTIONS > generation writes exactly one snapshot, one audit event and one idempotency record; the case row is locked, not changed; a prompt alone makes the case history-bearing (a route correction is 409 naming PROMPT_SNAPSHOT) and the case cannot be deleted; no later-phase record exists
+        ↳ AssertionError: expected [ 200, '(no error: HTTP 200)' ] to deeply equal [ 409, …(1) ]
+[NC-P4E-23] CAUGHT · restored byte-identical · [oversized prompt truncated] a rendered prompt above 1,000,000 code points is refused whole, never cut (the prompt is cut to the bound instead)
+    exit 1 · Tests  1 failed | 32 skipped (33) · node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t a rendered prompt above 1,000,000 code points is refused whole
+      × a rendered prompt above 1,000,000 code points is refused whole (409 PROMPT_TOO_LARGE naming renderedPrompt); nothing is truncated and nothing is written
+      FAIL  tests/db/p4e-http.test.ts > VERSIONS, IDEMPOTENCY AND TRANSACTIONS > a rendered prompt above 1,000,000 code points is refused whole (409 PROMPT_TOO_LARGE naming renderedPrompt); nothing is truncated and nothing is written
+        ↳ AssertionError: expected [ 201, '(no error: HTTP 201)' ] to deeply equal [ 409, 'PROMPT_TOO_LARGE' ]
+[NC-P4E-24] CAUGHT · restored byte-identical · [list leaks the prompt text] the list returns summaries only — never the prompt text (the summary gains renderedPrompt)
+    exit 1 · Tests  1 failed | 32 skipped (33) · node scripts/db/run-db-tests.mjs tests/db/p4e-http.test.ts -t the list shows this case’s snapshots only, newest first, as summaries
+      × the list shows this case’s snapshots only, newest first, as summaries (no prompt text, context or manifest); pages with a cursor; q matches exactly an id, a digest or a prompt SHA-256 and never searches the text
+      FAIL  tests/db/p4e-http.test.ts > LIST AND GET — summaries per case; the stored snapshot exactly as stored > the list shows this case’s snapshots only, newest first, as summaries (no prompt text, context or manifest); pages with a cursor; q matches exactly an id, a digest or a prompt SHA-256 and never searches the text
+        ↳ AssertionError: expected [ 'caseId', 'contextRevision', …(10) ] to deeply equal [ 'caseId', 'contextRevision', …(9) ]
+[NC-P4E-25] CAUGHT · restored byte-identical · [UI shows another case's prompt] a prompt is shown only under its own case — another case's is shown like an unknown one (the case check of the detail page removed)
+    exit 1 · Tests  1 failed | 7 skipped (8) · yarn vitest run --config vitest.config.ts tests/web/p4e.test.tsx -t the history lists this case’s summaries only, newest first, with pages
+      × the history lists this case’s summaries only, newest first, with pages; another case’s prompt is shown like an unknown one and nothing of it appears
+      FAIL  tests/web/p4e.test.tsx > P4E prompt pages > the history lists this case’s summaries only, newest first, with pages; another case’s prompt is shown like an unknown one and nothing of it appears
+        ↳ AssertionError: expected <pre …(4)></pre> to be null
+[NC-P4E-26] CAUGHT · restored byte-identical · [UI repeats "Prompt generated" on reload] the "Prompt generated" status is said once and cleared from the history entry (read from the kept navigation state instead — the R12 browser finding F1)
+    exit 1 · Tests  1 failed | 7 skipped (8) · yarn vitest run --config vitest.config.ts tests/web/p4e.test.tsx -t says once that it was generated
+      × INITIAL + PREPARATION: the context is read and shown first — revision, digest, missing context and recorded conflicts; Generate sends exactly the task, mode, named selection and that read’s revision and digest with an Idempotency-Key and no If-Match; the detail page shows the frozen snapshot and says once that it was generated
+      FAIL  tests/web/p4e.test.tsx > P4E prompt pages > INITIAL + PREPARATION: the context is read and shown first — revision, digest, missing context and recorded conflicts; Generate sends exactly the task, mode, named selection and that read’s revision and digest with an Idempotency-Key and no If-Match; the detail page shows the frozen snapshot and says once that it was generated
+        ↳ AssertionError: expected 'Prompt generated: Initial notice · ve…' to be '' // Object.is equality
+# end 2026-09-26T01:06:43.250Z — tree fingerprint 01fd8ba4b67105aeb2ca83d7146916532d26ea11384b9b67e56a227cd85352f2 (identical)
+30 controls, 30 caught and restored, 0 problems
+exit 0
