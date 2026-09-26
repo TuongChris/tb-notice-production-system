@@ -18,17 +18,21 @@
 //   ruleset TB-TECHNICAL-RULESET-v1, every one of the 29 rules executed, none not executed,
 //   semanticReviewRequired true, the evaluated context equal to the read, no issue; the candidate
 //   and the case unchanged) → the same key again (the stored run, nothing new) → the same key with
-//   another body (409) → list the runs (summaries; exact q) and the issues (none) → a candidate
-//   with two pending slots (BLOCKED: a DETERMINISTIC BLOCKER of SIGNATURE.PENDING_SLOT_ONCE) → a
-//   candidate saying a document is attached with none planned (REVIEW_REQUIRED: a HEURISTIC
-//   REVIEW_REQUIRED of WORDING.ATTACHMENT_CLAIM, never a blocker) → another artifact SHA-256 (412
-//   ARTIFACT_CHANGED) → an authority event recorded on the pinned mandate → the earlier digest (412
-//   CONTEXT_CHANGED, nothing recorded) → a new read and run (the drift since the prompt is review
-//   required) → case B's candidate validated against case B's context; neither list shows the
-//   other case's runs → each accepted run wrote one run, its issues and one audit event; refusals
-//   and replays nothing; no candidate, assessment or later-phase record was written (row counts
-//   read through the runtime account) → no run read or update by id, no assessment, readiness,
-//   export, signing or sending route exists (404) → logout.
+//   another body (409) → the run read back by its id (getValidationRun, TB-SCHEMA-API-v1.3.0:
+//   exactly the stored run — artifact, digest, ruleset, result, coverage manifest, dependency
+//   manifest and evaluated context; no ETag) → list the runs (summaries; exact q) and the issues
+//   (none) → a candidate with two pending slots (BLOCKED: a DETERMINISTIC BLOCKER of
+//   SIGNATURE.PENDING_SLOT_ONCE; read back with its counts and issues) → a candidate saying a
+//   document is attached with none planned (REVIEW_REQUIRED: a HEURISTIC REVIEW_REQUIRED of
+//   WORDING.ATTACHMENT_CLAIM, never a blocker) → another artifact SHA-256 (412 ARTIFACT_CHANGED) →
+//   an authority event recorded on the pinned mandate → the earlier digest (412 CONTEXT_CHANGED,
+//   nothing recorded) → a new read and run (the drift since the prompt is review required) → the
+//   earlier run read back again: still exactly as recorded, its own digest, not the new context's
+//   → case B's candidate validated against case B's context and read back; neither list shows the
+//   other case's runs → an unknown run id (404) → each accepted run wrote one run, its issues and
+//   one audit event; refusals, replays and reads nothing; no candidate, assessment or later-phase
+//   record was written (row counts read through the runtime account) → no run update or deletion
+//   by id, no assessment, readiness, export, signing or sending route exists (404) → logout.
 import { spawn, type ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
@@ -612,6 +616,42 @@ async function main(): Promise<void> {
     fail('a replay must return the stored run');
   }
   pass('the same Idempotency-Key replays the stored run');
+  // The run read back by its id (TB-SCHEMA-API-v1.3.0): exactly the stored run, no ETag — nothing
+  // re-evaluated, rebuilt or current.
+  const readBack = async (run: Run, label: string) => {
+    const response = await call(
+      `GET /validation-runs/{id} (${label})`,
+      'GET',
+      `/validation-runs/${run.id}`,
+      200,
+      contracts.GetValidationRunResponseSchema,
+    );
+    if (response.etag !== null) fail(`${label}: a stored run carries no ETag`);
+    const read = response.data as unknown as Run;
+    if (canonical(read) !== canonical(run)) fail(`${label}: the read-back is not the stored run`);
+    return read;
+  };
+  const stored = await readBack(passed, 'the technical pass');
+  if (
+    stored.artifactSha256 !== clean.artifactSha256 ||
+    stored.dependencyDigest !== readA.dependencyDigest ||
+    stored.rulesetVersion !== 'TB-TECHNICAL-RULESET-v1' ||
+    stored.result !== 'TECHNICAL_PASS' ||
+    canonical(stored.coverageManifest) !==
+      canonical({
+        requiredRuleIds: RULES,
+        executedRuleIds: RULES,
+        notExecutedRuleIds: [],
+        semanticReviewRequired: true,
+      }) ||
+    canonical(stored.dependencyManifest) !== canonical(readA.dependencies) ||
+    canonical(stored.evaluatedContextJson) !== canonical(readA.context)
+  ) {
+    fail('the read-back must be exactly the recorded run');
+  }
+  pass(
+    'the run read back by its id: the recorded artifact, digest, ruleset, result, coverage, dependency manifest and evaluated context',
+  );
   const conflict = await call(
     'POST /candidates/{id}/validation-runs (the same key, another body)',
     'POST',
@@ -666,6 +706,15 @@ async function main(): Promise<void> {
     fail('two pending slots must be BLOCKED by a deterministic blocker');
   }
   pass('two pending slots → BLOCKED (DETERMINISTIC BLOCKER of SIGNATURE.PENDING_SLOT_ONCE)');
+  const blockedRead = await readBack(blocked, 'the blocked run');
+  if (
+    blockedRead.result !== 'BLOCKED' ||
+    blockedRead.blockerCount !== blockedIssues.filter((i) => i.severity === 'BLOCKER').length ||
+    blockedRead.coverageManifest.semanticReviewRequired !== true
+  ) {
+    fail('the blocked run must read back with its result, counts and coverage as recorded');
+  }
+  pass('the blocked run reads back with its recorded result, counts and coverage; issues apart');
 
   const wording = await importDraft(
     caseA,
@@ -745,6 +794,19 @@ async function main(): Promise<void> {
   pass(
     'after a new read the run evaluates the current context; the drift since the prompt is review required',
   );
+  // History: the earlier run does not follow the changed context.
+  const kept = await readBack(passed, 'the technical pass after the authority event');
+  if (
+    kept.dependencyDigest !== readA.dependencyDigest ||
+    kept.dependencyDigest === reread.dependencyDigest ||
+    kept.result !== 'TECHNICAL_PASS'
+  ) {
+    fail('a stored run must keep its own digest and result after the context changed');
+  }
+  await readBack(drifted, 'the run of the new read');
+  pass(
+    'after the authority event the earlier run still reads back as recorded (its own digest and result); the new run records the new context',
+  );
 
   // Case B -------------------------------------------------------------------------------------------
   const cleanB = await importDraft(
@@ -784,6 +846,18 @@ async function main(): Promise<void> {
     fail('each candidate lists its own runs only');
   }
   pass('each candidate lists only its own runs; nothing of case A appears in case B’s run');
+  const readRunB = await readBack(runB, 'case B');
+  if (readRunB.caseId !== caseB.id || JSON.stringify(readRunB).includes(caseA.id)) {
+    fail('case B’s run must read back with case B’s context only');
+  }
+  const unknownRun = await call(
+    'GET /validation-runs/{id} (an unknown id)',
+    'GET',
+    `/validation-runs/${randomUUID()}`,
+    404,
+    null,
+  );
+  if (unknownRun.code !== 'NOT_FOUND') fail('an unknown run must be 404 NOT_FOUND');
 
   // Row counts ---------------------------------------------------------------------------------------
   const after = await rowCounts();
@@ -799,7 +873,7 @@ async function main(): Promise<void> {
   // its audit event; the authority event wrote one more.
   if (after.notice_candidates - candidatesBefore !== 3) fail('validation writes no candidate');
   if (grew('audit_events') !== accepted.length + 3 + 1) {
-    fail('each accepted run wrote one audit event; refusals and replays none');
+    fail('each accepted run wrote one audit event; refusals, replays and reads none');
   }
   for (const table of [
     'prompt_snapshots',
@@ -809,11 +883,10 @@ async function main(): Promise<void> {
     if (grew(table) !== 0) fail(`${table} must not be written by a validation`);
   }
   pass(
-    'five runs with their issues and audit events; no candidate, prompt, assessment or later-phase record from validation',
+    'five runs with their issues and audit events; no candidate, prompt, assessment or later-phase record from validation; reading a run wrote nothing',
   );
 
   for (const [label, method, suffix] of [
-    ['GET /validation-runs/{id}', 'GET', `/validation-runs/${passed.id}`],
     ['PATCH /validation-runs/{id}', 'PATCH', `/validation-runs/${passed.id}`],
     ['DELETE /validation-runs/{id}', 'DELETE', `/validation-runs/${passed.id}`],
     ['POST /candidates/{id}/assessments', 'POST', `/candidates/${clean.id}/assessments`],

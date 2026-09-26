@@ -1,9 +1,10 @@
 // Technical validation (P4G) — validateCandidate, listValidationRuns and listValidationIssues
-// (TB-SCHEMA-API-v1.2.0). A ValidationRun records what the technical ruleset TB-TECHNICAL-RULESET-v1
-// found for one exact candidate artifact against the current production context of its prompt's
-// scope. It is a technical result only: never a G1–G6 review, legal approval or sufficiency,
-// signer eligibility, readiness, READY_FOR_SIGNER, a signature, G7 or permission to send, and it
-// creates no CandidateAssessment and changes no candidate, fact or case record.
+// (TB-SCHEMA-API-v1.2.0), and the R14 read-back getValidationRun (TB-SCHEMA-API-v1.3.0, ADR-0006).
+// A ValidationRun records what the technical ruleset TB-TECHNICAL-RULESET-v1 found for one exact
+// candidate artifact against the current production context of its prompt's scope. It is a
+// technical result only: never a G1–G6 review, legal approval or sufficiency, signer eligibility,
+// readiness, READY_FOR_SIGNER, a signature, G7 or permission to send, and it creates no
+// CandidateAssessment and changes no candidate, fact or case record.
 //
 //   validate  POST /candidates/{candidateId}/validation-runs. Idempotency-Key; no If-Match (the
 //             contract declares no precondition target: the expected artifact SHA-256 and
@@ -38,6 +39,11 @@
 //   list      GET /candidates/{candidateId}/validation-runs — that candidate's runs (404 for an
 //             unknown candidate), newest first, summaries only; a superseded candidate's runs stay
 //             readable. `q` matches exactly a run id, a dependency digest or a result.
+//   get       GET /validation-runs/{id} — one stored run exactly as recorded (404 for an unknown
+//             run): the one row, nothing else read. A historical record: the ruleset is not run
+//             again, the context is not rebuilt, no result, coverage or digest is recomputed or
+//             replaced and nothing current is followed; no write, no audit event, no ETag (a run
+//             never changes). Global by id, like getPrompt and getCandidate.
 //   issues    GET /validation-runs/{id}/issues — that run's issues (404 for an unknown run) in the
 //             order the ruleset reported them; `q` matches exactly an issue id, a rule id, a severity
 //             or a check kind.
@@ -367,6 +373,16 @@ export class ValidationService {
       select: RUN_SUMMARY_COLUMNS,
     });
     return toPage(inIdOrder(ids, rows), page, this.cursors, toValidationRunSummary);
+  }
+
+  /**
+   * One stored run exactly as recorded (404 for an unknown id): its row alone, as the wire view the
+   * run's own write returned — never re-evaluated, rebuilt or brought up to date.
+   */
+  async get(id: string): Promise<ValidationRunView> {
+    const run = await this.storedRun(id);
+    if (run === null) throw apiErrors.notFound();
+    return run;
   }
 
   /** One run's issues (404 for an unknown run), in the order the ruleset reported them. */

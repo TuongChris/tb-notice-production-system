@@ -2125,7 +2125,7 @@ describe('UNTRUSTED CONTENT, NO OUTBOUND CALL, LATER PHASES', () => {
     for (const operationId of candidateOperations) {
       expect(seen.has(operationId), operationId).toBe(true);
     }
-    expect(CONTRACT_BASELINE).toBe('TB-SCHEMA-API-v1.2.0');
+    expect(CONTRACT_BASELINE).toBe('TB-SCHEMA-API-v1.3.0');
   });
 });
 

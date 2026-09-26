@@ -14,8 +14,8 @@
 //     a valid contract OperationError with Cache-Control: no-store.
 //  6. Business boundary of the compiled API, read-only: every directory (P2), source and route
 //     (P3A), representation-authority (P3B), case (P4A), case intake (P4B) and correspondence (P4C)
-//     collection, the read-backs of TB-SCHEMA-API-v1.1.0 and v1.2.0, the production-context read
-//     (P4D), the prompt operations (P4E), the candidate operations (P4F) and the technical
+//     collection, the read-backs of TB-SCHEMA-API-v1.1.0, v1.2.0 and v1.3.0, the production-context
+//     read (P4D), the prompt operations (P4E), the candidate operations (P4F) and the technical
 //     validation operations (P4G) are routed and session-protected (no cookie → 401, also through
 //     the web proxy), unsafe writes without Origin → 403 before any handler, canonical bindings and
 //     freezes are session-protected, and later case phases (assessments onward) are not routed (404).
@@ -592,6 +592,14 @@ async function checkBusinessBoundary(): Promise<void> {
     [
       'GET /validation-runs/{id}/issues without a session',
       `${api}/validation-runs/${id}/issues`,
+      {},
+      401,
+      'SESSION_REQUIRED',
+    ],
+    // TB-SCHEMA-API-v1.3.0 (ADR-0006): the validation-run read-back is behind the same guard.
+    [
+      'GET /validation-runs/{id} without a session',
+      `${api}/validation-runs/${id}`,
       {},
       401,
       'SESSION_REQUIRED',

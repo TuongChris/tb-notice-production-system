@@ -14,6 +14,11 @@
 // either changed); the context is captured and checked outside any lock, then rechecked in a short
 // SERIALIZABLE transaction before the run is committed, so no run is published against mixed
 // snapshots. Nothing of one case appears in another case's runs. No AI provider or outbound call.
+//
+// R14 remediation (TB-SCHEMA-API-v1.3.0, ADR-0006): getValidationRun reads one stored run back by its
+// id exactly as recorded — every field, the coverage manifest with every not-executed rule and
+// semanticReviewRequired, the dependency manifest and the evaluated context — never re-evaluated,
+// rebuilt or brought up to date, and without writing anything.
 import { createHash, randomUUID } from 'node:crypto';
 import net from 'node:net';
 import path from 'node:path';
@@ -54,6 +59,7 @@ import {
   OperationErrorSchema,
   operations,
 } from '../../packages/contracts/src/index.js';
+import { LAST_SEEN_WRITE_INTERVAL_MS } from '../../apps/api/src/modules/auth/auth-config.js';
 import { assembleContext } from '../../apps/api/src/modules/production/context-assembly.js';
 import { NO_CONTEXT_READ_OBSERVER } from '../../apps/api/src/modules/production/context-read-observer.js';
 import { readContextRows } from '../../apps/api/src/modules/production/context-snapshot.js';
@@ -976,6 +982,13 @@ async function listRuns(candidateId: string, query = '') {
   expect(result.status, result.text).toBe(200);
   return dataOf<{ items: ValidationRunSummary[]; nextCursor: string | null }>(result);
 }
+/** One stored run read back by its id (getValidationRun, TB-SCHEMA-API-v1.3.0): no ETag. */
+async function getRun(id: string): Promise<ValidationRun> {
+  return immutable<ValidationRun>(
+    await client.get('getValidationRun', `/validation-runs/${id}`),
+    200,
+  );
+}
 async function listIssues(runId: string, query = '') {
   const result = await client.get(
     'listValidationIssues',
@@ -1848,6 +1861,333 @@ describe('P4G recorded context, preparation, drift and history', () => {
   });
 });
 
+describe('R14 getValidationRun — one stored run read back exactly as recorded, historical and read-only', () => {
+  const RUN_FIELDS = [
+    'id',
+    'candidateId',
+    'caseId',
+    'artifactSha256',
+    'dependencyDigest',
+    'dependencyManifest',
+    'evaluatedContextJson',
+    'rulesetVersion',
+    'result',
+    'coverageManifest',
+    'blockerCount',
+    'reviewRequiredCount',
+    'warningCount',
+    'startedAt',
+    'completedAt',
+    'createdAt',
+    'createdById',
+  ];
+  const SUMMARY_FIELDS = [
+    'id',
+    'candidateId',
+    'caseId',
+    'artifactSha256',
+    'dependencyDigest',
+    'rulesetVersion',
+    'result',
+    'blockerCount',
+    'reviewRequiredCount',
+    'warningCount',
+    'startedAt',
+    'completedAt',
+    'createdAt',
+  ] as const;
+
+  it('TECHNICAL_PASS read back later: every stored field exactly as recorded and evaluated — the same run the write, its replay and the stored row carry; the summary and the issue list unchanged', async () => {
+    const p = await validationWorld();
+    const key = newKey();
+    const { run, view } = await validate(p.candidate, p.prompt, key);
+    const recordedAt = new Date(t.clock.ms).toISOString();
+    t.clock.advance(5000);
+    const read = await getRun(run.id);
+    // The body of the run's own 201, field for field (the unchanged v1.0.0 ValidationRun).
+    expect(read).toEqual(run);
+    expect(Object.keys(read).sort()).toEqual([...RUN_FIELDS].sort());
+    expect(read.artifactSha256).toBe(p.candidate.artifactSha256);
+    expect(read.dependencyDigest).toBe(view.dependencyDigest);
+    expect(read.rulesetVersion).toBe('TB-TECHNICAL-RULESET-v1');
+    expect(read.dependencyManifest).toEqual(view.dependencies);
+    expect(read.evaluatedContextJson).toEqual(view.context);
+    expect(read.result).toBe('TECHNICAL_PASS');
+    expect(read.coverageManifest).toEqual({
+      requiredRuleIds: ALL_RULES,
+      executedRuleIds: ALL_RULES,
+      notExecutedRuleIds: [],
+      semanticReviewRequired: true,
+    });
+    expect([read.blockerCount, read.reviewRequiredCount, read.warningCount]).toEqual([0, 0, 0]);
+    // The recorded instants, never the read's own.
+    expect([read.startedAt, read.completedAt, read.createdAt]).toEqual([
+      recordedAt,
+      recordedAt,
+      recordedAt,
+    ]);
+    expect(read.createdById).toBe(client.session.userId);
+    // Exactly the stored row: its JSON columns and instants as MySQL returns them.
+    const row = await prisma.validationRun.findUniqueOrThrow({ where: { id: run.id } });
+    expect(read.dependencyManifest).toEqual(row.dependencyManifest);
+    expect(read.evaluatedContextJson).toEqual(row.evaluatedContextJson);
+    expect(read.coverageManifest).toEqual(row.coverageManifest);
+    expect([read.dependencyDigest, read.rulesetVersion, read.result]).toEqual([
+      row.dependencyDigest,
+      row.rulesetVersion,
+      row.result,
+    ]);
+    expect([read.startedAt, read.completedAt, read.createdAt]).toEqual(
+      [row.startedAt, row.completedAt, row.createdAt].map((instant) => instant.toISOString()),
+    );
+    // Neighbours unchanged: the replay of the write is the same run; the summary is its projection
+    // and still carries no context, manifest or coverage; the issues stay with their own list.
+    const replay = immutable<ValidationRun>(
+      await validatePost(p.candidate.id, expectations(p.candidate, view), key),
+      201,
+    );
+    expect(replay).toEqual(read);
+    const [summary] = (await listRuns(p.candidate.id)).items;
+    expect(summary).toEqual(
+      Object.fromEntries(SUMMARY_FIELDS.map((field) => [field, read[field]])),
+    );
+    expect(Object.keys(summary ?? {}).sort()).toEqual([...SUMMARY_FIELDS].sort());
+    expect(await issuesOf(run.id)).toEqual([]);
+    expect(await countRows(prisma, 'validation_runs')).toBe(1);
+  });
+
+  it('BLOCKED, REVIEW_REQUIRED and ERROR runs read back exactly: the stored result and counts, every required, executed and not-executed rule and semanticReviewRequired — nothing recomputed or hidden; the counts agree with the unchanged issue list', async () => {
+    const p = await promptWorld();
+    const blocked = (
+      await validate(
+        await importCandidate(p.caseId, draft(p.prompt, { bodyText: `A\n${SLOT}\nB\n${SLOT}\n` })),
+        p.prompt,
+      )
+    ).run;
+    const review = (
+      await validate(
+        await importCandidate(
+          p.caseId,
+          draft(p.prompt, { bodyText: `A\n[PENDING SIGNER NAME]\n${SLOT}\n` }),
+        ),
+        p.prompt,
+      )
+    ).run;
+    validationObserver.failRule = 'ENVELOPE.SENDER';
+    const failing = (await validate(await importCandidate(p.caseId, draft(p.prompt)), p.prompt))
+      .run;
+    validationObserver.failRule = null;
+    // Inexact stored text: the two hash rules cannot run (not executed, never passed).
+    const base = await importCandidate(
+      p.caseId,
+      draft(p.prompt, { subject: 'SYNTHETIC NUL draft' }),
+    );
+    const withNul = await inject(base, {
+      bodyText: `SYNTHETIC\u0000body\n${SLOT}\n`,
+      artifactSha256: base.artifactSha256,
+    });
+    const partial = (await validate(withNul, p.prompt)).run;
+    const expected: Array<[string, ValidationRun, string, string[]]> = [
+      ['BLOCKED', blocked, 'BLOCKED', []],
+      ['REVIEW_REQUIRED', review, 'REVIEW_REQUIRED', []],
+      ['ERROR', failing, 'ERROR', ['ENVELOPE.SENDER']],
+      [
+        'BLOCKED, rules not executed',
+        partial,
+        'BLOCKED',
+        ['ARTIFACT.BODY_SHA256', 'ARTIFACT.ARTIFACT_SHA256'],
+      ],
+    ];
+    for (const [label, run, result, notExecuted] of expected) {
+      const read = await getRun(run.id);
+      expect(read, label).toEqual(run);
+      expect(read.result, label).toBe(result);
+      expect(read.coverageManifest, label).toEqual({
+        requiredRuleIds: ALL_RULES,
+        executedRuleIds: ALL_RULES.filter((id) => !notExecuted.includes(id)),
+        notExecutedRuleIds: notExecuted,
+        semanticReviewRequired: true,
+      });
+      const issues = await issuesOf(run.id);
+      const count = (severity: string) =>
+        issues.filter((issue) => issue.severity === severity).length;
+      expect([read.blockerCount, read.reviewRequiredCount, read.warningCount], label).toEqual([
+        count('BLOCKER'),
+        count('REVIEW_REQUIRED'),
+        count('WARNING'),
+      ]);
+      // Every rule that did not execute keeps its issue (why it is not passed).
+      for (const ruleId of notExecuted) {
+        expect(issuesOfRule(issues, ruleId), `${label} ${ruleId}`).toHaveLength(1);
+      }
+    }
+    expect(failing.blockerCount).toBe(1);
+    expect(review.reviewRequiredCount).toBe(1);
+  });
+
+  it('a run recorded under another ruleset — a historical row the application never writes itself, set directly in tb_notice_test — is read back exactly: nothing is re-evaluated under the current ruleset, no coverage, result, count or digest recomputed', async () => {
+    const p = await validationWorld();
+    const view = await context(p.caseId, scopeOf(p.prompt));
+    const id = randomUUID();
+    const recordedAt = new Date(Date.UTC(2026, 0, 2, 3, 4, 5, 678));
+    const coverage = {
+      requiredRuleIds: ['SYNTHETIC.RULE_A', 'SYNTHETIC.RULE_B'],
+      executedRuleIds: ['SYNTHETIC.RULE_A'],
+      notExecutedRuleIds: ['SYNTHETIC.RULE_B'],
+      semanticReviewRequired: true,
+    };
+    const manifest = view.dependencies.slice(0, 1);
+    const evaluated = { ...view.context, caseContextRevision: 1 };
+    await prisma.$executeRaw`
+      INSERT INTO validation_runs (id, candidate_id, case_id, artifact_sha256, dependency_digest,
+        dependency_manifest, evaluated_context_json, ruleset_version, result, coverage_manifest,
+        blocker_count, review_required_count, warning_count, started_at, completed_at, created_at,
+        created_by_id)
+      VALUES (${id}, ${p.candidate.id}, ${p.caseId}, ${p.candidate.artifactSha256}, ${'d'.repeat(64)},
+        CAST(${JSON.stringify(manifest)} AS JSON), CAST(${JSON.stringify(evaluated)} AS JSON),
+        ${'TB-TECHNICAL-RULESET-v0-SYNTHETIC'}, ${'REVIEW_REQUIRED'},
+        CAST(${JSON.stringify(coverage)} AS JSON), 0, 1, 0, ${recordedAt}, ${recordedAt},
+        ${recordedAt}, ${client.session.userId})`;
+    const read = await getRun(id);
+    expect(read).toEqual({
+      id,
+      candidateId: p.candidate.id,
+      caseId: p.caseId,
+      artifactSha256: p.candidate.artifactSha256,
+      dependencyDigest: 'd'.repeat(64),
+      dependencyManifest: manifest,
+      evaluatedContextJson: evaluated,
+      rulesetVersion: 'TB-TECHNICAL-RULESET-v0-SYNTHETIC',
+      result: 'REVIEW_REQUIRED',
+      coverageManifest: coverage,
+      blockerCount: 0,
+      reviewRequiredCount: 1,
+      warningCount: 0,
+      startedAt: recordedAt.toISOString(),
+      completedAt: recordedAt.toISOString(),
+      createdAt: recordedAt.toISOString(),
+      createdById: client.session.userId,
+    });
+    // The current ruleset and context would give something else: this candidate evaluates to a
+    // TECHNICAL_PASS with all 29 rules executed against the current digest.
+    const current = (await validate(p.candidate, p.prompt)).run;
+    expect([current.result, current.rulesetVersion, current.dependencyDigest]).toEqual([
+      'TECHNICAL_PASS',
+      'TB-TECHNICAL-RULESET-v1',
+      view.dependencyDigest,
+    ]);
+    expect(current.coverageManifest.requiredRuleIds).toEqual(ALL_RULES);
+    expect(await getRun(id)).toEqual(read);
+    expect(await issuesOf(id)).toEqual([]);
+    expect((await listRuns(p.candidate.id)).items.map((item) => item.id)).toEqual([current.id, id]);
+  });
+
+  it('a stored run is history: after a new authority event, a newer source revision, a paused case source, a fact revision, a mapping edit and the candidate’s supersession it reads back as recorded — its digest, manifest, evaluated context, coverage and result — while a new run records the changed context', async () => {
+    const p = await validationWorld();
+    const { run } = await validate(p.candidate, p.prompt);
+    const mappingStart = run.evaluatedContextJson.mappings[0]?.sourceStartMs ?? null;
+    const changes: Array<[string, () => Promise<unknown>]> = [
+      ['AuthorityEvent', () => recordEvent(p.a.mandate.data.id, p.w.source.id)],
+      [
+        'SourceReference revision',
+        () =>
+          reviseSource(p.basis.id, {
+            agencyId: p.w.agency.data.id,
+            title: 'SYNTHETIC revised basis',
+          }),
+      ],
+      ['CaseSource link state', () => setLinkState(p.caseSource.data.id, 'PAUSED')],
+      ['CaseFact revision', () => reviseFact(p.caseId, p.fact.id)],
+      [
+        'UseMapping edit',
+        () => patchMapping(p.caseId, p.mapping.data.id, { sourceStartMs: '1000' }),
+      ],
+      ['candidate supersession', () => supersede(p.candidate.id)],
+    ];
+    for (const [label, change] of changes) {
+      await change();
+      t.clock.advance(1000);
+      const read = await getRun(run.id);
+      expect(read, label).toEqual(run);
+      // Serialized the same way too (MySQL returns the stored JSON; nothing is rebuilt).
+      expect(JSON.stringify(read), label).toBe(JSON.stringify(run));
+    }
+    // The present has moved on; the stored run did not follow it.
+    const now = await context(p.caseId, scopeOf(p.prompt));
+    expect(now.dependencyDigest).not.toBe(run.dependencyDigest);
+    expect(now.context.mappings[0]?.sourceStartMs).toBe('1000');
+    expect(mappingStart).not.toBe('1000');
+    const later = (await validate(p.candidate, p.prompt)).run;
+    expect(later.dependencyDigest).toBe(now.dependencyDigest);
+    expect(later.result).toBe('REVIEW_REQUIRED');
+    const reread = await getRun(run.id);
+    expect(reread).toEqual(run);
+    expect(reread.result).toBe('TECHNICAL_PASS');
+    expect(reread.evaluatedContextJson.mappings[0]?.sourceStartMs ?? null).toBe(mappingStart);
+    expect((await listRuns(p.candidate.id)).items.map((item) => item.id)).toEqual([
+      later.id,
+      run.id,
+    ]);
+  });
+
+  it('reading writes nothing: repeated reads leave every row byte-identical — no run, issue, audit event, idempotency record, case row version or context revision, candidate, prompt or source change; P1’s session activity touch is the only write, once per interval', async () => {
+    const p = await validationWorld();
+    const { run } = await validate(p.candidate, p.prompt);
+    const tables = [...DIRECTORY_SUITE_TABLES, ...LATER_TABLES, 'auth_sessions', 'users'];
+    const caseBefore = await prisma.caseRecord.findUniqueOrThrow({ where: { id: p.caseId } });
+    const counts = async () =>
+      Promise.all(
+        ['validation_runs', 'validation_issues', 'audit_events', 'idempotency_records'].map(
+          (table) => countRows(prisma, table),
+        ),
+      );
+    const countsBefore = await counts();
+    const before = await suiteDump(tables);
+    for (let index = 0; index < 3; index += 1) expect(await getRun(run.id)).toEqual(run);
+    await issuesOf(run.id);
+    expect(await suiteDump(tables)).toEqual(before);
+    expect(await counts()).toEqual(countsBefore);
+    const caseAfter = await prisma.caseRecord.findUniqueOrThrow({ where: { id: p.caseId } });
+    expect([caseAfter.rowVersion, caseAfter.contextRevision]).toEqual([
+      caseBefore.rowVersion,
+      caseBefore.contextRevision,
+    ]);
+    // Once P1's write interval has passed, a request of the session records its activity
+    // (auth_sessions.last_seen_at) — the global session behaviour, not a change to any run.
+    t.clock.advance(LAST_SEEN_WRITE_INTERVAL_MS + 1);
+    expect(await getRun(run.id)).toEqual(run);
+    const after = await suiteDump(tables);
+    const withoutLastSeen = (rows: readonly string[] = []) =>
+      rows.map((row) => {
+        const { last_seen_at: _lastSeen, ...rest } = JSON.parse(row) as Record<string, unknown>;
+        return rest;
+      });
+    expect({ ...after, auth_sessions: [] }).toEqual({ ...before, auth_sessions: [] });
+    expect(withoutLastSeen(after['auth_sessions'])).toEqual(
+      withoutLastSeen(before['auth_sessions']),
+    );
+    expect(after['auth_sessions']).not.toEqual(before['auth_sessions']);
+    expect(await counts()).toEqual(countsBefore);
+  });
+
+  it('an unknown or malformed id is 404 like any unknown record (a candidate’s id is not a run’s); without a session it is 401 and nothing of the run is returned', async () => {
+    const p = await validationWorld();
+    const { run } = await validate(p.candidate, p.prompt);
+    for (const id of [randomUUID(), 'not-a-uuid', p.candidate.id, p.prompt.id]) {
+      expect(outcome(await client.get('getValidationRun', `/validation-runs/${id}`)), id).toEqual([
+        404,
+        'NOT_FOUND',
+      ]);
+    }
+    const anonymous = await http(t.port, 'GET', `/api/v1/validation-runs/${run.id}`, {});
+    expect(outcome(anonymous)).toEqual([401, 'SESSION_REQUIRED']);
+    for (const value of [run.artifactSha256, run.dependencyDigest, p.candidate.id, p.caseId]) {
+      expect(anonymous.text).not.toContain(value);
+    }
+    expect(anonymous.headers['cache-control']).toBe('no-store');
+  });
+});
+
 describe('CONTAMINATION — nothing of one case appears in or stales another case’s validation', () => {
   it('two cases of one agency, owner and route: each run evaluates only its own case’s facts, sources, authority and correspondence; the same artifact in both cases shares no run; a change in A never stales B; a technical pass changes no fact and creates no assessment or readiness', async () => {
     const p = await validationWorld('A');
@@ -1943,6 +2283,10 @@ describe('CONTAMINATION — nothing of one case appears in or stales another cas
     expect((await listRuns(p.candidate.id)).items.map((item) => item.id).sort()).toEqual(
       [earlyA.run.id, runA.run.id].sort(),
     );
+    // Read back by id (TB-SCHEMA-API-v1.3.0), each run is exactly its own case's record.
+    expect(await getRun(runB.id)).toEqual(runB);
+    expect(await getRun(runA.run.id)).toEqual(runA.run);
+    expect(await getRun(earlyA.run.id)).toEqual(earlyA.run);
     const issuesB = await issuesOf(runB.id);
     expect(issuesB.every((issue) => issue.runId === runB.id)).toBe(true);
     await expectNoLaterRecords();
@@ -1986,12 +2330,12 @@ describe('P4G boundaries — no outbound call, no later phase, no mutation of a 
     ).toEqual([]);
   });
 
-  it('no run is read, updated or deleted by id, and assessments, readiness, unsigned export, signing and sending stay unrouted; P4G writes no later-phase record', async () => {
+  it('no run is updated or deleted by id (its read is getValidationRun), and assessments, readiness, unsigned export, signing and sending stay unrouted; P4G writes no later-phase record', async () => {
     const p = await validationWorld();
     const { run } = await validate(p.candidate, p.prompt);
     const before = await suiteDump();
     const paths: Array<['GET' | 'POST' | 'PATCH' | 'DELETE' | 'PUT', string]> = [
-      ['GET', `/validation-runs/${run.id}`],
+      ['POST', `/validation-runs/${run.id}`],
       ['PATCH', `/validation-runs/${run.id}`],
       ['PUT', `/validation-runs/${run.id}`],
       ['DELETE', `/validation-runs/${run.id}`],
@@ -2015,7 +2359,7 @@ describe('P4G boundaries — no outbound call, no later phase, no mutation of a 
     await expectNoLaterRecords();
   });
 
-  it('every collected response matches its operation: declared status, contract schema, no ETag on a run, no readiness or approval vocabulary as a key; the three validation operations were exercised', () => {
+  it('every collected response matches its operation: declared status, contract schema, no ETag on a run, no readiness or approval vocabulary as a key; the four validation operations were exercised', () => {
     const byId = new Map<string, (typeof operations)[number]>(
       operations.map((operation) => [operation.operationId, operation]),
     );
@@ -2031,6 +2375,7 @@ describe('P4G boundaries — no outbound call, no later phase, no mutation of a 
     const validationOperations = [
       'validateCandidate',
       'listValidationRuns',
+      'getValidationRun',
       'listValidationIssues',
     ];
     for (const { operationId, result } of collected) {
@@ -2064,7 +2409,7 @@ describe('P4G boundaries — no outbound call, no later phase, no mutation of a 
     for (const operationId of validationOperations) {
       expect(seen.has(operationId), operationId).toBe(true);
     }
-    expect(CONTRACT_BASELINE).toBe('TB-SCHEMA-API-v1.2.0');
+    expect(CONTRACT_BASELINE).toBe('TB-SCHEMA-API-v1.3.0');
   });
 });
 

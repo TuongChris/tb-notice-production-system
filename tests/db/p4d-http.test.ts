@@ -2803,7 +2803,7 @@ describe('SECURITY AND ISOLATION — session-protected, read-only, no network, n
     expect(
       collected.filter((entry) => entry.operationId === 'getProductionContext').length,
     ).toBeGreaterThan(100);
-    expect(CONTRACT_BASELINE).toBe('TB-SCHEMA-API-v1.2.0');
+    expect(CONTRACT_BASELINE).toBe('TB-SCHEMA-API-v1.3.0');
   });
 });
 

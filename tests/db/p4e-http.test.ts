@@ -927,7 +927,7 @@ describe('EXACT FREEZE — the snapshot is exactly the context read, rendered de
     expect(snapshot.renderedPrompt).toContain(`Dependency digest: ${view.dependencyDigest}`);
     expect(snapshot.renderedPrompt).toContain(`Context revision: ${view.contextRevision}`);
     expect(snapshot.renderedPrompt).toContain('Template: TB-PROMPT-TEMPLATE-v1');
-    expect(snapshot.renderedPrompt).toContain('Wire contract: TB-SCHEMA-API-v1.2.0');
+    expect(snapshot.renderedPrompt).toContain('Wire contract: TB-SCHEMA-API-v1.3.0');
     expect(snapshot.renderedPrompt).toContain('Context schema: PFC-YT-EMAIL-v1.1');
   });
 
@@ -1972,7 +1972,7 @@ describe('UNTRUSTED CONTENT, NO OUTBOUND CALL, LATER PHASES', () => {
     for (const operationId of ['generatePrompt', 'listCasePrompts', 'getPrompt']) {
       expect(seen.has(operationId), operationId).toBe(true);
     }
-    expect(CONTRACT_BASELINE).toBe('TB-SCHEMA-API-v1.2.0');
+    expect(CONTRACT_BASELINE).toBe('TB-SCHEMA-API-v1.3.0');
   });
 });
 
