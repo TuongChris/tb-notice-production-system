@@ -57,8 +57,11 @@ interface Entry {
 /** Operation metadata: when and by whom a row was written, and its version counter. */
 const OPERATION_METADATA = ['createdAt', 'createdById', 'updatedAt', 'updatedById', 'rowVersion'];
 
-/** A wire view without the named keys; an archive timestamp and reason become one `archived` flag. */
-function semantic(view: object, omit: readonly string[] = []): Content {
+/**
+ * A wire view without the named keys; an archive timestamp and reason become one `archived` flag.
+ * The semantic content a fingerprint covers — also what a rendered prompt shows of a record (P4E).
+ */
+export function semantic(view: object, omit: readonly string[] = []): Content {
   const content: Content = {};
   for (const [key, value] of Object.entries(view)) {
     if (OPERATION_METADATA.includes(key) || omit.includes(key)) continue;

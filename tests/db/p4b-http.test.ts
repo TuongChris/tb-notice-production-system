@@ -3651,14 +3651,14 @@ describe('SECURITY / CONTRACT', () => {
     expect(await intakeDump()).toEqual(before);
   });
 
-  it('production writes, prompts, candidates, readiness, signing and sending stay unrouted; P4B creates no later-phase record', async () => {
+  it('production writes, candidates, readiness, signing and sending stay unrouted; P4B creates no later-phase record', async () => {
     const { w } = await intakeWorld();
     const id = w.case.data.id;
     // Correspondence is routed since P4C (tests/db/p4c-http.test.ts); P4B still records none. The
-    // production context is a GET-only read since P4D (tests/db/p4d-http.test.ts).
+    // production context is a GET-only read since P4D (tests/db/p4d-http.test.ts), and prompts are
+    // routed since P4E (tests/db/p4e-http.test.ts).
     const paths: Array<['GET' | 'POST' | 'PATCH' | 'DELETE', string]> = [
       ['POST', `/cases/${id}/production-context`],
-      ['POST', `/cases/${id}/prompts`],
       ['POST', `/cases/${id}/candidates`],
       ['GET', `/candidates/${randomUUID()}/readiness`],
       ['POST', `/cases/${id}/readiness`],

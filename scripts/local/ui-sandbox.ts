@@ -33,8 +33,8 @@ const SANDBOX_EMAIL = 'p2-ui-sandbox@example.invalid';
  * Every table the running app can write (P2 directory, P3A sources and routes, P3B mandates,
  * versions, coverage, coverage signers and authority events, P4A cases, case sources and authority
  * selections with their pinned coverage, P4B reported items, works, use mappings, case facts and
- * their supports, P4C captured correspondence and its case bindings), in foreign-key deletion
- * order. Source references and the records that point at them reference each other (canonical
+ * their supports, P4C captured correspondence and its case bindings, P4E prompt snapshots), in
+ * foreign-key deletion order. Source references and the records that point at them reference each other (canonical
  * bindings, revision chains, citations), routes ⇄ coverage, cases ⇄ selections and the version /
  * coverage / event / fact / binding chains point at their own tables, so those pointers are cleared
  * first (see cleanup).
@@ -42,6 +42,7 @@ const SANDBOX_EMAIL = 'p2-ui-sandbox@example.invalid';
 const TABLES = [
   'idempotency_records',
   'audit_events',
+  'prompt_snapshots',
   'correspondence_bindings',
   'fact_sources',
   'case_facts',

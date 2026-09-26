@@ -674,11 +674,12 @@ async function main(): Promise<void> {
   if (oldHead.code !== 'REVISION_NOT_HEAD') fail('only the head of a fact chain can be revised');
 
   // No readiness, G1–G7 or production write route exists (correspondence is routed since P4C and
-  // has its own smoke, smoke:p4c; the GET-only production context since P4D, smoke:p4d).
+  // has its own smoke, smoke:p4c; the GET-only production context since P4D, smoke:p4d; prompts
+  // since P4E, smoke:p4e).
   for (const [label, method, suffix] of [
     ['GET /cases/{caseId}/readiness', 'GET', `/cases/${caseId}/readiness`],
     ['POST /cases/{caseId}/production-context', 'POST', `/cases/${caseId}/production-context`],
-    ['POST /cases/{caseId}/prompts', 'POST', `/cases/${caseId}/prompts`],
+    ['POST /cases/{caseId}/candidates', 'POST', `/cases/${caseId}/candidates`],
     ['POST /cases/{caseId}/g1', 'POST', `/cases/${caseId}/g1`],
   ] as const) {
     const refused = await call(

@@ -5,7 +5,10 @@
 // objects only; no Date, BigInt, undefined, function or prototype values. It is the frozen reference
 // helper (docs/reference/database-api-v1/…/contracts/consistency-reference.mjs: `canonicalJson`,
 // `canonicalSha256`) ported without change; tests/api/production-context-rules.test.ts runs both on
-// the same values. It is not a claim of general RFC 8785 conformance.
+// the same values. It is not a claim of general RFC 8785 conformance. The same helper's exact-text
+// hash (`exactTextSha256`: SHA-256 of the UTF-8 bytes, no trimming, newline or Unicode
+// normalization) and pending signature slot (`PENDING_SIGNATURE`) are ported below for P4E
+// (tests/api/prompt-rules.test.ts compares them with the frozen helper).
 //
 // The request digest of idempotency (request-digest.ts) keeps its own, older subset for request
 // bodies; dependency fingerprints and digests use this strict encoding only.
@@ -50,5 +53,22 @@ export function tbCanonicalJson(value: unknown): string {
 export function tbCanonicalSha256(value: unknown): string {
   return createHash('sha256')
     .update(Buffer.from(assertText(tbCanonicalJson(value)), 'utf8'))
+    .digest('hex');
+}
+
+/**
+ * The one signature slot an unsigned artifact carries (Production Form Contract §7; the frozen
+ * helper's `PENDING_SIGNATURE`). A human signs outside the application; nothing here fills it.
+ */
+export const PENDING_SIGNATURE = '[PENDING AUTHORIZED SIGNER — FULL LEGAL NAME REQUIRED]';
+
+/**
+ * SHA-256 (lowercase hex) of the exact UTF-8 bytes of a text (INVARIANTS §6; the frozen helper's
+ * `exactTextSha256`): no trimming, newline rewriting or Unicode normalization; NUL and unpaired
+ * surrogates are refused rather than replaced.
+ */
+export function exactTextSha256(value: string): string {
+  return createHash('sha256')
+    .update(Buffer.from(assertText(value), 'utf8'))
     .digest('hex');
 }

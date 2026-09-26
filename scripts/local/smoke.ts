@@ -14,10 +14,11 @@
 //     a valid contract OperationError with Cache-Control: no-store.
 //  6. Business boundary of the compiled API, read-only: every directory (P2), source and route
 //     (P3A), representation-authority (P3B), case (P4A), case intake (P4B) and correspondence (P4C)
-//     collection, the read-backs of TB-SCHEMA-API-v1.1.0 and v1.2.0 and the production-context read
-//     (P4D) are routed and session-protected (no cookie → 401, also through the web proxy), unsafe
-//     writes without Origin → 403 before any handler, canonical bindings and freezes are
-//     session-protected, and later case phases (prompts, candidates onward) are not routed (404).
+//     collection, the read-backs of TB-SCHEMA-API-v1.1.0 and v1.2.0, the production-context read
+//     (P4D) and the prompt operations (P4E) are routed and session-protected (no cookie → 401, also
+//     through the web proxy), unsafe writes without Origin → 403 before any handler, canonical
+//     bindings and freezes are session-protected, and later case phases (candidates onward) are not
+//     routed (404).
 //  7. Terminate both processes (SIGTERM, bounded wait, SIGKILL fallback) and verify ports 3000 and
 //     5173 are released. Any failure exits non-zero.
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
@@ -500,10 +501,39 @@ async function checkBusinessBoundary(): Promise<void> {
       401,
       'SESSION_REQUIRED',
     ],
-    // Prompts and every later case record are later phases: not routed.
+    // P4E: prompt generation and the prompt reads are behind the same guard (session, Origin).
     [
-      'POST /cases/{caseId}/prompts (later phase, not routed)',
+      'POST /cases/{caseId}/prompts without a session',
       `${api}/cases/${id}/prompts`,
+      { method: 'POST', headers: { ...json, Origin: origin }, body: '{}' },
+      401,
+      'SESSION_REQUIRED',
+    ],
+    [
+      'POST /cases/{caseId}/prompts without Origin',
+      `${api}/cases/${id}/prompts`,
+      { method: 'POST', headers: json, body: '{}' },
+      403,
+      'ORIGIN_REJECTED',
+    ],
+    [
+      'GET /cases/{caseId}/prompts without a session',
+      `${api}/cases/${id}/prompts`,
+      {},
+      401,
+      'SESSION_REQUIRED',
+    ],
+    [
+      'GET /prompts/{id} through the web proxy without a session',
+      `http://localhost:${WEB_PORT}/api/v1/prompts/${id}`,
+      {},
+      401,
+      'SESSION_REQUIRED',
+    ],
+    // Candidates and every later case record are later phases: not routed.
+    [
+      'POST /cases/{caseId}/candidates (later phase, not routed)',
+      `${api}/cases/${id}/candidates`,
       { method: 'POST', headers: { ...json, Origin: origin }, body: '{}' },
       404,
       'NOT_FOUND',
