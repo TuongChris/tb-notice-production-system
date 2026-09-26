@@ -59,6 +59,18 @@
 # prompt update route exists, leaving synthetic records in the disposable CI tb_notice_dev only (it
 # refuses to run outside CI). A prompt snapshot is not a notice, approval, readiness decision,
 # signature or transmission; no AI provider is called and nothing is sent.
+# P4F: smoke:local also checks that the compiled candidate operations are session-protected and
+# that validation onward stays unrouted; smoke:p4f builds the same kind of synthetic case with its
+# prompts, imports a candidate (the exact subject, body, envelope and ordered plan; HUMAN_PENDING;
+# the body SHA-256 of the exact UTF-8 bytes and the artifact SHA-256 recomputed with the frozen
+# reference helper; the case context unchanged), replays the same key, revises it (the revised
+# candidate unchanged, a fork refused), imports an NMI_REPLY with its thread, supersedes the first
+# once, checks the expected refusals (another case's prompt or scoped source, the sender, the
+# thread, an unrecorded "previously supplied", an unrecorded hash, a NUL), the rows written and that
+# no validation, assessment, readiness, export or candidate update route exists, leaving synthetic
+# records in the disposable CI tb_notice_dev only (it refuses to run outside CI). A candidate is an
+# unsigned draft artifact: nothing is validated, approved, signed, sent or retracted, and no AI
+# provider is called.
 name: CI
 
 on:
@@ -211,6 +223,8 @@ jobs:
         run: yarn smoke:p4d --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"
       - name: P4E compiled prompt generation → frozen snapshot → replay → stale refusal → version 2 → NMI_REPLY (yarn smoke:p4e, synthetic; no AI provider, nothing sent)
         run: yarn smoke:p4e --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"
+      - name: P4F compiled candidate import → exact hashes → replay → revision → fork refusal → supersession → refusals (yarn smoke:p4f, synthetic; no AI provider, nothing signed or sent)
+        run: yarn smoke:p4f --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"
       - name: P1.1 recovery commands (synthetic account; P0 actor untouched)
         run: |
           E=p1-ci-admin@example.invalid
