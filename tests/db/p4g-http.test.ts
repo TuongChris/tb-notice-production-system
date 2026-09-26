@@ -1778,7 +1778,7 @@ describe('P4G recorded context, preparation, drift and history', () => {
 });
 
 describe('CONTAMINATION — nothing of one case appears in or stales another case’s validation', () => {
-  it('two cases of one agency, owner and route: each run uses its own case’s context; a change in A never stales B; lists never cross', async () => {
+  it('two cases of one agency, owner and route: each run evaluates only its own case’s facts, sources, authority and correspondence; the same artifact in both cases shares no run; a change in A never stales B; a technical pass changes no fact and creates no assessment or readiness', async () => {
     const p = await validationWorld('A');
     const createdB = await createCase(p.w.agency.data.id, {
       routeId: p.w.route.data.id,
@@ -1794,26 +1794,84 @@ describe('CONTAMINATION — nothing of one case appears in or stales another cas
       basisSourceId: p.basis.id,
       provenance: 'OPERATOR_REPORTED',
     });
+    const factB = await createFact(b);
+    // A source scoped to case B only (linked to B) and a message bound to B only.
+    const sourceB = await createSource({
+      agencyId: p.w.agency.data.id,
+      scopeBindings: { caseIds: [b] },
+      title: 'SYNTHETIC-B-ONLY document',
+    });
+    const linkB = await linkSource(b, sourceB.id);
+    const messageB = await capture(p.w.agency.data.id, { subject: 'SYNTHETIC-B-ONLY message' });
+    const bindingB = await bind(b, { correspondenceId: messageB.id, eventType: 'NMI' });
     const promptB = await generate(b, { authoritySelectionId: selectionB.id });
     const candidateB = await importCandidate(b, draft(promptB));
+    // The same draft in both cases: one artifact hash, two case-specific candidates — a run of
+    // A's candidate is never B's.
+    expect(candidateB.artifactSha256).toBe(p.candidate.artifactSha256);
+    const earlyA = await validate(p.candidate, p.prompt);
+    expect((await listRuns(candidateB.id)).items).toEqual([]);
     const readB = await context(b, scopeOf(promptB));
     // A change of case A only (its fact) leaves B's reviewed digest current.
     await reviseFact(p.caseId, p.fact.id);
+    const kept = [
+      'case_facts',
+      'fact_sources',
+      'cases',
+      'case_sources',
+      'notice_candidates',
+      'prompt_snapshots',
+      'correspondence_bindings',
+    ];
+    const recordsBefore = await suiteDump(kept);
     const runB = immutable<ValidationRun>(
       await validatePost(candidateB.id, expectations(candidateB, readB)),
       201,
     );
+    // A technical pass changes no fact, case, link, candidate, prompt or binding and creates no
+    // assessment or readiness (no readiness is stored anywhere; the run carries no such field).
+    expect(runB.result).toBe('TECHNICAL_PASS');
+    expect(await suiteDump(kept)).toEqual(recordsBefore);
+    await expectNoLaterRecords();
+    expect(
+      Object.keys(runB).filter((key) => /ready|readiness|assessment|g[1-7]/i.test(key)),
+    ).toEqual([]);
     expect(runB.caseId).toBe(b);
     expect(runB.evaluatedContextJson.caseId).toBe(b);
-    const text = JSON.stringify(runB);
-    expect(text).not.toContain(p.caseId);
-    expect(text).not.toContain(p.fact.id);
-    expect(text).not.toContain(p.work.data.id);
+    const textB = JSON.stringify(runB);
+    expect(textB).toContain(factB.id);
+    expect(textB).toContain(sourceB.id);
+    for (const id of [
+      p.caseId,
+      p.fact.id,
+      p.work.data.id,
+      p.item.data.id,
+      p.selection.id,
+      p.linked.id,
+      p.caseSource.data.id,
+    ]) {
+      expect(textB, id).not.toContain(id);
+    }
     const runA = await validate(p.candidate, p.prompt);
     expect(runA.run.evaluatedContextJson.caseId).toBe(p.caseId);
-    expect(JSON.stringify(runA.run)).not.toContain(b);
+    const textA = JSON.stringify(runA.run);
+    for (const id of [
+      b,
+      factB.id,
+      sourceB.id,
+      linkB.data.id,
+      selectionB.id,
+      messageB.id,
+      bindingB.id,
+      workB.data.id,
+      itemB.data.id,
+    ]) {
+      expect(textA, id).not.toContain(id);
+    }
     expect((await listRuns(candidateB.id)).items.map((item) => item.id)).toEqual([runB.id]);
-    expect((await listRuns(p.candidate.id)).items.map((item) => item.id)).toEqual([runA.run.id]);
+    expect((await listRuns(p.candidate.id)).items.map((item) => item.id).sort()).toEqual(
+      [earlyA.run.id, runA.run.id].sort(),
+    );
     const issuesB = await issuesOf(runB.id);
     expect(issuesB.every((issue) => issue.runId === runB.id)).toBe(true);
     await expectNoLaterRecords();
