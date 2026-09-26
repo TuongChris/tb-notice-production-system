@@ -2,7 +2,7 @@
 
 Mission **TB_R12_CLOSEOUT_MERGE_AND_P4F_NOTICE_CANDIDATE_TO_R13**, steps 9–11. Branch `feature/p4f-notice-candidate`, created from the exact post-P4E `main` `79db09b` (merge commit of PR #8), with the post-R12 checkpoint `a417b6a` (documentation only). P4F implements **five** contracted operations — `importCandidate`, `listCaseCandidates`, `getCandidate`, `reviseCandidate` and `supersedeCandidate` — and the candidate pages of a case.
 
-**Submitted for review gate R13 — PENDING.** Not merged; no pull request. No validation run, validation issue workflow, candidate assessment, readiness, unsigned export, G1–G7 decision, READY_FOR_SIGNER, signature, sending, mailbox, Drive or AI-provider action exists.
+**R13 result (operator, 2026-09-26): PASS.** P4F = **VERIFIED_COMPLETE**; the active wire contract stays **TB-SCHEMA-API-v1.2.0**; `TB-PROMPT-TEMPLATE-v1` and `TB-CANDIDATE-ARTIFACT-v1` are the accepted internal identifiers. P4F is authorized for merge to `main` by a normal merge commit (mission TB_R13_CLOSEOUT_MERGE_AND_P4G_TECHNICAL_VALIDATION_TO_R14; §28). P4G (technical validation) is **NOT_STARTED** at this record. No validation run, validation issue workflow, candidate assessment, readiness, unsigned export, G1–G7 decision, READY_FOR_SIGNER, signature, sending, mailbox, Drive or AI-provider action exists.
 
 Persistent rules (they stay in force; `CLAUDE.md` carries them):
 
@@ -30,10 +30,10 @@ Persistent rules (they stay in force; `CLAUDE.md` carries them):
 | Browser verification (Playwright MCP, `tb_notice_test`) | **PASS** — 34/34; one build finding (F1) fixed before the pass; three limitations recorded (§18) |
 | Negative controls | **PASS** — 29/29 on `dcc4289`, all 48 responsible commands failing on an AssertionError (§19) |
 | Full regression (§48 of the mission) | **PASS** — 21/21 steps exit 0 on `dcc4289`, lint 0 warnings (§20, `evidence/p4f-first-pc-sweep.txt`) |
-| Exact final branch CI | Recorded in the R13 report (the final head is the commit that adds this record); the code head's run: push run 36218703034 on `dcc4289` — **success**, both jobs (`evidence/p4f-ci-run-36218703034.txt`) |
+| Exact final branch CI | **PASS** — push run 36219605497 on the R13 submission head `ffadd40`, both jobs (§28.3); the code head's run: push run 36218703034 on `dcc4289` — success, both jobs (`evidence/p4f-ci-run-36218703034.txt`) |
 | Schema / migration | **No change** (§22) |
 | Wire contract | **No change** — TB-SCHEMA-API-v1.2.0 (§23) |
-| R13 review | **PENDING** |
+| R13 review | **PASS** (operator, 2026-09-26) — no remediation; the §24 interpretations accepted (§28) |
 
 ## 1. Operation matrix and design (contract-first)
 
@@ -100,7 +100,8 @@ Recorded in `docs/verification/p4e/P4E_PROMPT_SNAPSHOT.md` §29–§30 (verified
 | `7b33d9c` | `yarn smoke:p4f` (CI only) and its CI step | run 36216834390 success — `smoke:p4f` 92 checks |
 | `e1039b5` | Test: three candidate tests strengthened from negative-control run 1 (test code only; §19) | (pushed with `dcc4289`) |
 | `dcc4289` | Fix from the first sandbox build (finding F1): the candidate page imports only types from `@tb/contracts` — its chunk 265.60 kB → 39.41 kB; no behaviour change — the code head | run 36218703034 success |
-| (this record) | R13 submission: this record, the evidence, `CLAUDE.md`, `CURRENT_STATE.md` (documentation only) | reported at R13 |
+| `ffadd40` | R13 submission: this record, the evidence, `CLAUDE.md`, `CURRENT_STATE.md` (documentation only) — the accepted head | run 36219605497 success |
+| (the R13 closeout) | §28, the header and status rows, this row, the §20 and §27 pointers, `CLAUDE.md`, `CURRENT_STATE.md` and the UI sandbox's header comment (documentation only) | recorded with the merge |
 
 ## 4. Candidate semantic and prompt binding
 
@@ -207,7 +208,7 @@ Teardown: sandbox rows deleted, `db:verify test --expect-empty` PASS (domain row
 | Earlier smokes | unchanged counts: `smoke:p3a` 24, `smoke:p3b` 36, `smoke:p4a` 50, `smoke:p4b` 64, `smoke:p4c` 62, `smoke:p4d` 87, `smoke:p4e` 84 (their candidate probes now probe validation runs and assessments) |
 | Full regression (§48), 2026-09-26T04:43:30Z–04:51:26Z on `dcc4289` | **21/21 steps exit 0** (`evidence/p4f-first-pc-sweep.txt`): `reference:check` and `reference:helper-tests` (27 pass), `contracts:check`, `install --immutable`, `typecheck`, `lint` and `oxlint --deny-warnings` ("Found 0 warnings and 0 errors."), `format:check`, `yarn test` 1465, `yarn test:db` 494, `db:verify test --expect-empty` and `db:verify dev` (metadata and a row count only), `db:status test` and `dev`, both drift diffs empty, `build` (entry 329.53 kB, candidates chunk 39.41 kB, no chunk advisory), `smoke:local` 57, `dev:verify-shutdown` 4/4, then `reference:check` and `db:verify test --expect-empty` again; per-file counts: only the three P4F test files are new, every other file keeps its count |
 
-CI: run 36216834390 (`7b33d9c`, first run with `smoke:p4f`, 92 checks) and run 36218703034 (`dcc4289`, the code head) — both success, both jobs (`evidence/p4f-ci-run-36218703034.txt`: the key lines of both jobs and every `smoke:p4f` check). The exact final head's run is reported at R13. `yarn test:transition-baseline` stays a documented historical oracle, not a gate.
+CI: run 36216834390 (`7b33d9c`, first run with `smoke:p4f`, 92 checks) and run 36218703034 (`dcc4289`, the code head) — both success, both jobs (`evidence/p4f-ci-run-36218703034.txt`: the key lines of both jobs and every `smoke:p4f` check). The exact final head's run: push run 36219605497 on `ffadd40`, success, both jobs (§28.3). `yarn test:transition-baseline` stays a documented historical oracle, not a gate.
 
 ## 21. Contamination tests
 
@@ -244,7 +245,7 @@ None. The five operations are exactly the TB-SCHEMA-API-v1.2.0 definitions (inve
 - Three negative controls show a database backstop answering 500 inside the failing DB assertion (§19); the API rules are the protections, the backstops remain.
 - Browser limitations L1–L3 (§18).
 - `smoke:local` has 57 checks instead of 52.
-- The UI sandbox's header comment still lists the pages only through P4D (unchanged since P4E; its table list and cleanup include prompts and candidates) — documentation only, not changed.
+- The UI sandbox's header comment still lists the pages only through P4D (unchanged since P4E; its table list and cleanup include prompts and candidates) — documentation only, not changed. *(Corrected in the R13 closeout, §28.4.)*
 - `install --immutable` reports the pre-existing YN0086 peer-dependency note.
 - `yarn test:transition-baseline` fails by design (historical oracle since the v1.1.0 edit) and is not a gate.
 
@@ -254,4 +255,81 @@ None. No stop condition was reached: no authentication, GitHub approval, materia
 
 ## 27. Proposed next phase (not started)
 
-P4G — technical validation of a candidate: `validateCandidate` (POST `/candidates/{candidateId}/validation-runs`), `listValidationRuns` and `listValidationIssues` — a recorded ValidationRun over one exact candidate artifact (its `artifactSha256`) with its ValidationIssues (for example the pending slot exactly once, attachment wording against the document plan, the envelope and thread, bounds). A technical validation is not a substantive review, a G1–G6 decision or readiness. Not started; it needs its own approved mission. Assessments, readiness and unsigned export follow in later phases; signing, sending and G7 never exist in the application.
+P4G — technical validation of a candidate: `validateCandidate` (POST `/candidates/{candidateId}/validation-runs`), `listValidationRuns` and `listValidationIssues` — a recorded ValidationRun over one exact candidate artifact (its `artifactSha256`) with its ValidationIssues (for example the pending slot exactly once, attachment wording against the document plan, the envelope and thread, bounds). A technical validation is not a substantive review, a G1–G6 decision or readiness. Not started; it needs its own approved mission. Assessments, readiness and unsigned export follow in later phases; signing, sending and G7 never exist in the application. *(Authorized at R13 by mission TB_R13_CLOSEOUT_MERGE_AND_P4G_TECHNICAL_VALIDATION_TO_R14 as P4G — Technical Validation, the three contracted operations `validateCandidate`, `listValidationRuns` and `listValidationIssues`; NOT_STARTED at the R13 closeout, §28.)*
+
+## 28. R13 — PASS and closeout (2026-09-26, home PC)
+
+Mission TB_R13_CLOSEOUT_MERGE_AND_P4G_TECHNICAL_VALIDATION_TO_R14. This section records the operator's R13 result and the R13 closeout before the P4F pull request. Sections 1–27 keep the state at their time.
+
+### 28.1 Result (operator)
+
+| Item | Recorded value |
+|---|---|
+| **R13** | **PASS** (2026-09-26) — no remediation |
+| **P4F** | **VERIFIED_COMPLETE** — `importCandidate`, `listCaseCandidates`, `getCandidate`, `reviseCandidate`, `supersedeCandidate` (§1.1) and the candidate pages |
+| Merge | **AUTHORIZED_FOR_MERGE** — pull request `feature/p4f-notice-candidate` → `main`, normal GitHub merge commit (no squash, no rebase, no force-push, no bypass of failed checks, the branch kept) after the exact closeout head and the pull request checks are green |
+| **Active wire contract** | **TB-SCHEMA-API-v1.2.0**, unchanged by P4F; both release records pinned and never edited; the frozen historical reference TB-SCHEMA-API-v1.0.0 unchanged |
+| PFC wire id | `PFC-YT-EMAIL-v1.1` (unchanged) |
+| Accepted internal identifiers | `TB-PROMPT-TEMPLATE-v1` (the prompt template, accepted at R12) and `TB-CANDIDATE-ARTIFACT-v1` (the candidate artifact hash definition, §9) — implementation identifiers, not wire or PFC releases and no legal or policy approval |
+| Decisions | ADR-0001, ADR-0002, ADR-0003, ADR-0004 and ADR-0005 — all ACCEPTED; P4F adds no ADR |
+| `yarn test:transition-baseline` | A historical opt-in oracle that fails by design since the v1.1.0 edit; not a gate and not "fixed" |
+| P4G | **NOT_STARTED** at this record — Technical Validation (`validateCandidate`, `listValidationRuns`, `listValidationIssues`), authorized by the same mission on `feature/p4g-technical-validation`, created from the exact post-merge `main` once its CI is green; it stops at review gate R14 |
+
+### 28.2 Accepted R13 interpretations (persistent)
+
+The §24 interpretations are accepted as follows (the mission's wording):
+
+1. Candidate writes lock CaseRecord but do not mutate `rowVersion` or `contextRevision`.
+2. Import does not require current context freshness.
+3. PREPARATION PromptSnapshots may produce stored draft candidates.
+4. Pending signature-slot count belongs to later technical validation.
+5. `Envelope.from` exactly matches the selected `intendedFromEmail` where a selection exists.
+6. The envelope parent exactly follows `PromptSnapshot.parentBindingId`.
+7. PREVIOUSLY_SUPPLIED means recorded historical attachment posture only.
+8. A named document hash must match the exact SourceReference revision.
+9. The UI uses the prompt's source manifest; the API may accept another exact source revision only when it applies to the Case under the current source rules.
+10. Supersession and candidate lineage are independent lifecycle dimensions.
+11. Versions are per Case + TaskType across imports and revisions.
+12. `getCandidate` is global by id as contracted; Case pages preserve Case isolation.
+13. `artifactSha256` binds artifact content, not Case, prompt, task or lineage.
+
+Permanent boundaries (they stay in force; `CLAUDE.md` carries them):
+
+- Candidate = exact unsigned draft artifact.
+- Candidate ≠ approval.
+- Candidate ≠ legal conclusion.
+- Candidate ≠ G1–G6 result.
+- Candidate ≠ READY_FOR_SIGNER.
+- HUMAN_PENDING only.
+- Supersede ≠ retraction.
+- No external action.
+
+### 28.3 Heads
+
+| Name | Commit |
+|---|---|
+| `P4F_ACCEPTED_CODE_HEAD` (named by the operator) | `ffadd40ddc2c9f2a2b60610af0d44cffbf4037f7` — the R13 submission, documentation on the code head `dcc4289` |
+| R13 final CI | push run [36219605497](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36219605497) on `ffadd40`, 2026-09-26T05:02:20Z–05:09:27Z, **success**: "Non-DB checks (cold install)" (job 108342233564) and "Database, seed and smoke (MySQL 8.4.11)" (job 108342233497) — `reference:check` and `contracts:check` OK, lint "Found 0 warnings and 0 errors.", Prettier clean, `yarn test` 1465 / 46 files, `yarn test:db` 494 / 13 files, both drift diffs empty, seed digest `0ee26dc3…b775`, `smoke:local` 57, `smoke:auth` 4, `smoke:directory` 14, `smoke:p3a` 24, `smoke:p3b` 36, `smoke:p4a` 50, `smoke:p4b` 64, `smoke:p4c` 62, `smoke:p4d` 87, `smoke:p4e` 84, `smoke:p4f` 92 |
+| `P4F_R13_CLOSEOUT_HEAD` | the commit that adds this section (documentation); its CI run and the merge are recorded on `feature/p4g-technical-validation` |
+
+### 28.4 Closeout checks
+
+Pre-flight on `ffadd40`, after `git fetch origin`:
+
+- branch `feature/p4f-notice-candidate` in sync with origin, worktree clean;
+- `origin/main` = `79db09b13de4177d6649d14d703e9327796fd1cc`, unchanged since the branch was created;
+- no P4F pull request (pull requests #1–#8, all merged); `gh` authenticated as the repository owner's account;
+- run 36219605497 completed with success;
+- `reference:check` and `contracts:check` OK.
+
+The closeout is one documentation-only commit: this section, the header and status rows, the commit table, the §20 and §27 pointers, `CURRENT_STATE.md`, `CLAUDE.md`, and the UI sandbox's header comment (mission §C: it now names the prompt and candidate pages; a comment only, no behaviour change — the §25 deviation is resolved). No product code, test, contract source, generated artefact, release record, `docs/reference/**`, migration or lockfile changes.
+
+Checks on the complete closeout tree before committing (2026-09-26T07:20:03Z–07:21:06Z):
+
+- `reference:check` and `contracts:check` OK;
+- `typecheck` OK;
+- `lint` and `oxlint --deny-warnings --format default` report "Found 0 warnings and 0 errors." (310 files);
+- `format:check` clean;
+- `yarn test` 1465 passed in 46 files (unchanged).
+
+`yarn test:db` was not rerun because no code changed (the sandbox script's change is a comment); it runs in CI on the closeout head.
