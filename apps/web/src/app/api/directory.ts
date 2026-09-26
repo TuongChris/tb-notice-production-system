@@ -96,6 +96,10 @@ import type {
   SourceReference,
   SourceReferenceSummary,
   UseMapping,
+  ValidateCandidate,
+  ValidationIssue,
+  ValidationRun,
+  ValidationRunSummary,
 } from '@tb/contracts';
 import { ApiError, type ApiClient, type ApiResult } from './client.js';
 
@@ -726,6 +730,40 @@ export function createCasesApi(api: ApiClient) {
             ...writeHeaders(auth),
           })
         ).data,
+      /**
+       * Technical validation (P4G): technical checks only — never G1–G6 review, approval,
+       * readiness, a signature or permission to send.
+       */
+      validation: {
+        /**
+         * Runs the technical ruleset against exactly the reviewed artifact and context (no If-Match
+         * is contracted). A 412 means the artifact or the context changed: nothing was recorded.
+         */
+        run: async (candidateId: string, body: ValidateCandidate, auth: WriteAuth) =>
+          (
+            await api.request<ValidationRun>(
+              'POST',
+              `/api/v1/candidates/${candidateId}/validation-runs`,
+              { body, ...writeHeaders(auth) },
+            )
+          ).data,
+        /** This candidate's runs, newest first, summaries only; `q` = exact id, digest or result. */
+        list: async (candidateId: string, query: ListQuery = {}) =>
+          (
+            await api.request<Page<ValidationRunSummary>>(
+              'GET',
+              `/api/v1/candidates/${candidateId}/validation-runs${queryString(query)}`,
+            )
+          ).data,
+        /** One run's issues in rule order; `q` = exact id, rule id, severity or check kind. */
+        issues: async (runId: string, query: ListQuery = {}) =>
+          (
+            await api.request<Page<ValidationIssue>>(
+              'GET',
+              `/api/v1/validation-runs/${runId}/issues${queryString(query)}`,
+            )
+          ).data,
+      },
     },
     reportedItems: child<ReportedItem, CreateReportedItem, PatchReportedItem>('reported-items'),
     works: child<CaseWork, CreateCaseWork, PatchCaseWork>('works'),

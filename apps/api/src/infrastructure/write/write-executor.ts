@@ -19,7 +19,11 @@
 // SERIALIZABLE, INVARIANTS §5 "Prompt generation"), and for a write that creates one immutable
 // record, `replayRecord`: the idempotency record then keeps the response status, meta and the
 // record's type and id — not a second copy of its data — and a replay reads that immutable record
-// back, so it returns exactly what the original response returned.
+// back, so it returns exactly what the original response returned. `prepare` (validateCandidate,
+// INVARIANTS §5 "Validation captures context, runs bounded deterministic checks outside any
+// long-lived lock, then rechecks … in a short transaction") runs once for a new claim — never for
+// a replay — after the claim and before the transaction, outside it: its result reaches `work`
+// (every attempt uses the same value), and its failure releases the claim like any other.
 import { setTimeout as delay } from 'node:timers/promises';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { AffectedResource } from '@tb/contracts';
@@ -42,7 +46,7 @@ const TRANSACTION_OPTIONS = {
   timeout: 5000,
 } as const;
 
-export interface WriteOptions {
+export interface WriteOptions<P = undefined> {
   /** The transaction's isolation level (READ COMMITTED unless the operation's recipe says otherwise). */
   readonly isolationLevel?: Prisma.TransactionIsolationLevel;
   /**
@@ -51,6 +55,13 @@ export interface WriteOptions {
    * and a replay returns the record as stored.
    */
   readonly replayRecord?: (id: string) => Promise<WireEntity | null>;
+  /**
+   * Work done once for a new claim (never for a replay), after the claim and before the
+   * transaction, outside it: reads in their own short snapshot and pure evaluation that must hold
+   * no lock of the write. `now` is the request's instant. The result is passed to `work`; a
+   * failure releases the claim.
+   */
+  readonly prepare?: (now: Date) => Promise<P>;
 }
 
 /** Who sent the write and the conditional headers they sent (from the authenticated request). */
@@ -134,10 +145,10 @@ export class WriteExecutor {
     this.idempotency = new IdempotencyStore(prisma);
   }
 
-  async execute(
+  async execute<P = undefined>(
     command: WriteCommand,
-    work: (context: WriteContext) => Promise<WriteOutcome>,
-    options: WriteOptions = {},
+    work: (context: WriteContext, prepared: P) => Promise<WriteOutcome>,
+    options: WriteOptions<P> = {},
   ): Promise<WriteReply> {
     const operation = contractOperation(command.operationId);
     if (!operation.idempotentWrite) {
@@ -164,6 +175,13 @@ export class WriteExecutor {
         ? replay(claim, requester.requestId)
         : replayStoredRecord(claim, requester.requestId, options.replayRecord);
     }
+    let prepared: P;
+    try {
+      prepared = options.prepare === undefined ? (undefined as P) : await options.prepare(now);
+    } catch (error) {
+      await this.release(claim);
+      throw error;
+    }
     const transactionOptions = {
       ...TRANSACTION_OPTIONS,
       isolationLevel: options.isolationLevel ?? TRANSACTION_OPTIONS.isolationLevel,
@@ -173,26 +191,29 @@ export class WriteExecutor {
       try {
         return await this.prisma.$transaction(async (tx) => {
           let preconditionChecked = false;
-          const outcome = await work({
-            tx,
-            now,
-            actorUserId: requester.actorUserId,
-            checkPrecondition: (current) => {
-              if (target === null || ifMatch === null || current.entityType !== target) {
-                throw new Error(
-                  `${operation.operationId}: precondition target is ${target ?? 'none'}, not ${current.entityType}`,
-                );
-              }
-              assertIfMatch(ifMatch, current);
-              preconditionChecked = true;
+          const outcome = await work(
+            {
+              tx,
+              now,
+              actorUserId: requester.actorUserId,
+              checkPrecondition: (current) => {
+                if (target === null || ifMatch === null || current.entityType !== target) {
+                  throw new Error(
+                    `${operation.operationId}: precondition target is ${target ?? 'none'}, not ${current.entityType}`,
+                  );
+                }
+                assertIfMatch(ifMatch, current);
+                preconditionChecked = true;
+              },
+              audit: (entry) =>
+                this.auditWriter.append(tx, {
+                  ...entry,
+                  requestId: requester.requestId,
+                  actorUserId: requester.actorUserId,
+                }),
             },
-            audit: (entry) =>
-              this.auditWriter.append(tx, {
-                ...entry,
-                requestId: requester.requestId,
-                actorUserId: requester.actorUserId,
-              }),
-          });
+            prepared,
+          );
           if (target !== null && !preconditionChecked) {
             throw new Error(`${operation.operationId}: the If-Match precondition was not checked`);
           }

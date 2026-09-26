@@ -52,6 +52,7 @@ import {
 import { RecordedBy, SourceCitation } from '../representation/authority-ui.js';
 import { CASE_ARCHIVED_READ_ONLY, NotInThisCase } from './intake-ui.js';
 import { allPages, MODE_LABEL } from './production-context.js';
+import { CandidateValidation } from './validation.js';
 
 /** The permanent statement of what a candidate is (mission §32, verbatim). */
 export const CANDIDATE_BOUNDARY =
@@ -522,6 +523,13 @@ function CandidateDetail({ caseId, candidateId }: { caseId: string; candidateId:
         />
         <p className="hint">{ARTIFACT_SHA_MEANING}</p>
       </Section>
+      <CandidateValidation
+        caseId={caseId}
+        candidate={candidate}
+        prompt={loadedPrompt}
+        promptError={prompt.status === 'error' ? prompt.error : null}
+        archived={archived}
+      />
       {candidate.supersededAt !== null ? (
         <section className="sheet-section" aria-labelledby="candidate-superseded-heading">
           <div className="section-heading">

@@ -3,8 +3,8 @@
 // guard with a real synthetic session, CSRF token and allowlisted Origin. All data is synthetic,
 // the suite refuses to start unless the tables it touches are empty, and every test deletes what it
 // created (foreign-key order; the agencies ⇄ source_references, routes ⇄ mandate_coverages and
-// cases ⇄ case_authority_selections cycles and the self-references — case_facts' and
-// correspondence_bindings' supersedes chains included — are broken first).
+// cases ⇄ case_authority_selections cycles and the self-references — case_facts',
+// correspondence_bindings' and candidate_assessments' supersedes chains included — are broken first).
 import { randomUUID } from 'node:crypto';
 import { expect } from 'vitest';
 import type { PrismaClient } from '../../apps/api/generated/prisma/client.js';
@@ -22,8 +22,15 @@ import {
 
 /** Tables the directory suite writes (every one must be empty before and after it). */
 export const DIRECTORY_SUITE_TABLES = [
+  // Later-phase assessments: nothing writes them, so every suite proves them empty, and a
+  // negative control that writes one cannot leave rows behind (they name candidates).
+  'assessment_sources',
+  'candidate_assessments',
   'idempotency_records',
   'audit_events',
+  // P4G validation runs and their issues (a run names its candidate and case).
+  'validation_issues',
+  'validation_runs',
   // P4F notice candidates (they name cases, prompt snapshots and their parent candidates).
   'notice_candidates',
   // P4E prompt snapshots (they name cases, authority selections and correspondence bindings).
@@ -73,6 +80,9 @@ export async function assertSuiteTablesEmpty(prisma: PrismaClient): Promise<void
 
 /** Deletes every row of the suite's tables, in foreign-key order. */
 export async function cleanSuiteTables(prisma: PrismaClient): Promise<void> {
+  await prisma.$executeRawUnsafe(
+    'UPDATE `candidate_assessments` SET `supersedes_assessment_id` = NULL',
+  );
   await prisma.$executeRawUnsafe(
     'UPDATE `cases` SET `current_authority_selection_id` = NULL, `packet_source_id` = NULL, `canonical_binding_source_id` = NULL',
   );

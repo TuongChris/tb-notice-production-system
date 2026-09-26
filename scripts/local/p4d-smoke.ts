@@ -23,9 +23,9 @@
 //   unchanged → expected refusals (another case's selection and binding, OUTBOUND + OTHER as a prior,
 //   a reply without its parent in DRAFTING, INITIAL with a parent, an unknown selection, no task) →
 //   the reads wrote nothing (case versions and the audit, idempotency and later-phase row counts
-//   unchanged, read-only through the runtime account) → no assessment, validation, readiness or
-//   export route exists (404; prompts are routed since P4E and candidates since P4F, with their own
-//   smoke:p4e and smoke:p4f) → logout.
+//   unchanged, read-only through the runtime account) → no assessment, readiness or export route
+//   exists (404; prompts are routed since P4E, candidates since P4F and technical validation since
+//   P4G, with their own smoke:p4e, smoke:p4f and smoke:p4g) → logout.
 import { spawn, type ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
@@ -733,11 +733,7 @@ async function main(): Promise<void> {
   for (const [label, method, suffix] of [
     ['POST /cases/{caseId}/production-context', 'POST', `/cases/${caseId}/production-context`],
     ['POST /candidates/{id}/assessments', 'POST', `/candidates/${randomUUID()}/assessments`],
-    [
-      'POST /candidates/{id}/validation-runs',
-      'POST',
-      `/candidates/${randomUUID()}/validation-runs`,
-    ],
+    ['POST /candidates/{id}/assessments', 'POST', `/candidates/${randomUUID()}/assessments`],
     ['GET /candidates/{id}/readiness', 'GET', `/candidates/${randomUUID()}/readiness`],
     [
       'POST /candidates/{id}/unsigned-exports',

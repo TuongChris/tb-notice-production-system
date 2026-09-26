@@ -31,7 +31,14 @@
 // of the prompt's context lists among its attachments, versions per case and task, a revision only
 // of a chain's latest version and of the same task (the revised row never changes), and a
 // supersession recorded once; the artifact hash is a synthetic stand-in (the server's algorithm is
-// pinned by the API tests). All data is synthetic.
+// pinned by the API tests). Technical validation (P4G) follows the recording rules the validation
+// section relies on: the fake evaluates nothing — a run is 412 ARTIFACT_CHANGED unless the expected
+// artifact SHA-256 is the candidate's, and 412 CONTEXT_CHANGED unless the expected digest is the
+// digest of the case's stated context reply for the prompt snapshot's scope (its parent and its
+// prior bindings from the frozen manifest, derived here independently of the page); it then stores
+// the test's stated result, coverage manifest and issues against that reply. Runs are immutable,
+// listed per candidate as summaries (newest first) and their issues per run in reported order; a
+// retried run with the same Idempotency-Key replays the first. All data is synthetic.
 import { act, StrictMode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter, useNavigate } from 'react-router';
@@ -230,6 +237,16 @@ export class FakeDirectory {
   promptText = 'SYNTHETIC rendered prompt text\n';
   /** Notice candidates (P4F), in import order; content immutable, read by id. */
   readonly candidates: Array<Record<string, unknown> & { id: string; caseId: string }> = [];
+  /** Technical validation runs (P4G), in recording order; immutable. */
+  readonly validationRuns: Array<Record<string, unknown> & { id: string; candidateId: string }> =
+    [];
+  /** The issues of each run, in the order the ruleset reported them. */
+  readonly validationIssues = new Map<string, Array<Record<string, unknown> & { id: string }>>();
+  /**
+   * What the next runs record (the fake evaluates nothing): the result, the coverage manifest and
+   * the issues the server would store. Default: TECHNICAL_PASS with every rule executed.
+   */
+  validationOutcome: ValidationOutcome = passingValidation();
   /** First results of correspondence and prompt writes by Idempotency-Key (a retry replays them). */
   private readonly replays = new Map<string, { body: string; response: Record<string, unknown> }>();
   /** The next correspondence write is recorded, but its reply is lost (a 500 reaches the page). */
@@ -703,6 +720,12 @@ export class FakeDirectory {
     }
     if (collection === 'cases' && id && action === 'candidates' && !childId) {
       return this.caseCandidatesRequest(method, id, url, headers, body);
+    }
+    if (collection === 'candidates' && id && action === 'validation-runs' && !childId) {
+      return this.validationRunsRequest(method, id, url, headers, body);
+    }
+    if (collection === 'validation-runs' && id && action === 'issues' && !childId) {
+      return method === 'GET' ? this.validationIssuesRequest(id, url) : failure(404, 'NOT_FOUND');
     }
     if (collection === 'candidates' && id) {
       return this.candidateRequest(method, id, action, headers, body);
@@ -1400,6 +1423,98 @@ export class FakeDirectory {
       );
     }
     return failure(404, 'NOT_FOUND');
+  }
+
+  // Technical validation (P4G) ------------------------------------------------------------------
+
+  private validationRunsRequest(
+    method: string,
+    candidateId: string,
+    url: URL,
+    headers: Record<string, string>,
+    body: unknown,
+  ): Response | Promise<Response> {
+    const candidate = this.candidates.find((row) => row.id === candidateId);
+    if (!candidate) return failure(404, 'NOT_FOUND');
+    if (method === 'GET') {
+      const q = url.searchParams.get('q');
+      const summaries = this.validationRuns
+        .filter((run) => run.candidateId === candidateId)
+        .filter((run) => !q || run.id === q || run['dependencyDigest'] === q || run['result'] === q)
+        .reverse()
+        .map((run) => Object.fromEntries(RUN_SUMMARY_FIELDS.map((field) => [field, run[field]])));
+      return pageOf(summaries, url);
+    }
+    if (method !== 'POST') return failure(404, 'NOT_FOUND');
+    return this.idempotent(headers, body, () =>
+      this.recordValidation(candidate, body as Record<string, unknown>),
+    );
+  }
+
+  private validationIssuesRequest(runId: string, url: URL): Response {
+    const issues = this.validationIssues.get(runId);
+    if (!issues) return failure(404, 'NOT_FOUND');
+    return pageOf(issues, url);
+  }
+
+  private async recordValidation(
+    candidate: Record<string, unknown> & { id: string; caseId: string },
+    request: Record<string, unknown>,
+  ): Promise<Response | Record<string, unknown>> {
+    const refusal = this.candidateCaseRefusal(candidate.caseId, 'validateCandidate');
+    if (refusal) return refusal;
+    if (request['expectedArtifactSha256'] !== candidate['artifactSha256']) {
+      return failure(412, 'ARTIFACT_CHANGED', { field: 'expectedArtifactSha256' });
+    }
+    const prompt = this.prompts.find((row) => row.id === candidate['promptSnapshotId']);
+    const reply = this.contextReplies.get(candidate.caseId);
+    if (!prompt || !reply) return failure(500, 'INTERNAL_ERROR');
+    const response = reply(validationScope(prompt));
+    // A binding the prompt named that has since been corrected: the context changed.
+    if (response.status === 409) {
+      return failure(412, 'CONTEXT_CHANGED', { field: 'expectedDependencyDigest' });
+    }
+    if (!response.ok) return response;
+    const view = ((await response.json()) as { data: Record<string, unknown> }).data;
+    if (view['dependencyDigest'] !== request['expectedDependencyDigest']) {
+      return failure(412, 'CONTEXT_CHANGED', { field: 'expectedDependencyDigest' });
+    }
+    const outcome = this.validationOutcome;
+    const count = (severity: string) =>
+      outcome.issues.filter((issue) => issue.severity === severity).length;
+    const run = {
+      id: this.id(),
+      candidateId: candidate.id,
+      caseId: candidate.caseId,
+      artifactSha256: candidate['artifactSha256'],
+      dependencyDigest: view['dependencyDigest'],
+      dependencyManifest: view['dependencies'],
+      evaluatedContextJson: view['context'],
+      rulesetVersion: 'TB-TECHNICAL-RULESET-v1',
+      result: outcome.result,
+      coverageManifest: outcome.coverageManifest,
+      blockerCount: count('BLOCKER'),
+      reviewRequiredCount: count('REVIEW_REQUIRED'),
+      warningCount: count('WARNING'),
+      startedAt: NOW,
+      completedAt: NOW,
+      createdAt: NOW,
+      createdById: USER_ID,
+    };
+    this.validationRuns.push(run);
+    this.validationIssues.set(
+      run.id,
+      outcome.issues.map((issue) => ({
+        id: this.id(),
+        runId: run.id,
+        fieldPath: null,
+        details: null,
+        createdAt: NOW,
+        createdById: USER_ID,
+        ...issue,
+      })),
+    );
+    return run;
   }
 
   /** The candidate-writing refusals of an archived case, as the server words them. */
@@ -2653,6 +2768,126 @@ export class FakeDirectory {
 }
 
 /** SHA-256 (hex) of the UTF-8 bytes of a text, as the server computes a captured body's digest. */
+/** The 29 rules of TB-TECHNICAL-RULESET-v1 (the API tests pin the inventory). */
+export const TECHNICAL_RULE_IDS = [
+  'ARTIFACT.TEXT_EXACT',
+  'ARTIFACT.SHAPE',
+  'ARTIFACT.BODY_SHA256',
+  'ARTIFACT.ARTIFACT_SHA256',
+  'ARTIFACT.SIGNATURE_STATE',
+  'SIGNATURE.PENDING_SLOT_ONCE',
+  'SIGNATURE.SLOT_LOOKALIKE',
+  'SIGNATURE.ADOPTION_WORDING',
+  'SIGNATURE.NAME_AFTER_SLOT',
+  'ENVELOPE.PROMPT_CASE_TASK',
+  'ENVELOPE.THREAD',
+  'ENVELOPE.SENDER',
+  'ENVELOPE.REPLY_RECIPIENT',
+  'PLAN.SOURCE_EXISTS',
+  'PLAN.SOURCE_APPLIES',
+  'PLAN.SOURCE_IN_CONTEXT',
+  'PLAN.SOURCE_LATEST_REVISION',
+  'PLAN.CONTENT_SHA256',
+  'PLAN.PREVIOUSLY_SUPPLIED',
+  'WORDING.ATTACHMENT_CLAIM',
+  'MARKER.DECLARATION_PLACEHOLDER',
+  'MARKER.INPUT_PLACEHOLDERS',
+  'MARKER.PROMPT_STRUCTURE',
+  'MARKER.INTERNAL_IDENTIFIERS',
+  'MARKER.GATE_LABELS',
+  'CONTEXT.GENERATION_MODE',
+  'CONTEXT.MISSING',
+  'CONTEXT.CONFLICTS',
+  'CONTEXT.PROMPT_DRIFT',
+] as const;
+
+export interface ValidationOutcome {
+  readonly result: 'TECHNICAL_PASS' | 'BLOCKED' | 'REVIEW_REQUIRED' | 'ERROR';
+  readonly coverageManifest: {
+    readonly requiredRuleIds: readonly string[];
+    readonly executedRuleIds: readonly string[];
+    readonly notExecutedRuleIds: readonly string[];
+    readonly semanticReviewRequired: true;
+  };
+  readonly issues: ReadonlyArray<{
+    readonly ruleId: string;
+    readonly checkKind: 'DETERMINISTIC' | 'HEURISTIC';
+    readonly severity: 'BLOCKER' | 'REVIEW_REQUIRED' | 'WARNING' | 'INFO';
+    readonly message: string;
+    readonly fieldPath?: string | null;
+    readonly details?: Record<string, unknown> | null;
+  }>;
+}
+
+/** A run in which every rule executed and none found anything. */
+export function passingValidation(): ValidationOutcome {
+  return {
+    result: 'TECHNICAL_PASS',
+    coverageManifest: {
+      requiredRuleIds: TECHNICAL_RULE_IDS,
+      executedRuleIds: TECHNICAL_RULE_IDS,
+      notExecutedRuleIds: [],
+      semanticReviewRequired: true,
+    },
+    issues: [],
+  };
+}
+
+const RUN_SUMMARY_FIELDS = [
+  'id',
+  'candidateId',
+  'caseId',
+  'artifactSha256',
+  'dependencyDigest',
+  'rulesetVersion',
+  'result',
+  'blockerCount',
+  'reviewRequiredCount',
+  'warningCount',
+  'startedAt',
+  'completedAt',
+  'createdAt',
+] as const;
+
+/**
+ * The production-context query of a prompt snapshot's scope, as the server derives it for a run:
+ * its task, mode, selection and parent, and its prior bindings — the correspondence bindings of its
+ * frozen manifest other than the parent, in id order.
+ */
+function validationScope(prompt: Record<string, unknown>): URLSearchParams {
+  const params = new URLSearchParams();
+  params.set('taskType', String(prompt['taskType']));
+  params.set('generationMode', String(prompt['generationMode']));
+  if (prompt['authoritySelectionId']) {
+    params.set('authoritySelectionId', String(prompt['authoritySelectionId']));
+  }
+  if (prompt['parentBindingId']) params.set('parentBindingId', String(prompt['parentBindingId']));
+  const manifest = (prompt['dependencyManifest'] ?? []) as Array<{
+    entityType: string;
+    entityId: string;
+  }>;
+  for (const id of manifest
+    .filter((entry) => entry.entityType === 'CorrespondenceBinding')
+    .map((entry) => entry.entityId)
+    .filter((id) => id !== prompt['parentBindingId'])
+    .sort()) {
+    params.append('priorBindingIds', id);
+  }
+  return params;
+}
+
+/** One page of rows by the fake's offset cursor (`p<offset>`). */
+function pageOf(rows: readonly unknown[], url: URL): Response {
+  const limit = Number(url.searchParams.get('limit') ?? 25);
+  const start = Number(url.searchParams.get('cursor')?.replace('p', '') ?? 0);
+  const items = rows.slice(start, start + limit);
+  const nextCursor = start + limit < rows.length ? `p${start + limit}` : null;
+  return json(200, {
+    data: { items, nextCursor },
+    meta: { requestId: 'r', affectedResources: [] },
+  });
+}
+
 export async function sha256(text: string): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');

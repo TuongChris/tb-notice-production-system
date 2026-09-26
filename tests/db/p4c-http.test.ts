@@ -2014,7 +2014,7 @@ describe('SECURITY / CONTRACT', () => {
     expect(await suiteDump()).toEqual(before);
   });
 
-  it('no correspondence update, delete, send, reply, read-marking or contact route exists; production writes, validation and readiness stay unrouted; P4C creates no later-phase record', async () => {
+  it('no correspondence update, delete, send, reply, read-marking or contact route exists; production writes, assessments and readiness stay unrouted; P4C creates no later-phase record', async () => {
     const w = await world();
     const message = await capture(w.agency.data.id);
     const binding = await bind(w.case.data.id, { correspondenceId: message.id, eventType: 'NMI' });
@@ -2034,10 +2034,10 @@ describe('SECURITY / CONTRACT', () => {
       ['DELETE', `/cases/${id}/correspondence-bindings/${binding.id}`],
       ['POST', `/cases/${id}/contact-uploader`],
       // The production context is a GET-only read since P4D (tests/db/p4d-http.test.ts), prompts
-      // are routed since P4E (tests/db/p4e-http.test.ts) and candidates since P4F
-      // (tests/db/p4f-http.test.ts).
+      // are routed since P4E (tests/db/p4e-http.test.ts), candidates since P4F
+      // (tests/db/p4f-http.test.ts) and technical validation since P4G (tests/db/p4g-http.test.ts).
       ['POST', `/cases/${id}/production-context`],
-      ['POST', `/candidates/${randomUUID()}/validation-runs`],
+      ['POST', `/candidates/${randomUUID()}/assessments`],
       ['GET', `/candidates/${randomUUID()}/readiness`],
       ['POST', `/cases/${id}/send`],
       ['POST', `/cases/${id}/g1`],

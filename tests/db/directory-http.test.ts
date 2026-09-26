@@ -2660,7 +2660,7 @@ describe('SECURITY / VALIDATION / CONTRACT', () => {
     expect(await countRows(prisma, 'source_references')).toBe(0);
   });
 
-  it('exposes exactly the P1 routes plus the 76 directory, source, route and authority operations, the 40 case operations, the 5 correspondence operations, the production-context read, the 3 prompt operations and the 5 candidate operations', async () => {
+  it('exposes exactly the P1 routes plus the 76 directory, source, route and authority operations, the 40 case operations, the 5 correspondence operations, the production-context read, the 3 prompt operations, the 5 candidate operations and the 3 validation operations', async () => {
     const express = t.app.getHttpAdapter().getInstance() as {
       router: { stack: Array<{ route?: { path: string; methods: Record<string, boolean> } }> };
     };
@@ -2681,7 +2681,9 @@ describe('SECURITY / VALIDATION / CONTRACT', () => {
     // it to a case, list a case's bindings); P4D: the read-only getProductionContext; P4E: the 3
     // prompt operations (generatePrompt, listCasePrompts, getPrompt); P4F: the 5 candidate
     // operations (importCandidate, listCaseCandidates, getCandidate, reviseCandidate,
-    // supersedeCandidate). No validation, assessment, readiness or export operation is routed.
+    // supersedeCandidate); P4G: the 3 Validation-tagged operations (validateCandidate,
+    // listValidationRuns, listValidationIssues). No assessment, readiness or export operation is
+    // routed.
     const directory = operations
       .filter((operation) =>
         /^\/(agencies|owners|legal-subjects|signers|owner-subjects|sources|routes|mandates|mandate-versions|coverages|coverage-signers)(\/|$)/.test(
@@ -2788,6 +2790,17 @@ describe('SECURITY / VALIDATION / CONTRACT', () => {
       'POST /api/v1/candidates/:id/revisions',
       'POST /api/v1/candidates/:id/supersede',
     ]);
+    const validation = operations
+      .filter((operation) => (operation.tags as readonly string[]).includes('Validation'))
+      .map(
+        (operation) =>
+          `${operation.method.toUpperCase()} /api/v1${operation.path.replace(/\{([A-Za-z]+)\}/g, ':$1')}`,
+      );
+    expect(validation).toEqual([
+      'POST /api/v1/candidates/:candidateId/validation-runs',
+      'GET /api/v1/candidates/:candidateId/validation-runs',
+      'GET /api/v1/validation-runs/:id/issues',
+    ]);
     expect(routes).toEqual(
       [
         'GET /api/v1/auth/session',
@@ -2798,6 +2811,7 @@ describe('SECURITY / VALIDATION / CONTRACT', () => {
         ...cases,
         ...correspondence,
         ...production,
+        ...validation,
       ].sort(),
     );
   });

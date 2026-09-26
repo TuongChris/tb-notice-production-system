@@ -1,0 +1,291 @@
+P4G Technical validation — CI evidence (GitHub Actions, workflow "CI")
+======================================================================
+Logs were read with the authenticated `gh run view <id> --log` and the run metadata with `gh run view <id> --json …`;
+key lines below (timestamps UTC, ANSI codes removed). A commit cannot record its own run: the run of the
+documentation commit that adds this file (the R14 submission head) is reported with the R14 report.
+
+0. Branch start (before any P4G code)
+-------------------------------------
+Run 36228202205 — push of feature/p4g-technical-validation at its creation, head 5aa9248 (the P4F merge commit on
+  main): completed / success, both jobs (created 2026-09-26T07:54:34Z, completed 08:00:06Z).
+Run 36228816157 — the post-R13 checkpoint b71a2e0 (documentation only): completed / success, both jobs
+  (created 08:07:05Z, completed 08:18:22Z).
+
+1. The pages, the API and the compiled smoke, 779860a (first run of smoke:p4g)
+-------------------------------------------------------------------------------
+Run:      36230803847 — https://github.com/TuongChris/tb-notice-production-system/actions/runs/36230803847
+Head:     779860a (pages bb00732, API 21ddcf0, smoke:p4g and its CI step 779860a)
+Created:  2026-09-26T08:46:47Z   Completed: 2026-09-26T08:54:55Z   Result: completed / success
+Jobs:     108373472741 Non-DB checks (cold install) success 08:46:50 → 08:49:22
+          108373472881 Database, seed and smoke (MySQL 8.4.11) success 08:46:50 → 08:54:55
+Key lines: [smoke] PASS (61 checks) (smoke:local); [smoke:p4g] PASS (86 checks) — every check line of smoke:p4g is
+          repeated in the code head's run (section 6).
+
+2.–5. The later commits (each pushed after the previous run finished)
+----------------------------------------------------------------------
+Run 36231351812 — e7088bb (1774bf1 + e7088bb: tests): success, both jobs (08:58:05Z → 09:06:32Z;
+  jobs 108374987487 DB 08:58:08 → 09:06:31, 108374987562 non-DB 08:58:08 → 09:00:32).
+Run 36231800661 — d663804 (the heuristic-diagnostic fix): success, both jobs (09:07:06Z → 09:15:15Z;
+  jobs 108376230955 DB 09:07:09 → 09:15:14, 108376231040 non-DB 09:07:08 → 09:09:34).
+Run 36232850574 — 3b56a41 (the browser fix F1): success, both jobs (09:27:54Z → 09:33:51Z;
+  jobs 108379151739 non-DB 09:27:58 → 09:30:26, 108379151816 DB 09:27:57 → 09:33:51).
+Run 36233264177 — 23f921a (a test): success, both jobs (09:35:54Z → 09:43:54Z;
+  jobs 108380294235 DB 09:35:56 → 09:43:54, 108380294303 non-DB 09:35:56 → 09:37:55).
+
+6. The code head 608800e — full evidence lines
+---------------------------------------------------------
+Run:      36233916154 — https://github.com/TuongChris/tb-notice-production-system/actions/runs/36233916154
+Head:     608800e61a294873d0bbd1e5e3d5b46bee247270 (the P4G code head; test code only since 23f921a)
+Created:  2026-09-26T09:49:07Z   Completed: 2026-09-26T09:57:23Z   Result: completed / success
+
+# GitHub Actions run 36233916154 (workflow CI, push) — branch feature/p4g-technical-validation, the P4G code head 608800e.
+# commit 608800e61a294873d0bbd1e5e3d5b46bee247270. Created 2026-09-26T09:49:07Z, completed 2026-09-26T09:57:23Z. Status: completed; conclusion: success.
+# Jobs: "Database, seed and smoke (MySQL 8.4.11)" success (09:49:09Z–09:57:23Z); "Non-DB checks (cold install)" success (09:49:09Z–09:51:37Z)
+# https://github.com/TuongChris/tb-notice-production-system/actions/runs/36233916154 — no pull request exists for this branch (not merged).
+# Verified with `gh run view`. Evidence lines extracted from `gh run view --log` (step echoes, environment blocks,
+# ANSI codes and timestamps removed; grouped by job and step). Synthetic CI data only; the smokes write only
+# into the disposable CI tb_notice_dev. No Drive write, mail, deployment or other external action.
+# Individual check lines of the other smokes (586 lines) are left out; their "(N checks)" totals are kept, and every
+# check line of smoke:p4g is listed.
+
+Non-DB checks (cold install)
+  [Toolchain]
+    node v24.21.0, yarn 4.18.0, git version 2.55.0
+  [yarn install --immutable]
+    ➤ YN0000: · Done with warnings in 8s 523ms
+  [Run yarn reference:check]
+    [reference:check] database-api-v1: 31 manifest entries, MANIFEST.sha256 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c
+    [reference:check] architecture-v1: 18 manifest entries, MANIFEST.sha256 62b4d1136db81d31cf91dbd38a59c4ba57af265b228b479c909e0dbce693c3de
+    [reference:check] pinned identity (REFERENCE_BASELINE.json): 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c matches
+    [reference:check] OK — frozen references intact.
+  [Run yarn reference:helper-tests]
+    [reference:helper-tests] frozen helper tests: pass 27, fail 0; exit 0
+    [reference:helper-tests] references after run: intact
+  [Run yarn contracts:check]
+    [contracts:check] OK — 3 generated outputs match the active source.
+  [Run yarn lint]
+    Found 0 warnings and 0 errors.
+    Finished in 83ms on 324 files with 96 rules using 4 threads.
+  [Run yarn format:check]
+    All matched files use Prettier code style!
+  [Run yarn test]
+    Test Files  48 passed (48)
+    Tests  1515 passed (1515)
+  [Run yarn build]
+    ✓ built in 226ms
+  [Frozen references and working tree unchanged by the run]
+    test -z "$(git status --porcelain)" || { git status --porcelain; exit 1; }
+    [reference:check] database-api-v1: 31 manifest entries, MANIFEST.sha256 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c
+    [reference:check] architecture-v1: 18 manifest entries, MANIFEST.sha256 62b4d1136db81d31cf91dbd38a59c4ba57af265b228b479c909e0dbce693c3de
+    [reference:check] pinned identity (REFERENCE_BASELINE.json): 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c matches
+    [reference:check] OK — frozen references intact.
+
+Database, seed and smoke (MySQL 8.4.11)
+  [Toolchain]
+    node v24.21.0, yarn 4.18.0, Docker version 28.0.4, build b8034c0, Docker Compose version v2.38.2
+  [yarn install --immutable]
+    ➤ YN0000: · Done with warnings in 7s 568ms
+  [Migrate tb_notice_test (committed migration) and verify metadata]
+    [verify] tables 33/33 (InnoDB 33, utf8mb4_0900_bin 33); columns 541/541 (character columns with binary collation 391)
+    [verify] foreign keys 125/125 RESTRICT/RESTRICT (composite 27); CHECK constraints 30/30 semantically matching and ENFORCED=YES
+    [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+    [verify] domain rows total: 0
+    [verify] PASS: metadata matches the reviewed inventory.
+  [Database structural tests (tb_notice_test)]
+    Test Files  14 passed (14)
+    Tests  520 passed (520)
+  [Replay into tb_notice_replay; second deploy must be a no-op]
+    grep -q "No pending migrations to apply" replay-second-deploy.log
+    No pending migrations to apply.
+    [verify] tables 33/33 (InnoDB 33, utf8mb4_0900_bin 33); columns 541/541 (character columns with binary collation 391)
+    [verify] foreign keys 125/125 RESTRICT/RESTRICT (composite 27); CHECK constraints 30/30 semantically matching and ENFORCED=YES
+    [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+    [verify] domain rows total: 0
+    [verify] PASS: metadata matches the reviewed inventory.
+  [Migrate tb_notice_dev and verify metadata]
+    [verify] tables 33/33 (InnoDB 33, utf8mb4_0900_bin 33); columns 541/541 (character columns with binary collation 391)
+    [verify] foreign keys 125/125 RESTRICT/RESTRICT (composite 27); CHECK constraints 30/30 semantically matching and ENFORCED=YES
+    [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+    [verify] domain rows total: 0
+    [verify] PASS: metadata matches the reviewed inventory.
+  [Synthetic seed twice (idempotent, canonical digest equals first PC)]
+    [db:seed] target tb_migrate@127.0.0.1:3307/tb_notice_dev
+    [db:seed] synthetic actor 00000000-0000-4000-8000-00000000a0c7: inserted
+    [db:seed] rows=1 enabled=0 password_hash=!P0-SYNTHETIC-DISABLED-ACTOR-NO-CREDENTIAL
+    [db:seed] canonical digest 0ee26dc3ee5f3a1030fb78a6cadaf4dabef1f5a296b58163248584e1e0bfb775 (identical on every PC)
+    [db:seed] created_at 2026-09-26 09:55:19.440 (local insert time; unchanged by re-runs)
+    [db:seed] target tb_migrate@127.0.0.1:3307/tb_notice_dev
+    [db:seed] synthetic actor 00000000-0000-4000-8000-00000000a0c7: unchanged (already canonical)
+    [db:seed] rows=1 enabled=0 password_hash=!P0-SYNTHETIC-DISABLED-ACTOR-NO-CREDENTIAL
+    [db:seed] canonical digest 0ee26dc3ee5f3a1030fb78a6cadaf4dabef1f5a296b58163248584e1e0bfb775 (identical on every PC)
+    [db:seed] created_at 2026-09-26 09:55:19.440 (local insert time; unchanged by re-runs)
+    [verify] tables 33/33 (InnoDB 33, utf8mb4_0900_bin 33); columns 541/541 (character columns with binary collation 391)
+    [verify] foreign keys 125/125 RESTRICT/RESTRICT (composite 27); CHECK constraints 30/30 semantically matching and ENFORCED=YES
+    [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+    [verify] domain rows total: 1
+    [verify] PASS: metadata matches the reviewed inventory.
+  [Prisma drift compatibility (read-only diffs)]
+    -- This is an empty migration.
+    -- This is an empty migration.
+  [yarn smoke:local]
+    ✓ built in 224ms
+    [smoke] PASS (61 checks)
+  [P1 admin bootstrap (yarn admin:create, synthetic account, duplicate refused)]
+    [admin:create] guard: tb_dev@127.0.0.1:3307/tb_notice_dev (local runtime account)
+    [admin:create] target tb_dev@127.0.0.1:3307/tb_notice_dev (password not shown)
+    [admin:create] created enabled application user 521fb44b-645f-4c59-a6d8-0a404dcd97e4
+    [admin:create]   email:        p1-ci-admin@example.invalid
+    [admin:create]   display name: P1 CI synthetic admin (disposable)
+    [admin:create]   password:     Argon2id hash stored; the password itself was not stored or printed
+    [admin:create] Application login state only: no Signer, authority or business record was changed, and this confers no legal authority.
+  [P1 compiled login round trip (yarn smoke:auth)]
+    [smoke:auth] PASS (4 checks)
+  [P2 compiled directory round trip (yarn smoke:directory, synthetic Agency created and deleted)]
+    [smoke:directory] PASS (14 checks)
+  [P3A compiled source → canonical binding → route round trip (yarn smoke:p3a, synthetic)]
+    [smoke:p3a] PASS (24 checks)
+  [P3B compiled mandate → version → coverage → signer → freeze → preference → event (yarn smoke:p3b, synthetic)]
+    [smoke:p3b] PASS (36 checks)
+  [P4A compiled case → route binding → case source → canonical id → authority selection (yarn smoke:p4a, synthetic)]
+    [smoke:p4a] PASS (50 checks)
+  [P4B compiled case intake → reported item → work → mapping → fact → revision (yarn smoke:p4b, synthetic)]
+    [smoke:p4b] PASS (64 checks)
+  [P4C compiled correspondence capture → explicit case bindings → item outcomes → correction (yarn smoke:p4c, synthetic; nothing sent)]
+    [smoke:p4c] PASS (62 checks)
+  [P4D compiled production context → INITIAL and NMI_REPLY reads → pinning, digest and refusals (yarn smoke:p4d, synthetic setup; the context reads write nothing)]
+    [smoke:p4d] PASS (87 checks)
+  [P4E compiled prompt generation → frozen snapshot → replay → stale refusal → version 2 → NMI_REPLY (yarn smoke:p4e, synthetic; no AI provider, nothing sent)]
+    [smoke:p4e] PASS (84 checks)
+  [P4F compiled candidate import → exact hashes → replay → revision → fork refusal → supersession → refusals (yarn smoke:p4f, synthetic; no AI provider, nothing signed or sent)]
+    [smoke:p4f] PASS (90 checks)
+  [P4G compiled technical validation → TECHNICAL_PASS → replay → BLOCKED slot → heuristic wording → stale 412 → drift (yarn smoke:p4g, synthetic; technical checks only, nothing assessed, signed or sent)]
+    [smoke:p4g] PASS login → 200 with a session cookie and CSRF token
+    [smoke:p4g] PASS POST /agencies → 201
+    [smoke:p4g] PASS POST /sources → 201
+    [smoke:p4g] PASS POST /owners → 201
+    [smoke:p4g] PASS POST /legal-subjects → 201
+    [smoke:p4g] PASS GET /owners/c51c7334-a98e-4545-ba36-ff664c2d3176 → 200
+    [smoke:p4g] PASS POST /owners/{id}/subjects → 201
+    [smoke:p4g] PASS POST /routes → 201
+    [smoke:p4g] PASS POST /signers → 201
+    [smoke:p4g] PASS POST /mandates → 201
+    [smoke:p4g] PASS GET /mandates/f1cb9781-21ba-452b-8498-af1c202592ec → 200
+    [smoke:p4g] PASS POST /mandates/{id}/versions → 201
+    [smoke:p4g] PASS POST /sources → 201
+    [smoke:p4g] PASS GET /mandate-versions/7a888161-282a-4c66-a6a2-00fdbe537087 → 200
+    [smoke:p4g] PASS POST /mandate-versions/{id}/coverages → 201
+    [smoke:p4g] PASS GET /coverages/92ed1c4f-4622-4018-98f7-8d5185584a78 → 200
+    [smoke:p4g] PASS POST /coverages/{id}/signers → 201
+    [smoke:p4g] PASS GET /mandate-versions/7a888161-282a-4c66-a6a2-00fdbe537087 → 200
+    [smoke:p4g] PASS POST /mandate-versions/{id}/freeze → 200
+    [smoke:p4g] PASS POST /sources → 201
+    [smoke:p4g] PASS POST /cases → 201
+    [smoke:p4g] PASS GET /cases/34025bf0-935c-4f08-94fe-432cc451d57d → 200
+    [smoke:p4g] PASS POST /cases/{caseId}/authority-selections → 201
+    [smoke:p4g] PASS GET /cases/34025bf0-935c-4f08-94fe-432cc451d57d → 200
+    [smoke:p4g] PASS POST /cases/{caseId}/reported-items → 201
+    [smoke:p4g] PASS GET /cases/34025bf0-935c-4f08-94fe-432cc451d57d → 200
+    [smoke:p4g] PASS POST /cases/{caseId}/works → 201
+    [smoke:p4g] PASS GET /cases/34025bf0-935c-4f08-94fe-432cc451d57d → 200
+    [smoke:p4g] PASS POST /cases/{caseId}/mappings → 201
+    [smoke:p4g] PASS POST /cases → 201
+    [smoke:p4g] PASS GET /cases/083f8983-11c1-42f5-b897-f8d027abc0fe → 200
+    [smoke:p4g] PASS POST /cases/{caseId}/authority-selections → 201
+    [smoke:p4g] PASS GET /cases/083f8983-11c1-42f5-b897-f8d027abc0fe → 200
+    [smoke:p4g] PASS POST /cases/{caseId}/reported-items → 201
+    [smoke:p4g] PASS GET /cases/083f8983-11c1-42f5-b897-f8d027abc0fe → 200
+    [smoke:p4g] PASS POST /cases/{caseId}/works → 201
+    [smoke:p4g] PASS GET /cases/083f8983-11c1-42f5-b897-f8d027abc0fe → 200
+    [smoke:p4g] PASS POST /cases/{caseId}/mappings → 201
+    [smoke:p4g] PASS GET /cases/{caseId}/production-context (case A INITIAL + DRAFTING) → 200
+    [smoke:p4g] PASS POST /cases/{caseId}/prompts (case A INITIAL + DRAFTING) → 201
+    [smoke:p4g] PASS GET /cases/{caseId}/production-context (case B INITIAL + DRAFTING) → 200
+    [smoke:p4g] PASS POST /cases/{caseId}/prompts (case B INITIAL + DRAFTING) → 201
+    [smoke:p4g] PASS POST /cases/{caseId}/candidates (clean draft) → 201
+    [smoke:p4g] PASS GET /cases/{caseId}/production-context (the candidate’s prompt scope) → 200
+    [smoke:p4g] PASS the current context of the prompt scope has the prompt’s dependency digest
+    [smoke:p4g] PASS POST /candidates/{id}/validation-runs (clean draft) → 201
+    [smoke:p4g] PASS TECHNICAL_PASS: technical checks only — all 29 rules executed, semantic review still required
+    [smoke:p4g] PASS GET /validation-runs/{id}/issues (technical pass) → 200
+    [smoke:p4g] PASS a technical pass records no issue
+    [smoke:p4g] PASS POST /candidates/{id}/validation-runs (the same key again) → 201
+    [smoke:p4g] PASS the same Idempotency-Key replays the stored run
+    [smoke:p4g] PASS POST /candidates/{id}/validation-runs (the same key, another body) → 409
+    [smoke:p4g] PASS GET /candidates/{id}/validation-runs → 200
+    [smoke:p4g] PASS the run list shows the run as a summary (no context, manifest or coverage)
+    [smoke:p4g] PASS POST /cases/{caseId}/candidates (two pending slots) → 201
+    [smoke:p4g] PASS POST /candidates/{id}/validation-runs (two pending slots) → 201
+    [smoke:p4g] PASS GET /validation-runs/{id}/issues (blocked) → 200
+    [smoke:p4g] PASS two pending slots → BLOCKED (DETERMINISTIC BLOCKER of SIGNATURE.PENDING_SLOT_ONCE)
+    [smoke:p4g] PASS POST /cases/{caseId}/candidates (attachment wording) → 201
+    [smoke:p4g] PASS POST /candidates/{id}/validation-runs (attachment wording) → 201
+    [smoke:p4g] PASS GET /validation-runs/{id}/issues (review required) → 200
+    [smoke:p4g] PASS attachment wording → REVIEW_REQUIRED (HEURISTIC signal, never a blocker)
+    [smoke:p4g] PASS POST /candidates/{id}/validation-runs (another artifact SHA-256) → 412
+    [smoke:p4g] PASS GET /mandates/f1cb9781-21ba-452b-8498-af1c202592ec → 200
+    [smoke:p4g] PASS POST /mandates/{id}/events → 201
+    [smoke:p4g] PASS POST /candidates/{id}/validation-runs (the digest read before the event) → 412
+    [smoke:p4g] PASS GET /cases/{caseId}/production-context (after the authority event) → 200
+    [smoke:p4g] PASS POST /candidates/{id}/validation-runs (the new read) → 201
+    [smoke:p4g] PASS GET /validation-runs/{id}/issues (drift) → 200
+    [smoke:p4g] PASS after a new read the run evaluates the current context; the drift since the prompt is review required
+    [smoke:p4g] PASS POST /cases/{caseId}/candidates (case B draft) → 201
+    [smoke:p4g] PASS GET /cases/{caseId}/production-context (case B) → 200
+    [smoke:p4g] PASS POST /candidates/{id}/validation-runs (case B) → 201
+    [smoke:p4g] PASS GET /candidates/{id}/validation-runs (case B) → 200
+    [smoke:p4g] PASS GET /candidates/{id}/validation-runs (case A clean draft) → 200
+    [smoke:p4g] PASS each candidate lists only its own runs; nothing of case A appears in case B’s run
+    [smoke:p4g] PASS five runs with their issues and audit events; no candidate, prompt, assessment or later-phase record from validation
+    [smoke:p4g] PASS GET /validation-runs/{id} (not routed) → 404
+    [smoke:p4g] PASS PATCH /validation-runs/{id} (not routed) → 404
+    [smoke:p4g] PASS DELETE /validation-runs/{id} (not routed) → 404
+    [smoke:p4g] PASS POST /candidates/{id}/assessments (not routed) → 404
+    [smoke:p4g] PASS GET /candidates/{id}/readiness (not routed) → 404
+    [smoke:p4g] PASS POST /candidates/{id}/unsigned-exports (not routed) → 404
+    [smoke:p4g] PASS POST /candidates/{id}/sign (not routed) → 404
+    [smoke:p4g] PASS POST /candidates/{id}/send (not routed) → 404
+    [smoke:p4g] PASS logout → 204
+    [smoke:p4g] PASS (86 checks)
+  [P1.1 recovery commands (synthetic account; P0 actor untouched)]
+    [admin:revoke-sessions] guard: tb_dev@127.0.0.1:3307/tb_notice_dev (local runtime account)
+    [admin:revoke-sessions] target tb_dev@127.0.0.1:3307/tb_notice_dev (password not shown)
+    [admin:revoke-sessions] 0 active session(s) revoked for application user 521fb44b-645f-4c59-a6d8-0a404dcd97e4 (p1-ci-admin@example.invalid); session epoch 1 → 2 (every earlier session is unusable).
+    [admin:revoke-sessions] Application login state only: no Signer, authority or business record was changed, and this confers no legal authority.
+    [admin:disable] guard: tb_dev@127.0.0.1:3307/tb_notice_dev (local runtime account)
+    [admin:disable] target tb_dev@127.0.0.1:3307/tb_notice_dev (password not shown)
+    [admin:disable] disabled application user 521fb44b-645f-4c59-a6d8-0a404dcd97e4 (p1-ci-admin@example.invalid); session epoch 2 → 3; 0 active session(s) revoked. The user row is kept.
+    [admin:disable] Application login state only: no Signer, authority or business record was changed, and this confers no legal authority.
+    [smoke:auth] PASS (1 checks)
+    [admin:disable] guard: tb_dev@127.0.0.1:3307/tb_notice_dev (local runtime account)
+    [admin:disable] target tb_dev@127.0.0.1:3307/tb_notice_dev (password not shown)
+    [admin:disable] application user 521fb44b-645f-4c59-a6d8-0a404dcd97e4 (p1-ci-admin@example.invalid) is already disabled; nothing changed.
+    [admin:disable] Application login state only: no Signer, authority or business record was changed, and this confers no legal authority.
+    [admin:enable] guard: tb_dev@127.0.0.1:3307/tb_notice_dev (local runtime account)
+    [admin:enable] target tb_dev@127.0.0.1:3307/tb_notice_dev (password not shown)
+    [admin:enable] enabled application user 521fb44b-645f-4c59-a6d8-0a404dcd97e4 (p1-ci-admin@example.invalid); session epoch 3 → 4 (sessions from before stay unusable); 0 active session(s) revoked.
+    [admin:enable] Application login state only: no Signer, authority or business record was changed, and this confers no legal authority.
+    [smoke:auth] PASS (4 checks)
+    [admin:password] guard: tb_dev@127.0.0.1:3307/tb_notice_dev (local runtime account)
+    [admin:password] target tb_dev@127.0.0.1:3307/tb_notice_dev (password not shown)
+    [admin:password] password replaced for application user 521fb44b-645f-4c59-a6d8-0a404dcd97e4 (p1-ci-admin@example.invalid); session epoch 4 → 5; 0 active session(s) revoked.
+    [admin:password] The account stays enabled; the new password was not stored or printed.
+    [admin:password] Application login state only: no Signer, authority or business record was changed, and this confers no legal authority.
+    [smoke:auth] PASS (1 checks)
+    [smoke:auth] PASS (4 checks)
+    [db:seed] target tb_migrate@127.0.0.1:3307/tb_notice_dev
+    [db:seed] synthetic actor 00000000-0000-4000-8000-00000000a0c7: unchanged (already canonical)
+    [db:seed] rows=1 enabled=0 password_hash=!P0-SYNTHETIC-DISABLED-ACTOR-NO-CREDENTIAL
+    [db:seed] canonical digest 0ee26dc3ee5f3a1030fb78a6cadaf4dabef1f5a296b58163248584e1e0bfb775 (identical on every PC)
+    [db:seed] created_at 2026-09-26 09:55:19.440 (local insert time; unchanged by re-runs)
+  [yarn dev clean shutdown (terminal Ctrl+C, top-only SIGINT/SIGTERM)]
+    [verify-dev] /opt/hostedtoolcache/node/24.21.0/x64/bin/node /home/runner/work/tb-notice-production-system/tb-notice-production-system/scripts/local/dev.ts [terminal-ctrl-c]: started=true exit=0 in 615ms portsReleased=true leftovers=0 → PASS
+    [verify-dev] /opt/hostedtoolcache/node/24.21.0/x64/bin/node /home/runner/work/tb-notice-production-system/tb-notice-production-system/scripts/local/dev.ts [top-sigint]: started=true exit=0 in 613ms portsReleased=true leftovers=0 → PASS
+    [verify-dev] /opt/hostedtoolcache/node/24.21.0/x64/bin/node /home/runner/work/tb-notice-production-system/tb-notice-production-system/scripts/local/dev.ts [top-sigterm]: started=true exit=0 in 612ms portsReleased=true leftovers=0 → PASS
+    [verify-dev] yarn dev [terminal-ctrl-c]: started=true exit=0 in 612ms portsReleased=true leftovers=0 → PASS
+    [verify-dev] PASS (4/4 scenarios)
+  [Frozen references and working tree unchanged by the run]
+    test -z "$(git status --porcelain)" || { git status --porcelain; exit 1; }
+    [reference:check] database-api-v1: 31 manifest entries, MANIFEST.sha256 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c
+    [reference:check] architecture-v1: 18 manifest entries, MANIFEST.sha256 62b4d1136db81d31cf91dbd38a59c4ba57af265b228b479c909e0dbce693c3de
+    [reference:check] pinned identity (REFERENCE_BASELINE.json): 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c matches
+    [reference:check] OK — frozen references intact.

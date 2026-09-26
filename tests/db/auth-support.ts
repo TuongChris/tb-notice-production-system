@@ -44,6 +44,11 @@ import {
   NO_CANDIDATE_WRITE_OBSERVER,
   type CandidateWriteObserver,
 } from '../../apps/api/src/modules/candidates/candidate-write-observer.js';
+import {
+  NO_VALIDATION_OBSERVER,
+  VALIDATION_OBSERVER,
+  type ValidationObserver,
+} from '../../apps/api/src/modules/validation/validation-observer.js';
 import { AuditWriter } from '../../apps/api/src/infrastructure/write/audit-writer.js';
 import { driverConfig, loadRootEnv, resolveTarget } from '../../scripts/db/lib/targets.mjs';
 
@@ -167,6 +172,8 @@ export async function startTestApp(
     promptObserver?: PromptGenerationObserver;
     /** Called inside the candidate write transactions (P4F concurrency tests); a no-op otherwise. */
     candidateObserver?: CandidateWriteObserver;
+    /** Called around a validation run's capture and commit (P4G consistency tests); a no-op otherwise. */
+    validationObserver?: ValidationObserver;
   } = {},
 ): Promise<TestApp> {
   const clock = overrides.clock ?? new TestClock();
@@ -189,6 +196,8 @@ export async function startTestApp(
     .useValue(overrides.promptObserver ?? NO_PROMPT_GENERATION_OBSERVER)
     .overrideProvider(CANDIDATE_WRITE_OBSERVER)
     .useValue(overrides.candidateObserver ?? NO_CANDIDATE_WRITE_OBSERVER)
+    .overrideProvider(VALIDATION_OBSERVER)
+    .useValue(overrides.validationObserver ?? NO_VALIDATION_OBSERVER)
     .compile();
   const app = moduleRef.createNestApplication<NestExpressApplication>({
     bodyParser: false,

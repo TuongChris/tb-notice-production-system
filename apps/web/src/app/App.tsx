@@ -125,7 +125,9 @@ const CorrespondenceDetailPage = correspondence('CorrespondenceDetailPage');
  * case, which determines nothing, its prompt snapshots: immutable prompts generated from one
  * reviewed context, never a notice, approval, readiness decision, signature or transmission, and
  * its notice candidates: unsigned draft artifacts imported exactly from outside the application,
- * never approved, signed, ready or sent) and Correspondence (captured messages; nothing is sent).
+ * never approved, signed, ready or sent, each with its technical validation runs — technical checks
+ * only, never a G1–G6 review, approval or readiness) and Correspondence (captured messages; nothing
+ * is sent).
  */
 export function App({ api }: { api: ApiClient }) {
   const directory = useMemo(() => createDirectoryApi(api), [api]);
