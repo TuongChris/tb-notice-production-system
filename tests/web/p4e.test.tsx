@@ -28,6 +28,7 @@ import {
   click,
   failure,
   FakeDirectory,
+  history,
   json,
   NOW,
   q,
@@ -372,7 +373,7 @@ describe('P4E prompt pages', () => {
     expect(api.writes()).toEqual([]);
   });
 
-  it('INITIAL + PREPARATION: the context is read and shown first — revision, digest, missing context and recorded conflicts; Generate sends exactly the task, mode, named selection and that read’s revision and digest with an Idempotency-Key and no If-Match; the detail page shows the frozen snapshot', async () => {
+  it('INITIAL + PREPARATION: the context is read and shown first — revision, digest, missing context and recorded conflicts; Generate sends exactly the task, mode, named selection and that read’s revision and digest with an Idempotency-Key and no If-Match; the detail page shows the frozen snapshot and says once that it was generated', async () => {
     const api = new FakeDirectory();
     const w = world(api);
     api.promptText = PROMPT_TEXT;
@@ -439,8 +440,19 @@ describe('P4E prompt pages', () => {
     // The heading takes focus and the outcome is announced.
     expect(document.activeElement?.tagName).toBe('H1');
     expect(document.activeElement?.textContent).toBe('Prompt: Initial notice · version 1');
+    expect(q('[data-testid="prompt-detail"] [role="status"]')?.textContent).toBe(
+      'Prompt generated: Initial notice · version 1, stored with its context.',
+    );
     for (const scan of chromeTexts()) expect(scan).not.toMatch(FORBIDDEN_CLAIMS);
     expect(actionTexts().filter((label) => FORBIDDEN_ACTIONS.test(label))).toEqual([]);
+    // The outcome is said once: the history entry no longer carries it, so returning to that entry
+    // (as a reload of the page does) shows the snapshot without "Prompt generated".
+    await history(-1);
+    await waitFor(() => q('[data-testid="prompt-detail"]') === null, 'the generate page');
+    await history(1);
+    await waitFor(() => q('[data-testid="prompt-text"]') !== null, 'the detail page again');
+    expect(q('[data-testid="prompt-detail"] [role="status"]')?.textContent).toBe('');
+    expect(generations(api, w.caseA.id)).toHaveLength(1);
   });
 
   it(`a context changed after the read: the exact message "${CONTEXT_CHANGED_MESSAGE}", no prompt, no retry, no generation offered from that read; reading the current context allows a new generation against it, under a new key`, async () => {

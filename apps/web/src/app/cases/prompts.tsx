@@ -15,7 +15,7 @@
 // of a second one. "Copy prompt" copies the stored text to the local clipboard only and changes
 // nothing. Every page is keyed by the case id, and a snapshot is shown only under its own case.
 import { useEffect, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import type { ContextView, GeneratePrompt, PromptSnapshot } from '@tb/contracts';
 import { ApiError } from '../api/client.js';
 import { contextQueryString, type ContextQuery } from '../api/directory.js';
@@ -23,6 +23,7 @@ import { useSession } from '../auth/session.js';
 import { Time } from '../directory/agencies.js';
 import { TASK_TYPE_LABEL } from '../directory/format.js';
 import { useDirectoryApi, useIntentKey, useLoad, useWrite } from '../directory/hooks.js';
+import { useFlashMessage, type FlashState } from '../directory/record-page.js';
 import {
   Breadcrumbs,
   Details,
@@ -301,7 +302,11 @@ function GeneratePromptFlow({ caseId }: { caseId: string }) {
           onAsk={() => setFocusOutcome(true)}
           onPreparation={() => show({ ...scope, generationMode: 'PREPARATION' })}
           onGenerated={(snapshot) =>
-            navigate(`/cases/${caseId}/prompts/${snapshot.id}`, { state: { generated: true } })
+            navigate(`/cases/${caseId}/prompts/${snapshot.id}`, {
+              state: {
+                flash: `Prompt generated: ${promptTitle(snapshot)}, stored with its context.`,
+              } satisfies FlashState,
+            })
           }
         />
       )}
@@ -482,15 +487,15 @@ export function PromptDetailPage() {
 
 function PromptDetail({ caseId, promptId }: { caseId: string; promptId: string }) {
   const api = useDirectoryApi();
-  const location = useLocation();
-  const generated = (location.state as { generated?: boolean } | null)?.generated === true;
+  // Shown once after generating here: cleared from history, so a reload does not repeat it.
+  const generated = useFlashMessage();
   const { state: session } = useSession();
   const currentUserId = session.status === 'authenticated' ? session.session.user.id : '';
   const [caseState] = useLoad(`prompt-detail-case:${caseId}`, () => api.cases.get(caseId));
   const [state, reload] = useLoad(`prompt:${promptId}`, () => api.cases.prompts.get(promptId));
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
-    if (generated && state.status === 'ready') heading.current?.focus();
+    if (generated !== null && state.status === 'ready') heading.current?.focus();
   }, [generated, state.status]);
   const label = caseState.status === 'ready' ? caseState.value.data.intakeLabel : 'Case';
   const trail = [
@@ -533,11 +538,7 @@ function PromptDetail({ caseId, promptId }: { caseId: string; promptId: string }
           {PROMPT_BOUNDARY}
         </p>
       </header>
-      <StatusNotice
-        message={
-          generated ? `Prompt generated: ${promptTitle(prompt)}, stored with its context.` : null
-        }
-      />
+      <StatusNotice message={generated} />
       <Section title="Snapshot">
         <div data-testid="prompt-facts">
           <Details
