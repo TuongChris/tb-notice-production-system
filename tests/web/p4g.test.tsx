@@ -558,7 +558,12 @@ describe('P4G technical validation on the candidate page', () => {
     // Recorded context changes after the read (e.g. an authority event).
     api_.contextReplies.set(w.caseA.id, answer(viewOf(w, DIGEST_LATER)));
     await runValidation();
-    await waitFor(() => q('[data-testid="validation-context-changed"]') !== null, 'the refusal');
+    await waitFor(
+      () => q('[data-testid="validation-outcome"] [role="alert"]') !== null,
+      'the outcome of the run',
+    );
+    // The refusal itself — never a generic failure notice.
+    expect(q('[data-testid="validation-outcome"] [data-testid="error-notice"]')).toBeNull();
     expect(q('[data-testid="validation-context-changed"] strong')?.textContent).toBe(
       VALIDATION_CONTEXT_CHANGED,
     );
