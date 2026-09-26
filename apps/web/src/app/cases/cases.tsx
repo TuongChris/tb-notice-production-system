@@ -310,6 +310,18 @@ function CaseDetail({ id }: { id: string }) {
           </Link>
         </p>
       </Section>
+      <Section title="Prompts">
+        <p className="hint">
+          Immutable prompt snapshots generated from one reviewed production context of this case, as
+          input for drafting outside this application. None is a notice, approval, readiness
+          decision, signature or transmission.
+        </p>
+        <p>
+          <Link to={`/cases/${item.id}/prompts`} data-testid="open-prompts">
+            Open the prompts of this case
+          </Link>
+        </p>
+      </Section>
       <Section title="Notes">
         {item.notes ? <p className="prose">{item.notes}</p> : <Absent />}
       </Section>

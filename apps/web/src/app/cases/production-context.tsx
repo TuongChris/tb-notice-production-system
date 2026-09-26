@@ -6,8 +6,9 @@
 // case's current selection — and the scope lives in the address, so a reload reads the same scope
 // again. Missing context stays missing and recorded conflicts stay visible, each with its own
 // treatment; capture posture is shown as recorded; captured, source and fact text is plain text and
-// no address in it is opened. There is no generate, approve, sign or send action here. The page is
-// keyed by the case id, so nothing of one case carries over to another.
+// no address in it is opened. There is no generate, approve, sign or send action here (the prompt
+// page, prompts.tsx, reuses this scope form and view to generate from one reviewed read). The page
+// is keyed by the case id, so nothing of one case carries over to another.
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import type {
@@ -123,12 +124,15 @@ type Task = ContextQuery['taskType'];
 type Mode = ContextQuery['generationMode'];
 const TASKS: readonly Task[] = ['INITIAL', 'NMI_REPLY'];
 const MODES: readonly Mode[] = ['PREPARATION', 'DRAFTING'];
-const MODE_LABEL: Record<Mode, string> = { PREPARATION: 'Preparation', DRAFTING: 'Drafting' };
+export const MODE_LABEL: Record<Mode, string> = {
+  PREPARATION: 'Preparation',
+  DRAFTING: 'Drafting',
+};
 /** Pages of a case's selections or bindings loaded for the pickers (100 each). */
 const PICKER_PAGES = 10;
 
 /** The scope the address names, or null until a task and a mode are chosen. Nothing is dropped. */
-function scopeOf(params: URLSearchParams): ContextQuery | null {
+export function scopeOf(params: URLSearchParams): ContextQuery | null {
   const taskType = params.get('taskType');
   const generationMode = params.get('generationMode');
   if (!TASKS.includes(taskType as Task) || !MODES.includes(generationMode as Mode)) return null;
@@ -141,7 +145,9 @@ function scopeOf(params: URLSearchParams): ContextQuery | null {
   };
 }
 
-async function allPages<T>(load: (cursor: string | undefined) => Promise<Page<T>>): Promise<T[]> {
+export async function allPages<T>(
+  load: (cursor: string | undefined) => Promise<Page<T>>,
+): Promise<T[]> {
   const items: T[] = [];
   let cursor: string | undefined;
   for (let page = 0; page < PICKER_PAGES; page += 1) {
@@ -153,7 +159,7 @@ async function allPages<T>(load: (cursor: string | undefined) => Promise<Page<T>
   return items;
 }
 
-interface Choices {
+export interface Choices {
   readonly selections: CaseAuthoritySelection[];
   readonly bindings: CorrespondenceBinding[];
 }
@@ -268,7 +274,7 @@ function bindingLabel(binding: CorrespondenceBinding): string {
   ].join(' · ');
 }
 
-function ScopeForm({
+export function ScopeForm({
   choices,
   currentSelectionId,
   initial,
@@ -499,7 +505,7 @@ function ContextRead({
 }
 
 /** A refused read: the reason, and for DRAFTING the gaps it names (nothing is filled in). */
-function ContextRefusal({
+export function ContextRefusal({
   error,
   scope,
   onPreparation,
@@ -537,7 +543,7 @@ function ContextRefusal({
   );
 }
 
-function ContextResult({
+export function ContextResult({
   view,
   caseId,
   bindings,
@@ -645,7 +651,7 @@ function ItemPath({ item }: { item: MissingItem }) {
   return item.fieldPath ? <code className="context-path">{item.fieldPath}</code> : null;
 }
 
-function MissingSection({ items }: { items: readonly MissingItem[] }) {
+export function MissingSection({ items }: { items: readonly MissingItem[] }) {
   return (
     <Section title={`Missing context (${items.length})`}>
       <p className="hint">{MISSING_MEANING}</p>
@@ -668,7 +674,7 @@ function MissingSection({ items }: { items: readonly MissingItem[] }) {
   );
 }
 
-function ConflictSection({ items }: { items: readonly MissingItem[] }) {
+export function ConflictSection({ items }: { items: readonly MissingItem[] }) {
   return (
     <Section title={`Recorded conflicts (${items.length})`}>
       <p className="hint">{CONFLICT_MEANING}</p>

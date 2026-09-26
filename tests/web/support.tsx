@@ -19,8 +19,12 @@
 // no delete) with the SHA-256 of its body text, refused only for the three contradictory postures; a
 // binding needs the case's ETag, a message of the case's agency, a reported item of this case (and
 // one for any outcome), and corrects at most once an earlier binding of this case and message. A
-// retried write with the same Idempotency-Key is answered with the first result. All data is
-// synthetic.
+// retried write with the same Idempotency-Key is answered with the first result. Prompt snapshots
+// (P4E) follow the generation rules the prompt pages rely on: the fake renders nothing — a
+// generation reads the case's stated context reply for the requested scope (its refusals apply
+// unchanged), is 412 CONTEXT_CHANGED unless the expected revision and digest are that reply's, and
+// stores the test's prompt text with that context, versioned per case and task; snapshots are
+// immutable (no ETag), listed as summaries per case and read by id. All data is synthetic.
 import { act, StrictMode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter, useNavigate } from 'react-router';
@@ -213,7 +217,11 @@ export class FakeDirectory {
    * with the request. A case without a reply is 404; only GET is routed.
    */
   readonly contextReplies = new Map<string, (query: URLSearchParams) => Response>();
-  /** First results of correspondence writes by Idempotency-Key (a retry replays them). */
+  /** Prompt snapshots (P4E), in generation order; immutable, read by id. */
+  readonly prompts: Array<Record<string, unknown> & { id: string; caseId: string }> = [];
+  /** The rendered text stored with the next generated prompt (the fake renders nothing). */
+  promptText = 'SYNTHETIC rendered prompt text\n';
+  /** First results of correspondence and prompt writes by Idempotency-Key (a retry replays them). */
   private readonly replays = new Map<string, { body: string; response: Record<string, unknown> }>();
   /** The next correspondence write is recorded, but its reply is lost (a 500 reaches the page). */
   loseNextReply = false;
@@ -681,6 +689,13 @@ export class FakeDirectory {
     if (collection === 'cases' && id && action === 'correspondence-bindings' && !childId) {
       return this.bindingRequest(method, id, url, headers, body);
     }
+    if (collection === 'cases' && id && action === 'prompts' && !childId) {
+      return this.promptsRequest(method, id, url, headers, body);
+    }
+    if (collection === 'prompts' && id && action === undefined) {
+      const prompt = method === 'GET' ? this.prompts.find((row) => row.id === id) : undefined;
+      return prompt ? json(200, { data: prompt, meta }) : failure(404, 'NOT_FOUND');
+    }
     if (collection === 'cases' && id && action && INTAKE_SEGMENTS.has(action)) {
       return this.intakeRequest(method, id, action, childId, childAction, url, headers, body);
     }
@@ -1091,6 +1106,152 @@ export class FakeDirectory {
     const row = this.correspondence.find((message) => message.id === id);
     if (!row || action !== undefined || method !== 'GET') return failure(404, 'NOT_FOUND');
     return json(200, { data: row, meta });
+  }
+
+  // Prompt snapshots (P4E) --------------------------------------------------------------------
+
+  /** Seeds one stored snapshot of a case (for history, detail and isolation tests). */
+  async seedPrompt(fields: Record<string, unknown> & { caseId: string }): Promise<
+    Record<string, unknown> & {
+      id: string;
+      caseId: string;
+    }
+  > {
+    const renderedPrompt = String(fields['renderedPrompt'] ?? this.promptText);
+    const taskType = fields['taskType'] ?? 'INITIAL';
+    // Hashed first: the version is then allocated and the row stored without an await between.
+    const promptSha256 = await sha256(renderedPrompt);
+    const row = {
+      id: this.id(),
+      taskType,
+      generationMode: 'PREPARATION',
+      version:
+        this.prompts.filter((p) => p.caseId === fields.caseId && p['taskType'] === taskType)
+          .length + 1,
+      authoritySelectionId: null,
+      parentBindingId: null,
+      contractVersion: 'TB-SCHEMA-API-v1.2.0',
+      templateVersion: 'TB-PROMPT-TEMPLATE-v1',
+      contextRevision: 1,
+      dependencyDigest: 'd'.repeat(64),
+      dependencyManifest: [],
+      contextJson: { priorCorrespondenceIds: [] },
+      sourceManifest: [],
+      missingItems: [],
+      conflicts: [],
+      createdAt: NOW,
+      createdById: USER_ID,
+      ...fields,
+      renderedPrompt,
+      promptSha256,
+    };
+    this.prompts.push(row);
+    return row;
+  }
+
+  private promptsRequest(
+    method: string,
+    caseId: string,
+    url: URL,
+    headers: Record<string, string>,
+    body: unknown,
+  ): Response | Promise<Response> {
+    if (!this.rows.CaseRecord.has(caseId)) return failure(404, 'NOT_FOUND');
+    if (method === 'GET') {
+      const q = url.searchParams.get('q');
+      const limit = Number(url.searchParams.get('limit') ?? 25);
+      const start = Number(url.searchParams.get('cursor')?.replace('p', '') ?? 0);
+      const summaries = this.prompts
+        .filter((row) => row.caseId === caseId)
+        .filter(
+          (row) => !q || row.id === q || row['dependencyDigest'] === q || row['promptSha256'] === q,
+        )
+        .reverse()
+        .map((row) =>
+          Object.fromEntries(
+            [
+              'id',
+              'caseId',
+              'taskType',
+              'generationMode',
+              'version',
+              'contractVersion',
+              'templateVersion',
+              'contextRevision',
+              'dependencyDigest',
+              'promptSha256',
+              'createdAt',
+            ].map((field) => [field, row[field]]),
+          ),
+        );
+      const items = summaries.slice(start, start + limit);
+      const nextCursor = start + limit < summaries.length ? `p${start + limit}` : null;
+      return json(200, {
+        data: { items, nextCursor },
+        meta: { requestId: 'r', affectedResources: [] },
+      });
+    }
+    if (method !== 'POST') return failure(404, 'NOT_FOUND');
+    return this.idempotent(headers, body, () =>
+      this.generatePrompt(caseId, body as Record<string, unknown>),
+    );
+  }
+
+  private async generatePrompt(
+    caseId: string,
+    request: Record<string, unknown>,
+  ): Promise<Response | Record<string, unknown>> {
+    const params = new URLSearchParams();
+    params.set('taskType', String(request['taskType']));
+    params.set('generationMode', String(request['generationMode']));
+    if (typeof request['authoritySelectionId'] === 'string') {
+      params.set('authoritySelectionId', request['authoritySelectionId']);
+    }
+    if (typeof request['parentBindingId'] === 'string') {
+      params.set('parentBindingId', request['parentBindingId']);
+    }
+    for (const prior of (request['priorBindingIds'] as string[] | undefined) ?? []) {
+      params.append('priorBindingIds', prior);
+    }
+    const reply = this.contextReplies.get(caseId);
+    if (!reply) return failure(404, 'NOT_FOUND');
+    const response = reply(params);
+    // The production-context refusals apply unchanged (nothing is generated).
+    if (response.status !== 200) return response;
+    const view = ((await response.json()) as { data: Record<string, unknown> }).data as {
+      contextRevision: number;
+      dependencyDigest: string;
+      dependencies: unknown[];
+      context: Record<string, unknown> & {
+        sources: Array<{ sourceId: string }>;
+        policySources: Array<{ sourceId: string }>;
+        missing: unknown[];
+        conflicts: unknown[];
+      };
+    };
+    if (view.contextRevision !== request['expectedContextRevision']) {
+      return failure(412, 'CONTEXT_CHANGED', { field: 'expectedContextRevision' });
+    }
+    if (view.dependencyDigest !== request['expectedDependencyDigest']) {
+      return failure(412, 'CONTEXT_CHANGED', { field: 'expectedDependencyDigest' });
+    }
+    return this.seedPrompt({
+      caseId,
+      taskType: request['taskType'],
+      generationMode: request['generationMode'],
+      authoritySelectionId: request['authoritySelectionId'] ?? null,
+      parentBindingId: request['parentBindingId'] ?? null,
+      contextRevision: view.contextRevision,
+      dependencyDigest: view.dependencyDigest,
+      dependencyManifest: view.dependencies,
+      contextJson: view.context,
+      sourceManifest: [...view.context.sources, ...view.context.policySources].sort((a, b) =>
+        a.sourceId < b.sourceId ? -1 : a.sourceId > b.sourceId ? 1 : 0,
+      ),
+      missingItems: view.context.missing,
+      conflicts: view.context.conflicts,
+      renderedPrompt: this.promptText,
+    });
   }
 
   private async capture(

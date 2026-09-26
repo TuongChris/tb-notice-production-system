@@ -699,6 +699,10 @@ export function describeError(error: unknown, recordLabel = 'record'): string {
       return `This context holds more records than the contract allows (${String(details['field'])}: ${String(details['count'])}, at most ${String(details['maximum'])}). Nothing is cut to fit.`;
     case 'INVALID_QUERY_PARAMETER':
       return `The request named an invalid value (${String(details['parameter'])}). Choose again.`;
+    case 'CONTEXT_CHANGED':
+      return 'Context changed. Review the current context before generating again.';
+    case 'PROMPT_TOO_LARGE':
+      return `The prompt would be larger than the contract allows (${String(details['field'])}: ${String(details['count'])}, at most ${String(details['maximum'])}). Nothing is cut to fit, so no prompt was generated.`;
     case 'EVENT_ALREADY_SUPERSEDED':
       return 'That event already has a successor. An event history does not fork: supersede the latest event instead.';
     case 'IDEMPOTENCY_IN_PROGRESS':
