@@ -1,0 +1,255 @@
+P4F NoticeCandidate — CI evidence (GitHub Actions, workflow "CI")
+=================================================================
+Logs were read with the authenticated `gh run view <id> --log` and the run metadata with `gh run view <id> --json …`;
+key lines below (timestamps UTC, ANSI codes removed). A commit cannot record its own run: the run of the
+documentation commit that adds this file (the R13 submission head) is reported with the R13 report.
+
+0. Branch start (before any P4F code)
+-------------------------------------
+Run 36213422419 — push of feature/p4f-notice-candidate at its creation, head 79db09b13de4177d6649d14d703e9327796fd1cc
+  (the P4E merge commit on main): completed / success, both jobs (created 2026-09-26T02:59:59Z, completed 03:10:14Z).
+Run 36213970569 — the post-R12 checkpoint a417b6a91179b3cb22c6b9a72a9375d491374848 (documentation only):
+  completed / success, both jobs (created 03:10:20Z, completed 03:16:50Z).
+
+1. The pages, the API and the compiled smoke, 7b33d9c (first run of smoke:p4f)
+-------------------------------------------------------------------------------
+Run:      36216834390 — https://github.com/TuongChris/tb-notice-production-system/actions/runs/36216834390
+Event:    push to feature/p4f-notice-candidate
+Head:     7b33d9c84e456a62d6510d23c88564a865f3d350  (pages 8a964ce, API b798b59, smoke:p4f 7b33d9c)
+Created:  2026-09-26T04:06:25Z   Completed: 2026-09-26T04:13:55Z
+Result:   completed / success
+Jobs:
+  108334352159 Non-DB checks (cold install)             success 04:06:27Z → 04:07:55Z
+  108334352122 Database, seed and smoke (MySQL 8.4.11)  success 04:06:28Z → 04:13:55Z
+Commits on the post-R12 checkpoint a417b6a (on main 79db09b): 8a964ce, b798b59, 7b33d9c.
+Note: this build's candidates chunk is 265.60 kB (the runtime contract import found by the sandbox build, finding
+F1, fixed in dcc4289); no Vite chunk-size advisory (the threshold is 500 kB).
+
+Non-DB job
+04:06:41Z [reference:check] database-api-v1: 31 manifest entries, MANIFEST.sha256 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c
+04:06:41Z [reference:check] architecture-v1: 18 manifest entries, MANIFEST.sha256 62b4d1136db81d31cf91dbd38a59c4ba57af265b228b479c909e0dbce693c3de
+04:06:41Z [reference:check] pinned identity (REFERENCE_BASELINE.json): 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c matches
+04:06:41Z [reference:check] OK — frozen references intact.
+04:06:41Z [reference:helper-tests] frozen helper tests: pass 27, fail 0; exit 0
+04:06:41Z [reference:helper-tests] references after run: intact
+04:06:43Z [contracts:check] OK — 3 generated outputs match the active source.
+04:06:54Z Found 0 warnings and 0 errors.
+04:06:59Z All matched files use Prettier code style!
+04:07:48Z Test Files  46 passed (46)
+04:07:48Z Tests  1465 passed (1465)
+04:07:53Z dist/assets/index-CGaIBKVl.css                19.36 kB │ gzip:   4.85 kB
+04:07:53Z dist/assets/prompts-CMb7S2hY.js               15.54 kB │ gzip:   4.46 kB
+04:07:53Z dist/assets/cases-CWy6dKrL.js                 25.94 kB │ gzip:   7.66 kB
+04:07:53Z dist/assets/production-context-gozKcOmI.js    31.33 kB │ gzip:   8.17 kB
+04:07:53Z dist/assets/candidates-p1W-rf05.js           265.60 kB │ gzip:  50.17 kB
+04:07:53Z dist/assets/index-DoWLVYx7.js                329.54 kB │ gzip: 102.48 kB
+04:07:54Z [reference:check] database-api-v1: 31 manifest entries, MANIFEST.sha256 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c
+04:07:54Z [reference:check] architecture-v1: 18 manifest entries, MANIFEST.sha256 62b4d1136db81d31cf91dbd38a59c4ba57af265b228b479c909e0dbce693c3de
+04:07:54Z [reference:check] pinned identity (REFERENCE_BASELINE.json): 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c matches
+04:07:54Z [reference:check] OK — frozen references intact.
+
+Database job
+04:07:14Z Database schema is up to date!
+04:07:15Z [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+04:07:15Z [verify] domain rows total: 0
+04:07:15Z [verify] PASS: metadata matches the reviewed inventory.
+04:11:42Z Test Files  13 passed (13)
+04:11:42Z Tests  494 passed (494)
+04:11:49Z [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+04:11:49Z [verify] domain rows total: 0
+04:11:49Z [verify] PASS: metadata matches the reviewed inventory.
+04:11:55Z [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+04:11:55Z [verify] domain rows total: 0
+04:11:55Z [verify] PASS: metadata matches the reviewed inventory.
+04:11:56Z [db:seed] canonical digest 0ee26dc3ee5f3a1030fb78a6cadaf4dabef1f5a296b58163248584e1e0bfb775 (identical on every PC)
+04:11:56Z [db:seed] canonical digest 0ee26dc3ee5f3a1030fb78a6cadaf4dabef1f5a296b58163248584e1e0bfb775 (identical on every PC)
+04:11:56Z [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+04:11:56Z [verify] domain rows total: 1
+04:11:56Z [verify] PASS: metadata matches the reviewed inventory.
+04:12:02Z -- This is an empty migration.
+04:12:03Z -- This is an empty migration.
+04:12:14Z [smoke] PASS (57 checks)
+04:12:25Z [smoke:auth] PASS (4 checks)
+04:12:28Z [smoke:directory] PASS (14 checks)
+04:12:30Z [smoke:p3a] PASS (24 checks)
+04:12:33Z [smoke:p3b] PASS (36 checks)
+04:12:36Z [smoke:p4a] PASS (50 checks)
+04:12:39Z [smoke:p4b] PASS (64 checks)
+04:12:41Z [smoke:p4c] PASS (62 checks)
+04:12:45Z [smoke:p4d] PASS (87 checks)
+04:12:49Z [smoke:p4e] PASS (84 checks)
+04:12:52Z [smoke:p4f] PASS (92 checks)
+04:13:04Z [smoke:auth] PASS (1 checks)
+04:13:15Z [smoke:auth] PASS (4 checks)
+04:13:22Z [smoke:auth] PASS (1 checks)
+04:13:24Z [smoke:auth] PASS (4 checks)
+04:13:29Z [db:seed] canonical digest 0ee26dc3ee5f3a1030fb78a6cadaf4dabef1f5a296b58163248584e1e0bfb775 (identical on every PC)
+
+2. The code head dcc4289 (the last CI-verified code commit; every P4F code and test change is in it)
+-----------------------------------------------------------------------------------------------------
+Run:      36218703034 — https://github.com/TuongChris/tb-notice-production-system/actions/runs/36218703034
+Event:    push to feature/p4f-notice-candidate
+Head:     dcc42890d0eb8a3dc883e1666b23926713c457eb  (e1039b5 test hardening, dcc4289 type-only contract import)
+Created:  2026-09-26T04:44:03Z   Completed: 2026-09-26T04:51:26Z
+Result:   completed / success
+Jobs:
+  108339739384 Non-DB checks (cold install)             success 04:44:05Z → 04:45:41Z
+  108339739118 Database, seed and smoke (MySQL 8.4.11)  success 04:44:05Z → 04:51:26Z
+Commits: e1039b5 (tests), dcc4289 (web).
+
+Non-DB job
+04:44:21Z [reference:check] database-api-v1: 31 manifest entries, MANIFEST.sha256 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c
+04:44:21Z [reference:check] architecture-v1: 18 manifest entries, MANIFEST.sha256 62b4d1136db81d31cf91dbd38a59c4ba57af265b228b479c909e0dbce693c3de
+04:44:21Z [reference:check] pinned identity (REFERENCE_BASELINE.json): 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c matches
+04:44:21Z [reference:check] OK — frozen references intact.
+04:44:21Z [reference:helper-tests] frozen helper tests: pass 27, fail 0; exit 0
+04:44:21Z [reference:helper-tests] references after run: intact
+04:44:23Z [contracts:check] OK — 3 generated outputs match the active source.
+04:44:35Z Found 0 warnings and 0 errors.
+04:44:41Z All matched files use Prettier code style!
+04:45:33Z Test Files  46 passed (46)
+04:45:33Z Tests  1465 passed (1465)
+04:45:38Z dist/assets/index-CGaIBKVl.css                19.36 kB │ gzip:   4.85 kB
+04:45:38Z dist/assets/prompts-DNvV29PT.js               15.54 kB │ gzip:   4.46 kB
+04:45:38Z dist/assets/cases-CnYpYH3u.js                 25.94 kB │ gzip:   7.66 kB
+04:45:38Z dist/assets/production-context-CfTlFjV5.js    31.33 kB │ gzip:   8.17 kB
+04:45:38Z dist/assets/candidates-BWrUgG5b.js            39.41 kB │ gzip:  10.41 kB
+04:45:38Z dist/assets/index-CcG44J3d.js                329.53 kB │ gzip: 102.48 kB
+04:45:38Z [reference:check] database-api-v1: 31 manifest entries, MANIFEST.sha256 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c
+04:45:38Z [reference:check] architecture-v1: 18 manifest entries, MANIFEST.sha256 62b4d1136db81d31cf91dbd38a59c4ba57af265b228b479c909e0dbce693c3de
+04:45:38Z [reference:check] pinned identity (REFERENCE_BASELINE.json): 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c matches
+04:45:38Z [reference:check] OK — frozen references intact.
+
+Database job
+04:44:58Z Database schema is up to date!
+04:44:58Z [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+04:44:58Z [verify] domain rows total: 0
+04:44:58Z [verify] PASS: metadata matches the reviewed inventory.
+04:49:19Z Test Files  13 passed (13)
+04:49:19Z Tests  494 passed (494)
+04:49:25Z [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+04:49:25Z [verify] domain rows total: 0
+04:49:25Z [verify] PASS: metadata matches the reviewed inventory.
+04:49:31Z [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+04:49:31Z [verify] domain rows total: 0
+04:49:31Z [verify] PASS: metadata matches the reviewed inventory.
+04:49:31Z [db:seed] canonical digest 0ee26dc3ee5f3a1030fb78a6cadaf4dabef1f5a296b58163248584e1e0bfb775 (identical on every PC)
+04:49:31Z [db:seed] canonical digest 0ee26dc3ee5f3a1030fb78a6cadaf4dabef1f5a296b58163248584e1e0bfb775 (identical on every PC)
+04:49:32Z [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+04:49:32Z [verify] domain rows total: 1
+04:49:32Z [verify] PASS: metadata matches the reviewed inventory.
+04:49:36Z -- This is an empty migration.
+04:49:38Z -- This is an empty migration.
+04:49:48Z [smoke] PASS (57 checks)
+04:49:59Z [smoke:auth] PASS (4 checks)
+04:50:01Z [smoke:directory] PASS (14 checks)
+04:50:04Z [smoke:p3a] PASS (24 checks)
+04:50:07Z [smoke:p3b] PASS (36 checks)
+04:50:10Z [smoke:p4a] PASS (50 checks)
+04:50:13Z [smoke:p4b] PASS (64 checks)
+04:50:15Z [smoke:p4c] PASS (62 checks)
+04:50:19Z [smoke:p4d] PASS (87 checks)
+04:50:22Z [smoke:p4e] PASS (84 checks)
+04:50:26Z [smoke:p4f] PASS (92 checks)
+04:50:37Z [smoke:auth] PASS (1 checks)
+04:50:48Z [smoke:auth] PASS (4 checks)
+04:50:54Z [smoke:auth] PASS (1 checks)
+04:50:56Z [smoke:auth] PASS (4 checks)
+04:51:01Z [db:seed] canonical digest 0ee26dc3ee5f3a1030fb78a6cadaf4dabef1f5a296b58163248584e1e0bfb775 (identical on every PC)
+
+(no "(!) Some chunks are larger than 500 kB" advisory in either run)
+
+smoke:p4f on dcc4289 (the compiled API; CI only — it writes synthetic records into the disposable CI database)
+04:50:24Z [smoke:p4f] PASS login → 200 with a session cookie and CSRF token
+04:50:24Z [smoke:p4f] PASS POST /agencies → 201
+04:50:24Z [smoke:p4f] PASS POST /sources → 201
+04:50:24Z [smoke:p4f] PASS POST /owners → 201
+04:50:24Z [smoke:p4f] PASS POST /legal-subjects → 201
+04:50:24Z [smoke:p4f] PASS GET /owners/59f0bba0-3922-4818-8035-87e91ba1414f → 200
+04:50:24Z [smoke:p4f] PASS POST /owners/{id}/subjects → 201
+04:50:24Z [smoke:p4f] PASS POST /routes → 201
+04:50:24Z [smoke:p4f] PASS POST /signers → 201
+04:50:24Z [smoke:p4f] PASS POST /mandates → 201
+04:50:24Z [smoke:p4f] PASS GET /mandates/ff291a51-c0f4-445b-b811-9713b306a463 → 200
+04:50:25Z [smoke:p4f] PASS POST /mandates/{id}/versions → 201
+04:50:25Z [smoke:p4f] PASS POST /sources → 201
+04:50:25Z [smoke:p4f] PASS GET /mandate-versions/4927047b-f37e-41d1-9237-8636148fc656 → 200
+04:50:25Z [smoke:p4f] PASS POST /mandate-versions/{id}/coverages → 201
+04:50:25Z [smoke:p4f] PASS GET /coverages/c7f31a8e-3611-4cde-98ad-876993c2183b → 200
+04:50:25Z [smoke:p4f] PASS POST /coverages/{id}/signers → 201
+04:50:25Z [smoke:p4f] PASS GET /mandate-versions/4927047b-f37e-41d1-9237-8636148fc656 → 200
+04:50:25Z [smoke:p4f] PASS POST /mandate-versions/{id}/freeze → 200
+04:50:25Z [smoke:p4f] PASS POST /cases → 201
+04:50:25Z [smoke:p4f] PASS POST /cases → 201
+04:50:25Z [smoke:p4f] PASS GET /cases/601ab435-cb15-475c-a9fa-f712f96098cf → 200
+04:50:25Z [smoke:p4f] PASS POST /cases/{caseId}/authority-selections → 201
+04:50:25Z [smoke:p4f] PASS GET /cases/7dce7237-a687-44ea-b9f2-4e012f094ec0 → 200
+04:50:25Z [smoke:p4f] PASS POST /cases/{caseId}/authority-selections → 201
+04:50:25Z [smoke:p4f] PASS GET /cases/601ab435-cb15-475c-a9fa-f712f96098cf → 200
+04:50:25Z [smoke:p4f] PASS POST /cases/{caseId}/reported-items → 201
+04:50:25Z [smoke:p4f] PASS GET /cases/601ab435-cb15-475c-a9fa-f712f96098cf → 200
+04:50:25Z [smoke:p4f] PASS POST /cases/{caseId}/works → 201
+04:50:25Z [smoke:p4f] PASS POST /sources → 201
+04:50:25Z [smoke:p4f] PASS GET /cases/601ab435-cb15-475c-a9fa-f712f96098cf → 200
+04:50:25Z [smoke:p4f] PASS POST /cases/{caseId}/mappings → 201
+04:50:25Z [smoke:p4f] PASS POST /sources → 201
+04:50:25Z [smoke:p4f] PASS POST /sources → 201
+04:50:25Z [smoke:p4f] PASS POST /sources → 201
+04:50:25Z [smoke:p4f] PASS POST /correspondence (inbound NMI) → 201
+04:50:25Z [smoke:p4f] PASS GET /cases/601ab435-cb15-475c-a9fa-f712f96098cf → 200
+04:50:25Z [smoke:p4f] PASS POST /cases/{caseId}/correspondence-bindings → 201
+04:50:25Z [smoke:p4f] PASS POST /correspondence (outbound notice, operator reported) → 201
+04:50:25Z [smoke:p4f] PASS GET /cases/601ab435-cb15-475c-a9fa-f712f96098cf → 200
+04:50:25Z [smoke:p4f] PASS POST /cases/{caseId}/correspondence-bindings → 201
+04:50:25Z [smoke:p4f] PASS GET /cases/{caseId}/production-context (case A INITIAL + DRAFTING) → 200
+04:50:25Z [smoke:p4f] PASS POST /cases/{caseId}/prompts (case A INITIAL + DRAFTING) → 201
+04:50:25Z [smoke:p4f] PASS GET /cases/{caseId}/production-context (case A NMI_REPLY + PREPARATION) → 200
+04:50:25Z [smoke:p4f] PASS POST /cases/{caseId}/prompts (case A NMI_REPLY + PREPARATION) → 201
+04:50:25Z [smoke:p4f] PASS GET /cases/{caseId}/production-context (case B INITIAL + PREPARATION) → 200
+04:50:25Z [smoke:p4f] PASS POST /cases/{caseId}/prompts (case B INITIAL + PREPARATION) → 201
+04:50:25Z [smoke:p4f] PASS GET /cases/{id} (before) → 200
+04:50:26Z [smoke:p4f] PASS POST /cases/{caseId}/candidates (INITIAL) → 201
+04:50:26Z [smoke:p4f] PASS INITIAL: exact texts, envelope and plan order; HUMAN_PENDING; both hashes recomputed
+04:50:26Z [smoke:p4f] PASS GET /cases/{id} (after) → 200
+04:50:26Z [smoke:p4f] PASS the case row version and context revision are unchanged by the import
+04:50:26Z [smoke:p4f] PASS POST /cases/{caseId}/candidates (the same key again) → 201
+04:50:26Z [smoke:p4f] PASS POST /cases/{caseId}/candidates (the same key, another body) → 409
+04:50:26Z [smoke:p4f] PASS GET /candidates/{id} → 200
+04:50:26Z [smoke:p4f] PASS GET /cases/{caseId}/candidates → 200
+04:50:26Z [smoke:p4f] PASS replay, idempotency conflict, read-back and summary list as contracted
+04:50:26Z [smoke:p4f] PASS POST /candidates/{id}/revisions → 201
+04:50:26Z [smoke:p4f] PASS revision: exact texts, envelope and plan order; HUMAN_PENDING; both hashes recomputed
+04:50:26Z [smoke:p4f] PASS GET /candidates/{id} (the revised candidate) → 200
+04:50:26Z [smoke:p4f] PASS revision: a new candidate naming the revised one; the revised one unchanged byte for byte
+04:50:26Z [smoke:p4f] PASS POST /candidates/{id}/revisions (a second revision of version 1) → 409
+04:50:26Z [smoke:p4f] PASS POST /candidates/{id}/revisions (a prompt of another task) → 422
+04:50:26Z [smoke:p4f] PASS POST /candidates/{id}/revisions (a prompt of case B) → 422
+04:50:26Z [smoke:p4f] PASS POST /cases/{caseId}/candidates (NMI_REPLY) → 201
+04:50:26Z [smoke:p4f] PASS NMI_REPLY: exact texts, envelope and plan order; HUMAN_PENDING; both hashes recomputed
+04:50:26Z [smoke:p4f] PASS POST /candidates/{id}/supersede → 200
+04:50:26Z [smoke:p4f] PASS supersession: time and reason recorded; subject, body, envelope, plan and hashes unchanged
+04:50:26Z [smoke:p4f] PASS POST /candidates/{id}/supersede (the same key again) → 200
+04:50:26Z [smoke:p4f] PASS POST /candidates/{id}/supersede (another reason) → 409
+04:50:26Z [smoke:p4f] PASS GET /cases/{caseId}/candidates (history) → 200
+04:50:26Z [smoke:p4f] PASS the history keeps every candidate; the superseded one is marked, not hidden
+04:50:26Z [smoke:p4f] PASS POST /cases/{caseId}/candidates (case B’s prompt) → 422
+04:50:26Z [smoke:p4f] PASS POST /cases/{caseId}/candidates (case B’s case-scoped source) → 422
+04:50:26Z [smoke:p4f] PASS POST /cases/{caseId}/candidates (a sender other than the selected mailbox) → 422
+04:50:26Z [smoke:p4f] PASS POST /cases/{caseId}/candidates (a reply without its thread) → 422
+04:50:26Z [smoke:p4f] PASS POST /cases/{caseId}/candidates (an unrecorded previously supplied document) → 422
+04:50:26Z [smoke:p4f] PASS POST /cases/{caseId}/candidates (a hash the source does not record) → 422
+04:50:26Z [smoke:p4f] PASS POST /cases/{caseId}/candidates (a NUL in the body) → 422
+04:50:26Z [smoke:p4f] PASS POST /cases/{caseId}/candidates (no Idempotency-Key) → 400
+04:50:26Z [smoke:p4f] PASS POST /cases/{caseId}/candidates (an unknown case) → 404
+04:50:26Z [smoke:p4f] PASS GET /cases/{caseId}/candidates (case B) → 200
+04:50:26Z [smoke:p4f] PASS case B lists no candidate of case A
+04:50:26Z [smoke:p4f] PASS three candidates and four audit events; no prompt, correspondence, binding or later-phase record
+04:50:26Z [smoke:p4f] PASS PATCH /candidates/{id} (not routed) → 404
+04:50:26Z [smoke:p4f] PASS DELETE /candidates/{id} (not routed) → 404
+04:50:26Z [smoke:p4f] PASS POST /candidates/{id}/validation-runs (not routed) → 404
+04:50:26Z [smoke:p4f] PASS GET /candidates/{id}/validation-runs (not routed) → 404
+04:50:26Z [smoke:p4f] PASS POST /candidates/{id}/assessments (not routed) → 404
+04:50:26Z [smoke:p4f] PASS GET /candidates/{id}/readiness (not routed) → 404
+04:50:26Z [smoke:p4f] PASS POST /candidates/{id}/unsigned-exports (not routed) → 404
+04:50:26Z [smoke:p4f] PASS logout → 204
+04:50:26Z [smoke:p4f] PASS (92 checks)

@@ -1,0 +1,547 @@
+P4F NoticeCandidate — negative controls (mission §43), home PC, 2026-09-26 (UTC)
+================================================================================
+
+Method (scratchpad runner outside Git, the P4A–P4E method): each control disables exactly one protection of
+importCandidate, listCaseCandidates, getCandidate, reviseCandidate, supersedeCandidate or the candidate pages by
+an exact text replacement — or injects the forbidden behaviour — then runs every responsible test command. Each
+command must FAIL with a non-zero exit AND name at least one failed test; the first failure message is recorded
+to show that the failure is the test's own assertion, not a crash of a broken mutation. Every mutated file is then
+restored and verified byte-identical by SHA-256. Every anchor is checked to occur exactly once before a control
+runs (`--check`: 29 controls, 0 anchor problems). DB commands run on the disposable tb_notice_test only (synthetic
+example.invalid records; every test cleans up). The working tree is fingerprinted (git diff HEAD + SHA-256 of
+every untracked file) before and after a run. No control touches docs/reference/**, a migration, the generated
+contract artifacts or a release record.
+
+Final run (run 2): 2026-09-26T04:37:54.684Z – 2026-09-26T04:39:55.548Z, head dcc42890d0eb8a3dc883e1666b23926713c457eb
+(the code head; clean tree except the untracked docs/verification/p4f/ evidence), runner exit 0.
+  29 controls, 29 caught and restored (48 responsible commands, every one failed and named a test).
+  Working-tree fingerprint before and after: 1d6c4dd114e559b6fb1cec3f0523c85a05841449eb65773d60f3d006268461ff (identical)
+  Afterwards `yarn db:verify test --expect-empty`: [verify] domain rows total: 0; [verify] PASS: metadata matches the reviewed inventory.
+  First failure message of each command: 48 AssertionError, 0 other (no timeout, no crash).
+  Database backstops seen inside a failing assertion (the test asserts the contracted refusal, so it fails on its
+  own status assertion when a backstop answers 500 instead): NC-P4F-01 (both DB tests: [500, INTERNAL_ERROR]
+  instead of [422, CROSS_CASE_REFERENCE] — the composite foreign key (prompt_snapshot_id, case_id) refused the
+  insert), NC-P4F-04 (the DB test: [500] instead of [422, VALIDATION_FAILED] — the exact-text hash refuses NUL;
+  its unit test fails first, "expected null to be an instance of ApiError"), NC-P4F-08 (the DB test: 500 — the
+  CHECK ck_notice_candidates_unsigned_only refused 'SIGNED'; its unit source scan fails too). The API rule is the
+  protection each control disables; the backstop only proves the schema would still refuse the row.
+  Unmutated baseline on the same head dcc4289, right after it (2026-09-26T04:41:05Z – 04:42:41Z; the tree was
+  byte-identical, fingerprint above) — the 39 distinct responsible commands, each passing and selecting one test:
+    OK  exit 0 · Tests  1 passed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t the prompt is this case’s: an unknown prompt is 422 REFERENCE_NOT_FOUND
+    OK  exit 0 · Tests  1 passed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t two cases of one agency, owner and route
+    OK  exit 0 · Tests  1 passed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t a revision may use another prompt snapshot of the same case and task
+    OK  exit 0 · Tests  1 passed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t INITIAL: subject, body
+    OK  exit 0 · Tests  1 passed | 22 skipped (23) · yarn vitest run --config vitest.config.ts tests/api/candidate-rules.test.ts -t names every field holding a NUL
+    OK  exit 0 · Tests  1 passed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t the body is exactly the contract
+    OK  exit 0 · Tests  1 passed | 22 skipped (23) · yarn vitest run --config vitest.config.ts tests/api/candidate-rules.test.ts -t ASCII, CRLF against LF, one trailing space, composed against decomposed letters
+    OK  exit 0 · Tests  1 passed | 22 skipped (23) · yarn vitest run --config vitest.config.ts tests/api/candidate-rules.test.ts -t the artifact hash of a fixed candidate is the SHA-256 of its hand-written canonical JSON text, pinned
+    OK  exit 0 · Tests  1 passed | 22 skipped (23) · yarn vitest run --config vitest.config.ts tests/api/candidate-rules.test.ts -t is the frozen reference helper’s canonical JSON and SHA-256 of exactly the artifact object
+    OK  exit 0 · Tests  1 passed | 22 skipped (23) · yarn vitest run --config vitest.config.ts tests/api/candidate-rules.test.ts -t the subject, the recipient and the document plan change the artifact without a body change
+    OK  exit 0 · Tests  1 passed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t PREPARED_FOR_ATTACHMENT, REFERENCE_ONLY and UNKNOWN are stored as a plan in the given order
+    OK  exit 0 · Tests  1 passed | 22 skipped (23) · yarn vitest run --config vitest.config.ts tests/api/candidate-rules.test.ts -t nothing writes a signed, adopted, approved, G7 or ready state
+    OK  exit 0 · Tests  1 passed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t a revision is a new candidate of the same case and task
+    OK  exit 0 · Tests  1 passed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t only the latest version of a chain is revised
+    OK  exit 0 · Tests  1 passed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t two concurrent revisions of one candidate cannot both succeed
+    OK  exit 0 · Tests  1 passed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t two concurrent imports for one case and task never share a version
+    OK  exit 0 · Tests  1 passed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t idempotent: the same key and body replay the stored candidate
+    OK  exit 0 · Tests  1 passed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t records supersededAt and the reason exactly — nothing else changes
+    OK  exit 0 · Tests  1 passed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t a second supersession is 409 CANDIDATE_ALREADY_SUPERSEDED
+    OK  exit 0 · Tests  1 passed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t each plan names a source revision that applies to this case
+    OK  exit 0 · Tests  1 passed | 22 skipped (23) · yarn vitest run --config vitest.config.ts tests/api/candidate-rules.test.ts -t previously supplied sources are exactly the sources named by the captured attachments
+    OK  exit 0 · Tests  1 passed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t PREVIOUSLY_SUPPLIED only for a source the captured attachments of a prior transmission
+    OK  exit 0 · Tests  1 passed | 22 skipped (23) · yarn vitest run --config vitest.config.ts tests/api/candidate-rules.test.ts -t a content SHA-256 is exactly the one recorded on the source revision
+    OK  exit 0 · Tests  1 passed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t a content SHA-256 is the one recorded on the source revision
+    OK  exit 0 · Tests  1 passed | 22 skipped (23) · yarn vitest run --config vitest.config.ts tests/api/candidate-rules.test.ts -t NMI_REPLY: the envelope names exactly the prompt’s parent
+    OK  exit 0 · Tests  1 passed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t NMI_REPLY: the envelope names exactly the prompt’s parent
+    OK  exit 0 · Tests  1 passed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t INITIAL: no parent binding may be named
+    OK  exit 0 · Tests  1 passed | 22 skipped (23) · yarn vitest run --config vitest.config.ts tests/api/candidate-rules.test.ts -t INITIAL: no parent binding may be named
+    OK  exit 0 · Tests  1 passed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t the sender is exactly the mailbox the prompt’s selection names
+    OK  exit 0 · Tests  1 passed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t the list shows this case’s candidates only, newest first, as summaries
+    OK  exit 0 · Tests  1 passed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t a candidate write changes no case context
+    OK  exit 0 · Tests  1 passed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t the audit events record identifiers, the version, the hashes, HUMAN_PENDING
+    OK  exit 0 · Tests  1 passed | 22 skipped (23) · yarn vitest run --config vitest.config.ts tests/api/candidate-rules.test.ts -t no module file calls a network, mail, file, process, curl or AI-provider API
+    OK  exit 0 · Tests  1 passed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t import, revise, supersede, list and get open no outbound connection
+    OK  exit 0 · Tests  1 passed | 22 skipped (23) · yarn vitest run --config vitest.config.ts tests/api/candidate-rules.test.ts -t the web candidate pages reach only the application API
+    OK  exit 0 · Tests  1 passed | 10 skipped (11) · yarn vitest run --config vitest.config.ts tests/web/p4f.test.tsx -t INITIAL: the chosen prompt’s task, mode, version and digest are shown
+    OK  exit 0 · Tests  1 passed | 10 skipped (11) · yarn vitest run --config vitest.config.ts tests/web/p4f.test.tsx -t no candidate page offers a validate, approve, ready, sign, send or export action
+    OK  exit 0 · Tests  1 passed | 10 skipped (11) · yarn vitest run --config vitest.config.ts tests/web/p4f.test.tsx -t supersession: "Supersede this draft artifact" with its exact meaning
+    OK  exit 0 · Tests  1 passed | 10 skipped (11) · yarn vitest run --config vitest.config.ts tests/web/p4f.test.tsx -t the history lists this case’s summaries only, newest first, with pages
+    39 distinct commands, 0 problems
+  Afterwards `yarn db:verify test --expect-empty`: [verify] domain rows total: 0; [verify] PASS.
+
+RESULT: 29/29 — every disabled protection made its responsible tests fail; every file restored byte-identically.
+
+History (nothing hidden; every run kept in the scratchpad)
+- Baseline 1 (on 7b33d9c, before run 1): 39 distinct commands, 37 OK; two selected no test because their `-t`
+  patterns contained parentheses, which vitest reads as a regular expression ("INITIAL: subject, body (CRLF, …)"
+  and "INITIAL: no parent binding may be named (none is invented); …"). Both patterns were shortened in the runner
+  before run 1 and each then passed and selected one test.
+- Run 1: 2026-09-26T04:10:34.347Z – 2026-09-26T04:12:39.645Z, head 7b33d9c84e456a62d6510d23c88564a865f3d350,
+  fingerprint 98eb43ea8a13a5bef4faee00d48c91c5fd405c5eb2668708d3188c0e5b1019db (identical after): 29 controls, 27
+  caught and restored, 2 not caught; afterwards `db:verify test --expect-empty` PASS (domain rows total 0).
+  * NC-P4F-10 (revision edits the parent in place) NOT CAUGHT: the mutation overwrote the revised candidate's
+    subject with the revision's, and the revision test's revision kept the parent's subject — so the parent's
+    byte-for-byte comparison saw no difference.
+  * NC-P4F-28 (supersede worded as a retraction) NOT CAUGHT: the responsible web test interpolated
+    SUPERSEDE_TITLE into its own title, so renaming the action renamed the test and `-t` selected none (exit 0,
+    "11 skipped").
+  * NC-P4F-29 (another case's candidate shown) caught, but by a wait timeout ("Error: timed out waiting for
+    /cases/…/candidates/…"), not by an assertion on the protection.
+  Commit e1039b5 (test code only): the revision test changes every content field (subject, recipient and
+  Reply-To, body, document plan, authoring tool), so an in-place write of any of them shows; the supersession web
+  test has a literal title and asserts SUPERSEDE_TITLE = "Supersede this draft artifact"; the other-case web
+  check waits for any outcome and then asserts it (the not-found notice present, no body, no form).
+- Re-run of the three on e1039b5: 2026-09-26T04:14:39.711Z – 04:14:46.153Z, 3/3 caught and restored, fingerprint
+  identical — NC-P4F-10 "AssertionError: expected { …(19) } to deeply equal { …(19) }", NC-P4F-28
+  "AssertionError: expected 'Retract notice' to be 'Supersede this draft artifact'", NC-P4F-29 "AssertionError:
+  expected <pre …(4)></pre> to be null".
+- dcc4289 (the candidate page imports only types from @tb/contracts; found by the browser pass's first sandbox
+  build) changed no test and no protected line; the final run above is on it.
+
+Mission §43 coverage (the twenty listed kinds, then the further P4F protections)
+- cross-case PromptSnapshot accepted: NC-P4F-01
+- task mismatch accepted: NC-P4F-02
+- body normalization: NC-P4F-03
+- NUL accepted contrary to exact-text rule: NC-P4F-04
+- wrong body SHA: NC-P4F-05
+- wrong artifact SHA definition: NC-P4F-06
+- prepared-document order ignored: NC-P4F-07
+- HUMAN_PENDING replaced by signed state: NC-P4F-08
+- actual signer inserted automatically: NC-P4F-09
+- revision edits parent in place: NC-P4F-10
+- revision fork accepted: NC-P4F-11
+- version race: NC-P4F-12
+- idempotent replay duplicates candidate: NC-P4F-13
+- supersede deletes body: NC-P4F-14
+- supersede treated as platform retraction: NC-P4F-15
+- cross-case prepared source: NC-P4F-17
+- audit stores full candidate body: NC-P4F-24
+- HTML rendered as executable: NC-P4F-26
+- UI shows READY/APPROVED: NC-P4F-27
+- AI/network call introduced: NC-P4F-25
+- further: second supersession accepted NC-P4F-16; PREVIOUSLY_SUPPLIED fabricated NC-P4F-18; unrecorded content
+  hash accepted NC-P4F-19; reply thread not enforced NC-P4F-20; sender not the selected mailbox NC-P4F-21; list
+  leaks another case NC-P4F-22; candidate changes the case context NC-P4F-23; supersede worded as a retraction
+  NC-P4F-28; another case's candidate shown NC-P4F-29.
+
+Notes on single controls
+- NC-P4F-09 replaces the pending slot in the stored body with the pinned signer's legal name (from the prompt's
+  context): the stored body no longer equals the supplied one.
+- NC-P4F-12 replaces the case lock of the import with a plain read: the second concurrent import passes the case
+  while the first holds it (the test's count of imports past the lock is 2, not 1).
+- NC-P4F-13 gives the service a fresh idempotency key on every request: the replay creates a second candidate.
+- NC-P4F-15 records the supersession in the audit as a platform retraction; the audit's recorded
+  `supersession INTERNAL_DRAFT_ARTIFACT, platformRetraction false, externalAction NONE` no longer match.
+- NC-P4F-18 counts the attachments of every captured message in the prompt's context (the parent NMI's too), not
+  only the prior transmissions'.
+- NC-P4F-25 adds a provider-like POST (to a closed local port) during the import: the module scan and the DB
+  test's socket/fetch spy both fail.
+- NC-P4F-26 renders the stored text through dangerouslySetInnerHTML: the page scan and the web test (the shown
+  body is no longer the stored text) both fail.
+
+Controls (replacement shown shortened; "must fail" = the responsible commands)
+------------------------------------------------------------------------------
+NC-P4F-01 — [cross-case PromptSnapshot accepted] a prompt snapshot of another case is refused (422 CROSS_CASE_REFERENCE): the case check of the named prompt removed
+  file: apps/api/src/modules/candidates/candidates.service.ts
+  replace: "  if (row.caseId !== caseId) throw apiErrors.crossCaseReference('promptSnapshotId', 'record');\n"
+  with:    ""
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t the prompt is this case’s: an unknown prompt is 422 REFERENCE_NOT_FOUND
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t two cases of one agency, owner and route
+NC-P4F-02 — [task mismatch accepted] a revision keeps the task of its chain (422 REVISION_SCOPE_CHANGE): the task check removed
+  file: apps/api/src/modules/candidates/candidates.service.ts
+  replace: "        if (prompt.taskType !== parent.taskType) {\n          throw apiErrors.revisionScopeChange(['promptSnapshotId'], 'candidate');\n        }\n"
+  with:    ""
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t a revision may use another prompt snapshot of the same case and task
+NC-P4F-03 — [body normalization] the body is stored exactly as supplied: the stored body normalized to NFC with LF line breaks
+  file: apps/api/src/modules/candidates/candidates.service.ts
+  replace: "        bodyText: body.bodyText,\n        bodySha256,\n"
+  with:    "        bodyText: body.bodyText.normalize('NFC').replace(/\\r\\n/g, '\\n'),\n        bodySha256,\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t INITIAL: subject, body
+NC-P4F-04 — [NUL accepted contrary to the exact-text rule] a NUL anywhere in a candidate text is refused before the claim (422 VALIDATION_FAILED): the NUL issue removed
+  file: apps/api/src/modules/candidates/candidate-rules.ts
+  replace: "    if (value.includes('\\u0000')) {\n      issues.push({\n"
+  with:    "    if (value.includes('\\u0000') && path.length < 0) {\n      issues.push({\n"
+  must fail: yarn vitest run --config vitest.config.ts tests/api/candidate-rules.test.ts -t names every field holding a NUL
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t the body is exactly the contract
+NC-P4F-05 — [wrong body SHA] bodySha256 is the SHA-256 of the exact UTF-8 bytes: computed over the body with CRLF folded to LF
+  file: apps/api/src/modules/candidates/candidate-artifact.ts
+  replace: "  return exactTextSha256(bodyText);\n"
+  with:    "  return exactTextSha256(bodyText.replace(/\\r\\n/g, '\\n'));\n"
+  must fail: yarn vitest run --config vitest.config.ts tests/api/candidate-rules.test.ts -t ASCII, CRLF against LF, one trailing space, composed against decomposed letters
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t INITIAL: subject, body
+NC-P4F-06 — [wrong artifact SHA definition] artifactSha256 binds the envelope: the envelope left out of the hashed object
+  file: apps/api/src/modules/candidates/candidate-artifact.ts
+  replace: "    envelope: {\n      from: envelope.from,\n      to: envelope.to,\n      replyTo: envelope.replyTo,\n      parentBindingId: envelope.parentBindingId,\n    },\n"
+  with:    ""
+  must fail: yarn vitest run --config vitest.config.ts tests/api/candidate-rules.test.ts -t the artifact hash of a fixed candidate is the SHA-256 of its hand-written canonical JSON text, pinned
+  must fail: yarn vitest run --config vitest.config.ts tests/api/candidate-rules.test.ts -t is the frozen reference helper’s canonical JSON and SHA-256 of exactly the artifact object
+  must fail: yarn vitest run --config vitest.config.ts tests/api/candidate-rules.test.ts -t the subject, the recipient and the document plan change the artifact without a body change
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t INITIAL: subject, body
+NC-P4F-07 — [prepared-document order ignored] the order of the document plans is part of the artifact: the plans sorted by source id before hashing
+  file: apps/api/src/modules/candidates/candidate-artifact.ts
+  replace: "    preparedDocuments: content.preparedDocuments.map((plan) => ({\n"
+  with:    "    preparedDocuments: [...content.preparedDocuments].sort((a, b) => (a.sourceId < b.sourceId ? -1 : 1)).map((plan) => ({\n"
+  must fail: yarn vitest run --config vitest.config.ts tests/api/candidate-rules.test.ts -t the subject, the recipient and the document plan change the artifact without a body change
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t PREPARED_FOR_ATTACHMENT, REFERENCE_ONLY and UNKNOWN are stored as a plan in the given order
+NC-P4F-08 — [HUMAN_PENDING replaced by a signed state] the stored signature state is the HUMAN_PENDING constant: the service writes SIGNED
+  file: apps/api/src/modules/candidates/candidates.service.ts
+  replace: "        signatureState: CANDIDATE_SIGNATURE_STATE,\n"
+  with:    "        signatureState: 'SIGNED',\n"
+  must fail: yarn vitest run --config vitest.config.ts tests/api/candidate-rules.test.ts -t nothing writes a signed, adopted, approved, G7 or ready state
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t INITIAL: subject, body
+NC-P4F-09 — [actual signer inserted automatically] the pending signer slot is stored as drafted: the pinned signer’s legal name written into the body in its place
+  file: apps/api/src/modules/candidates/candidates.service.ts
+  replace: "        bodyText: body.bodyText,\n        bodySha256,\n"
+  with:    "        bodyText: body.bodyText.replace('[PENDING AUTHORIZED SIGNER — FULL LEGAL NAME REQUIRED]', prompt.context.party.signerFullLegalName ?? 'SIGNER'),\n        bodySh..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t INITIAL: subject, body
+NC-P4F-10 — [revision edits the parent in place] a revision never touches the revised candidate: its subject overwritten by the revision
+  file: apps/api/src/modules/candidates/candidates.service.ts
+  replace: "        const { row, envelope, plans } = await this.insert(context, caseRow, prompt, body, parent);\n"
+  with:    "        const { row, envelope, plans } = await this.insert(context, caseRow, prompt, body, parent);\n        await context.tx.noticeCandidate.update({ where: { id: pare..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t a revision is a new candidate of the same case and task
+NC-P4F-11 — [revision fork accepted] only the latest version of a chain is revised (409 REVISION_NOT_HEAD): the successor check removed
+  file: apps/api/src/modules/candidates/candidates.service.ts
+  replace: "        if (successor !== null) {\n          throw apiErrors.revisionNotHead(await chainHead(context.tx, successor.id), 'candidate');\n        }\n"
+  with:    ""
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t only the latest version of a chain is revised
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t two concurrent revisions of one candidate cannot both succeed
+NC-P4F-12 — [version race] versions are allocated under the case lock: the import reads the case without locking it
+  file: apps/api/src/modules/candidates/candidates.service.ts
+  replace: "        const current = await lockCase(context.tx, caseId);\n"
+  with:    "        const current = await context.tx.caseRecord.findUniqueOrThrow({ where: { id: caseId } });\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t two concurrent imports for one case and task never share a version
+NC-P4F-13 — [idempotent replay duplicates the candidate] a retry with the same Idempotency-Key replays the stored candidate: the controller hands the service a fresh key each time
+  file: apps/api/src/modules/candidates/candidates.controller.ts
+  replace: "    const reply = await this.candidates.import(\n      requesterOf(request),\n"
+  with:    "    const reply = await this.candidates.import(\n      { ...requesterOf(request), idempotencyKey: globalThis.crypto.randomUUID() },\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t idempotent: the same key and body replay the stored candidate
+NC-P4F-14 — [supersede deletes the body] a supersession changes nothing but its time and reason: it empties the body
+  file: apps/api/src/modules/candidates/candidates.service.ts
+  replace: "          data: { supersededAt: context.now, supersedeReason: body.reason },\n"
+  with:    "          data: { supersededAt: context.now, supersedeReason: body.reason, bodyText: '' },\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t records supersededAt and the reason exactly — nothing else changes
+NC-P4F-15 — [supersede treated as a platform retraction] a supersession is an internal draft-artifact lifecycle step, never a retraction: its audit records a platform retraction
+  file: apps/api/src/modules/candidates/candidates.service.ts
+  replace: "            supersession: 'INTERNAL_DRAFT_ARTIFACT',\n            platformRetraction: false,\n"
+  with:    "            supersession: 'PLATFORM_RETRACTION',\n            platformRetraction: true,\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t records supersededAt and the reason exactly — nothing else changes
+NC-P4F-16 — [second supersession accepted] a supersession is recorded once (409 CANDIDATE_ALREADY_SUPERSEDED): the check removed and the update made unconditional
+  file: apps/api/src/modules/candidates/candidates.service.ts
+  replace: "        if (current.supersededAt !== null) {\n          throw apiErrors.candidateAlreadySuperseded(current.supersededAt.toISOString());\n        }\n"
+  with:    ""
+  file: apps/api/src/modules/candidates/candidates.service.ts
+  replace: "          where: { id, supersededAt: null },\n"
+  with:    "          where: { id },\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t a second supersession is 409 CANDIDATE_ALREADY_SUPERSEDED
+NC-P4F-17 — [cross-case prepared source] a planned document names a source revision that applies to this case: the source-scope check removed
+  file: apps/api/src/modules/candidates/candidates.service.ts
+  replace: "    await assertSourcesUsable(tx, uses, await caseTarget(tx, caseRow));\n"
+  with:    ""
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t each plan names a source revision that applies to this case
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t two cases of one agency, owner and route
+NC-P4F-18 — [PREVIOUSLY_SUPPLIED fabricated] PREVIOUSLY_SUPPLIED needs a prior transmission recording the source: every captured message’s attachments counted (the parent NMI’s too)
+  file: apps/api/src/modules/candidates/candidate-rules.ts
+  replace: "    if (!priors.has(message.id)) continue;\n"
+  with:    ""
+  must fail: yarn vitest run --config vitest.config.ts tests/api/candidate-rules.test.ts -t previously supplied sources are exactly the sources named by the captured attachments
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t PREVIOUSLY_SUPPLIED only for a source the captured attachments of a prior transmission
+NC-P4F-19 — [unrecorded content hash accepted] a planned document names only the SHA-256 recorded on its source revision: the hash check removed
+  file: apps/api/src/modules/candidates/candidate-rules.ts
+  replace: "    if (plan.contentSha256 !== null && plan.contentSha256 !== recordedHashes.get(plan.sourceId)) {\n"
+  with:    "    if (plan.contentSha256 === undefined && plan.contentSha256 !== recordedHashes.get(plan.sourceId)) {\n"
+  must fail: yarn vitest run --config vitest.config.ts tests/api/candidate-rules.test.ts -t a content SHA-256 is exactly the one recorded on the source revision
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t a content SHA-256 is the one recorded on the source revision
+NC-P4F-20 — [reply thread not enforced] the envelope names exactly the prompt’s parent binding: the parent comparison removed
+  file: apps/api/src/modules/candidates/candidate-rules.ts
+  replace: "  if (envelope.parentBindingId !== prompt.parentBindingId) {\n"
+  with:    "  if (envelope.parentBindingId === undefined) {\n"
+  must fail: yarn vitest run --config vitest.config.ts tests/api/candidate-rules.test.ts -t NMI_REPLY: the envelope names exactly the prompt’s parent
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t NMI_REPLY: the envelope names exactly the prompt’s parent
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t INITIAL: no parent binding may be named
+NC-P4F-21 — [sender not the selected mailbox] the sender is exactly the pinned selection’s intended mailbox: the sender comparison removed
+  file: apps/api/src/modules/candidates/candidate-rules.ts
+  replace: "  if (selection !== null && envelope.from !== selection.intendedFromEmail) {\n"
+  with:    "  if (selection !== null && envelope.from === undefined) {\n"
+  must fail: yarn vitest run --config vitest.config.ts tests/api/candidate-rules.test.ts -t INITIAL: no parent binding may be named
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t the sender is exactly the mailbox the prompt’s selection names
+NC-P4F-22 — [list leaks another case] a case lists only its own candidates: the case condition of the list query removed
+  file: apps/api/src/modules/candidates/candidates.service.ts
+  replace: "      Prisma.sql`SELECT c.id FROM notice_candidates c WHERE c.case_id = ${caseId} ${match}\n"
+  with:    "      Prisma.sql`SELECT c.id FROM notice_candidates c WHERE (c.case_id = ${caseId} OR c.case_id IS NOT NULL) ${match}\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t the list shows this case’s candidates only, newest first, as summaries
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t two cases of one agency, owner and route
+NC-P4F-23 — [candidate changes the case context] a candidate is downstream of a prompt, never case context: the import moves the case context revision
+  file: apps/api/src/modules/candidates/candidates.service.ts
+  replace: "        const { row, envelope, plans } = await this.insert(context, current, prompt, body, null);\n"
+  with:    "        const { row, envelope, plans } = await this.insert(context, current, prompt, body, null);\n        await context.tx.caseRecord.update({ where: { id: caseId }, d..."
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t a candidate write changes no case context
+NC-P4F-24 — [audit stores the full candidate body] the audit keeps the body only as its length: the full body written into the audit event
+  file: apps/api/src/modules/candidates/candidates.service.ts
+  replace: "    bodyText: textLength(row.bodyText),\n"
+  with:    "    bodyText: row.bodyText,\n"
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t the audit events record identifiers, the version, the hashes, HUMAN_PENDING
+NC-P4F-25 — [AI/network call introduced] no outbound call exists in the candidate flow: a fetch to a drafting endpoint added to the import
+  file: apps/api/src/modules/candidates/candidates.service.ts
+  replace: "    const bodySha256 = candidateBodySha256(body.bodyText);\n"
+  with:    "    await fetch('http://127.0.0.1:9/v1/chat/completions', { method: 'POST' }).catch(() => undefined);\n    const bodySha256 = candidateBodySha256(body.bodyText);\n"
+  must fail: yarn vitest run --config vitest.config.ts tests/api/candidate-rules.test.ts -t no module file calls a network, mail, file, process, curl or AI-provider API
+  must fail: node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t import, revise, supersede, list and get open no outbound connection
+NC-P4F-26 — [HTML rendered as executable] imported text is shown as inert plain text: the stored text rendered as HTML
+  file: apps/web/src/app/cases/candidates.tsx
+  replace: "      tabIndex={scrollable ? 0 : undefined}\n    >\n      {text}\n    </pre>\n"
+  with:    "      tabIndex={scrollable ? 0 : undefined}\n      dangerouslySetInnerHTML={{ __html: text }}\n    />\n"
+  must fail: yarn vitest run --config vitest.config.ts tests/api/candidate-rules.test.ts -t the web candidate pages reach only the application API
+  must fail: yarn vitest run --config vitest.config.ts tests/web/p4f.test.tsx -t INITIAL: the chosen prompt’s task, mode, version and digest are shown
+NC-P4F-27 — [UI shows READY/APPROVED] no candidate page claims a ready or approved state: a "Ready for signer" stamp added to the detail header
+  file: apps/web/src/app/cases/candidates.tsx
+  replace: "          {candidate.supersededAt !== null && <SupersededStamp />}\n"
+  with:    "          {candidate.supersededAt !== null && <SupersededStamp />}\n          <span className=\"stamp stamp-active\">Ready for signer — approved</span>\n"
+  must fail: yarn vitest run --config vitest.config.ts tests/web/p4f.test.tsx -t INITIAL: the chosen prompt’s task, mode, version and digest are shown
+  must fail: yarn vitest run --config vitest.config.ts tests/web/p4f.test.tsx -t no candidate page offers a validate, approve, ready, sign, send or export action
+NC-P4F-28 — [supersede worded as a notice retraction] the supersession is worded "Supersede this draft artifact", never as a retraction: the action renamed "Retract notice"
+  file: apps/web/src/app/cases/candidates.tsx
+  replace: "export const SUPERSEDE_TITLE = 'Supersede this draft artifact';\n"
+  with:    "export const SUPERSEDE_TITLE = 'Retract notice';\n"
+  must fail: yarn vitest run --config vitest.config.ts tests/web/p4f.test.tsx -t supersession: "Supersede this draft artifact" with its exact meaning
+NC-P4F-29 — [another case’s candidate shown] a candidate is shown only under its own case: the case check of the detail page removed
+  file: apps/web/src/app/cases/candidates.tsx
+  replace: "  const candidate = state.status === 'ready' && state.value.caseId === caseId ? state.value : null;\n"
+  with:    "  const candidate = state.status === 'ready' ? state.value : null;\n"
+  must fail: yarn vitest run --config vitest.config.ts tests/web/p4f.test.tsx -t the history lists this case’s summaries only, newest first, with pages
+
+Final run output (runner stdout, verbatim; then the database check)
+---------------------------------------------------------------------
+# P4F negative controls — start 2026-09-26T04:37:54.684Z — head dcc42890d0eb8a3dc883e1666b23926713c457eb — tree fingerprint 1d6c4dd114e559b6fb1cec3f0523c85a05841449eb65773d60f3d006268461ff
+[NC-P4F-01] CAUGHT · restored byte-identical · [cross-case PromptSnapshot accepted] a prompt snapshot of another case is refused (422 CROSS_CASE_REFERENCE): the case check of the named prompt removed
+    exit 1 · Tests  1 failed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t the prompt is this case’s: an unknown prompt is 422 REFERENCE_NOT_FOUND
+      × the prompt is this case’s: an unknown prompt is 422 REFERENCE_NOT_FOUND, another case’s is 422 CROSS_CASE_REFERENCE; an archived case is read-only (409); nothing is written
+      FAIL  tests/db/p4f-http.test.ts > IMPORT — the exact draft artifact, bound to its exact prompt snapshot > the prompt is this case’s: an unknown prompt is 422 REFERENCE_NOT_FOUND, another case’s is 422 CROSS_CASE_REFERENCE; an archived case is read-only (409); nothing is written
+        ↳ AssertionError: expected [ 500, 'INTERNAL_ERROR' ] to deeply equal [ 422, 'CROSS_CASE_REFERENCE' ]
+    exit 1 · Tests  1 failed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t two cases of one agency, owner and route
+      × two cases of one agency, owner and route: a prompt, a revision or a scoped source of the other case is refused; the same draft in both is two case-specific candidates with one artifact hash; each list shows its own; superseding in A changes nothing in B; no correspondence, AS_SENT, assessment or readiness record appears
+      FAIL  tests/db/p4f-http.test.ts > CONTAMINATION — nothing of one case is used by or appears in another case’s candidates > two cases of one agency, owner and route: a prompt, a revision or a scoped source of the other case is refused; the same draft in both is two case-specific candidates with one artifact hash; each list shows its own; superseding in A changes nothing in B; no correspondence, AS_SENT, assessment or readiness record appears
+        ↳ AssertionError: expected [ 500, 'INTERNAL_ERROR' ] to deeply equal [ 422, 'CROSS_CASE_REFERENCE' ]
+[NC-P4F-02] CAUGHT · restored byte-identical · [task mismatch accepted] a revision keeps the task of its chain (422 REVISION_SCOPE_CHANGE): the task check removed
+    exit 1 · Tests  1 failed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t a revision may use another prompt snapshot of the same case and task
+      × a revision may use another prompt snapshot of the same case and task and is bound to it; another task is 422 REVISION_SCOPE_CHANGE, another case’s prompt 422 CROSS_CASE_REFERENCE; nothing is written
+      FAIL  tests/db/p4f-http.test.ts > REVISION — a new candidate; the revised one never changes > a revision may use another prompt snapshot of the same case and task and is bound to it; another task is 422 REVISION_SCOPE_CHANGE, another case’s prompt 422 CROSS_CASE_REFERENCE; nothing is written
+        ↳ AssertionError: expected [ 201, '(no error: HTTP 201)' ] to deeply equal [ 422, 'REVISION_SCOPE_CHANGE' ]
+[NC-P4F-03] CAUGHT · restored byte-identical · [body normalization] the body is stored exactly as supplied: the stored body normalized to NFC with LF line breaks
+    exit 1 · Tests  1 failed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t INITIAL: subject, body
+      × INITIAL: subject, body (CRLF, trailing space, tab, NFD, HTML, instruction-like text, the pending slot), envelope, ordered plans, authoring tool and reason are stored exactly; HUMAN_PENDING; version 1, no parent; bodySha256 is the SHA-256 of the exact UTF-8 bytes (MySQL agrees); artifactSha256 is the frozen helper’s hash of the artifact
+      FAIL  tests/db/p4f-http.test.ts > IMPORT — the exact draft artifact, bound to its exact prompt snapshot > INITIAL: subject, body (CRLF, trailing space, tab, NFD, HTML, instruction-like text, the pending slot), envelope, ordered plans, authoring tool and reason are stored exactly; HUMAN_PENDING; version 1, no parent; bodySha256 is the SHA-256 of the exact UTF-8 bytes (MySQL agrees); artifactSha256 is the frozen helper’s hash of the artifact
+        ↳ AssertionError: expected 'SYNTHETIC notice draft\nLine with a t…' to be 'SYNTHETIC notice draft\r\nLine with a…' // Object.is equality
+[NC-P4F-04] CAUGHT · restored byte-identical · [NUL accepted contrary to the exact-text rule] a NUL anywhere in a candidate text is refused before the claim (422 VALIDATION_FAILED): the NUL issue removed
+    exit 1 · Tests  1 failed | 22 skipped (23) · yarn vitest run --config vitest.config.ts tests/api/candidate-rules.test.ts -t names every field holding a NUL
+      × names every field holding a NUL (422 VALIDATION_FAILED); any other character is stored as supplied
+      FAIL  tests/api/candidate-rules.test.ts > candidateTextProblem — NUL anywhere is refused before a claim > names every field holding a NUL (422 VALIDATION_FAILED); any other character is stored as supplied
+        ↳ AssertionError: expected null to be an instance of ApiError
+    exit 1 · Tests  1 failed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t the body is exactly the contract
+      × the body is exactly the contract — no signature, hash, task, version, parent or readiness field; the bounds; plan states without ACTUALLY_ATTACHED — and a NUL anywhere or an unpaired surrogate is refused: all before anything is claimed or written
+      FAIL  tests/db/p4f-http.test.ts > OPERATIONS AND REQUEST RULES — exactly the five contracted operations > the body is exactly the contract — no signature, hash, task, version, parent or readiness field; the bounds; plan states without ACTUALLY_ATTACHED — and a NUL anywhere or an unpaired surrogate is refused: all before anything is claimed or written
+        ↳ AssertionError: subject: expected [ 500, 'INTERNAL_ERROR' ] to deeply equal [ 422, 'VALIDATION_FAILED' ]
+[NC-P4F-05] CAUGHT · restored byte-identical · [wrong body SHA] bodySha256 is the SHA-256 of the exact UTF-8 bytes: computed over the body with CRLF folded to LF
+    exit 1 · Tests  1 failed | 22 skipped (23) · yarn vitest run --config vitest.config.ts tests/api/candidate-rules.test.ts -t ASCII, CRLF against LF, one trailing space, composed against decomposed letters
+      × ASCII, CRLF against LF, one trailing space, composed against decomposed letters: every changed character is another body and another artifact
+      FAIL  tests/api/candidate-rules.test.ts > artifactSha256 and bodySha256 — the independent oracle > ASCII, CRLF against LF, one trailing space, composed against decomposed letters: every changed character is another body and another artifact
+        ↳ AssertionError: expected 5 to be 6 // Object.is equality
+    exit 1 · Tests  1 failed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t INITIAL: subject, body
+      × INITIAL: subject, body (CRLF, trailing space, tab, NFD, HTML, instruction-like text, the pending slot), envelope, ordered plans, authoring tool and reason are stored exactly; HUMAN_PENDING; version 1, no parent; bodySha256 is the SHA-256 of the exact UTF-8 bytes (MySQL agrees); artifactSha256 is the frozen helper’s hash of the artifact
+      FAIL  tests/db/p4f-http.test.ts > IMPORT — the exact draft artifact, bound to its exact prompt snapshot > INITIAL: subject, body (CRLF, trailing space, tab, NFD, HTML, instruction-like text, the pending slot), envelope, ordered plans, authoring tool and reason are stored exactly; HUMAN_PENDING; version 1, no parent; bodySha256 is the SHA-256 of the exact UTF-8 bytes (MySQL agrees); artifactSha256 is the frozen helper’s hash of the artifact
+        ↳ AssertionError: expected 'ae94e8edacddbb574793bb39f483746da3cb9…' to be 'aa0692b5cf1ad1d3616c3e6ac4217520410b8…' // Object.is equality
+[NC-P4F-06] CAUGHT · restored byte-identical · [wrong artifact SHA definition] artifactSha256 binds the envelope: the envelope left out of the hashed object
+    exit 1 · Tests  1 failed | 22 skipped (23) · yarn vitest run --config vitest.config.ts tests/api/candidate-rules.test.ts -t the artifact hash of a fixed candidate is the SHA-256 of its hand-written canonical JSON text, pinned
+      × the artifact hash of a fixed candidate is the SHA-256 of its hand-written canonical JSON text, pinned; the body hash is the SHA-256 of the exact UTF-8 bytes, pinned
+      FAIL  tests/api/candidate-rules.test.ts > artifactSha256 and bodySha256 — the independent oracle > the artifact hash of a fixed candidate is the SHA-256 of its hand-written canonical JSON text, pinned; the body hash is the SHA-256 of the exact UTF-8 bytes, pinned
+        ↳ AssertionError: expected '87799016c82d106e4f9c5831c58b79edea852…' to be 'b988e1597f28b84e2a4d022164475919af61e…' // Object.is equality
+    exit 1 · Tests  1 failed | 22 skipped (23) · yarn vitest run --config vitest.config.ts tests/api/candidate-rules.test.ts -t is the frozen reference helper’s canonical JSON and SHA-256 of exactly the artifact object
+      × is the frozen reference helper’s canonical JSON and SHA-256 of exactly the artifact object; the body hash is its exact-text SHA-256
+      FAIL  tests/api/candidate-rules.test.ts > artifactSha256 and bodySha256 — the independent oracle > is the frozen reference helper’s canonical JSON and SHA-256 of exactly the artifact object; the body hash is its exact-text SHA-256
+        ↳ AssertionError: expected '{"algorithm":"TB-CANDIDATE-ARTIFACT-v…' to be '{"algorithm":"TB-CANDIDATE-ARTIFACT-v…' // Object.is equality
+    exit 1 · Tests  1 failed | 22 skipped (23) · yarn vitest run --config vitest.config.ts tests/api/candidate-rules.test.ts -t the subject, the recipient and the document plan change the artifact without a body change
+      × the subject, the recipient and the document plan change the artifact without a body change (AC-045); the order of the plans is part of it
+      FAIL  tests/api/candidate-rules.test.ts > artifactSha256 and bodySha256 — the independent oracle > the subject, the recipient and the document plan change the artifact without a body change (AC-045); the order of the plans is part of it
+        ↳ AssertionError: expected '87799016c82d106e4f9c5831c58b79edea852…' not to be '87799016c82d106e4f9c5831c58b79edea852…' // Object.is equality
+    exit 1 · Tests  1 failed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t INITIAL: subject, body
+      × INITIAL: subject, body (CRLF, trailing space, tab, NFD, HTML, instruction-like text, the pending slot), envelope, ordered plans, authoring tool and reason are stored exactly; HUMAN_PENDING; version 1, no parent; bodySha256 is the SHA-256 of the exact UTF-8 bytes (MySQL agrees); artifactSha256 is the frozen helper’s hash of the artifact
+      FAIL  tests/db/p4f-http.test.ts > IMPORT — the exact draft artifact, bound to its exact prompt snapshot > INITIAL: subject, body (CRLF, trailing space, tab, NFD, HTML, instruction-like text, the pending slot), envelope, ordered plans, authoring tool and reason are stored exactly; HUMAN_PENDING; version 1, no parent; bodySha256 is the SHA-256 of the exact UTF-8 bytes (MySQL agrees); artifactSha256 is the frozen helper’s hash of the artifact
+        ↳ AssertionError: expected 'dfacff8249c9c699853756f44450254f8315e…' to be '6e23c262e5b1e6cf56f3110c1273f5248ede1…' // Object.is equality
+[NC-P4F-07] CAUGHT · restored byte-identical · [prepared-document order ignored] the order of the document plans is part of the artifact: the plans sorted by source id before hashing
+    exit 1 · Tests  1 failed | 22 skipped (23) · yarn vitest run --config vitest.config.ts tests/api/candidate-rules.test.ts -t the subject, the recipient and the document plan change the artifact without a body change
+      × the subject, the recipient and the document plan change the artifact without a body change (AC-045); the order of the plans is part of it
+      FAIL  tests/api/candidate-rules.test.ts > artifactSha256 and bodySha256 — the independent oracle > the subject, the recipient and the document plan change the artifact without a body change (AC-045); the order of the plans is part of it
+        ↳ AssertionError: expected 'b988e1597f28b84e2a4d022164475919af61e…' not to be 'b988e1597f28b84e2a4d022164475919af61e…' // Object.is equality
+    exit 1 · Tests  1 failed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t PREPARED_FOR_ATTACHMENT, REFERENCE_ONLY and UNKNOWN are stored as a plan in the given order
+      × PREPARED_FOR_ATTACHMENT, REFERENCE_ONLY and UNKNOWN are stored as a plan in the given order — the order is part of the artifact; storing a plan creates no correspondence, binding, attachment or AS_SENT record
+      FAIL  tests/db/p4f-http.test.ts > DOCUMENT PLAN — a plan of exact source revisions; nothing attached, sent or verified > PREPARED_FOR_ATTACHMENT, REFERENCE_ONLY and UNKNOWN are stored as a plan in the given order — the order is part of the artifact; storing a plan creates no correspondence, binding, attachment or AS_SENT record
+        ↳ AssertionError: expected 'cfd3d7fe7fa2845fa5e0ba1b201ebdc814a85…' not to be 'cfd3d7fe7fa2845fa5e0ba1b201ebdc814a85…' // Object.is equality
+[NC-P4F-08] CAUGHT · restored byte-identical · [HUMAN_PENDING replaced by a signed state] the stored signature state is the HUMAN_PENDING constant: the service writes SIGNED
+    exit 1 · Tests  1 failed | 22 skipped (23) · yarn vitest run --config vitest.config.ts tests/api/candidate-rules.test.ts -t nothing writes a signed, adopted, approved, G7 or ready state
+      × nothing writes a signed, adopted, approved, G7 or ready state; the signature state written is the HUMAN_PENDING constant
+      FAIL  tests/api/candidate-rules.test.ts > no AI provider, network, clock or process in the candidates module; the page shows text inert > nothing writes a signed, adopted, approved, G7 or ready state; the signature state written is the HUMAN_PENDING constant
+        ↳ AssertionError: candidates.service.ts: expected '// NoticeCandidate (P4F) — importCand…' not to match /'(SIGNED|ADOPTED|APPROVED|G7_COMPLETE…/
+    exit 1 · Tests  1 failed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t INITIAL: subject, body
+      × INITIAL: subject, body (CRLF, trailing space, tab, NFD, HTML, instruction-like text, the pending slot), envelope, ordered plans, authoring tool and reason are stored exactly; HUMAN_PENDING; version 1, no parent; bodySha256 is the SHA-256 of the exact UTF-8 bytes (MySQL agrees); artifactSha256 is the frozen helper’s hash of the artifact
+      FAIL  tests/db/p4f-http.test.ts > IMPORT — the exact draft artifact, bound to its exact prompt snapshot > INITIAL: subject, body (CRLF, trailing space, tab, NFD, HTML, instruction-like text, the pending slot), envelope, ordered plans, authoring tool and reason are stored exactly; HUMAN_PENDING; version 1, no parent; bodySha256 is the SHA-256 of the exact UTF-8 bytes (MySQL agrees); artifactSha256 is the frozen helper’s hash of the artifact
+        ↳ AssertionError: {"error":{"code":"INTERNAL_ERROR","message":"The server could not complete the request.","details":{},"requestId":"4d11bc9e-a601-400d-908e-7cdce213cdff"}}: expected 500 to be 201 // Object.is equality
+[NC-P4F-09] CAUGHT · restored byte-identical · [actual signer inserted automatically] the pending signer slot is stored as drafted: the pinned signer’s legal name written into the body in its place
+    exit 1 · Tests  1 failed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t INITIAL: subject, body
+      × INITIAL: subject, body (CRLF, trailing space, tab, NFD, HTML, instruction-like text, the pending slot), envelope, ordered plans, authoring tool and reason are stored exactly; HUMAN_PENDING; version 1, no parent; bodySha256 is the SHA-256 of the exact UTF-8 bytes (MySQL agrees); artifactSha256 is the frozen helper’s hash of the artifact
+      FAIL  tests/db/p4f-http.test.ts > IMPORT — the exact draft artifact, bound to its exact prompt snapshot > INITIAL: subject, body (CRLF, trailing space, tab, NFD, HTML, instruction-like text, the pending slot), envelope, ordered plans, authoring tool and reason are stored exactly; HUMAN_PENDING; version 1, no parent; bodySha256 is the SHA-256 of the exact UTF-8 bytes (MySQL agrees); artifactSha256 is the frozen helper’s hash of the artifact
+        ↳ AssertionError: expected 'SYNTHETIC notice draft\r\nLine with a…' to be 'SYNTHETIC notice draft\r\nLine with a…' // Object.is equality
+[NC-P4F-10] CAUGHT · restored byte-identical · [revision edits the parent in place] a revision never touches the revised candidate: its subject overwritten by the revision
+    exit 1 · Tests  1 failed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t a revision is a new candidate of the same case and task
+      × a revision is a new candidate of the same case and task: new id, parentCandidateId, the next version, its own hashes and reason; the revised candidate’s stored row is byte-identical, so what names its id and artifact (a later validation run) stays with it
+      FAIL  tests/db/p4f-http.test.ts > REVISION — a new candidate; the revised one never changes > a revision is a new candidate of the same case and task: new id, parentCandidateId, the next version, its own hashes and reason; the revised candidate’s stored row is byte-identical, so what names its id and artifact (a later validation run) stays with it
+        ↳ AssertionError: expected { …(19) } to deeply equal { …(19) }
+[NC-P4F-11] CAUGHT · restored byte-identical · [revision fork accepted] only the latest version of a chain is revised (409 REVISION_NOT_HEAD): the successor check removed
+    exit 1 · Tests  1 failed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t only the latest version of a chain is revised
+      × only the latest version of a chain is revised: revising one that already has a revision is 409 REVISION_NOT_HEAD naming the latest (also two levels down); nothing is written
+      FAIL  tests/db/p4f-http.test.ts > REVISION — a new candidate; the revised one never changes > only the latest version of a chain is revised: revising one that already has a revision is 409 REVISION_NOT_HEAD naming the latest (also two levels down); nothing is written
+        ↳ AssertionError: expected [ 201, '(no error: HTTP 201)' ] to deeply equal [ 409, 'REVISION_NOT_HEAD' ]
+    exit 1 · Tests  1 failed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t two concurrent revisions of one candidate cannot both succeed
+      × two concurrent revisions of one candidate cannot both succeed: the second waits for the case lock and is 409 REVISION_NOT_HEAD naming the first revision; the chain does not fork
+      FAIL  tests/db/p4f-http.test.ts > VERSIONS, IDEMPOTENCY AND TRANSACTIONS > two concurrent revisions of one candidate cannot both succeed: the second waits for the case lock and is 409 REVISION_NOT_HEAD naming the first revision; the chain does not fork
+        ↳ AssertionError: expected [ 201, '(no error: HTTP 201)' ] to deeply equal [ 409, 'REVISION_NOT_HEAD' ]
+[NC-P4F-12] CAUGHT · restored byte-identical · [version race] versions are allocated under the case lock: the import reads the case without locking it
+    exit 1 · Tests  1 failed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t two concurrent imports for one case and task never share a version
+      × two concurrent imports for one case and task never share a version: the second waits for the case lock and allocates the next one
+      FAIL  tests/db/p4f-http.test.ts > VERSIONS, IDEMPOTENCY AND TRANSACTIONS > two concurrent imports for one case and task never share a version: the second waits for the case lock and allocates the next one
+        ↳ AssertionError: expected 2 to be 1 // Object.is equality
+[NC-P4F-13] CAUGHT · restored byte-identical · [idempotent replay duplicates the candidate] a retry with the same Idempotency-Key replays the stored candidate: the controller hands the service a fresh key each time
+    exit 1 · Tests  1 failed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t idempotent: the same key and body replay the stored candidate
+      × idempotent: the same key and body replay the stored candidate (same id, no new row or audit event), even after the case changed; the same key with another body is 409; the idempotency record keeps no copy of the draft
+      FAIL  tests/db/p4f-http.test.ts > VERSIONS, IDEMPOTENCY AND TRANSACTIONS > idempotent: the same key and body replay the stored candidate (same id, no new row or audit event), even after the case changed; the same key with another body is 409; the idempotency record keeps no copy of the draft
+        ↳ AssertionError: expected { …(19) } to deeply equal { …(19) }
+[NC-P4F-14] CAUGHT · restored byte-identical · [supersede deletes the body] a supersession changes nothing but its time and reason: it empties the body
+    exit 1 · Tests  1 failed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t records supersededAt and the reason exactly — nothing else changes
+      × records supersededAt and the reason exactly — nothing else changes: content, hashes, lineage, the prompt and every correspondence record stay as they are; the audit event says internal supersession, not a retraction
+      FAIL  tests/db/p4f-http.test.ts > SUPERSEDE — internal artifact lifecycle only; never a retraction > records supersededAt and the reason exactly — nothing else changes: content, hashes, lineage, the prompt and every correspondence record stay as they are; the audit event says internal supersession, not a retraction
+        ↳ AssertionError: expected { …(19) } to deeply equal { …(19) }
+[NC-P4F-15] CAUGHT · restored byte-identical · [supersede treated as a platform retraction] a supersession is an internal draft-artifact lifecycle step, never a retraction: its audit records a platform retraction
+    exit 1 · Tests  1 failed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t records supersededAt and the reason exactly — nothing else changes
+      × records supersededAt and the reason exactly — nothing else changes: content, hashes, lineage, the prompt and every correspondence record stay as they are; the audit event says internal supersession, not a retraction
+      FAIL  tests/db/p4f-http.test.ts > SUPERSEDE — internal artifact lifecycle only; never a retraction > records supersededAt and the reason exactly — nothing else changes: content, hashes, lineage, the prompt and every correspondence record stay as they are; the audit event says internal supersession, not a retraction
+        ↳ AssertionError: expected { …(9) } to match object { …(5) }
+[NC-P4F-16] CAUGHT · restored byte-identical · [second supersession accepted] a supersession is recorded once (409 CANDIDATE_ALREADY_SUPERSEDED): the check removed and the update made unconditional
+    exit 1 · Tests  1 failed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t a second supersession is 409 CANDIDATE_ALREADY_SUPERSEDED
+      × a second supersession is 409 CANDIDATE_ALREADY_SUPERSEDED and changes nothing; the same key replays the original result; the same key with another reason is 409 IDEMPOTENCY_CONFLICT
+      FAIL  tests/db/p4f-http.test.ts > SUPERSEDE — internal artifact lifecycle only; never a retraction > a second supersession is 409 CANDIDATE_ALREADY_SUPERSEDED and changes nothing; the same key replays the original result; the same key with another reason is 409 IDEMPOTENCY_CONFLICT
+        ↳ AssertionError: expected [ 200, '(no error: HTTP 200)' ] to deeply equal [ 409, 'CANDIDATE_ALREADY_SUPERSEDED' ]
+[NC-P4F-17] CAUGHT · restored byte-identical · [cross-case prepared source] a planned document names a source revision that applies to this case: the source-scope check removed
+    exit 1 · Tests  1 failed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t each plan names a source revision that applies to this case
+      × each plan names a source revision that applies to this case: unknown 422 REFERENCE_NOT_FOUND, another case’s 422 CROSS_CASE_REFERENCE, another agency’s 422 CROSS_AGENCY_REFERENCE — naming the plan
+      FAIL  tests/db/p4f-http.test.ts > DOCUMENT PLAN — a plan of exact source revisions; nothing attached, sent or verified > each plan names a source revision that applies to this case: unknown 422 REFERENCE_NOT_FOUND, another case’s 422 CROSS_CASE_REFERENCE, another agency’s 422 CROSS_AGENCY_REFERENCE — naming the plan
+        ↳ AssertionError: REFERENCE_NOT_FOUND: expected [ 201, '(no error: HTTP 201)' ] to deeply equal [ 422, 'REFERENCE_NOT_FOUND' ]
+    exit 1 · Tests  1 failed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t two cases of one agency, owner and route
+      × two cases of one agency, owner and route: a prompt, a revision or a scoped source of the other case is refused; the same draft in both is two case-specific candidates with one artifact hash; each list shows its own; superseding in A changes nothing in B; no correspondence, AS_SENT, assessment or readiness record appears
+      FAIL  tests/db/p4f-http.test.ts > CONTAMINATION — nothing of one case is used by or appears in another case’s candidates > two cases of one agency, owner and route: a prompt, a revision or a scoped source of the other case is refused; the same draft in both is two case-specific candidates with one artifact hash; each list shows its own; superseding in A changes nothing in B; no correspondence, AS_SENT, assessment or readiness record appears
+        ↳ AssertionError: expected [ 201, '(no error: HTTP 201)' ] to deeply equal [ 422, 'CROSS_CASE_REFERENCE' ]
+[NC-P4F-18] CAUGHT · restored byte-identical · [PREVIOUSLY_SUPPLIED fabricated] PREVIOUSLY_SUPPLIED needs a prior transmission recording the source: every captured message’s attachments counted (the parent NMI’s too)
+    exit 1 · Tests  1 failed | 22 skipped (23) · yarn vitest run --config vitest.config.ts tests/api/candidate-rules.test.ts -t previously supplied sources are exactly the sources named by the captured attachments
+      × previously supplied sources are exactly the sources named by the captured attachments of the prior transmissions — not the parent NMI’s, not an attachment without a source
+      FAIL  tests/api/candidate-rules.test.ts > documentPlanProblem — hashes as recorded, PREVIOUSLY_SUPPLIED only as captured on a prior transmission > previously supplied sources are exactly the sources named by the captured attachments of the prior transmissions — not the parent NMI’s, not an attachment without a source
+        ↳ AssertionError: expected [ …(2) ] to deeply equal [ Array(1) ]
+    exit 1 · Tests  1 failed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t PREVIOUSLY_SUPPLIED only for a source the captured attachments of a prior transmission
+      × PREVIOUSLY_SUPPLIED only for a source the captured attachments of a prior transmission in the prompt’s context name — not for INITIAL, not the parent NMI’s attachment, not a source merely existing, not an AS_SENT binding by itself
+      FAIL  tests/db/p4f-http.test.ts > DOCUMENT PLAN — a plan of exact source revisions; nothing attached, sent or verified > PREVIOUSLY_SUPPLIED only for a source the captured attachments of a prior transmission in the prompt’s context name — not for INITIAL, not the parent NMI’s attachment, not a source merely existing, not an AS_SENT binding by itself
+        ↳ AssertionError: expected [ 201, '(no error: HTTP 201)' ] to deeply equal [ 422, 'DOCUMENT_PLAN_UNSUPPORTED' ]
+[NC-P4F-19] CAUGHT · restored byte-identical · [unrecorded content hash accepted] a planned document names only the SHA-256 recorded on its source revision: the hash check removed
+    exit 1 · Tests  1 failed | 22 skipped (23) · yarn vitest run --config vitest.config.ts tests/api/candidate-rules.test.ts -t a content SHA-256 is exactly the one recorded on the source revision
+      × a content SHA-256 is exactly the one recorded on the source revision; none recorded means none may be named
+      FAIL  tests/api/candidate-rules.test.ts > documentPlanProblem — hashes as recorded, PREVIOUSLY_SUPPLIED only as captured on a prior transmission > a content SHA-256 is exactly the one recorded on the source revision; none recorded means none may be named
+        ↳ AssertionError: expected null to deeply equal [ 422, …(2) ]
+    exit 1 · Tests  1 failed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t a content SHA-256 is the one recorded on the source revision
+      × a content SHA-256 is the one recorded on the source revision (its hash target says what it covers): another hash, or a hash on a source that records none, is 422 DOCUMENT_PLAN_UNSUPPORTED (HASH_NOT_RECORDED)
+      FAIL  tests/db/p4f-http.test.ts > DOCUMENT PLAN — a plan of exact source revisions; nothing attached, sent or verified > a content SHA-256 is the one recorded on the source revision (its hash target says what it covers): another hash, or a hash on a source that records none, is 422 DOCUMENT_PLAN_UNSUPPORTED (HASH_NOT_RECORDED)
+        ↳ AssertionError: expected [ 201, '(no error: HTTP 201)' ] to deeply equal [ 422, 'DOCUMENT_PLAN_UNSUPPORTED' ]
+[NC-P4F-20] CAUGHT · restored byte-identical · [reply thread not enforced] the envelope names exactly the prompt’s parent binding: the parent comparison removed
+    exit 1 · Tests  1 failed | 22 skipped (23) · yarn vitest run --config vitest.config.ts tests/api/candidate-rules.test.ts -t NMI_REPLY: the envelope names exactly the prompt’s parent
+      × NMI_REPLY: the envelope names exactly the prompt’s parent — missing is REPLY_PARENT_REQUIRED, another is ENVELOPE_PARENT_MISMATCH
+      FAIL  tests/api/candidate-rules.test.ts > envelopeProblem — the envelope against the exact prompt snapshot > NMI_REPLY: the envelope names exactly the prompt’s parent — missing is REPLY_PARENT_REQUIRED, another is ENVELOPE_PARENT_MISMATCH
+        ↳ AssertionError: expected null to deeply equal [ 422, 'REPLY_PARENT_REQUIRED', …(1) ]
+    exit 1 · Tests  1 failed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t NMI_REPLY: the envelope names exactly the prompt’s parent
+      × NMI_REPLY: the envelope names exactly the prompt’s parent — missing is 422 REPLY_PARENT_REQUIRED, another NMI of the case is 422 ENVELOPE_PARENT_MISMATCH; the captured Reply-To is never replaced — the recipient is stored as entered
+      FAIL  tests/db/p4f-http.test.ts > ENVELOPE — the thread and the sender of the exact prompt; nothing is sent or resolved > NMI_REPLY: the envelope names exactly the prompt’s parent — missing is 422 REPLY_PARENT_REQUIRED, another NMI of the case is 422 ENVELOPE_PARENT_MISMATCH; the captured Reply-To is never replaced — the recipient is stored as entered
+        ↳ AssertionError: expected [ 201, '(no error: HTTP 201)' ] to deeply equal [ 422, 'REPLY_PARENT_REQUIRED' ]
+    exit 1 · Tests  1 failed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t INITIAL: no parent binding may be named
+      × INITIAL: no parent binding may be named — none is invented (422 ENVELOPE_PARENT_MISMATCH)
+      FAIL  tests/db/p4f-http.test.ts > ENVELOPE — the thread and the sender of the exact prompt; nothing is sent or resolved > INITIAL: no parent binding may be named — none is invented (422 ENVELOPE_PARENT_MISMATCH)
+        ↳ AssertionError: expected [ 201, '(no error: HTTP 201)' ] to deeply equal [ 422, 'ENVELOPE_PARENT_MISMATCH' ]
+[NC-P4F-21] CAUGHT · restored byte-identical · [sender not the selected mailbox] the sender is exactly the pinned selection’s intended mailbox: the sender comparison removed
+    exit 1 · Tests  1 failed | 22 skipped (23) · yarn vitest run --config vitest.config.ts tests/api/candidate-rules.test.ts -t INITIAL: no parent binding may be named
+      × INITIAL: no parent binding may be named (none is invented); the sender is exactly the selected mailbox
+      FAIL  tests/api/candidate-rules.test.ts > envelopeProblem — the envelope against the exact prompt snapshot > INITIAL: no parent binding may be named (none is invented); the sender is exactly the selected mailbox
+        ↳ AssertionError: SYNTHETIC-SENDER@example.invalid: expected null to deeply equal [ 422, …(2) ]
+    exit 1 · Tests  1 failed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t the sender is exactly the mailbox the prompt’s selection names
+      × the sender is exactly the mailbox the prompt’s selection names: the route’s default signer, another mailbox or another spelling is 422 ENVELOPE_SENDER_MISMATCH
+      FAIL  tests/db/p4f-http.test.ts > ENVELOPE — the thread and the sender of the exact prompt; nothing is sent or resolved > the sender is exactly the mailbox the prompt’s selection names: the route’s default signer, another mailbox or another spelling is 422 ENVELOPE_SENDER_MISMATCH
+        ↳ AssertionError: route-default-signer@example.invalid: expected [ 201, '(no error: HTTP 201)' ] to deeply equal [ 422, 'ENVELOPE_SENDER_MISMATCH' ]
+[NC-P4F-22] CAUGHT · restored byte-identical · [list leaks another case] a case lists only its own candidates: the case condition of the list query removed
+    exit 1 · Tests  1 failed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t the list shows this case’s candidates only, newest first, as summaries
+      × the list shows this case’s candidates only, newest first, as summaries (no body, envelope or plan), superseded ones included; pages with a cursor; q matches exactly an id, a prompt id, a body or an artifact SHA-256 and never searches the text
+      FAIL  tests/db/p4f-http.test.ts > LIST AND GET > the list shows this case’s candidates only, newest first, as summaries (no body, envelope or plan), superseded ones included; pages with a cursor; q matches exactly an id, a prompt id, a body or an artifact SHA-256 and never searches the text
+        ↳ AssertionError: expected [ …(3) ] to deeply equal [ …(2) ]
+    exit 1 · Tests  1 failed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t two cases of one agency, owner and route
+      × two cases of one agency, owner and route: a prompt, a revision or a scoped source of the other case is refused; the same draft in both is two case-specific candidates with one artifact hash; each list shows its own; superseding in A changes nothing in B; no correspondence, AS_SENT, assessment or readiness record appears
+      FAIL  tests/db/p4f-http.test.ts > CONTAMINATION — nothing of one case is used by or appears in another case’s candidates > two cases of one agency, owner and route: a prompt, a revision or a scoped source of the other case is refused; the same draft in both is two case-specific candidates with one artifact hash; each list shows its own; superseding in A changes nothing in B; no correspondence, AS_SENT, assessment or readiness record appears
+        ↳ AssertionError: expected [ …(2) ] to deeply equal [ Array(1) ]
+[NC-P4F-23] CAUGHT · restored byte-identical · [candidate changes the case context] a candidate is downstream of a prompt, never case context: the import moves the case context revision
+    exit 1 · Tests  1 failed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t a candidate write changes no case context
+      × a candidate write changes no case context: the case row and the production context digest stay as they were; each write adds exactly its rows; a candidate makes the case history-bearing (NOTICE_CANDIDATE) and it cannot be deleted
+      FAIL  tests/db/p4f-http.test.ts > CASE CONTEXT, HISTORY AND AUDIT > a candidate write changes no case context: the case row and the production context digest stay as they were; each write adds exactly its rows; a candidate makes the case history-bearing (NOTICE_CANDIDATE) and it cannot be deleted
+        ↳ AssertionError: expected { …(24) } to deeply equal { …(24) }
+[NC-P4F-24] CAUGHT · restored byte-identical · [audit stores the full candidate body] the audit keeps the body only as its length: the full body written into the audit event
+    exit 1 · Tests  1 failed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t the audit events record identifiers, the version, the hashes, HUMAN_PENDING
+      × the audit events record identifiers, the version, the hashes, HUMAN_PENDING, plan counts and lengths — never the subject, the body, an address or a plan’s text
+      FAIL  tests/db/p4f-http.test.ts > CASE CONTEXT, HISTORY AND AUDIT > the audit events record identifiers, the version, the hashes, HUMAN_PENDING, plan counts and lengths — never the subject, the body, an address or a plan’s text
+        ↳ AssertionError: expected { …(14) } to match object { …(12) }
+[NC-P4F-25] CAUGHT · restored byte-identical · [AI/network call introduced] no outbound call exists in the candidate flow: a fetch to a drafting endpoint added to the import
+    exit 1 · Tests  1 failed | 22 skipped (23) · yarn vitest run --config vitest.config.ts tests/api/candidate-rules.test.ts -t no module file calls a network, mail, file, process, curl or AI-provider API
+      × no module file calls a network, mail, file, process, curl or AI-provider API, and no drafting call exists
+      FAIL  tests/api/candidate-rules.test.ts > no AI provider, network, clock or process in the candidates module; the page shows text inert > no module file calls a network, mail, file, process, curl or AI-provider API, and no drafting call exists
+        ↳ AssertionError: candidates.service.ts: expected '// NoticeCandidate (P4F) — importCand…' not to match /…/gen|generativelanguage|bedrock|vertex|mistral|cohere|ollama|langchain|process\.(env|exec|spawn)|\bexecSync\b|\bspaw
+    exit 1 · Tests  1 failed | 38 skipped (39) · node scripts/db/run-db-tests.mjs tests/db/p4f-http.test.ts -t import, revise, supersede, list and get open no outbound connection
+      × import, revise, supersede, list and get open no outbound connection and call no fetch — no AI provider, network or mail call exists
+      FAIL  tests/db/p4f-http.test.ts > UNTRUSTED CONTENT, NO OUTBOUND CALL, LATER PHASES > import, revise, supersede, list and get open no outbound connection and call no fetch — no AI provider, network or mail call exists
+        ↳ AssertionError: expected 2 to be +0 // Object.is equality
+[NC-P4F-26] CAUGHT · restored byte-identical · [HTML rendered as executable] imported text is shown as inert plain text: the stored text rendered as HTML
+    exit 1 · Tests  1 failed | 22 skipped (23) · yarn vitest run --config vitest.config.ts tests/api/candidate-rules.test.ts -t the web candidate pages reach only the application API
+      × the web candidate pages reach only the application API and never render stored text as HTML
+      FAIL  tests/api/candidate-rules.test.ts > no AI provider, network, clock or process in the candidates module; the page shows text inert > the web candidate pages reach only the application API and never render stored text as HTML
+        ↳ AssertionError: expected '// Notice candidates (P4F) of one cas…' not to match /\bfetch\s*\(|XMLHttpRequest|WebSocke…/\
+    exit 1 · Tests  1 failed | 10 skipped (11) · yarn vitest run --config vitest.config.ts tests/web/p4f.test.tsx -t INITIAL: the chosen prompt’s task, mode, version and digest are shown
+      × INITIAL: the chosen prompt’s task, mode, version and digest are shown, the sender is its selected mailbox; the request carries exactly the texts entered, the plan as chosen with the recorded hash, an Idempotency-Key and no If-Match; the detail shows the exact texts inert, both hashes, HUMAN_PENDING and the plan as a plan
+      FAIL  tests/web/p4f.test.tsx > P4F candidate pages > INITIAL: the chosen prompt’s task, mode, version and digest are shown, the sender is its selected mailbox; the request carries exactly the texts entered, the plan as chosen with the recorded hash, an Idempotency-Key and no If-Match; the detail shows the exact texts inert, both hashes, HUMAN_PENDING and the plan as a plan
+        ↳ AssertionError: expected 'SYNTHETIC draft body for Case A.\nwin…' to be 'SYNTHETIC draft body for Case A.\n<sc…' // Object.is equality
+[NC-P4F-27] CAUGHT · restored byte-identical · [UI shows READY/APPROVED] no candidate page claims a ready or approved state: a "Ready for signer" stamp added to the detail header
+    exit 1 · Tests  1 failed | 10 skipped (11) · yarn vitest run --config vitest.config.ts tests/web/p4f.test.tsx -t INITIAL: the chosen prompt’s task, mode, version and digest are shown
+      × INITIAL: the chosen prompt’s task, mode, version and digest are shown, the sender is its selected mailbox; the request carries exactly the texts entered, the plan as chosen with the recorded hash, an Idempotency-Key and no If-Match; the detail shows the exact texts inert, both hashes, HUMAN_PENDING and the plan as a plan
+      FAIL  tests/web/p4f.test.tsx > P4F candidate pages > INITIAL: the chosen prompt’s task, mode, version and digest are shown, the sender is its selected mailbox; the request carries exactly the texts entered, the plan as chosen with the recorded hash, an Idempotency-Key and no If-Match; the detail shows the exact texts inert, both hashes, HUMAN_PENDING and the plan as a plan
+        ↳ AssertionError: expected 'casessynthetic case acandidatesinitia…' not to match /\b(approved|signed|ready|sent|attach…/i
+    exit 1 · Tests  1 failed | 10 skipped (11) · yarn vitest run --config vitest.config.ts tests/web/p4f.test.tsx -t no candidate page offers a validate, approve, ready, sign, send or export action
+      × no candidate page offers a validate, approve, ready, sign, send or export action or claims such a state, and none calls anything but the application API
+      FAIL  tests/web/p4f.test.tsx > P4F candidate pages > no candidate page offers a validate, approve, ready, sign, send or export action or claims such a state, and none calls anything but the application API
+        ↳ AssertionError: expected 'casessynthetic case acandidatesreply …' not to match /\b(approved|signed|ready|sent|attach…/i
+[NC-P4F-28] CAUGHT · restored byte-identical · [supersede worded as a notice retraction] the supersession is worded "Supersede this draft artifact", never as a retraction: the action renamed "Retract notice"
+    exit 1 · Tests  1 failed | 10 skipped (11) · yarn vitest run --config vitest.config.ts tests/web/p4f.test.tsx -t supersession: "Supersede this draft artifact" with its exact meaning
+      × supersession: "Supersede this draft artifact" with its exact meaning; a reason is required; it is recorded once, the candidate stays readable and unchanged, and it is never called a retraction; a second supersession is refused
+      FAIL  tests/web/p4f.test.tsx > P4F candidate pages > supersession: "Supersede this draft artifact" with its exact meaning; a reason is required; it is recorded once, the candidate stays readable and unchanged, and it is never called a retraction; a second supersession is refused
+        ↳ AssertionError: expected 'Retract notice' to be 'Supersede this draft artifact' // Object.is equality
+[NC-P4F-29] CAUGHT · restored byte-identical · [another case’s candidate shown] a candidate is shown only under its own case: the case check of the detail page removed
+    exit 1 · Tests  1 failed | 10 skipped (11) · yarn vitest run --config vitest.config.ts tests/web/p4f.test.tsx -t the history lists this case’s summaries only, newest first, with pages
+      × the history lists this case’s summaries only, newest first, with pages; another case’s candidate is shown like an unknown one, on its page and its revision page
+      FAIL  tests/web/p4f.test.tsx > P4F candidate pages > the history lists this case’s summaries only, newest first, with pages; another case’s candidate is shown like an unknown one, on its page and its revision page
+        ↳ AssertionError: expected <pre …(4)></pre> to be null
+# end 2026-09-26T04:39:55.548Z — tree fingerprint 1d6c4dd114e559b6fb1cec3f0523c85a05841449eb65773d60f3d006268461ff (identical)
+29 controls, 29 caught and restored, 0 problems
+exit=0
+[verify] target tb_migrate@127.0.0.1:3307/tb_notice_test — MySQL 8.4.11 (MySQL Community Server - GPL)
+[verify] reviewed migration sha256 b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+[verify] tables 33/33 (InnoDB 33, utf8mb4_0900_bin 33); columns 541/541 (character columns with binary collation 391)
+[verify] primary keys 33/33; unique keys 50/50; indexes 34/34; implicit FK indexes 97
+[verify] foreign keys 125/125 RESTRICT/RESTRICT (composite 27); CHECK constraints 30/30 semantically matching and ENFORCED=YES
+[verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+[verify] domain rows total: 0
+[verify] PASS: metadata matches the reviewed inventory.
+verify-exit=0
