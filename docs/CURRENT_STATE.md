@@ -268,6 +268,23 @@ Recorded boundaries (persistent, see `CLAUDE.md`):
 - no CandidateAssessment, readiness, G7, signature or external action; no AI provider;
 - a stored run is read back exactly as recorded (R14 remediation, `getValidationRun`): never re-evaluated, rebuilt from present-day state or annotated as current; the page reads it from the server, never from a remembered POST response.
 
+## Astra whole-system R14 pre-assessment audit (independent; audit target `4a1618d`)
+
+The operator's independent Astra audit of the R14-final submission head `4a1618dd40b19ba461828072fbd3f3576bdf89a3` put **R14 = HOLD_FOR_REMEDIATION** and **ADR-0006 = PROPOSED / REVISE_BEFORE_ACCEPTANCE** (TB-SCHEMA-API-v1.3.0 implemented, proposed, not accepted; P4G stays MERGED_TO_MAIN_FOR_IMPLEMENTED_SCOPE). `ASTRA_AUDIT = PARTIAL` — the audit continues from its saved checkpoint. Mission TB_R14_ASTRA_BLOCKER_REMEDIATION (operator, 2026-09-27) is authorized for exactly four findings on `feature/r14-validation-run-readback`; the others stay recorded and unchanged.
+
+| Finding | Class / severity | Disposition |
+|---|---|---|
+| R14-AUD-001 — a correspondence source restricted to another legal subject (or case, or another owner's material) is accepted at capture (agency level) and then reaches another case's production context as clean support | CONFIRMED_DEFECT / HIGH; blocks R14 final and assessment implementation | IN_REMEDIATION (this mission) |
+| R14-AUD-003 — `MARKER.INTERNAL_IDENTIFIERS` read its vocabulary from `CONTRACT_BASELINE`, so TB-SCHEMA-API-v1.3.0 changed what TB-TECHNICAL-RULESET-v1 detects under the same identifier | SPEC_CONFLICT / MEDIUM; blocks R14 final | IN_REMEDIATION (this mission) |
+| R14-AUD-004 — `ui:sandbox`: a refused empty-start check (or a signal before it) ran the cleanup and could delete rows that existed before the run | CONFIRMED_DEFECT / MEDIUM; non-blocking, fixed before any further sandbox use | IN_REMEDIATION (this mission) |
+| R14-AUD-008 — active documentation named personal human adoption as G6 (it is G7) | SPEC_CONFLICT / LOW; non-blocking | IN_REMEDIATION (this mission) |
+| R14-AUD-002 — a candidate import/revision idempotency replay after supersession returns the candidate's current lifecycle overlay rather than the exact original response | recorded | **OPEN_BACKLOG** — not changed (no WriteExecutor, replay storage, supersession or response-snapshot change) |
+| R14-AUD-007 — the validation-history UI silently stops after about 1,000 runs | recorded | **OPEN_BACKLOG** — not changed (no "load older", pagination or exact-run search change) |
+| R14-AUD-005 — a future plan-source freshness policy (plan sources outside the dependency closure) | FUTURE_REQUIREMENT; blocks assessment implementation | **FUTURE_ASSESSMENT_PREREQUISITE** — not implemented (no `planSourcesFingerprint` persistence, ValidationRun schema change or closure change) |
+| R14-AUD-006 — a future AssessmentSource read-back | FUTURE_REQUIREMENT; blocks assessment implementation | **FUTURE_ASSESSMENT_PREREQUISITE** — not implemented (no assessment route, AssessmentSource read or TB-SCHEMA-API-v1.4.0) |
+
+`CandidateAssessment = NOT_STARTED / HOLD` (never routed; needs a separate pre-assessment architecture mission after R14). External action = none.
+
 ## Next phases (not started)
 
 | Phase | Scope | Gate |

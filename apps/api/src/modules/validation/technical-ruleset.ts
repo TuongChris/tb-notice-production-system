@@ -6,10 +6,11 @@
 //
 // A technical validation checks structure, exact bytes and hashes, exact identifiers and recorded
 // relationships, and scans the text for a few bounded, documented patterns. It is not a substantive
-// review: it decides no G1–G6 gate (authority, rights, identification, evidence, permission or
-// exceptions, human adoption of the text), no legal validity or sufficiency, no signer eligibility,
-// no readiness, READY_FOR_SIGNER or G7, and a TECHNICAL_PASS approves nothing. Every run records
-// semanticReviewRequired = true.
+// review: it decides no G1–G6 gate (authority, work-specific rights, identification, evidence,
+// permission or exceptions, the exact-artifact consistency and traceability review of G6), no legal
+// validity or sufficiency, no signer eligibility, no readiness or READY_FOR_SIGNER and no G7 (the
+// human review, adoption, signature and sending outside the application), and a TECHNICAL_PASS
+// approves nothing. Every run records semanticReviewRequired = true.
 //
 //   DETERMINISTIC  exact comparisons of stored values: the finding follows from the values alone.
 //   HEURISTIC      bounded pattern scans of free text: a signal a person must read, never a finding
