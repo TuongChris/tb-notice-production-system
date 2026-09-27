@@ -2153,6 +2153,321 @@ describe('CORRESPONDENCE — explicit bindings only, one entry per message, capt
   });
 });
 
+describe('CORRESPONDENCE SOURCE SCOPE (R14-AUD-001) — capture-scope validity is not production-case applicability', () => {
+  const NOT_APPLICABLE = 'CORRESPONDENCE_SOURCE_NOT_APPLICABLE';
+  const scopeConflicts = (view: ContextView) =>
+    view.context.conflicts.filter((entry) => entry.code === NOT_APPLICABLE);
+  const messageIndex = (view: ContextView, id: string) =>
+    view.context.correspondence.findIndex((row) => row.id === id);
+  /** A reply context naming only the given binding as a prior transmission (PREPARATION). */
+  const priorScope = (bindingId: string): ContextQuery => ({
+    taskType: 'NMI_REPLY',
+    priorBindingIds: [bindingId],
+  });
+  const parentScope = (bindingId: string): ContextQuery => ({
+    taskType: 'NMI_REPLY',
+    parentBindingId: bindingId,
+  });
+  /** Another owner and legal subject of the world's agency, linked, with their own route. */
+  async function secondRoute(w: World, label: string) {
+    const owner = await createOwner(label);
+    const subject = await createSubject(label);
+    const association = await link(owner.data.id, subject.data.id);
+    const route = await createRoute({
+      agencyId: w.agency.data.id,
+      ownerSubjectId: association.data.id,
+    });
+    return { owner, subject, association, route };
+  }
+
+  it('raw source: a source restricted to another legal subject is a valid agency-level capture; in the context of a case bound to this subject it is listed with a conflict naming it (SCOPED_TO_OTHER_SUBJECT), never as clean support; the capture, binding and source stay exactly as recorded and the read writes nothing', async () => {
+    const w = await world();
+    const otherSubject = await createSubject('A-other');
+    const restricted = await createSource({
+      agencyId: w.agency.data.id,
+      title: 'SYNTHETIC raw message file of another subject',
+      scopeBindings: { legalSubjectIds: [otherSubject.data.id] },
+    });
+    // Capture is agency-level: the source applies to the agency, so the capture is valid.
+    const message = await capture(w.agency.data.id, {
+      direction: 'OUTBOUND',
+      subject: 'SYNTHETIC notice as sent (raw)',
+      captureMode: 'RAW_SOURCE',
+      rawSourceId: restricted.id,
+    });
+    const created = await createCase(w.agency.data.id, { routeId: w.route.data.id });
+    const binding = await bind(created.data.id, {
+      correspondenceId: message.id,
+      eventType: 'INITIAL_AS_SENT',
+    });
+    const before = await suiteDump();
+    const view = await context(created.data.id, priorScope(binding.id));
+    const again = await context(created.data.id, priorScope(binding.id));
+    expect(await suiteDump()).toEqual(before);
+    expect(again).toEqual(view);
+    expect(scopeConflicts(view)).toEqual([
+      {
+        code: NOT_APPLICABLE,
+        message: `Recorded source ${restricted.id}, the raw source of captured message ${message.id}, is not applicable to the current Case scope (SOURCE_SCOPE_UNRESOLVED: SCOPED_TO_OTHER_SUBJECT). The capture was checked against its agency only. The message and the source are kept as recorded; this is a source-scope condition, not a finding about what the source shows.`,
+        fieldPath: `correspondence[${messageIndex(view, message.id)}].rawSourceId`,
+      },
+    ]);
+    // Historical traceability: the source stays listed exactly as recorded and in the closure.
+    expect(view.context.sources.find((entry) => entry.sourceId === restricted.id)).toEqual({
+      sourceId: restricted.id,
+      role: restricted.sourceRole,
+      canonicalUrl: restricted.canonicalUrl,
+      contentSha256: restricted.contentSha256,
+      hashTarget: restricted.hashTarget,
+      provenance: restricted.reportedProvenance,
+      scopeText: restricted.scopeText,
+      limitations: restricted.limitations,
+    });
+    expect(depOf(view, 'SourceReference', restricted.id)).toBeDefined();
+    expect(view.context.correspondence.find((row) => row.id === message.id)).toEqual(
+      await getCorrespondence(message.id),
+    );
+    expect(await getCorrespondence(message.id)).toEqual(message);
+    // A direct citation of the same source by this case is refused by the same rules.
+    const direct = await client.write(
+      'linkCaseSource',
+      'POST',
+      `/cases/${created.data.id}/sources`,
+      { sourceId: restricted.id, useRole: 'SYNTHETIC_SUPPORT', scopeNote: 'SYNTHETIC scope note' },
+      { ifMatch: (await getCase(created.data.id)).etag },
+    );
+    expect(outcome(direct)).toEqual([422, 'SOURCE_SCOPE_UNRESOLVED']);
+    expect(detailsOf(direct)).toMatchObject({ reason: 'SCOPED_TO_OTHER_SUBJECT' });
+    await expectNoLaterRecords();
+  });
+
+  it('attachment source: a source one attachment observation cites (agency-shared, restricted to another subject) raises the conflict at exactly that attachment; an attachment without a source and an applicable one raise nothing', async () => {
+    const w = await world();
+    const otherSubject = await createSubject('A-other');
+    const applicable = await createSource({ agencyId: w.agency.data.id, title: 'SYNTHETIC ok' });
+    const restricted = await createSource({
+      title: 'SYNTHETIC attachment of another subject',
+      scopeBindings: {
+        agencyIds: [w.agency.data.id],
+        legalSubjectIds: [otherSubject.data.id],
+      },
+    });
+    const message = await capture(w.agency.data.id, {
+      subject: 'SYNTHETIC request for more information',
+      attachmentsManifest: [
+        { fileName: 'SYNTHETIC-note.txt', state: 'COPIED_TEXT_ALLEGATION' },
+        { fileName: 'SYNTHETIC-ok.pdf', sourceId: applicable.id, state: 'COPIED_TEXT_ALLEGATION' },
+        { fileName: 'SYNTHETIC-other.pdf', sourceId: restricted.id, state: 'UNKNOWN' },
+      ],
+    });
+    const created = await createCase(w.agency.data.id, { routeId: w.route.data.id });
+    const nmi = await bind(created.data.id, { correspondenceId: message.id, eventType: 'NMI' });
+    const view = await context(created.data.id, parentScope(nmi.id));
+    const index = messageIndex(view, message.id);
+    expect(scopeConflicts(view)).toEqual([
+      {
+        code: NOT_APPLICABLE,
+        message: `Recorded source ${restricted.id}, the source of attachment observation 2 of captured message ${message.id}, is not applicable to the current Case scope (SOURCE_SCOPE_UNRESOLVED: SCOPED_TO_OTHER_SUBJECT). The capture was checked against its agency only. The message and the source are kept as recorded; this is a source-scope condition, not a finding about what the source shows.`,
+        fieldPath: `correspondence[${index}].attachmentsManifest[2].sourceId`,
+      },
+    ]);
+    const listed = view.context.sources.map((entry) => entry.sourceId);
+    expect(listed).toContain(applicable.id);
+    expect(listed).toContain(restricted.id);
+    expect(view.context.correspondence[index]?.attachmentsManifest).toEqual(
+      message.attachmentsManifest,
+    );
+  });
+
+  it('valid shared reuse: one message citing a source that names both subjects and one without a subject restriction is bound to a case of each subject (different owners of one agency) — no scope conflict in either context', async () => {
+    const w = await world();
+    const second = await secondRoute(w, 'A-second');
+    const shared = await createSource({
+      agencyId: w.agency.data.id,
+      title: 'SYNTHETIC raw file naming both subjects',
+      scopeBindings: { legalSubjectIds: [second.subject.data.id, w.subject.data.id] },
+    });
+    const unrestricted = await createSource({
+      agencyId: w.agency.data.id,
+      title: 'SYNTHETIC attachment without a subject restriction',
+    });
+    const message = await capture(w.agency.data.id, {
+      direction: 'OUTBOUND',
+      subject: 'SYNTHETIC notice as sent (raw), one message for both subjects',
+      captureMode: 'RAW_SOURCE',
+      rawSourceId: shared.id,
+      attachmentsManifest: [
+        {
+          fileName: 'SYNTHETIC-licence.pdf',
+          sourceId: unrestricted.id,
+          state: 'OBSERVED_IN_RAW_MIME',
+        },
+      ],
+    });
+    for (const routeId of [w.route.data.id, second.route.data.id]) {
+      const created = await createCase(w.agency.data.id, { routeId });
+      const binding = await bind(created.data.id, {
+        correspondenceId: message.id,
+        eventType: 'INITIAL_AS_SENT',
+      });
+      const view = await context(created.data.id, priorScope(binding.id));
+      expect(scopeConflicts(view), routeId).toEqual([]);
+      expect(view.context.conflicts, routeId).toEqual([]);
+      const listed = view.context.sources.map((entry) => entry.sourceId).sort();
+      expect(listed, routeId).toEqual([shared.id, unrestricted.id].sort());
+    }
+  });
+
+  it('a case without a route has no subject: a subject-specific source a captured message cites is listed with CASE_SUBJECT_UNBOUND — no subject is guessed, not even from the owner hint; an unrestricted one raises nothing', async () => {
+    const w = await world();
+    const subjectOnly = await createSource({
+      agencyId: w.agency.data.id,
+      title: 'SYNTHETIC subject-specific attachment',
+      scopeBindings: { legalSubjectIds: [w.subject.data.id] },
+    });
+    const unrestricted = await createSource({ agencyId: w.agency.data.id });
+    const message = await capture(w.agency.data.id, {
+      attachmentsManifest: [
+        { fileName: 'SYNTHETIC-a.pdf', sourceId: subjectOnly.id, state: 'UNKNOWN' },
+        { fileName: 'SYNTHETIC-b.pdf', sourceId: unrestricted.id, state: 'UNKNOWN' },
+      ],
+    });
+    const unbound = await createCase(w.agency.data.id, { ownerHintId: w.owner.data.id });
+    const nmi = await bind(unbound.data.id, { correspondenceId: message.id, eventType: 'NMI' });
+    const view = await context(unbound.data.id, parentScope(nmi.id));
+    expect(codes(view.context.missing)).toContain('CASE_ROUTE_UNBOUND');
+    expect(view.context.party.legalSubjectId).toBeNull();
+    const conflicts = scopeConflicts(view);
+    expect(conflicts.map((entry) => entry.fieldPath)).toEqual([
+      `correspondence[${messageIndex(view, message.id)}].attachmentsManifest[0].sourceId`,
+    ]);
+    expect(conflicts[0]?.message).toContain(
+      `Recorded source ${subjectOnly.id}, the source of attachment observation 0 of captured message ${message.id}, is not applicable to the current Case scope (SOURCE_SCOPE_UNRESOLVED: CASE_SUBJECT_UNBOUND).`,
+    );
+  });
+
+  it('applicability is read from the case in each snapshot and never stored on the binding: binding a route after the message changes the next read (its subject: no conflict; another subject: a conflict); once the case has history its route cannot be replaced, so no other transition exists', async () => {
+    const w = await world();
+    const second = await secondRoute(w, 'A-second');
+    const subjectOnly = await createSource({
+      agencyId: w.agency.data.id,
+      title: 'SYNTHETIC raw file of the first subject',
+      scopeBindings: { legalSubjectIds: [w.subject.data.id] },
+    });
+    const message = await capture(w.agency.data.id, {
+      direction: 'OUTBOUND',
+      subject: 'SYNTHETIC notice as sent (raw)',
+      captureMode: 'RAW_SOURCE',
+      rawSourceId: subjectOnly.id,
+    });
+    const reasons = (view: ContextView) =>
+      scopeConflicts(view).map(
+        (entry) => /\((SOURCE_SCOPE_UNRESOLVED: \w+)\)/.exec(entry.message)?.[1],
+      );
+    const cases: Array<[string, string]> = [
+      [w.route.data.id, 'its subject'],
+      [second.route.data.id, 'another subject'],
+    ];
+    for (const [routeId, label] of cases) {
+      const created = await createCase(w.agency.data.id);
+      const binding = await bind(created.data.id, {
+        correspondenceId: message.id,
+        eventType: 'INITIAL_AS_SENT',
+      });
+      const bindingRow = await prisma.correspondenceBinding.findUniqueOrThrow({
+        where: { id: binding.id },
+      });
+      const unbound = await context(created.data.id, priorScope(binding.id));
+      expect(reasons(unbound), label).toEqual(['SOURCE_SCOPE_UNRESOLVED: CASE_SUBJECT_UNBOUND']);
+      // A first route binding is allowed after history exists (only a replacement is refused).
+      await caseCommand('RouteBindingCase', created.data.id, 'route-binding', {
+        routeId,
+        reason: 'SYNTHETIC route binding',
+      });
+      const bound = await context(created.data.id, priorScope(binding.id));
+      expect(reasons(bound), label).toEqual(
+        routeId === w.route.data.id ? [] : ['SOURCE_SCOPE_UNRESOLVED: SCOPED_TO_OTHER_SUBJECT'],
+      );
+      expect(changed(bound, unbound), label).toEqual(
+        [`CaseRecord:${created.data.id}`]
+          .concat(deps(bound).filter((key) => !deps(unbound).includes(key)))
+          .sort(),
+      );
+      // Nothing is persisted on the binding: its row is exactly as recorded.
+      expect(
+        await prisma.correspondenceBinding.findUniqueOrThrow({ where: { id: binding.id } }),
+        label,
+      ).toEqual(bindingRow);
+      const replace = await client.write(
+        'RouteBindingCase',
+        'POST',
+        `/cases/${created.data.id}/route-binding`,
+        {
+          routeId: routeId === w.route.data.id ? second.route.data.id : w.route.data.id,
+          reason: 'SYNTHETIC route correction',
+        },
+        { ifMatch: (await getCase(created.data.id)).etag },
+      );
+      expect(outcome(replace), label).toEqual([409, 'BINDING_CORRECTION_REQUIRES_RECONCILIATION']);
+      expect(detailsOf(replace)['blockers'], label).toEqual(['CORRESPONDENCE_BINDING']);
+    }
+  });
+
+  it('owner isolation: once another owner’s records use a source a captured message cites (the basis of a coverage of that owner’s route), it is not applicable to this owner’s case (CROSS_OWNER_REFERENCE, no other owner named); that use changes exactly the source’s fingerprint and the digest', async () => {
+    const w = await world();
+    const other = await secondRoute(w, 'A-other-owner');
+    const cited = await createSource({
+      agencyId: w.agency.data.id,
+      title: 'SYNTHETIC agency file cited by a captured message',
+    });
+    const message = await capture(w.agency.data.id, {
+      direction: 'OUTBOUND',
+      subject: 'SYNTHETIC notice as sent (raw)',
+      captureMode: 'RAW_SOURCE',
+      rawSourceId: cited.id,
+    });
+    const created = await createCase(w.agency.data.id, { routeId: w.route.data.id });
+    const binding = await bind(created.data.id, {
+      correspondenceId: message.id,
+      eventType: 'INITIAL_AS_SENT',
+    });
+    const before = await context(created.data.id, priorScope(binding.id));
+    expect(scopeConflicts(before)).toEqual([]);
+    // The other owner's authority chain cites the source: it becomes that owner's material.
+    const mandate = await createMandate(w.agency.data.id, 'SYNTHETIC other owner mandate');
+    const version = await createVersion(mandate.data.id, {
+      primarySourceId: w.source.id,
+      documentState: 'SIGNED_APPEARING',
+    });
+    await createCoverage(version.data.id, {
+      routeId: other.route.data.id,
+      basisSourceId: cited.id,
+      actionScope: ['PREPARE_NOTICE'],
+    });
+    const after = await context(created.data.id, priorScope(binding.id));
+    expect(scopeConflicts(after)).toEqual([
+      {
+        code: NOT_APPLICABLE,
+        message: `Recorded source ${cited.id}, the raw source of captured message ${message.id}, is not applicable to the current Case scope (CROSS_OWNER_REFERENCE). The capture was checked against its agency only. The message and the source are kept as recorded; this is a source-scope condition, not a finding about what the source shows.`,
+        fieldPath: `correspondence[${messageIndex(after, message.id)}].rawSourceId`,
+      },
+    ]);
+    expect(JSON.stringify(after.context)).not.toContain(other.owner.data.id);
+    expect(changed(after, before)).toEqual([`SourceReference:${cited.id}`]);
+    expect(after.dependencyDigest).not.toBe(before.dependencyDigest);
+    expect(after.contextRevision).toBe(before.contextRevision);
+    // A direct citation by this case is refused by the same owner rule.
+    const direct = await client.write(
+      'linkCaseSource',
+      'POST',
+      `/cases/${created.data.id}/sources`,
+      { sourceId: cited.id, useRole: 'SYNTHETIC_SUPPORT', scopeNote: 'SYNTHETIC scope note' },
+      { ifMatch: (await getCase(created.data.id)).etag },
+    );
+    expect(outcome(direct)).toEqual([422, 'CROSS_OWNER_REFERENCE']);
+  });
+});
+
 describe('DEPENDENCIES AND DIGEST — the complete closure, deterministic, never a row version or a clock', () => {
   it('the dependencies are exactly the closure of a reply context, in (entityType, entityId) order; row versions only for version-checked records, matching the records; repeated reads are identical', async () => {
     const r = await replyWorld();

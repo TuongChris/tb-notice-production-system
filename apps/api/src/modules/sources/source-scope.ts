@@ -47,6 +47,12 @@
 //     route the case has no subject to check it against (CASE_SUBJECT_UNBOUND). With a bound route
 //     the owner dimension is that route's owner. A case link does not itself make a source any
 //     owner's material (the owner-material definition above is unchanged).
+//   read-time applicability (R14-AUD-001, applicabilityProblem)
+//     A capture is agency-level (target Agency, no subject or owner dimension), so the raw and
+//     attachment sources of a captured message are rechecked against the case — its agency, case
+//     scope, bound subject and owner — whenever the message is part of that case's production
+//     context. Capture-scope validity is not production-case applicability; nothing is refused or
+//     rewritten, the result is reported.
 import { Prisma } from '../../../generated/prisma/client.js';
 import { apiErrors } from '../../infrastructure/http/api-error.js';
 
@@ -238,6 +244,31 @@ export async function otherOwnerUsing(
     select: { coverage: { select: { route: ownerOfRoute } } },
   });
   return event?.coverage ? event.coverage.route.ownerSubject.ownerId : null;
+}
+
+/** Why a source does not apply to a target now: its recorded scope, or the owner dimension. */
+export type ApplicabilityProblem =
+  ScopeProblem | { readonly code: 'CROSS_OWNER_REFERENCE'; readonly ownerId: string };
+
+/**
+ * The read-only form of the rules assertSourcesUsable enforces at a write — the recorded-scope
+ * dimensions (scopeProblem), then, when the target has an Owner, the owner dimension
+ * (otherOwnerUsing) — for a read that reports applicability instead of refusing: the sources a
+ * captured message cites, rechecked against the case in the production context's snapshot
+ * (R14-AUD-001), and a candidate's document-plan sources in a technical validation. Plain reads in
+ * the caller's transaction: nothing is locked, written or re-pointed. Null when the source applies.
+ */
+export async function applicabilityProblem(
+  tx: Prisma.TransactionClient,
+  source: ScopedSource & { readonly id: string },
+  target: SourceTarget,
+): Promise<ApplicabilityProblem | null> {
+  const recorded = scopeProblem(source, target);
+  if (recorded !== null) return recorded;
+  const owner = ownerOf(target);
+  if (owner === null) return null;
+  const other = await otherOwnerUsing(tx, source.id, owner);
+  return other === null ? null : { code: 'CROSS_OWNER_REFERENCE', ownerId: other };
 }
 
 export interface UsableSource {

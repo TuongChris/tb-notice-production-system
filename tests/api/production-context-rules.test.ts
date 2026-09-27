@@ -25,6 +25,7 @@ import {
 } from '../../apps/api/src/infrastructure/write/request-parsing.js';
 import {
   assembleContext,
+  CORRESPONDENCE_SOURCE_NOT_APPLICABLE,
   DRAFTING_BLOCKING_CODES,
   exceededLimit,
 } from '../../apps/api/src/modules/production/context-assembly.js';
@@ -36,7 +37,10 @@ import {
   contextScope,
   type ContextScope,
 } from '../../apps/api/src/modules/production/context-scope.js';
-import type { ContextRows } from '../../apps/api/src/modules/production/context-snapshot.js';
+import type {
+  ContextRows,
+  CorrespondenceSourceProblem,
+} from '../../apps/api/src/modules/production/context-snapshot.js';
 
 const repoRoot = path.resolve(import.meta.dirname, '../..');
 const FROZEN_HELPER = path.join(
@@ -279,6 +283,7 @@ function bareRows(overrides: { contextRevision?: number; rowVersion?: number } =
     parent: null,
     priors: [],
     correspondence: [],
+    correspondenceSourceProblems: [],
   };
 }
 
@@ -350,6 +355,205 @@ describe('assembleContext — a bare case: gaps listed, nothing filled in, no ve
     expect(revised.dependencyDigest).not.toBe(first.dependencyDigest);
     expect(revised.contextRevision).toBe(4);
     expect(revised.context.caseContextRevision).toBe(4);
+  });
+});
+
+// ---- R14-AUD-001: sources a captured message cites, rechecked against the case ----------------
+
+const ROUTE = '9b2f3c1e-1d2a-4b6c-8e7f-0a1b2c3d4e5f';
+const ASSOCIATION = '4e1d2c3b-5a6f-4e7d-9c8b-1a2b3c4d5e6f';
+const OWNER = '2c3d4e5f-6a7b-4c8d-9e0f-1a2b3c4d5e60';
+const SUBJECT = '5d6e7f80-9a0b-4c1d-8e2f-3a4b5c6d7e8f';
+const MESSAGE = '6e7f8091-a0b1-4c2d-9e3f-4a5b6c7d8e9f';
+const RAW = '70819203-b1c2-4d3e-8f40-5a6b7c8d9e0f';
+const ATTACHED = '81920314-c2d3-4e4f-9051-6a7b8c9d0e1f';
+const SHARED = '92031425-d3e4-4f50-8162-7a8b9c0d1e2f';
+const USER = '03142536-e4f5-4061-9273-8a9b0c1d2e3f';
+const RECORDED = new Date('2026-09-20T10:00:00.000Z');
+
+/** A synthetic source revision row of the case's agency (scope as given). */
+function sourceRow(id: string, scopeBindings: unknown) {
+  return {
+    id,
+    agencyId: AGENCY,
+    sourceGroupId: id,
+    revision: 1,
+    supersedesSourceId: null,
+    title: 'SYNTHETIC cited source',
+    canonicalUrl: null,
+    providerFileId: null,
+    providerRevisionId: null,
+    sourceRole: 'PRIMARY_CORRESPONDENCE',
+    accessState: 'NOT_CHECKED',
+    contentSha256: null,
+    hashTarget: null,
+    reportedProvenance: 'OPERATOR_REPORTED',
+    rawProvenance: null,
+    scopeText: 'SYNTHETIC recorded scope',
+    scopeBindings,
+    observedAt: null,
+    reviewedByLabel: null,
+    reviewedAt: null,
+    excerpt: null,
+    excerptLocator: null,
+    limitations: null,
+    createdAt: RECORDED,
+    createdById: USER,
+  };
+}
+
+/**
+ * A case bound to a route (owner OWNER, subject SUBJECT) whose parent NMI message cites a raw source
+ * and, in attachment observation 1, another source; attachment 0 names none. `problems` are what the
+ * snapshot found when it rechecked those citations against the case.
+ */
+function citedRows(problems: CorrespondenceSourceProblem[] = []): ContextRows {
+  const rows = bareRows();
+  const caseRow = { ...rows.caseRow, routeId: ROUTE };
+  const message = {
+    id: MESSAGE,
+    agencyId: AGENCY,
+    mailboxAddress: 'notices@example.invalid',
+    direction: 'INBOUND',
+    subject: 'SYNTHETIC request for more information',
+    messageId: null,
+    inReplyTo: null,
+    references: null,
+    sourceIdentityHash: null,
+    captureMode: 'RAW_SOURCE',
+    bodyRole: 'FULL_MESSAGE',
+    bodyText: 'SYNTHETIC body',
+    bodySha256: 'd'.repeat(64),
+    rawSourceId: RAW,
+    attachmentsManifest: [
+      { fileName: 'SYNTHETIC-note.txt', state: 'COPIED_TEXT_ALLEGATION' },
+      { fileName: 'SYNTHETIC-licence.pdf', sourceId: ATTACHED, state: 'OBSERVED_IN_RAW_MIME' },
+    ],
+    headerDateRaw: null,
+    occurredAt: null,
+    timestampPrecision: 'UNKNOWN',
+    fromAddress: null,
+    toAddress: null,
+    replyToAddress: null,
+    limitations: null,
+    createdAt: RECORDED,
+    createdById: USER,
+  };
+  const binding = {
+    id: PARENT,
+    caseId: CASE,
+    agencyId: AGENCY,
+    correspondenceId: MESSAGE,
+    reportedItemId: null,
+    eventType: 'NMI',
+    platformReference: null,
+    outcome: null,
+    interpretation: null,
+    supersedesBindingId: null,
+    createdAt: RECORDED,
+    createdById: USER,
+  };
+  return {
+    ...rows,
+    caseRow: caseRow as unknown as ContextRows['caseRow'],
+    route: {
+      id: ROUTE,
+      agencyId: AGENCY,
+      ownerSubjectId: ASSOCIATION,
+      platform: 'YOUTUBE',
+      linkState: 'LINKED',
+      canonicalCode: null,
+      canonicalSourceId: null,
+      bindingState: 'LOCAL_ONLY',
+      archivedAt: null,
+      rowVersion: 1,
+    } as unknown as ContextRows['route'],
+    ownerSubject: {
+      id: ASSOCIATION,
+      ownerId: OWNER,
+      legalSubjectId: SUBJECT,
+      sourceId: null,
+      linkState: 'LINKED',
+      rowVersion: 1,
+    } as unknown as ContextRows['ownerSubject'],
+    sources: [
+      sourceRow(RAW, { legalSubjectIds: ['1a1a1a1a-1a1a-4a1a-8a1a-1a1a1a1a1a1a'] }),
+      sourceRow(ATTACHED, null),
+    ] as unknown as ContextRows['sources'],
+    parent: binding as unknown as ContextRows['parent'],
+    correspondence: [message] as unknown as ContextRows['correspondence'],
+    correspondenceSourceProblems: problems,
+  };
+}
+
+describe('correspondence sources outside the case scope (R14-AUD-001) — a recorded conflict, never silently clean', () => {
+  const reply = () => scope({ authoritySelectionId: null, priorBindingIds: [] });
+  const subjectProblem: CorrespondenceSourceProblem = {
+    correspondenceId: MESSAGE,
+    sourceId: RAW,
+    attachmentIndex: null,
+    problem: { code: 'SOURCE_SCOPE_UNRESOLVED', reason: 'SCOPED_TO_OTHER_SUBJECT' },
+  };
+  const ownerProblem: CorrespondenceSourceProblem = {
+    correspondenceId: MESSAGE,
+    sourceId: ATTACHED,
+    attachmentIndex: 1,
+    problem: { code: 'CROSS_OWNER_REFERENCE', ownerId: SHARED },
+  };
+
+  it('each citation the snapshot found not applicable is one conflict naming the source, the message, raw or attachment, and the reason; the sources stay listed as recorded', () => {
+    const { view } = assembleContext(citedRows([subjectProblem, ownerProblem]), reply());
+    expect(view.context.conflicts).toEqual([
+      {
+        code: 'CORRESPONDENCE_SOURCE_NOT_APPLICABLE',
+        message: `Recorded source ${RAW}, the raw source of captured message ${MESSAGE}, is not applicable to the current Case scope (SOURCE_SCOPE_UNRESOLVED: SCOPED_TO_OTHER_SUBJECT). The capture was checked against its agency only. The message and the source are kept as recorded; this is a source-scope condition, not a finding about what the source shows.`,
+        fieldPath: 'correspondence[0].rawSourceId',
+      },
+      {
+        code: 'CORRESPONDENCE_SOURCE_NOT_APPLICABLE',
+        message: `Recorded source ${ATTACHED}, the source of attachment observation 1 of captured message ${MESSAGE}, is not applicable to the current Case scope (CROSS_OWNER_REFERENCE). The capture was checked against its agency only. The message and the source are kept as recorded; this is a source-scope condition, not a finding about what the source shows.`,
+        fieldPath: 'correspondence[0].attachmentsManifest[1].sourceId',
+      },
+    ]);
+    expect(CORRESPONDENCE_SOURCE_NOT_APPLICABLE).toBe('CORRESPONDENCE_SOURCE_NOT_APPLICABLE');
+    // Traceability: both sources stay in the manifest and the closure, exactly as recorded.
+    expect(view.context.sources.map((entry) => entry.sourceId).sort()).toEqual(
+      [RAW, ATTACHED].sort(),
+    );
+    expect(
+      view.dependencies.filter((d) => d.entityType === 'SourceReference').map((d) => d.entityId),
+    ).toEqual([RAW, ATTACHED].sort());
+    // No other owner's id, no verdict wording: a source-scope condition only.
+    expect(JSON.stringify(view.context.conflicts)).not.toContain(SHARED);
+    expect(JSON.stringify(view.context.conflicts)).not.toMatch(
+      /invalid|unauthori[sz]ed|no authority|infring|G[1-7]\b|verified/i,
+    );
+    expect(ContextViewSchema.safeParse(view).success).toBe(true);
+  });
+
+  it('no problem, no conflict: a citation the snapshot found applicable is listed like any other source', () => {
+    const { view } = assembleContext(citedRows(), reply());
+    expect(view.context.conflicts).toEqual([]);
+    expect(view.context.sources.map((entry) => entry.sourceId).sort()).toEqual(
+      [RAW, ATTACHED].sort(),
+    );
+  });
+
+  it('the digest covers it exactly: a recorded-scope reason follows from records in the closure (no fingerprint changes); another owner’s use lies outside it, so its existence joins that source’s fingerprint', () => {
+    const clean = assembleContext(citedRows(), reply()).view;
+    const subject = assembleContext(citedRows([subjectProblem]), reply()).view;
+    expect(subject.dependencies).toEqual(clean.dependencies);
+    expect(subject.dependencyDigest).toBe(clean.dependencyDigest);
+    const owner = assembleContext(citedRows([ownerProblem]), reply()).view;
+    expect(owner.dependencyDigest).not.toBe(clean.dependencyDigest);
+    const differing = owner.dependencies.filter(
+      (d, index) => d.fingerprint !== clean.dependencies[index]?.fingerprint,
+    );
+    expect(differing.map((d) => `${d.entityType}:${d.entityId}`)).toEqual([
+      `SourceReference:${ATTACHED}`,
+    ]);
+    const cleanAttached = clean.dependencies.find((d) => d.entityId === ATTACHED);
+    expect(cleanAttached?.fingerprint).not.toBe(differing[0]?.fingerprint);
   });
 });
 

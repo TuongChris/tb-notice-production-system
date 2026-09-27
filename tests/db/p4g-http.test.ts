@@ -1861,6 +1861,98 @@ describe('P4G recorded context, preparation, drift and history', () => {
   });
 });
 
+describe('R14-AUD-001 — a captured message’s source outside the case scope never flows through the stack as a clean context', () => {
+  it('the conflict is listed in the production context, frozen in the prompt snapshot (its conflicts and PART 3) and present in the context a validation evaluates: the run is REVIEW_REQUIRED by CONTEXT.CONFLICTS, never TECHNICAL_PASS — while the same draft of a prompt whose raw source applies passes', async () => {
+    const p = await promptWorld();
+    const agencyId = p.w.agency.data.id;
+    const otherSubject = await createSubject('A-other');
+    const outsideSource = await createSource({
+      agencyId,
+      title: 'SYNTHETIC raw message file of another subject',
+      scopeBindings: { legalSubjectIds: [otherSubject.data.id] },
+    });
+    const insideSource = await createSource({
+      agencyId,
+      title: 'SYNTHETIC raw message file of this subject',
+      scopeBindings: { legalSubjectIds: [p.w.subject.data.id] },
+    });
+    const nmiMessage = await capture(agencyId, {
+      subject: 'SYNTHETIC we need more information',
+      bodyText: 'SYNTHETIC Question 1: please provide the licence.',
+      fromAddress: 'synthetic-platform-review@example.invalid',
+      replyToAddress: 'synthetic-reply-here@example.invalid',
+    });
+    const nmi = await bind(p.caseId, { correspondenceId: nmiMessage.id, eventType: 'NMI' });
+    const sentWith = async (rawSourceId: string) => {
+      const message = await capture(agencyId, {
+        direction: 'OUTBOUND',
+        subject: 'SYNTHETIC copyright notice as sent (raw)',
+        captureMode: 'RAW_SOURCE',
+        rawSourceId,
+      });
+      return bind(p.caseId, {
+        correspondenceId: message.id,
+        eventType: 'INITIAL_AS_SENT',
+        reportedItemId: p.item.data.id,
+      });
+    };
+    const outside = await sentWith(outsideSource.id);
+    const inside = await sentWith(insideSource.id);
+    const replyScope = (priorId: string): Scope => ({
+      taskType: 'NMI_REPLY',
+      authoritySelectionId: p.selection.id,
+      parentBindingId: nmi.id,
+      priorBindingIds: [priorId],
+    });
+
+    // ProductionContext: DRAFTING is delivered (a conflict is no gate) and lists the condition.
+    const view = await context(p.caseId, replyScope(outside.id));
+    const listed = view.context.conflicts.filter(
+      (entry) => entry.code === 'CORRESPONDENCE_SOURCE_NOT_APPLICABLE',
+    );
+    expect(listed).toHaveLength(1);
+    expect(listed[0]?.message).toContain(`Recorded source ${outsideSource.id}`);
+    expect(listed[0]?.message).toContain('SCOPED_TO_OTHER_SUBJECT');
+    expect(view.context.conflicts).toEqual(listed);
+
+    // PromptSnapshot: frozen with the conflict, rendered in PART 3; the source stays traceable.
+    const prompt = await generate(p.caseId, replyScope(outside.id));
+    expect(prompt.dependencyDigest).toBe(view.dependencyDigest);
+    expect(prompt.conflicts).toEqual(listed);
+    expect(prompt.contextJson.conflicts).toEqual(listed);
+    const conflict = listed[0] as { code: string; message: string; fieldPath?: string | null };
+    expect(prompt.renderedPrompt).toContain(
+      `- ${conflict.code} (${conflict.fieldPath ?? ''}): ${JSON.stringify(conflict.message)}`,
+    );
+    expect(prompt.sourceManifest.map((entry) => entry.sourceId)).toContain(outsideSource.id);
+
+    // ValidationRun: the current context still holds the conflict — REVIEW_REQUIRED, not a pass.
+    const candidate = await importCandidate(p.caseId, draft(prompt));
+    const { run } = await validate(candidate, prompt);
+    expect(run.result).toBe('REVIEW_REQUIRED');
+    expect(run.evaluatedContextJson.conflicts).toEqual(listed);
+    expect(run.coverageManifest.notExecutedRuleIds).toEqual([]);
+    expect([run.blockerCount, run.reviewRequiredCount]).toEqual([0, 1]);
+    const issues = await issuesOf(run.id);
+    expect(ruleIds(issues)).toEqual(['CONTEXT.CONFLICTS']);
+    expect(issues[0]).toMatchObject({
+      checkKind: 'DETERMINISTIC',
+      severity: 'REVIEW_REQUIRED',
+      details: expect.objectContaining({ code: 'CORRESPONDENCE_SOURCE_NOT_APPLICABLE' }),
+    });
+    expect(await getRun(run.id)).toEqual(run);
+
+    // The same draft of a prompt whose prior transmission's raw source applies: no conflict, a pass.
+    const cleanPrompt = await generate(p.caseId, replyScope(inside.id));
+    expect(cleanPrompt.conflicts).toEqual([]);
+    const cleanCandidate = await importCandidate(p.caseId, draft(cleanPrompt));
+    const clean = await validate(cleanCandidate, cleanPrompt);
+    expect(clean.run.result).toBe('TECHNICAL_PASS');
+    expect(await issuesOf(clean.run.id)).toEqual([]);
+    await expectNoLaterRecords();
+  });
+});
+
 describe('R14 getValidationRun — one stored run read back exactly as recorded, historical and read-only', () => {
   const RUN_FIELDS = [
     'id',

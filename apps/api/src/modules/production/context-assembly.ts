@@ -34,7 +34,7 @@ import {
   toMandateVersionView,
 } from '../representation/authority-views.js';
 import { dependenciesOf, dependencyDigest } from './context-dependencies.js';
-import type { ContextRows } from './context-snapshot.js';
+import type { ContextRows, CorrespondenceSourceProblem } from './context-snapshot.js';
 import type { ContextScope } from './context-scope.js';
 
 /**
@@ -56,6 +56,18 @@ export const DRAFTING_BLOCKING_CODES: readonly string[] = [
 
 /** Largest scope text / limitations a SourceManifestEntry holds (code points, contract). */
 export const MANIFEST_TEXT_MAXIMUM = 5000;
+
+/**
+ * The conflict a source cited by a selected message raises when it does not apply to the case's
+ * current scope (R14-AUD-001). It states a source-scope condition only: the source stays listed as
+ * recorded, and nothing is said about what it shows, about authority, rights or any gate.
+ */
+export const CORRESPONDENCE_SOURCE_NOT_APPLICABLE = 'CORRESPONDENCE_SOURCE_NOT_APPLICABLE';
+
+/** The source-scope reason of a problem as the write refusals name it (code, and reason if any). */
+function scopeReason(problem: CorrespondenceSourceProblem['problem']): string {
+  return 'reason' in problem ? `${problem.code}: ${problem.reason}` : problem.code;
+}
 
 export interface AssembledContext {
   readonly view: ContextView;
@@ -385,6 +397,26 @@ export function assembleContext(rows: ContextRows, scope: ContextScope): Assembl
         ),
       );
     });
+  }
+  // A captured message is checked against its agency only; the sources it cites are rechecked
+  // against this case in the snapshot. One that does not apply stays listed, with this conflict.
+  const messageIndex = new Map(correspondence.map((message, index) => [message.id, index]));
+  for (const entry of rows.correspondenceSourceProblems) {
+    const index = messageIndex.get(entry.correspondenceId);
+    if (index === undefined) throw new Error('cited source of a message outside the context');
+    const citation =
+      entry.attachmentIndex === null
+        ? `the raw source of captured message ${entry.correspondenceId}`
+        : `the source of attachment observation ${entry.attachmentIndex} of captured message ${entry.correspondenceId}`;
+    conflicts.push(
+      item(
+        CORRESPONDENCE_SOURCE_NOT_APPLICABLE,
+        `Recorded source ${entry.sourceId}, ${citation}, is not applicable to the current Case scope (${scopeReason(entry.problem)}). The capture was checked against its agency only. The message and the source are kept as recorded; this is a source-scope condition, not a finding about what the source shows.`,
+        entry.attachmentIndex === null
+          ? `correspondence[${index}].rawSourceId`
+          : `correspondence[${index}].attachmentsManifest[${entry.attachmentIndex}].sourceId`,
+      ),
+    );
   }
   authority?.coverages.forEach((block, index) => {
     if (block.version.sourceReviewState === 'CONFLICT') {

@@ -5,7 +5,9 @@
 // explicit — no authority selection, parent NMI or prior transmission is preselected, not even the
 // case's current selection — and the scope lives in the address, so a reload reads the same scope
 // again. Missing context stays missing and recorded conflicts stay visible, each with its own
-// treatment; capture posture is shown as recorded; captured, source and fact text is plain text and
+// treatment; a source a captured message cites that the context records as not applicable to this
+// case's current scope is marked wherever it is listed, in neutral words, and still shown as recorded
+// (R14-AUD-001); capture posture is shown as recorded; captured, source and fact text is plain text and
 // no address in it is opened. There is no generate, approve, sign or send action here (the prompt
 // page, prompts.tsx, reuses this scope form and view to generate from one reviewed read). The page
 // is keyed by the case id, so nothing of one case carries over to another.
@@ -85,7 +87,14 @@ const DIGEST_MEANING =
 const MISSING_MEANING =
   'Recorded information the task needs that this case does not hold. It is shown as missing — never read as false, negative or absent in law.';
 const CONFLICT_MEANING =
-  'Conflicts the records themselves state, and records kept although archived because an included record still names them. They are shown as recorded and are not resolved here.';
+  'Conflicts the records themselves state, records kept although archived because an included record still names them, and sources a captured message cites that are not applicable to this case’s current scope. They are shown as recorded and are not resolved here.';
+/** The conflict of a source a captured message cites that does not apply to the case (R14-AUD-001). */
+const SOURCE_NOT_APPLICABLE = 'CORRESPONDENCE_SOURCE_NOT_APPLICABLE';
+/** The neutral qualifier of such a source wherever the view lists it (mission §42). */
+export const NOT_APPLICABLE_TO_CASE =
+  'Recorded source is not applicable to the current Case scope.';
+const NOT_APPLICABLE_MEANING =
+  'The capture was checked against its agency only; see Recorded conflicts. The source is kept as recorded, and this says nothing about what it shows.';
 const SOURCES_MEANING =
   'Each source is a pointer to material kept elsewhere, at the exact revision this context relies on. Its address is not opened or fetched, a hash is not a review, and a source proves nothing by existing.';
 const POLICY_MEANING =
@@ -119,6 +128,45 @@ const BLOCKING_TEXT: Record<string, string> = {
     'No request for more information (NMI) binding is named as the parent of the reply.',
   PRIOR_AS_SENT_NOT_SELECTED: 'No prior transmission (a binding recorded as sent) is named.',
 };
+
+const CITED_SOURCE_PATH =
+  /^correspondence\[(\d+)\]\.(?:rawSourceId|attachmentsManifest\[(\d+)\]\.sourceId)$/;
+
+/**
+ * Where the context records a source a captured message cites as not applicable to this case: the
+ * CORRESPONDENCE_SOURCE_NOT_APPLICABLE conflicts, located by their field path. The view derives
+ * nothing itself; it only marks what the context lists.
+ */
+export function notApplicableCitations(context: ContextView['context']) {
+  const raw = new Set<string>();
+  const attachments = new Set<string>();
+  const sources = new Set<string>();
+  for (const conflict of context.conflicts) {
+    if (conflict.code !== SOURCE_NOT_APPLICABLE || typeof conflict.fieldPath !== 'string') continue;
+    const match = CITED_SOURCE_PATH.exec(conflict.fieldPath);
+    const message = match ? context.correspondence[Number(match[1])] : undefined;
+    if (!match || !message) continue;
+    if (match[2] === undefined) {
+      raw.add(message.id);
+      if (message.rawSourceId) sources.add(message.rawSourceId);
+    } else {
+      const index = Number(match[2]);
+      attachments.add(`${message.id}:${index}`);
+      const sourceId = message.attachmentsManifest?.[index]?.sourceId;
+      if (sourceId) sources.add(sourceId);
+    }
+  }
+  return { raw, attachments, sources };
+}
+type NotApplicable = ReturnType<typeof notApplicableCitations>;
+
+function NotApplicableTag() {
+  return (
+    <span className="tag tag-conflict" data-testid="not-applicable-to-case">
+      Not applicable to this case’s scope
+    </span>
+  );
+}
 
 type Task = ContextQuery['taskType'];
 type Mode = ContextQuery['generationMode'];
@@ -555,6 +603,7 @@ export function ContextResult({
   onReload: () => void;
 }) {
   const context = view.context;
+  const notApplicable = notApplicableCitations(context);
   return (
     <div className="context-result" data-testid="context-result">
       <Section
@@ -597,6 +646,7 @@ export function ContextResult({
         entries={context.sources}
         meaning={SOURCES_MEANING}
         empty="No source is part of this context."
+        notApplicable={notApplicable.sources}
       />
       <ManifestSection
         title="Policy sources"
@@ -605,7 +655,7 @@ export function ContextResult({
         meaning={POLICY_MEANING}
         empty="No policy source is linked to this case."
       />
-      <CorrespondenceSection view={view} bindings={bindings} />
+      <CorrespondenceSection view={view} bindings={bindings} notApplicable={notApplicable} />
       <Section title="Fixed values">
         <Details
           rows={[
@@ -1120,12 +1170,15 @@ function ManifestSection({
   entries,
   meaning,
   empty,
+  notApplicable,
 }: {
   title: string;
   testId: string;
   entries: readonly SourceManifestEntry[];
   meaning: string;
   empty: string;
+  /** Sources the context records as not applicable to this case's scope (a cited message's). */
+  notApplicable?: ReadonlySet<string>;
 }) {
   return (
     <Section title={`${title} (${entries.length})`}>
@@ -1168,6 +1221,18 @@ function ManifestSection({
                     'Limitations',
                     entry.limitations && <span className="prose">{entry.limitations}</span>,
                   ],
+                  // Only where the context records the condition: no row claims anything otherwise.
+                  ...(notApplicable?.has(entry.sourceId)
+                    ? ([
+                        [
+                          'Case scope',
+                          <>
+                            <NotApplicableTag /> {NOT_APPLICABLE_TO_CASE}{' '}
+                            <span className="hint">{NOT_APPLICABLE_MEANING}</span>
+                          </>,
+                        ],
+                      ] as const)
+                    : []),
                 ]}
               />
             </li>
@@ -1181,9 +1246,11 @@ function ManifestSection({
 function CorrespondenceSection({
   view,
   bindings,
+  notApplicable,
 }: {
   view: ContextView;
   bindings: readonly CorrespondenceBinding[];
+  notApplicable: NotApplicable;
 }) {
   const { correspondence, parentBindingId, priorCorrespondenceIds } = view.context;
   const parentMessageId =
@@ -1220,6 +1287,7 @@ function CorrespondenceSection({
               message={message}
               parent={message.id === parentMessageId}
               prior={priorCorrespondenceIds.includes(message.id)}
+              notApplicable={notApplicable}
             />
           ))}
         </ol>
@@ -1232,10 +1300,12 @@ function ContextMessage({
   message,
   parent,
   prior,
+  notApplicable,
 }: {
   message: Correspondence;
   parent: boolean;
   prior: boolean;
+  notApplicable: NotApplicable;
 }) {
   return (
     <li className="context-block" data-testid="context-message">
@@ -1256,7 +1326,20 @@ function ContextMessage({
           ['Occurred', message.occurredAt && <Time iso={message.occurredAt} />],
           ['Recorded in TB', <Time iso={message.createdAt} />],
           ['Message-ID (text)', message.messageId],
-          ['Raw source', message.rawSourceId && <SourceCitation sourceId={message.rawSourceId} />],
+          [
+            'Raw source',
+            message.rawSourceId && (
+              <>
+                <SourceCitation sourceId={message.rawSourceId} />
+                {notApplicable.raw.has(message.id) && (
+                  <>
+                    {' '}
+                    <NotApplicableTag />
+                  </>
+                )}
+              </>
+            ),
+          ],
           [
             'Limitations',
             message.limitations && <span className="prose">{message.limitations}</span>,
@@ -1283,6 +1366,12 @@ function ContextMessage({
                   <>
                     {' '}
                     · <SourceCitation sourceId={attachment.sourceId} />
+                    {notApplicable.attachments.has(`${message.id}:${index}`) && (
+                      <>
+                        {' '}
+                        <NotApplicableTag />
+                      </>
+                    )}
                   </>
                 ) : null}
                 {attachment.sha256 ? (

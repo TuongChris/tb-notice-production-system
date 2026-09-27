@@ -11,7 +11,8 @@
 // reasons) are left out; actual fact, event and as-of dates are kept. Where a later record changes
 // what a pinned record means without changing the record itself, the fingerprint also covers that
 // later record's existence: the head of a source's revision chain, successor versions and coverages
-// of a pinned coverage, the successor of a selected binding. Nothing is re-pointed to them.
+// of a pinned coverage, the successor of a selected binding, and (R14-AUD-001) another owner's use
+// of a source a selected message cites. Nothing is re-pointed to them.
 // `rowVersion` is reported for version-checked records as a diagnostic only.
 //
 // dependencyDigest = SHA-256 of the TB canonical JSON v1 of { algorithm, contract, schemaVersion,
@@ -263,10 +264,21 @@ export function dependenciesOf(rows: ContextRows): Dependency[] {
       linkState: row.linkState,
     });
   }
+  // A source a selected message cites that another owner's records use (R14-AUD-001): those records
+  // lie outside this closure but make the source not applicable to this case, so their existence is
+  // part of its fingerprint — the key is present only then, and no other fingerprint changes. (The
+  // recorded-scope reasons follow from records already in the closure: the source, the case, its
+  // route and association.)
+  const otherOwnerMaterial = new Set(
+    rows.correspondenceSourceProblems
+      .filter((entry) => entry.problem.code === 'CROSS_OWNER_REFERENCE')
+      .map((entry) => entry.sourceId),
+  );
   for (const row of rows.sources) {
     add('SourceReference', row.id, null, {
       ...semantic(toSourceView(row)),
       headId: rows.sourceHeads.get(row.sourceGroupId) ?? row.id,
+      ...(otherOwnerMaterial.has(row.id) ? { otherOwnerMaterial: true } : {}),
     });
   }
   for (const binding of [rows.parent, ...rows.priors]) {
