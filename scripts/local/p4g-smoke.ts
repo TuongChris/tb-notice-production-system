@@ -31,8 +31,16 @@
 //   → case B's candidate validated against case B's context and read back; neither list shows the
 //   other case's runs → an unknown run id (404) → each accepted run wrote one run, its issues and
 //   one audit event; refusals, replays and reads nothing; no candidate, assessment or later-phase
-//   record was written (row counts read through the runtime account) → no run update or deletion
-//   by id, no assessment, readiness, export, signing or sending route exists (404) → logout.
+//   record was written (row counts read through the runtime account) → current source
+//   applicability (R14-AUD-009, R14-AUD-010): a mandate version whose annex is restricted to
+//   another legal subject (an agency-level citation, valid when recorded), selected for case C →
+//   case C's context lists the annex with SOURCE_NOT_APPLICABLE and nothing else → a source linked
+//   to case A, applicable → another owner's DRAFT coverage citing it (a valid write touching
+//   nothing of case A) → case A's context: the same revision, a new digest, SOURCE_NOT_APPLICABLE
+//   (CROSS_OWNER_REFERENCE), no other owner named → a prompt and a validation against the earlier
+//   digest (412 CONTEXT_CHANGED, nothing written) → case A's recorded runs read back unchanged → no
+//   run update or deletion by id, no assessment, readiness, export, signing or sending route exists
+//   (404) → logout.
 import { spawn, type ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
@@ -885,6 +893,283 @@ async function main(): Promise<void> {
   pass(
     'five runs with their issues and audit events; no candidate, prompt, assessment or later-phase record from validation; reading a run wrote nothing',
   );
+
+  // Current source applicability (R14-AUD-009, R14-AUD-010) ------------------------------------------
+  // Every source a context lists is checked against the case as it is now: a version annex restricted
+  // to another legal subject (valid when recorded: agency-level) is a SOURCE_NOT_APPLICABLE conflict
+  // while the version's applicable sources stay clean; another owner's later coverage citing a source
+  // linked to case A (a valid write that touches nothing of case A) changes case A's digest, not its
+  // revision, and lists the conflict; a prompt against the earlier digest is 412; the runs recorded
+  // before read back unchanged.
+  type Conflict = { code: string; message: string; fieldPath?: string | null };
+  type Listed = { sourceId: string };
+  const conflictsOf = (view: ContextView) =>
+    (view.context['conflicts'] as Conflict[]).filter(
+      (entry) => entry.code === 'SOURCE_NOT_APPLICABLE',
+    );
+  const entryOf = (view: ContextView, sourceId: string) => {
+    const index = (view.context['sources'] as Listed[]).findIndex((e) => e.sourceId === sourceId);
+    return index < 0 ? null : `sources[${index}]`;
+  };
+  const scopeCounts = await rowCounts();
+  const subjectM = await create(
+    'POST /legal-subjects (a second subject)',
+    '/legal-subjects',
+    contracts.CreateLegalSubjectResponseSchema,
+    { subjectType: 'LEGAL_ENTITY', legalName: `P4G CI Synthetic Subject M ${tag} LLC` },
+  );
+  const annex = await source('annex for subject M only', {
+    scopeBindings: { legalSubjectIds: [subjectM.data.id] },
+  });
+  const annexMandate = await create(
+    'POST /mandates (annex mandate)',
+    '/mandates',
+    contracts.CreateMandateResponseSchema,
+    { agencyId, label: `P4G CI synthetic annex mandate ${tag}` },
+  );
+  const annexVersion = await create(
+    'POST /mandates/{id}/versions (an annex of subject M: agency-level, valid)',
+    `/mandates/${annexMandate.data.id}/versions`,
+    contracts.CreateMandateVersionResponseSchema,
+    {
+      changeKind: 'NEW_AUTHORIZATION',
+      changeReason: 'Synthetic CI capture',
+      primarySourceId: record.data.id,
+      documentState: 'SIGNED_APPEARING',
+      additionalSourceRefs: [
+        { sourceId: annex.data.id, role: 'SYNTHETIC_ANNEX', scopeText: 'Synthetic CI annex' },
+      ],
+    },
+    await etagOf(`/mandates/${annexMandate.data.id}`, contracts.GetMandateResponseSchema),
+  );
+  const annexVersionEtag = () =>
+    etagOf(`/mandate-versions/${annexVersion.data.id}`, contracts.GetMandateVersionResponseSchema);
+  const annexBasis = await source('annex coverage basis');
+  const annexCoverage = await create(
+    'POST /mandate-versions/{id}/coverages (annex mandate)',
+    `/mandate-versions/${annexVersion.data.id}/coverages`,
+    contracts.CreateCoverageResponseSchema,
+    {
+      routeId: route.data.id,
+      coverageLabel: `P4G CI synthetic annex coverage ${tag}`,
+      basisSourceId: annexBasis.data.id,
+      actionScope: ['PREPARE_NOTICE'],
+    },
+    await annexVersionEtag(),
+  );
+  await create(
+    'POST /coverages/{id}/signers (annex mandate)',
+    `/coverages/${annexCoverage.data.id}/signers`,
+    contracts.CreateCoverageSignerResponseSchema,
+    { signerId: signer.data.id, capacity: 'Synthetic CI capacity', sourceId: annexBasis.data.id },
+    await etagOf(`/coverages/${annexCoverage.data.id}`, contracts.GetCoverageResponseSchema),
+  );
+  await call(
+    'POST /mandate-versions/{id}/freeze (annex mandate)',
+    'POST',
+    `/mandate-versions/${annexVersion.data.id}/freeze`,
+    200,
+    contracts.FreezeMandateVersionResponseSchema,
+    {
+      body: { reason: 'Synthetic CI freeze of the recorded terms' },
+      ifMatch: await annexVersionEtag(),
+    },
+  );
+  const caseC = await create('POST /cases (case C)', '/cases', contracts.CreateCaseResponseSchema, {
+    agencyId,
+    routeId: route.data.id,
+    intakeLabel: `P4G CI synthetic case C ${tag}`,
+  });
+  const selectionC = await create(
+    'POST /cases/{caseId}/authority-selections (case C: the annex mandate)',
+    `/cases/${caseC.data.id}/authority-selections`,
+    contracts.SelectCaseAuthorityResponseSchema,
+    {
+      routeId: route.data.id,
+      signerId: signer.data.id,
+      taskType: 'INITIAL',
+      intendedFromEmail: mailbox,
+      selectionNote: `Synthetic CI selection ${tag}`,
+      coverages: [{ coverageId: annexCoverage.data.id, applicationScope: `Synthetic CI ${tag}` }],
+    },
+    await caseEtag(caseC.data.id),
+  );
+  const readC = (
+    await call(
+      'GET /cases/{caseId}/production-context (case C, PREPARATION)',
+      'GET',
+      `/cases/${caseC.data.id}/production-context?${new URLSearchParams({
+        taskType: 'INITIAL',
+        generationMode: 'PREPARATION',
+        authoritySelectionId: selectionC.data.id,
+      }).toString()}`,
+      200,
+      contracts.GetProductionContextResponseSchema,
+    )
+  ).data as unknown as ContextView;
+  const annexConflicts = conflictsOf(readC);
+  if (
+    annexConflicts.length !== 1 ||
+    annexConflicts[0]?.fieldPath !== entryOf(readC, annex.data.id) ||
+    !annexConflicts[0].message.includes('(SOURCE_SCOPE_UNRESOLVED: SCOPED_TO_OTHER_SUBJECT)') ||
+    !annexConflicts[0].message.includes(
+      `additional source 0 of mandate version ${annexVersion.data.id}`,
+    ) ||
+    entryOf(readC, record.data.id) === null ||
+    entryOf(readC, annexBasis.data.id) === null
+  ) {
+    fail(
+      'a version annex of another subject must be one SOURCE_NOT_APPLICABLE; the rest stays clean',
+    );
+  }
+  pass(
+    'R14-AUD-009: a version annex of another subject is listed with SOURCE_NOT_APPLICABLE; the version’s other sources and the coverage basis raise nothing',
+  );
+
+  const linkedA = await source('case A linked source');
+  await create(
+    'POST /cases/{caseId}/sources (case A)',
+    `/cases/${caseA.id}/sources`,
+    contracts.LinkCaseSourceResponseSchema,
+    { sourceId: linkedA.data.id, useRole: 'SYNTHETIC_SUPPORT', scopeNote: 'Synthetic CI note' },
+    await caseEtag(caseA.id),
+  );
+  const before0 = await readContext(caseA.id, caseA.selection, 'case A with its linked source');
+  if (conflictsOf(before0).length !== 0) fail('a linked source of no other owner must apply');
+  const ownerB = await create(
+    'POST /owners (owner B)',
+    '/owners',
+    contracts.CreateOwnerResponseSchema,
+    {
+      displayName: `P4G CI synthetic brand B ${tag}`,
+    },
+  );
+  const subjectB = await create(
+    'POST /legal-subjects (owner B)',
+    '/legal-subjects',
+    contracts.CreateLegalSubjectResponseSchema,
+    { subjectType: 'LEGAL_ENTITY', legalName: `P4G CI Synthetic Subject B ${tag} LLC` },
+  );
+  const associationB = await create(
+    'POST /owners/{id}/subjects (owner B)',
+    `/owners/${ownerB.data.id}/subjects`,
+    contracts.LinkOwnerSubjectResponseSchema,
+    { legalSubjectId: subjectB.data.id },
+    await etagOf(`/owners/${ownerB.data.id}`, contracts.GetOwnerResponseSchema),
+  );
+  const routeB = await create(
+    'POST /routes (owner B)',
+    '/routes',
+    contracts.CreateRouteResponseSchema,
+    {
+      agencyId,
+      ownerSubjectId: associationB.data.id,
+    },
+  );
+  const mandateB = await create(
+    'POST /mandates (owner B)',
+    '/mandates',
+    contracts.CreateMandateResponseSchema,
+    { agencyId, label: `P4G CI synthetic mandate B ${tag}` },
+  );
+  const versionB = await create(
+    'POST /mandates/{id}/versions (owner B, draft)',
+    `/mandates/${mandateB.data.id}/versions`,
+    contracts.CreateMandateVersionResponseSchema,
+    {
+      changeKind: 'NEW_AUTHORIZATION',
+      changeReason: 'Synthetic CI capture',
+      primarySourceId: record.data.id,
+      documentState: 'SIGNED_APPEARING',
+    },
+    await etagOf(`/mandates/${mandateB.data.id}`, contracts.GetMandateResponseSchema),
+  );
+  await create(
+    'POST /mandate-versions/{id}/coverages (owner B cites case A’s linked source)',
+    `/mandate-versions/${versionB.data.id}/coverages`,
+    contracts.CreateCoverageResponseSchema,
+    {
+      routeId: routeB.data.id,
+      coverageLabel: `P4G CI synthetic coverage B ${tag}`,
+      basisSourceId: linkedA.data.id,
+      actionScope: ['PREPARE_NOTICE'],
+    },
+    await etagOf(
+      `/mandate-versions/${versionB.data.id}`,
+      contracts.GetMandateVersionResponseSchema,
+    ),
+  );
+  const after0 = await readContext(caseA.id, caseA.selection, 'case A after owner B’s write');
+  const ownerConflicts = conflictsOf(after0);
+  if (
+    after0.contextRevision !== before0.contextRevision ||
+    after0.dependencyDigest === before0.dependencyDigest ||
+    ownerConflicts.length !== 1 ||
+    ownerConflicts[0]?.fieldPath !== entryOf(after0, linkedA.data.id) ||
+    !ownerConflicts[0].message.includes('(CROSS_OWNER_REFERENCE)') ||
+    JSON.stringify(after0.context).includes(ownerB.data.id)
+  ) {
+    fail(
+      'another owner’s later use must change the digest (not the revision) and list the conflict',
+    );
+  }
+  pass(
+    'R14-AUD-010: another owner’s later coverage citing case A’s linked source: the same revision, a new digest and SOURCE_NOT_APPLICABLE (CROSS_OWNER_REFERENCE); no other owner named',
+  );
+  const staleCounts = await rowCounts();
+  const stalePrompt = await call(
+    'POST /cases/{caseId}/prompts (the digest read before owner B’s write)',
+    'POST',
+    `/cases/${caseA.id}/prompts`,
+    412,
+    null,
+    {
+      body: {
+        taskType: 'INITIAL',
+        generationMode: 'DRAFTING',
+        expectedContextRevision: before0.contextRevision,
+        expectedDependencyDigest: before0.dependencyDigest,
+        authoritySelectionId: caseA.selection,
+        priorBindingIds: [],
+      },
+    },
+  );
+  if (stalePrompt.code !== 'CONTEXT_CHANGED') fail('a prompt against a stale digest must be 412');
+  const staleRun = await call(
+    'POST /candidates/{id}/validation-runs (the digest read before owner B’s write)',
+    'POST',
+    runsPath(clean.id),
+    412,
+    null,
+    {
+      body: {
+        expectedArtifactSha256: clean.artifactSha256,
+        expectedDependencyDigest: before0.dependencyDigest,
+      },
+    },
+  );
+  if (staleRun.code !== 'CONTEXT_CHANGED') fail('a validation against a stale digest must be 412');
+  const afterStale = await rowCounts();
+  for (const table of COUNTED_TABLES) {
+    if (afterStale[table] !== staleCounts[table]) fail(`a refused request wrote ${table}`);
+  }
+  await readBack(passed, 'the technical pass after owner B’s write');
+  await readBack(drifted, 'the run of the new read after owner B’s write');
+  pass(
+    'a prompt and a validation against the digest read before are 412 CONTEXT_CHANGED and write nothing; case A’s recorded runs read back exactly as recorded',
+  );
+  const scopeAfter = await rowCounts();
+  for (const table of [
+    'validation_runs',
+    'validation_issues',
+    'prompt_snapshots',
+    'notice_candidates',
+    'candidate_assessments',
+    'assessment_sources',
+  ] as const) {
+    if (scopeAfter[table] !== scopeCounts[table]) fail(`${table} changed while checking sources`);
+  }
+  pass('checking the sources wrote no run, issue, prompt, candidate or assessment');
 
   for (const [label, method, suffix] of [
     ['PATCH /validation-runs/{id}', 'PATCH', `/validation-runs/${passed.id}`],
