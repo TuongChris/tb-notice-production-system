@@ -1,0 +1,162 @@
+R14 Astra-audit remaining-blocker remediation (R14-AUD-009, R14-AUD-010) — Playwright MCP browser verification
+(mission TB_R14_ASTRA_REMAINING_BLOCKER_REMEDIATION), home PC, 2026-09-27 (UTC)
+==================================================================================================================
+
+Target and isolation
+- `yarn ui:sandbox --password-file <scratchpad file outside the repository>`: the COMPILED API on the disposable
+  `tb_notice_test` schema plus the built web app (`vite preview`) on http://localhost:5173 (proxying /api). Built from
+  the committed code head 51c5f44 (clean tree): entry `index-C7ODyXDz.js` 329.93 kB (gzip 102.53 kB);
+  `production-context-BqbfF_l_.js` 33.78 kB (gzip 8.92 kB; 32.87 kB at 2117fba — the generalized marking adds
+  0.91 kB); `candidates-CfezvaMi.js` 56.82 kB (unchanged); no chunk-size advisory.
+  The sandbox ran under the R14-AUD-004 ownership guard: each start verified the empty `tb_notice_test` itself, so its
+  cleanup was armed only then and it owned exactly the session's rows.
+  A first sandbox session stopped at the seed: the scratchpad seed script had two synthetic-input errors of its own
+  (an event type the contract does not have, 422; 12-character video ids, 422 REPORTED_URL_UNSUPPORTED). That session
+  was stopped with SIGINT; its armed cleanup deleted the partial rows ("tb_notice_test is empty again"), and the
+  sandbox was started again from the same commit. Every result below is from the second session.
+  Synthetic sandbox user p2-ui-sandbox@example.invalid; its password was typed into the isolated browser's login form
+  only, and the password file was deleted after the session. No password, cookie or CSRF token is recorded here.
+- Browser: the Playwright MCP isolated headless Chromium profile (no personal profile, no real login session), 1280×720
+  unless noted. Never `tb_notice_dev`, never the operator's `yarn dev`, never real case, owner, authority,
+  correspondence or draft data; every address is @example.invalid. No AI provider, mailbox, Drive or platform was
+  contacted.
+- Prerequisites, created through the compiled API with the sandbox user (a scratchpad script, not committed):
+  agency "SYNTHETIC Agency ASTRA2-G" with its canonical-record source; owner "SYNTHETIC Brand ASTRA2-X" with Subject A
+  "SYNTHETIC Subject ASTRA2-A LLC" (route RA) and Subject B "SYNTHETIC Subject ASTRA2-B LLC" (route RB); a signer.
+  Sources of the agency: AGREEMENT_AB "SYNTHETIC agreement naming Subjects A and B" (legalSubjectIds [A, B]), ANNEX_A
+  "SYNTHETIC annex recorded for Subject A only" ([A]), EVENT_A "SYNTHETIC correction notice recorded for Subject A
+  only" ([A]), BASIS_A / BASIS_B (the coverage bases, [A] / [B]), a mapping basis per case and LINK_A "SYNTHETIC
+  evidence linked to Case A (no subject restriction)".
+  One multi-route mandate "SYNTHETIC ASTRA2 multi-route mandate": version 1 (primary AGREEMENT_AB, additional source 0
+  ANNEX_A, signed date 0 AGREEMENT_AB), coverage CA of RA (basis BASIS_A) and CB of RB (basis BASIS_B), each recording
+  the signer with its basis as the signer row's source; frozen; then one whole-mandate CORRECTION event citing EVENT_A.
+  Every write was valid under the unchanged write rules (the version's and the event's sources are checked against
+  the agency — the R14-AUD-009 situation).
+  Case B "SYNTHETIC Case ASTRA2-B (Subject B)" bound to RB, selection of CB; Case A "SYNTHETIC Case ASTRA2-A (Subject
+  A)" bound to RA, selection of CA and LINK_A linked (role SYNTHETIC_SUPPORT). Each case: a reported item, a work, a
+  mapping, one INITIAL DRAFTING prompt generated against exactly the context read before it, and one synthetic
+  candidate imported from it (one pending slot, no plan). The validation runs were made in the browser.
+  Scenario 3's later write (the R14-AUD-010 drift) was made by the same scratchpad script through the compiled API:
+  owner "SYNTHETIC Brand ASTRA2-Y", Subject C, route RC, a mandate with one DRAFT version whose coverage of RC cites
+  LINK_A as its basis — a valid write that touches nothing of Case A.
+- Zero-write proof: a read-only scratchpad script fingerprints tb_notice_test (SHA-256 of every row of
+  source_references, mandates, mandate_versions, mandate_coverages, coverage_signers, authority_events, cases,
+  case_sources, case_authority_selections, use_mappings, prompt_snapshots, notice_candidates, validation_runs and
+  validation_issues; the counts of audit events, idempotency records, candidate_assessments and assessment_sources) at
+  the empty start (fp-0), after the seed (fp-1), before the drift (fp-2), after the drift (fp-3), after the last
+  browser action (fp-4) and after the cleanup (fp-5).
+- Screenshots: docs/verification/p4g/evidence/screenshots/r14-astra2-*.png (element or viewport screenshots of the
+  context, prompt and candidate pages — synthetic data only).
+
+Results (all PASS)
+ 1 PASS  Scenario 1 (R14-AUD-009), Case B (Subject B): the production context page with task INITIAL, mode DRAFTING
+         and the selection, each chosen explicitly (nothing preselected); "Show context" activated with Enter → focus
+         on the context outcome. DRAFTING is delivered (a conflict is no gate): revision 5, digest d36638b7…2cbde,
+         "Missing context (0)" and "Recorded conflicts (2)":
+           SOURCE_NOT_APPLICABLE sources[0] — "Recorded source 13d2765e-… is not applicable to the current Case scope
+             (SOURCE_SCOPE_UNRESOLVED: SCOPED_TO_OTHER_SUBJECT). This context cites it as the source of whole-mandate
+             authority event b159d4a0-…. The citing records and the source are kept as recorded; this is a
+             source-scope condition, not a finding about what the source shows or about any authority, right or gate."
+           SOURCE_NOT_APPLICABLE sources[2] — the same for a446141c-… "cites it as additional source 0 of mandate
+             version ec19d509-…".
+         [r14-astra2-01-case-b-authority-source-conflicts.png]
+ 2 PASS  No misleading clean presentation, in the authority block: "Not applicable to this case’s scope" beside the
+         whole-mandate event's Source (EVENT_A) only; nothing beside the version's primary source (AGREEMENT_AB, both
+         subjects), the coverage basis (BASIS_B) or the coverage signer row's source (BASIS_B). The block shows exactly
+         the pinned chain (selection, coverage CB, version 1 "Frozen", the signer row, the event) and "Selected for
+         evaluation; not a G1 decision." The authority block does not display a version's additional sources (the
+         existing P4D layout shows its primary source); ANNEX_A is named by its conflict and marked in the manifest
+         (item 3). [r14-astra2-02-case-b-authority-block-event-tag.png]
+ 3 PASS  Historical traceability, in "Sources (5)": EVENT_A and ANNEX_A stay listed exactly as recorded, each with a
+         "Case scope" row — the tag, "Recorded source is not applicable to the current Case scope." and "Recorded
+         conflicts name every record of this context that cites it. The records and the source are kept as recorded,
+         and this says nothing about what the source shows." AGREEMENT_AB, BASIS_B and Case B's mapping basis have no
+         such row. [r14-astra2-03-case-b-source-manifest-marked.png]
+ 4 PASS  Neutral wording: no invalid-evidence, unauthorized, expired, revoked, G1-failed or verdict wording on the page.
+         The only hits of a broad scan ("no authority", "infring…", "proves") are pre-existing boundary sentences: the
+         selector hint "Without one, the context has no authority and no signer.", "A reported item is not an
+         infringement finding …", "Mapping (shown as recorded, not as an infringement verdict)" and "a source proves
+         nothing by existing". The page's only actions: "Sign out", "Show context", "Read again".
+ 5 PASS  Scenario 2 (applicable, no conflict), Case A (Subject A), the same mandate, version and event: revision 6,
+         digest b4b8babf…cb177, "Recorded conflicts (0)", no tag and no "Case scope" row anywhere; "Sources (6)" lists
+         ANNEX_A, EVENT_A, AGREEMENT_AB, BASIS_A, the mapping basis and LINK_A. Focus moved to the context outcome.
+         [r14-astra2-04-case-a-no-conflict.png]
+ 6 PASS  PromptSnapshot: Case B's prompt page shows "Recorded conflicts (2)" (the same two entries, frozen at
+         generation) and its prompt text renders both under "PART 3 — KNOWN GAPS AND RECORDED CONFLICTS" as
+         `- SOURCE_NOT_APPLICABLE (sources[0]): "Recorded source 13d2765e-…` and `- SOURCE_NOT_APPLICABLE (sources[2]):
+         …`. The page's actions: "Copy prompt", "Sign out". [r14-astra2-05-case-b-prompt-frozen-conflicts.png]
+ 7 PASS  Technical validation, Case B: on the candidate, "Read the current context" (Enter) → "Current context read:
+         revision 5, 0 missing, 2 recorded conflicts." (focus), digest d36638b7…2cbde; "Run technical validation"
+         (Enter) → run 77d7c304-… "Technical validation result: REVIEW REQUIRED" (focus on the heading) — not
+         TECHNICAL_PASS: 0 blockers, 2 review required, both CONTEXT.CONFLICTS ("Deterministic check", "Review
+         required", fields evaluatedContextJson.conflicts.0 and .1, "The evaluated context records a conflict
+         (SOURCE_NOT_APPLICABLE). It stays a conflict; nothing decides it here."); 29 of 29 rules executed; ruleset
+         TB-TECHNICAL-RULESET-v2. The qualifier remains: "Technical checks only. This is not G1–G6 review, legal
+         approval, readiness, signature, or permission to send." READY_FOR_SIGNER appears nowhere.
+         [r14-astra2-06-case-b-validation-context-conflicts.png, r14-astra2-07-case-b-validation-result-qualifier.png]
+ 8 PASS  Scenario 3 (R14-AUD-010) at t0, Case A: "Read the current context" → revision 6, 0 missing, 0 recorded
+         conflicts, digest b4b8babf…cb177; "Run technical validation" → run 644886b0-… TECHNICAL PASS (0 blockers,
+         0 review required, 0 warnings; digest evaluated b4b8babf…cb177), with the qualifier.
+         [r14-astra2-08-case-a-t0-technical-pass.png]
+ 9 PASS  The later owner write (the drift script, compiled API): owner Y's DRAFT coverage 85011341-… cites LINK_A.
+         Fingerprints fp-2 → fp-3: mandates 1 → 2, mandate_versions 1 → 2, mandate_coverages 2 → 3; audit events +9
+         (consistent with the script's login, its 7 writes and its logout), idempotency records +7; source_references, cases,
+         case_sources, case_authority_selections, use_mappings, prompt_snapshots, notice_candidates, validation_runs and
+         validation_issues byte-identical — nothing of Case A was written.
+10 PASS  Stale validation refused: the candidate page still holding the t0 read, "Run technical validation" → POST
+         …/validation-runs 412 `{"code":"CONTEXT_CHANGED", "details":{"field":"expectedDependencyDigest"}}` for
+         expectedDependencyDigest b4b8babf…cb177; the page shows exactly "Context changed. Read the current context
+         before validating again." / "No validation run was recorded." (focus on the alert), offers only "Read the
+         current context" (no retry) and shows "Current dependency digest: Changed since the last read: not known until
+         the current context is read again." instead of the earlier digest; no run was written (item 14).
+         The console error of this step is the browser's own line for the 412. [r14-astra2-09-case-a-stale-validation-412.png]
+11 PASS  t1: "Read the current context" → revision 6 (unchanged), digest 28e2cbf1…27e20 (changed), 1 recorded conflict.
+         "Run technical validation" → run e9af9121-… REVIEW REQUIRED (focus on the heading): 0 blockers, 2 review
+         required — CONTEXT.CONFLICTS with the recorded conflict "Recorded source 540ece7f-… is not applicable to the
+         current Case scope (CROSS_OWNER_REFERENCE). This context cites it as case source link 7af8a334-…
+         (SYNTHETIC_SUPPORT). …" at contextFieldPath sources[3], and CONTEXT.PROMPT_DRIFT for
+         SourceReference:540ece7f-… (CHANGED, prompt fingerprint 91fa9b89… → current 5facbad0…). The other owner is
+         named nowhere. The context page for the same scope: revision 6, digest 28e2cbf1…, "Recorded conflicts (1)"
+         (the same entry), only LINK_A marked in "Sources (6)".
+         [r14-astra2-10-case-a-t1-review-required-cross-owner.png, r14-astra2-12-case-a-t1-cross-owner-conflict.png]
+12 PASS  History unchanged: the run list shows both runs (REVIEW REQUIRED newest, then TECHNICAL PASS). "Open run" on the
+         t0 run (Enter) → GET /api/v1/validation-runs/644886b0-… 200, then its issues → "Recorded technical validation
+         result: TECHNICAL PASS" (focus), the qualifier, "Read back exactly as this run recorded it. Nothing was checked
+         again: …", dependency digest evaluated b4b8babf…cb177. The t0 prompt page: revision 6, digest b4b8babf…cb177,
+         "Recorded conflicts (0)", PART 3 "CONFLICT (0): none recorded in this context."
+         [r14-astra2-11-case-a-historical-run-unchanged.png]
+13 PASS  No assessment or readiness action: the candidate page's buttons are "Sign out", "Read the current context",
+         "Open run" / "Close run" and "Supersede this draft artifact" (P4F) — no approve, ready, assess, verify, sign,
+         send, export, submit, retract or adopt action, and no READY_FOR_SIGNER text; the context page offers only
+         "Show context" / "Read again". GET /api/v1/candidates/{id}/assessments and GET …/readiness from the signed-in
+         page → 404 NOT_FOUND (not routed).
+14 PASS  Reads write nothing: fp-1 → fp-2 (Scenario 1 and 2 pages, both t0-era runs): +2 validation runs, +2 issues,
+         +3 audit events (consistent with the browser login and 2 VALIDATION_RUN_RECORDED), +2 idempotency records, every other
+         fingerprint identical. fp-3 → fp-4 (the 412, the t1 read and run, the run read-back, the prompt and context
+         pages, the 390 px reads and the probes): +1 run (e9af9121), +2 issues, +1 audit event, +1 idempotency record,
+         every other fingerprint identical — the 412 wrote nothing. candidate_assessments and assessment_sources 0
+         throughout. (The audit event types were not listed before the cleanup deleted them; the counts are the
+         evidence.)
+15 PASS  390 px: Case A's context at 390×844: document scrollWidth 390 = viewport (no page-level horizontal scroll);
+         the marked LINK_A entry wraps and stays readable; the existing P4D tables (reported items, works, use mappings,
+         dependencies) scroll inside their own 328 px `table-frame` (overflow-x auto), as designed. The candidate page
+         with the t1 run open at 390 px: scrollWidth 390, no element overflowing outside a scroll frame.
+         [r14-astra2-13-case-a-390px-marked-manifest-entry.png, r14-astra2-14-case-a-390px-run-detail.png]
+16 PASS  Keyboard and focus: Enter on "Show context" → focus on the context outcome; Enter on "Read the current context"
+         → focus on the read's outcome; Enter on "Run technical validation" → focus on the result heading; Enter on
+         "Open run" → focus on "Recorded technical validation result: …"; at 390 px, activating "Open run" → focus on
+         "Recorded technical validation result: REVIEW REQUIRED".
+17 PASS  Sign-out → the login page; GET /api/v1/auth/session and GET the t0 run → 401.
+18 PASS  Cleanup (the sandbox legitimately owned the empty-start session): SIGINT to the sandbox's process group →
+         "[ui:sandbox] stopping…" → "[ui:sandbox] sandbox rows deleted; tb_notice_test is empty again"; fp-5
+         byte-identical to fp-0 (every table 0 rows, 0 audit events, 0 idempotency records); `yarn db:verify test`
+         PASS (domain rows 0); the password file deleted; ports 3000/5173 free.
+
+Console: the only console errors of the session were the expected 401 of the pre-login session probe, the browser's
+line for the expected 412 (item 10), the two 404 probes (item 13) and the two 401 probes after sign-out (item 17).
+
+Limitations: the later owner write of Scenario 3 was made through the compiled API by the scratchpad script, not
+through the directory and authority pages (the pages were not changed by this mission); the stale prompt generation
+(412 CONTEXT_CHANGED) is proven by the DB test and smoke:p4g, not repeated in the browser.
+
+Findings: none.

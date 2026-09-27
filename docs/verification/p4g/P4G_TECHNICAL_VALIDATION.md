@@ -8,6 +8,8 @@ Mission **TB_R13_CLOSEOUT_MERGE_AND_P4G_TECHNICAL_VALIDATION_TO_R14**, steps 9�
 
 **Astra audit (independent, operator; audit target `4a1618d`): R14 = HOLD_FOR_REMEDIATION**, ADR-0006 PROPOSED / REVISE_BEFORE_ACCEPTANCE, `ASTRA_AUDIT = PARTIAL`. Mission TB_R14_ASTRA_BLOCKER_REMEDIATION (2026-09-27) remediated the four authorized findings on the same branch (§36): R14-AUD-001 (a correspondence source restricted to another subject reached another case's production context as clean support), -003 (`TB-TECHNICAL-RULESET-v2` pins the internal-marker vocabulary), -004 (ui:sandbox cleanup ownership) and -008 (G6/G7 terminology) — each **REMEDIATED_PENDING_INDEPENDENT_REVIEW**. **R14 = HOLD_FOR_REVIEW**; ADR-0006 stays **PROPOSED** (revised); R14-AUD-002 and -007 are OPEN_BACKLOG, -005 and -006 FUTURE_ASSESSMENT_PREREQUISITE. P4G is not recorded as VERIFIED_COMPLETE, nor R14 as PASS.
 
+**Astra audit continued (at `fdcda2b`; `ASTRA_AUDIT = PARTIAL`):** R14-AUD-001, -003, -004 and -008 **CLOSED_VERIFIED_WITH_LIMITS**; two further blockers of R14 final and of assessment implementation, R14-AUD-009 (a mandate version's sources and a whole-mandate event's source, checked at the agency level, reached the context of a case of another legal subject as clean) and R14-AUD-010 (a case-only citation made inapplicable by another owner's later records raised no conflict and left the digest unchanged). Mission TB_R14_ASTRA_REMAINING_BLOCKER_REMEDIATION (2026-09-27) remediated exactly those two on the same branch (§37): every source a context lists is checked against the case as it is now, and another owner's use of any of them joins its fingerprint — each **REMEDIATED_PENDING_INDEPENDENT_REVIEW**. **R14 = HOLD_FOR_REVIEW**; ADR-0006 stays **PROPOSED**; R14-AUD-011 and -012 are NON_BLOCKING_BACKLOG. No wire, schema, migration or ruleset change.
+
 Persistent rules (they stay in force; `CLAUDE.md` carries them):
 
 - **Technical validation ≠ substantive review.** A ValidationRun records what the technical ruleset found for one exact candidate artifact against the current recorded context: exact bytes and hashes, the envelope and thread, the document plan, internal markers, recorded gaps and drift. It reviews nothing substantively — no authority (G1), work-specific rights (G2), identification sufficiency (G3), audiovisual infringement (G4), permission or exceptions (G5), exact-artifact consistency and traceability QA (G6), legal validity or signer eligibility — and it is no G7, the actual human review, adoption, signature and sending outside the application. (Terminology corrected 2026-09-27, R14-AUD-008: this line first named "human adoption of the text" as G6; personal adoption is G7.)
@@ -24,16 +26,16 @@ Persistent rules (they stay in force; `CLAUDE.md` carries them):
 |---|---|
 | R13 closeout, merge and branch (steps 1–8) | **DONE** — R13 = PASS recorded (`85d0aed`); P4F merged to `main` by PR #9 (merge commit `5aa9248`); post-merge `main` CI green; branch created from `5aa9248`; checkpoint `b71a2e0` (`P4F_NOTICE_CANDIDATE.md` §28–§29; §2) |
 | P4G implementation (step 9) | **IMPLEMENTED** on `feature/p4g-technical-validation` — code head `608800e` (§3) |
-| P4G home-PC automated tests | **PASS** — `yarn test` 1515 in 48 files and `yarn test:db` 520 in 14 files on the code head `608800e`; P4G: 36 rule-engine and 3 WriteExecutor unit tests, 11 web, 26 DB (§26). R14 remediation: `yarn test` 1532 in 49 files, `yarn test:db` 526 in 14 files on `31df6d7` (§35.6). Astra-audit remediation: `yarn test` 1559 in 52 files, `yarn test:db` 534 in 14 files on `2117fba` (§36.7) |
+| P4G home-PC automated tests | **PASS** — `yarn test` 1515 in 48 files and `yarn test:db` 520 in 14 files on the code head `608800e`; P4G: 36 rule-engine and 3 WriteExecutor unit tests, 11 web, 26 DB (§26). R14 remediation: `yarn test` 1532 in 49 files, `yarn test:db` 526 in 14 files on `31df6d7` (§35.6). Astra-audit remediation: `yarn test` 1559 in 52 files, `yarn test:db` 534 in 14 files on `2117fba` (§36.7). Remaining-blocker remediation: `yarn test` 1575 in 52 files, `yarn test:db` 544 in 14 files on `51c5f44` (§37.7) |
 | Consistency / transaction tests | **PASS** — capture in one REPEATABLE READ snapshot, the ruleset outside any lock, one short SERIALIZABLE commit with the rechecks: a change committed after the capture is 412 with nothing written, a dependency write that never locks the case waits for the commit, an audit failure rolls back the run, its issues and the idempotency record (DB tests; negative controls NC-P4G-18, -19, -20) (§6) |
-| Browser verification (Playwright MCP, `tb_notice_test`) | **PASS** 32/32 — two sandbox sessions; one finding (F1) fixed in `3b56a41` and re-verified; limitations L1–L4 (§24). R14 read-back **PASS** 17/17 — one finding (the 390 px dependency table) fixed in `a5c22aa` and re-verified (§35.8). Astra-audit remediation **PASS** 14/14, no finding (§36.9) |
-| Negative controls | **PASS** 33/33 in the final run on `608800e` — all 22 control kinds of mission §43 plus 11 further; 60 responsible commands, each failing on an AssertionError (§25). R14 remediation **PASS** 24/24 on `31df6d7` — the 11 mandatory kinds plus 13 further; 32 commands, each failing on an AssertionError (§35.9). Astra-audit remediation **PASS** 18/18 on `2117fba` — the 9 mandatory kinds of mission §40 plus 9 further; 28 commands, each failing on an AssertionError (§36.10) |
-| Full regression (mission §48) | **PASS** — 21/21 steps exit 0 on the code head `608800e` (§26). R14 remediation 21/21 on `31df6d7` (§35.10). Astra-audit remediation 21/21 on `2117fba` (§36.11) |
-| Exact final branch CI | **PASS** for the code head `608800e` — push run 36233916154, both jobs success; the R14 submission head `6fc5605` — push run 36234677791 success. R14 remediation code head `31df6d7` — push run 36248642530, both jobs success (§35.10); the run of the remediation's documentation head is reported with the R14-final report. Astra-audit remediation code head `2117fba` — push run 36290145394, both jobs success (§36.11); its documentation head's run is reported with the remediation report |
-| Schema / migration | **No change** (§28; the R14 remediation made none either, §35.11, nor the Astra-audit remediation, §36.12) |
-| Wire contract | **No change in P4G** — TB-SCHEMA-API-v1.2.0 (§29). The R14 remediation adds the additive release **TB-SCHEMA-API-v1.3.0** (one read, one envelope schema; ADR-0006 **PROPOSED**, §35.3). The Astra-audit remediation changed no wire contract: the v1.3.0 amendment digest is unchanged (§36.12) |
-| R14 review | **PASS_WITH_ONE_CONTRACT_REMEDIATION** (operator, 2026-09-26) — V1–V12 and `ENVELOPE.REPLY_RECIPIENT` ACCEPTED; V13 **REMEDIATION_IMPLEMENTED_PENDING_R14_FINAL_REVIEW** on `feature/r14-validation-run-readback`, submitted for R14 final (§34, §35). The operator's independent Astra audit of that submission (`4a1618d`) put **R14 = HOLD_FOR_REMEDIATION**; after the Astra-audit remediation, **R14 = HOLD_FOR_REVIEW** (§36) — not PASS |
-| Astra audit findings | R14-AUD-001, -003, -004 and -008 **REMEDIATED_PENDING_INDEPENDENT_REVIEW**; R14-AUD-002 and -007 **OPEN_BACKLOG**; R14-AUD-005 and -006 **FUTURE_ASSESSMENT_PREREQUISITE**; `ASTRA_AUDIT = PARTIAL` (§36) |
+| Browser verification (Playwright MCP, `tb_notice_test`) | **PASS** 32/32 — two sandbox sessions; one finding (F1) fixed in `3b56a41` and re-verified; limitations L1–L4 (§24). R14 read-back **PASS** 17/17 — one finding (the 390 px dependency table) fixed in `a5c22aa` and re-verified (§35.8). Astra-audit remediation **PASS** 14/14, no finding (§36.9). Remaining-blocker remediation **PASS** 18/18, no finding (§37.9) |
+| Negative controls | **PASS** 33/33 in the final run on `608800e` — all 22 control kinds of mission §43 plus 11 further; 60 responsible commands, each failing on an AssertionError (§25). R14 remediation **PASS** 24/24 on `31df6d7` — the 11 mandatory kinds plus 13 further; 32 commands, each failing on an AssertionError (§35.9). Astra-audit remediation **PASS** 18/18 on `2117fba` — the 9 mandatory kinds of mission §40 plus 9 further; 28 commands, each failing on an AssertionError (§36.10). Remaining-blocker remediation **PASS** 14/14 on the code of `51c5f44` — the 10 mandatory controls plus 4 further; 27 commands, each failing on an AssertionError (§37.10) |
+| Full regression (mission §48) | **PASS** — 21/21 steps exit 0 on the code head `608800e` (§26). R14 remediation 21/21 on `31df6d7` (§35.10). Astra-audit remediation 21/21 on `2117fba` (§36.11). Remaining-blocker remediation 21/21 on `51c5f44` (§37.11) |
+| Exact final branch CI | **PASS** for the code head `608800e` — push run 36233916154, both jobs success; the R14 submission head `6fc5605` — push run 36234677791 success. R14 remediation code head `31df6d7` — push run 36248642530, both jobs success (§35.10); the run of the remediation's documentation head is reported with the R14-final report. Astra-audit remediation code head `2117fba` — push run 36290145394, both jobs success (§36.11); its documentation head `fdcda2b` — push run 36291505391, both jobs success. Remaining-blocker remediation code head `51c5f44` — push run 36325665818, both jobs success (§37.11); its documentation head's run is reported with the remediation report |
+| Schema / migration | **No change** (§28; the R14 remediation made none either, §35.11, nor the Astra-audit remediations, §36.12, §37.12) |
+| Wire contract | **No change in P4G** — TB-SCHEMA-API-v1.2.0 (§29). The R14 remediation adds the additive release **TB-SCHEMA-API-v1.3.0** (one read, one envelope schema; ADR-0006 **PROPOSED**, §35.3). The Astra-audit remediations changed no wire contract: the v1.3.0 amendment digest is unchanged (§36.12, §37.12) |
+| R14 review | **PASS_WITH_ONE_CONTRACT_REMEDIATION** (operator, 2026-09-26) — V1–V12 and `ENVELOPE.REPLY_RECIPIENT` ACCEPTED; V13 **REMEDIATION_IMPLEMENTED_PENDING_R14_FINAL_REVIEW** on `feature/r14-validation-run-readback`, submitted for R14 final (§34, §35). The operator's independent Astra audit of that submission (`4a1618d`) put **R14 = HOLD_FOR_REMEDIATION**; after the Astra-audit remediation, **R14 = HOLD_FOR_REVIEW** (§36); the audit continued at `fdcda2b` found R14-AUD-009 and -010, remediated in §37 — **R14 = HOLD_FOR_REVIEW**, not PASS |
+| Astra audit findings | R14-AUD-009 and -010 **REMEDIATED_PENDING_INDEPENDENT_REVIEW** (§37); R14-AUD-001, -003, -004 and -008 **CLOSED_VERIFIED_WITH_LIMITS** (continued audit; §36); R14-AUD-002 and -007 **OPEN_BACKLOG**; R14-AUD-011 and -012 **NON_BLOCKING_BACKLOG**; R14-AUD-005 and -006 **FUTURE_ASSESSMENT_PREREQUISITE**; `ASTRA_AUDIT = PARTIAL` |
 | P4G status / merge | **MERGED_TO_MAIN_FOR_IMPLEMENTED_SCOPE** — pull request #10, merge commit `c73cbda` (merge commit method; 2026-09-26T12:46:40Z); `main` push CI run 36242994330 success; `P4G_IMPLEMENTATION = VERIFIED_FOR_IMPLEMENTED_SCOPE`. The R14 remediation is **not merged** (§34) |
 
 ## 1. Operation matrix and design (contract-first)
@@ -909,3 +911,229 @@ The CI smokes cite only agency sources without a subject restriction in their ca
 | CandidateAssessment and later phases | **NOT_STARTED** / HOLD |
 | External action | **NONE** |
 | Database / wire contract / dependencies | **No change** |
+
+## 37. Astra audit remediation — R14-AUD-009 and -010 (2026-09-27, home PC)
+
+Mission TB_R14_ASTRA_REMAINING_BLOCKER_REMEDIATION (operator, 2026-09-27), on `feature/r14-validation-run-readback`. Primary source: the operator's independent Astra audit continued at the §36 documentation head `fdcda2b` (deliverables `TB_ASTRA_R14_CONTINUATION_fdcda2b` and `TB_ASTRA_R14_CRITICAL_COVERAGE_fdcda2b`). That audit classified R14-AUD-001, -003, -004 and -008 as **CLOSED_VERIFIED_WITH_LIMITS** and established two further blockers of R14 final and of assessment implementation: R14-AUD-009 and R14-AUD-010 (both CONFIRMED_DEFECT / HIGH). It reported bounded critical coverage (runtime API, Prisma schema and contracts 100 %, the web source except CSS 100 %, critical tests 65.47 %, the whole critical denominator 70.85 %); `ASTRA_AUDIT` stays **PARTIAL**. Sections 1–36 keep the state at their time. §36.13 item 3 recorded the AUD-009 observation for the audit; this section resolves it.
+
+### 37.1 Scope, pre-flight and independent confirmation
+
+| Item | Value |
+|---|---|
+| Authorized | exactly R14-AUD-009 and R14-AUD-010 |
+| Kept as closed (not reopened) | R14-AUD-001, -003, -004, -008 **CLOSED_VERIFIED_WITH_LIMITS** — regression re-run (§37.6) |
+| Recorded only, unchanged | R14-AUD-002, -007 **OPEN_BACKLOG**; R14-AUD-011 (source-revision timestamp precision in the UI), -012 (Owner picker retained hidden selection) **NON_BLOCKING_BACKLOG**; R14-AUD-005, -006 **FUTURE_ASSESSMENT_PREREQUISITE** |
+| Not done (not authorized) | CandidateAssessment, AssessmentSource read, G1–G6 forms, readiness, READY_FOR_SIGNER, unsigned export, G7, signature, sending, email, Drive, uploader contact, platform action, real-case data |
+| Pre-flight (before any change) | `HEAD` = `fdcda2bc47e2c033b4f6314d6e487b19b0b294cb`, equal to its origin, worktree clean; `origin/main` = `c73cbdad1fe5d09813525930b4df9ed9123fd9de`; no pull request of the branch; CI run 36291505391 on `fdcda2b` success, both jobs; ADR-0006 PROPOSED; R14 not PASS; assessment routes unrouted |
+
+Both findings were confirmed from the source before any change, not from the audit's description:
+- **AUD-009.** `versionSourceUses` (`authority-rules.ts`) lists a version's primary, additional and signed-date sources; `assertTermsSources` (`mandate-versions.service.ts`) checks them with `assertSourcesUsable(…, { kind: 'Agency', agencyId })`, at create, patch and freeze. `recordAuthorityEvent` keeps the Agency target when `coverageId` is null and uses the coverage's route only for a coverage-scoped event. An Agency target has no subject, case or owner dimension. `readContextRows` then read every one of these sources into the manifest and the closure (`authoritySourceIds`), and only the correspondence citations were evaluated against the case (`correspondenceSourceScope`).
+- **AUD-010.** `linkCaseSource`, the case's canonical binding (`CanonicalBindingCase`), the packet source of `patchCase`, mapping bases and a selection's basis check the source against the case, including the owner dimension, when written. None of those records is owner material: `otherOwnerUsing` looks only at an owner's canonical source, OwnerSubject sources, route canonical sources, coverage bases, coverage signer sources and coverage-scoped event sources. So another owner's later coverage citing a case-linked source passes its own route check. The source then stops applying to the first case (`CROSS_OWNER_REFERENCE`), but its context did not re-evaluate it, and its fingerprint marked another owner's use only for a source a message cites (`otherOwnerMaterial`, R14-AUD-001). The digest, the revision and `generatePrompt`'s expectations stayed unchanged.
+
+### 37.2 Root cause and remediation
+
+**Root cause (common to both).** Valid when recorded was used as applicable to this case now, for every citation except a captured message's. A citation is checked against its own record's target when that record is written — an agency, a route or the case — and the case's production context listed the cited sources without checking them against the case as it is when read.
+
+**Remediation — one evaluation for every listed source** (`apps/api/src/modules/production/context-sources.ts`, new):
+- `sourceCitations(rows)`, a pure collector, names every citation of a source by a record of the context: `sourceId`, the kind, the citing record (`parentEntityType`, `parentEntityId`), the field (`fieldPath`) and the citation in words. The kinds, in their fixed order: `CASE_CANONICAL`, `CASE_PACKET`, `CASE_SOURCE`, `FACT_SUPPORT`, `MAPPING_BASIS`, `SELECTION_BASIS`, `MANDATE_VERSION_PRIMARY`, `MANDATE_VERSION_ADDITIONAL`, `MANDATE_VERSION_SIGNED_DATE`, `COVERAGE_BASIS`, `COVERAGE_SIGNER`, `MANDATE_EVENT` (whole-mandate), `COVERAGE_EVENT`, `CORRESPONDENCE_RAW`, `CORRESPONDENCE_ATTACHMENT`.
+- `readContextRows` reads **exactly the cited sources**: the source ids are derived from the citations (the same set as before — no source is added to or dropped from any manifest). So every listed source has a citation, and none is listed without being evaluated. Unrelated registry sources and scalar directory source ids that the context does not list (an agency's, owner's, subject's, route's, signer's or mandate's canonical source) are not read.
+- `currentSourceApplicability` evaluates every listed source **once per read**, in the read's REPEATABLE READ snapshot, with the existing `applicabilityProblem` (`source-scope.ts`: `scopeProblem`, then `otherOwnerUsing` when the case has an owner — the read-only form of `assertSourcesUsable`; plain reads, no lock, write, audit or idempotency record). The target is the case as the snapshot reads it — its agency, case id, and, through its bound route, owner and legal subject; without a route, a subject-scoped source is `CASE_SUBJECT_UNBOUND` and no subject is guessed. The existing source-scope rules stay the single source of truth; no parallel rule was written.
+- `ContextRows` replaces `correspondenceSourceProblems` with `sourceCitations` and `sourceApplicability` (one result per listed source, null when it applies). The fingerprint and the assembly refuse a listed source without an evaluation (an internal error, never a clean listing).
+- Not done (mission §8, §13, §26): no MandateVersion, AuthorityEvent, CaseSource, FactSource, UseMapping, selection, capture, binding, source revision, prompt, candidate or run is edited; nothing is stored as "applicable"; multi-route mandates and shared reuse stay possible; the write rules are unchanged, and no later write is refused to prevent the drift.
+
+**Representation — the existing `conflicts[]`, no wire change.**
+
+| Citation | Code | Granularity | `fieldPath` |
+|---|---|---|---|
+| a selected message's raw or attachment source (R14-AUD-001, unchanged) | `CORRESPONDENCE_SOURCE_NOT_APPLICABLE` | one per citation, the exact R14-AUD-001 message | `correspondence[i].rawSourceId` / `correspondence[i].attachmentsManifest[j].sourceId` |
+| every other citation (R14-AUD-009, -010) | **`SOURCE_NOT_APPLICABLE`** | one per source, naming each other citing record | the source's manifest entry: `sources[i]` or `policySources[i]` (`sources` / `policySources` when its text is too long to be listed) |
+
+The `SOURCE_NOT_APPLICABLE` message: "Recorded source ‹id› is not applicable to the current Case scope (‹reason›). This context cites it as ‹citations›. The citing records and the source are kept as recorded; this is a source-scope condition, not a finding about what the source shows or about any authority, right or gate." The reason is named as the write refusals name it (`SOURCE_SCOPE_UNRESOLVED: SCOPED_TO_OTHER_SUBJECT`, `… CASE_SUBJECT_UNBOUND`, `CROSS_CASE_REFERENCE`, `CROSS_AGENCY_REFERENCE`, `CROSS_OWNER_REFERENCE`), and no other owner's id appears. The citations are named in words (for example "the primary source of mandate version ‹id›", "additional source 0 of mandate version ‹id›", "the source of whole-mandate authority event ‹id›", "case source link ‹id› (‹role›)", "a recorded support of fact ‹id› (through case source link ‹id›)", "the basis source of use mapping ‹id›", "the basis source of authority selection ‹id›").
+
+- **Each citation is reported exactly once.** A source a message cites keeps its per-citation R14-AUD-001 conflicts; its other citing records are named in one `SOURCE_NOT_APPLICABLE`. A source only a message cites raises no `SOURCE_NOT_APPLICABLE` (R14-AUD-001 exactly).
+- **Deterministic and bounded.** Conflicts are emitted in manifest order; the citations of one source are sorted by kind, citing record and field, the same words once, at most 20 named and the rest counted ("; and ‹n› more citations"); one source cited hundreds of times is one conflict (`MissingItem.message` ≤ 8000 characters; `conflicts` ≤ 1000, never cut). Reversing every row array gives the same conflicts and digest (unit test).
+- **Traceability.** Every listed source stays in `sources` or `policySources` exactly as recorded and in the dependency closure; its provenance and review state are unchanged. The authority block stays exactly the chain the selection pinned.
+- **Authority and facts semantics** (mission §28–§29). A conflict inside the selected authority chain means only that a source a selected record cites does not apply to this case's scope under the recorded source-scope rules. It is not G1 FAIL, not an invalid mandate, coverage or signer, not unauthorized. A conflict on a case source changes no fact, provenance, rights, permission, comparison or exception record. No currentness or adjudication logic was added.
+- **Through the stack.** No DRAFTING gate (a conflict is not a blocking missing code). A prompt freezes it in `conflicts` and PART 3 renders it (TB-PROMPT-TEMPLATE-v1 unchanged). A technical validation reports it through the existing `CONTEXT.CONFLICTS` (REVIEW_REQUIRED): a run is never TECHNICAL_PASS while it remains. No P4G rule was added or changed, so `TB-TECHNICAL-RULESET-v2` is unchanged (a new conflict code of the context is data the existing rule reports).
+
+**Dependency digest** (mission §23–§25). The fingerprint closure determines each listed source's current applicability result:
+- the recorded-scope part follows from records already in the closure — the source revision (its agency and scope bindings), the case (id, agency, route), its route and association (owner, legal subject);
+- the owner part is the only input outside the closure: when another owner's records use a listed source, `otherOwnerMaterial: true` joins **that source's** fingerprint — whichever record of the context cites it, no longer only a message (generalizing R14-AUD-001). The key is present only then; no other fingerprint changes.
+
+So any change in whether a listed source applies changes the digest, even when the source row, its head and the case's `contextRevision` are unchanged: `null → CROSS_OWNER_REFERENCE` on a case-only citation now changes the digest, and a prompt or validation against the earlier digest is 412 `CONTEXT_CHANGED`. The marker is a boolean — the same whichever other owner is found — so the digest does not depend on query order, and no other owner's identity enters this case's context. Contexts without the condition keep their digests, and R14-AUD-001's fingerprints are unchanged (the same key on the same sources). `TB-PRODUCTION-CONTEXT-DIGEST-v1`, the TB canonical JSON hashing, the digest's `CONTRACT_BASELINE` coupling and version-only drift (REVIEW_REQUIRED, not a mandatory re-draft) are unchanged.
+
+**Consistent snapshot.** The citations, the source rows, the case target and every `otherOwnerUsing` read come from the one snapshot of the read (for `generatePrompt`'s and `validateCandidate`'s rebuilds, their SERIALIZABLE transaction). `getProductionContext` stays business-read-only (P1's session activity touch aside).
+
+**UI** (`apps/web/src/app/cases/production-context.tsx`). The page derives nothing; it marks what the context lists. `SOURCE_NOT_APPLICABLE` at `sources[i]` / `policySources[i]` marks that source: the tag "Not applicable to this case’s scope" beside every authority and mapping citation of it on the page (selection, coverage, version primary, coverage signer and event sources; mapping basis), and in both source lists the "Case scope" row "Recorded source is not applicable to the current Case scope." with "Recorded conflicts name every record of this context that cites it. The records and the source are kept as recorded, and this says nothing about what the source shows." The R14-AUD-001 marking and wording are unchanged. No invalid, unauthorized, no-authority, expired, revoked or gate wording.
+
+### 37.3 R14-AUD-009 — the four agency-level authority paths
+
+| Mission §31 | Test | Result |
+|---|---|---|
+| A — `MandateVersion.primarySourceId` restricted to Subject A (same agency and owner), case of Subject B | DB `p4d-http` "R14-AUD-009 A — …": the citation valid at the agency level; exactly one `SOURCE_NOT_APPLICABLE` at the source's manifest entry, naming "the primary source of mandate version ‹id›" and `SCOPED_TO_OTHER_SUBJECT`; the source listed exactly as recorded and in the closure; the authority block exactly the selected version, coverage and events; the mandate, version, event, source, case, link, support, mapping and selection rows unchanged; repeated reads identical and writing nothing; no G1, invalid or unauthorized wording; a direct case link of the same source refused (422 `SOURCE_SCOPE_UNRESOLVED`) | PASS |
+| B — `additionalSourceRefs[].sourceId` | DB "R14-AUD-009 B — …" (the same assertions, "additional source 0 of mandate version ‹id›") | PASS |
+| C — `signedDatesRaw[].sourceId` | DB "R14-AUD-009 C — …" ("the source of signed date 0 of mandate version ‹id›") | PASS |
+| D — whole-mandate `AuthorityEvent.sourceId` (`coverageId` null) | DB "R14-AUD-009 D — …" ("the source of whole-mandate authority event ‹id›") | PASS |
+| E, F, G — scoped to the case's subject, to both subjects, no subject restriction | DB "R14-AUD-009 controls: …": each scope as primary, additional, signed-date and whole-mandate event source at once; also a coverage-scoped event, the coverage basis and the coverage signer source of the case's own route: no conflict | PASS |
+| H — legitimate multi-route mandate | DB "R14-AUD-009 control: a legitimate multi-route mandate …": one version (sources naming both subjects or none), a coverage per route: no conflict in a case of either route; each case lists only its own coverage's basis | PASS |
+| Through the stack | DB `p4g-http` "R14-AUD-009: a mandate version annex …": context → prompt (its `conflicts`, `contextJson`, PART 3's exact line, the source in its manifest, the version in its authority block) → candidate → validation REVIEW_REQUIRED with exactly one issue `CONTEXT.CONFLICTS` (DETERMINISTIC, code `SOURCE_NOT_APPLICABLE`), 0 blockers, none not executed; read back unchanged; the mandate, version, coverage, source and selection rows unchanged; the same draft of a fresh prompt of a chain whose sources apply is TECHNICAL_PASS | PASS |
+
+### 37.4 R14-AUD-010 — later owner material outside the case
+
+| Mission §15–§17, §32 | Test | Result |
+|---|---|---|
+| The dynamic scenario over every case path | DB `p4d-http` "R14-AUD-010: each of the case’s own citation paths …": canonical binding, packet source, case source link, fact support (its link UNLINKED afterwards), linked POLICY_REFERENCE source, mapping basis and selection basis all apply at t0. Then another owner's DRAFT version gains one coverage per source, one at a time (valid writes touching nothing of the case). After each: the same `contextRevision`, a new digest, exactly that source's fingerprint changed, one more `SOURCE_NOT_APPLICABLE` naming that citation with `CROSS_OWNER_REFERENCE` at its manifest entry (`policySources[i]` for the policy source), no other owner's id in the context. The case row, its links, supports, mappings, selection and the sources are unchanged throughout; a new direct link of one of them is refused (422 `CROSS_OWNER_REFERENCE`) | PASS |
+| t0 → t1: revision, digest, conflict, stale prompt, history | DB `p4g-http` "R14-AUD-010: a clean context at t0 …": a TECHNICAL_PASS run and its prompt at t0 (D0, H0); another owner's DRAFT coverage cites the case's linked source; t1: revision = D0, digest ≠ H0, only that source's fingerprint changed, exactly one `SOURCE_NOT_APPLICABLE` (`CROSS_OWNER_REFERENCE`, "case source link ‹id› (SYNTHETIC_SUPPORT)"); `generatePrompt` with (D0, H0) → **412 `CONTEXT_CHANGED` {field `expectedDependencyDigest`}**, no prompt written; `validateCandidate` with H0 → 412, no run written; the t0 prompt, run, its issues, the candidate, the case row, the link and the source byte-identical (database rows) and read back unchanged; a new read → a new prompt freezing the conflict and a REVIEW_REQUIRED run (`CONTEXT.CONFLICTS`, `CONTEXT.PROMPT_DRIFT`) | PASS |
+| G, H — valid shared reuse; one owner's several uses | DB "R14-AUD-010 controls: …": one source linked to and the mapping basis of cases of two owners, while it is no owner's material: no conflict in either; one owner's source used as its coverage basis, a version annex, and as a case link, mapping basis and selection basis of its own case: no conflict, and a coverage of the other owner citing it is refused (422 `CROSS_OWNER_REFERENCE`) | PASS |
+| The evaluator, digest and inventory without a database | unit `production-context-rules`: `sourceCitations` — one test per path group and a completeness test (every kind in its order, all 17 sources of the fixture, the words); `assembleContext` — one conflict per source at its manifest entry, correspondence parity and no duplicate, 20 named and the rest counted in a fixed order, an unevaluated source refused; `dependenciesOf` — another owner's use of a source cited only by a version, a whole-mandate event, a case link and mapping, a policy link or a message changes exactly that source's fingerprint and the digest; a recorded-scope reason changes none; no dependence on read order or on how often a source is cited | PASS |
+
+### 37.5 Collector inventory (mission §33)
+
+| Materialized source | Citation kind | Unit test | DB test |
+|---|---|---|---|
+| `CaseRecord.canonicalBindingSourceId` | `CASE_CANONICAL` | "the case’s canonical binding and packet sources" | AUD-010 paths |
+| `CaseRecord.packetSourceId` | `CASE_PACKET` | the same | AUD-010 paths |
+| CaseSource (LINKED, or named by a support) | `CASE_SOURCE` | "every case source link of the context, and every fact support …" | AUD-010 paths; AUD-010 t0 → t1 |
+| FactSource → CaseSource | `FACT_SUPPORT` | the same | AUD-010 paths (the link UNLINKED) |
+| POLICY_REFERENCE CaseSource | `CASE_SOURCE` (listed in `policySources`) | assembly "… (sources or policySources) …" | AUD-010 paths |
+| `UseMapping.basisSourceId` | `MAPPING_BASIS` | "the basis of each use mapping and of the named authority selection" | AUD-010 paths |
+| `CaseAuthoritySelection.basisSourceId` | `SELECTION_BASIS` | the same | AUD-010 paths |
+| `MandateVersion.primarySourceId` | `MANDATE_VERSION_PRIMARY` | "a pinned mandate version’s primary, additional and signed-date sources" | AUD-009 A |
+| `MandateVersion.additionalSourceRefs[].sourceId` | `MANDATE_VERSION_ADDITIONAL` | the same | AUD-009 B; stack |
+| `MandateVersion.signedDatesRaw[].sourceId` | `MANDATE_VERSION_SIGNED_DATE` | the same | AUD-009 C |
+| `MandateCoverage.basisSourceId` | `COVERAGE_BASIS` | "the coverage basis, the coverage signer row’s source, and each authority event’s source …" | AUD-009 controls |
+| selected `CoverageSigner.sourceId` | `COVERAGE_SIGNER` | the same | AUD-009 controls |
+| whole-mandate `AuthorityEvent.sourceId` | `MANDATE_EVENT` | the same | AUD-009 D |
+| coverage-scoped `AuthorityEvent.sourceId` | `COVERAGE_EVENT` | the same | AUD-009 controls |
+| a selected message's raw / attachment source | `CORRESPONDENCE_RAW` / `CORRESPONDENCE_ATTACHMENT` | "a selected message’s raw source and each attachment observation …" | R14-AUD-001 tests (§36.2) |
+
+### 37.6 Regression of the closed findings
+
+- **R14-AUD-001** (correspondence): every §36.2 test passes unchanged — raw source, attachment source, valid shared reuse, unbound case, route transition, owner isolation and the stack. The three R14-AUD-001 unit tests keep their exact expected conflicts and digests; their fixture now builds the citations with the production collector and passes one evaluation per source (behaviour parity: the same conflicts, messages, field paths and fingerprints). The web test's marking is unchanged. Two of its controls were re-run on the refactored code (NC-001-R1, -R2, §37.8).
+- **R14-AUD-003:** new runs record `TB-TECHNICAL-RULESET-v2` (every P4G DB test; the smoke); a stored v1 run reads, lists and replays as v1; the pinned vocabulary tests and the synthetic-`CONTRACT_BASELINE` identity test pass. The ruleset is untouched.
+- **R14-AUD-004:** `tests/tooling/ui-sandbox-lifecycle.test.ts` 8/8; the browser session verified its own empty start and its teardown emptied `tb_notice_test`.
+- **R14-AUD-008:** `tests/tooling/gate-terminology.test.ts` 3/3 over the updated documentation.
+
+
+### 37.7 Tests and totals
+
+| Suite | Change | Covers |
+|---|---|---|
+| `tests/api/production-context-rules.test.ts` | +15 | `sourceCitations` (8): one test per path group — the case's canonical binding and packet sources; its case source links and the fact supports through them (a link no longer LINKED only through a support); the mapping and selection bases; a pinned version's primary, additional and signed-date sources; the coverage basis, the coverage signer row's source, whole-mandate and coverage-scoped event sources; a selected message's raw and attachment sources — plus the complete, fixed inventory and "nothing cited that no record names" (a support naming a link outside the rows is an internal error). `assembleContext` (4): one `SOURCE_NOT_APPLICABLE` per source at its manifest entry; correspondence parity without a duplicate; a source cited hundreds of times is one bounded conflict in a fixed order; an unevaluated source is an internal error. `dependenciesOf` (3): another owner's use changes exactly that source's fingerprint and the digest; a recorded-scope reason changes none; no dependence on read order or citation count. The three R14-AUD-001 tests: their fixture builds the citations with the production collector; expectations identical |
+| `tests/web/p4d.test.tsx` | +1 | a `SOURCE_NOT_APPLICABLE` source (a version's primary source; a linked policy source) marked beside its citations and in both source lists; the R14-AUD-001 marking unchanged; no verdict wording |
+| `tests/db/p4d-http.test.ts` | +8 | §37.3 A–D (one test per path), the controls E–G and the multi-route mandate H; §37.4 the seven-path dynamic scenario and the shared-reuse controls |
+| `tests/db/p4g-http.test.ts` | +2 | the AUD-009 proof through the stack; the AUD-010 t0 → t1 proof |
+| `scripts/local/p4g-smoke.ts` (CI) | one new section (133 checks; 94 before) | §37.11 |
+
+Totals: `yarn test` **1575** in 52 files (1559 before); `yarn test:db` **544** in 14 files (534) — home PC and CI identical. Each code commit was verified on its own before the push: typecheck, lint (0 warnings), format and `yarn test` (1571, 1574, 1575 and 1575 in 52 files), plus the p4d and p4g DB suites on the two production commits (91 and 92 in 2 files) — the appendix of `evidence/r14-astra2-first-pc-sweep.txt`.
+
+### 37.8 Commits
+
+| Commit | Content | CI |
+|---|---|---|
+| `8b9fca5` | fix(production): every listed source checked against the current case — `context-sources.ts` (new: the collector and one evaluation per read), `context-snapshot.ts`, `context-assembly.ts` (`SOURCE_NOT_APPLICABLE`; the R14-AUD-001 conflicts rebuilt from the same citations), `context-dependencies.ts` (the owner marker still from message citations only), `source-scope.ts` (comments only); the collector and assembly unit tests, the AUD-009 and AUD-010 DB tests of `p4d-http` (without the digest assertions) and the AUD-009 stack test (R14-AUD-009, R14-AUD-010) | (pushed with `51c5f44`) |
+| `de34c5d` | fix(production): another owner's use of any listed source joins that source's fingerprint (`context-dependencies.ts`); the fingerprint unit tests, the digest assertions of the seven-path DB test and the AUD-010 t0 → t1 test (R14-AUD-010) | (pushed with `51c5f44`) |
+| `22a8f07` | fix(web): the context page marks every source the context records as not applicable (`production-context.tsx`); its web test (R14-AUD-009, R14-AUD-010) | (pushed with `51c5f44`) |
+| `51c5f44` | test(smoke): `smoke:p4g` covers current source applicability — the code head | push run 36325665818 success |
+| (this record) | docs(r14): §37, the evidence `r14-astra2-*` and screenshots, `CLAUDE.md`, `CURRENT_STATE.md` (documentation only) | reported with the remediation report |
+
+Nothing was amended, rebased, rewritten or force-pushed; no branch, tag, release or pull request was created. The branch moved `fdcda2b..51c5f44` by a normal push, and `origin/main` stays `c73cbda`.
+
+### 37.9 Browser verification (Playwright MCP)
+
+**18/18 PASS, no finding** (`evidence/r14-astra2-playwright-mcp-verification.txt`; screenshots `evidence/screenshots/r14-astra2-*`). Target: `yarn ui:sandbox` built from `51c5f44` on the disposable `tb_notice_test`, under the R14-AUD-004 ownership guard; an isolated headless browser; synthetic data only, seeded and changed through the compiled API.
+- **The AUD-009 effect.** One agency, one owner, Subjects A and B; one frozen multi-route mandate whose version cites an agreement naming both subjects (primary and signed date) and an annex restricted to Subject A (additional source), with a whole-mandate event citing a notice restricted to Subject A. Case B (Subject B), selecting its route's coverage: "Recorded conflicts (2)", `SOURCE_NOT_APPLICABLE` at the annex's and the event source's manifest entries with the neutral message; the tag beside the event's source in the authority block and the "Case scope" row on those two manifest entries only; the shared agreement, the coverage basis and signer source and the mapping basis unmarked; DRAFTING delivered; no verdict wording.
+- **Applicable, no conflict.** Case A (Subject A), the same mandate and event: "Recorded conflicts (0)", no tag.
+- **Through the stack.** Case B's prompt snapshot shows the two conflicts, frozen, and renders them in PART 3. Its candidate's technical validation is REVIEW_REQUIRED: 0 blockers, `CONTEXT.CONFLICTS` twice, the permanent qualifier, `TB-TECHNICAL-RULESET-v2`, no READY_FOR_SIGNER.
+- **The AUD-010 drift.** Case A at t0: TECHNICAL_PASS against digest `b4b8babf…`. Another owner's valid DRAFT coverage then cites Case A's linked source (written through the compiled API; nothing of Case A changed, by row fingerprints). A validation against the t0 read is refused: 412 `CONTEXT_CHANGED` {field `expectedDependencyDigest`}, "Context changed. Read the current context before validating again." / "No validation run was recorded.", nothing written. The new read has the same revision 6 and a new digest `28e2cbf1…`, with one `SOURCE_NOT_APPLICABLE` (`CROSS_OWNER_REFERENCE`, "case source link … (SYNTHETIC_SUPPORT)") and no other owner named. The new run is REVIEW_REQUIRED (`CONTEXT.CONFLICTS`, `CONTEXT.PROMPT_DRIFT` on that source).
+- **History, actions, layout, keyboard.** "Open run" reads the t0 run from the server and shows it exactly as recorded (TECHNICAL_PASS, digest `b4b8babf…`, "Nothing was checked again"). The t0 prompt still shows revision 6, `b4b8babf…` and no conflict. No assessment, readiness, approval, signing, sending or export action appears; `GET …/assessments` and `…/readiness` are 404. At 390 px nothing scrolls sideways. Enter on "Show context", "Read the current context", "Run technical validation" and "Open run" moves focus to the outcome.
+- **Writes and cleanup.** Reads and the 412 change nothing (row fingerprints); each run adds one run, its issues, one audit event and one idempotency record. Sign-out gives 401. The owned teardown deleted every row: the fingerprint equals the empty start, and `db:verify test` PASS.
+
+### 37.10 Negative controls
+
+**14/14 caught and restored byte-identically** (`evidence/r14-astra2-negative-controls.txt`), 2026-09-27T13:42:25Z–13:43:39Z, on the final code before the commit split: every file at `51c5f44` has exactly the SHA-256 the harness tested. 27 responsible commands, every one failing with an AssertionError as its first failure; the working-tree fingerprint identical before and after. The unmutated baseline passed 20/20 distinct commands, each selecting at least one test.
+
+| Mission | Control | Responsible tests |
+|---|---|---|
+| MandateVersion primary-source applicability disabled | NC-009-A | DB "R14-AUD-009 A"; unit "one SOURCE_NOT_APPLICABLE per source at its manifest entry …" |
+| additionalSourceRefs applicability disabled | NC-009-B | DB "R14-AUD-009 B"; DB "R14-AUD-009: a mandate version annex …" (the stack) |
+| signedDatesRaw source applicability disabled | NC-009-C | DB "R14-AUD-009 C" |
+| whole-mandate event source applicability disabled | NC-009-D | DB "R14-AUD-009 D"; unit "one SOURCE_NOT_APPLICABLE per source …" |
+| current Owner-material recheck disabled | NC-010-A | DB "R14-AUD-010: each of the case's own citation paths …"; DB "R14-AUD-010: a clean context at t0 …" |
+| applicability removed from the dependency fingerprint | NC-010-B | the same two DB tests; unit "for a source cited only by a mandate version …" |
+| canonical and packet sources omitted from the collector | NC-010-C | unit "the case's canonical binding and packet sources"; DB seven paths |
+| CaseSource and FactSource omitted from the collector | NC-010-D | unit "every case source link of the context …"; DB seven paths |
+| mapping and selection bases omitted from the collector | NC-010-E | unit "the basis of each use mapping …"; DB seven paths |
+| legitimate shared use broken (positive control) | NC-010-F | DB "R14-AUD-010 controls: valid shared reuse …"; DB "R14-AUD-009 controls …" |
+| further | NC-009-E (valid shared authority scope broken), NC-001-R1 and -R2 (R14-AUD-001's raw-source and attachment conflicts disabled in the refactored loop), NC-UI-01 (the page no longer marks a `SOURCE_NOT_APPLICABLE` source) | DB controls and multi-route; the R14-AUD-001 DB tests; web "R14-AUD-009 / R14-AUD-010 …" |
+
+### 37.11 Regression sweep and CI
+
+**Sweep:** 2026-09-27T14:12:21Z–14:21:20Z on `51c5f44`, after the targeted tests, the negative controls and the browser session and before the push. All 21 steps exit 0 (`evidence/r14-astra2-first-pc-sweep.txt`).
+
+| Command | Result |
+|---|---|
+| `yarn reference:check` (before and after) | frozen references intact (`MANIFEST.sha256` `42c2a419…` matches the pin) |
+| `yarn reference:helper-tests` | 27 pass, 0 fail |
+| `yarn contracts:check` | 3 generated outputs match the active source |
+| `yarn install --immutable` | lockfile unchanged (pre-existing YN0086 note) |
+| `yarn typecheck` · `yarn format:check` | exit 0 |
+| `yarn lint` · `oxlint --deny-warnings --format default` | exit 0 · exit 0 — **0 warnings** ("Found 0 warnings and 0 errors." on 330 files) |
+| `yarn test` | 1575 / 1575 in 52 files |
+| `yarn test:db` | 544 / 544 in 14 files (`tb_notice_test`) |
+| `yarn db:verify test --expect-empty` (before and after) | PASS, domain rows 0 |
+| `yarn db:verify dev` | PASS (metadata and a row count only: 5, unchanged — nothing written to `tb_notice_dev`) |
+| `yarn db:status test` / `dev` | up to date (1 migration) |
+| `yarn db:drift:diff-migrations` / `db:drift:diff-datasource dev` | empty migration (no drift) |
+| `yarn build` | exit 0, no chunk-size advisory (entry 329.93 kB; production-context chunk 33.78 kB, +0.91 kB; candidates 56.82 kB; no Zod runtime in the page chunks) |
+| `yarn smoke:local` | 62 checks |
+| `yarn dev:verify-shutdown` | 4 / 4 scenarios |
+
+`smoke:auth`, `smoke:directory`, `smoke:p3a`, `smoke:p3b` and `smoke:p4a`–`smoke:p4g` write records and run only in CI; all are kept and pass there. `yarn test:transition-baseline` is not a gate and was not run.
+
+**`smoke:p4g` (extended, no new phase smoke).** After its existing flow, one section checks current source applicability through the compiled API. A version annex restricted to another subject of the same owner (valid when recorded) gives case C's context exactly one `SOURCE_NOT_APPLICABLE`, and the version's other sources and the coverage basis stay clean. A source linked to case A applies until another owner's valid DRAFT coverage cites it; then case A's context has the same revision, a new digest and `SOURCE_NOT_APPLICABLE` (`CROSS_OWNER_REFERENCE`), with no other owner named. A prompt and a validation against the earlier digest are 412 `CONTEXT_CHANGED` and write nothing, and case A's recorded runs read back unchanged. Checking the sources wrote no run, issue, prompt, candidate or assessment.
+
+**CI** (`evidence/r14-astra2-ci-run-36325665818.txt`). Code head `51c5f44`: push run [36325665818](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36325665818) (2026-09-27T14:22:18Z–14:31:10Z), **success**, both jobs:
+- "Non-DB checks (cold install)" (job 108637839847): the reference check and the 27 helper tests, `contracts:check`, lint "Found 0 warnings and 0 errors.", format, `yarn test` 1575 / 52 files, build, the frozen references and the working tree unchanged.
+- "Database, seed and smoke (MySQL 8.4.11)" (job 108637839688): migration and metadata verification on test, replay and dev; `yarn test:db` 544 / 14 files; the seed twice with the canonical digest unchanged; both drift diffs empty; `smoke:local` 62; `smoke:auth` 4; `smoke:directory` 14; `smoke:p3a` 24; `smoke:p3b` 36; `smoke:p4a` 50; `smoke:p4b` 64; `smoke:p4c` 62; `smoke:p4d` 87; `smoke:p4e` 84; `smoke:p4f` 90; `smoke:p4g` 133 (94 before: the new section, its record creations and reads included); the P1.1 recovery commands; `yarn dev` clean shutdown 4 / 4.
+
+No other smoke was changed, and every smoke passes in CI. The documentation head's run is reported with the remediation report.
+
+### 37.12 Schema, contract and dependencies
+
+- **No migration, no Prisma schema change.** `20260923103912_initial_schema` is still the only migration; both drift diffs are empty.
+- **No wire change.** TB-SCHEMA-API-v1.3.0 is unchanged: 289 schemas, 144 operations, 99 paths, `info.version` 1.3.0 (read from the generated OpenAPI document and schema bundle at `51c5f44`); `amendment.json` sha256 `6b74c09aba024dcf8cb2e0a0c6e374bbce17b45298d2aec83cc2e3ab166a1630`; `contracts:check` passes. `SOURCE_NOT_APPLICABLE` is a value of the existing free-string `code` of a `MissingItem` in the existing `conflicts[]` (code ≤ 100, message ≤ 8000, fieldPath ≤ 500 characters, at most 1000 entries); no query parameter, response field or schema was added, so `CONTRACT_CHANGE_REQUIRED` did not arise and no TB-SCHEMA-API-v1.4.0 exists.
+- **The ruleset, template and digest identifiers are unchanged.** `TB-TECHNICAL-RULESET-v2` (no rule added or changed — `CONTEXT.CONFLICTS` reports the new code), `TB-PROMPT-TEMPLATE-v1`, `TB-CANDIDATE-ARTIFACT-v1`, `TB-PRODUCTION-CONTEXT-DIGEST-v1` with its `CONTRACT_BASELINE` coupling; version-only drift stays REVIEW_REQUIRED.
+- **Nothing else outside the change.** `git diff fdcda2b..51c5f44` (11 files) touches nothing under `packages/`, `apps/api/prisma`, `docs/reference`, `docs/contracts`, `docs/decisions`, `yarn.lock`, `.yarnrc.yml`, `.nvmrc` or any `package.json`. No dependency was added. The write rules, the target allowlist, the dev database and the migration tooling are unchanged.
+
+### 37.13 Warnings and open items for the operator (not decided here)
+
+1. **The owner marker of a listed source now covers every citation** (§37.2). When another owner's records use any source the context lists, that source's fingerprint includes `otherOwnerMaterial: true`, so the digest changes when that condition arises or ends. This generalizes the R14-AUD-001 extension (§36.13 item 1) under the same identifier `TB-PRODUCTION-CONTEXT-DIGEST-v1`. Contexts without the condition keep their digests; a new digest identifier would have changed every digest. The operator's confirmation is asked.
+2. **A stored context may now read differently.** A context whose sources did not apply but that was read before this change keeps its stored digest when nothing it fingerprints changed (recorded-scope reasons are derived, not fingerprinted — §36.13 item 2). Its next read lists the conflicts. A prompt generated from it is not stale by digest; a later validation reports the conflicts through `CONTEXT.CONFLICTS`. A case whose listed source is another owner's material today gets a new digest at its next read, so a prompt or validation against an earlier read is 412.
+3. **The authority block names the conflict, not a verdict.** A `SOURCE_NOT_APPLICABLE` on a source of the selected chain is shown beside that citation. The selection, coverage, version and signer rows are shown exactly as pinned. Whether the chain still supports this case is G1, a later human review; nothing here decides it.
+4. **Candidate plan offers.** The candidate import page offers the prompt's source manifest (R13 decision 9), which can include a source this context records as not applicable. `importCandidate` refuses such a plan entry with the source-scope reason, and `PLAN.SOURCE_APPLIES` reports it. Pre-existing behaviour, not changed.
+5. **ADR-0006** stays PROPOSED; its acceptance and TB-SCHEMA-API-v1.3.0's belong to the operator's review.
+6. **Evidence limitations:**
+   - the browser scenario and its later owner write were made through the compiled API by a scratchpad script, not through the directory and authority pages;
+   - the stale prompt generation is proven by the DB test and `smoke:p4g`, not repeated in the browser;
+   - the negative controls ran on the final working tree before the commit split (the committed files are byte-identical to it).
+7. **Pre-existing, non-blocking:** the YN0086 peer-dependency note; `yarn test:transition-baseline` fails by design (not run, not a gate); R14-AUD-011 and -012 recorded as NON_BLOCKING_BACKLOG (§37.1), not changed.
+
+### 37.14 Status (maximum claim of this mission)
+
+| Scope | Status |
+|---|---|
+| `ASTRA_AUDIT` | **PARTIAL** — the independent re-audit of the exact new head decides |
+| R14-AUD-009 · -010 | **REMEDIATED_PENDING_INDEPENDENT_REVIEW** each |
+| R14-AUD-001 · -003 · -004 · -008 | **CLOSED_VERIFIED_WITH_LIMITS** (continued audit; not reopened; regression re-run, §37.6) |
+| R14-AUD-002 · -007 | **OPEN_BACKLOG** (unchanged) |
+| R14-AUD-011 · -012 | **NON_BLOCKING_BACKLOG** (unchanged) |
+| R14-AUD-005 · -006 | **FUTURE_ASSESSMENT_PREREQUISITE** (unchanged) |
+| R14 | **HOLD_FOR_REVIEW** — not PASS |
+| ADR-0006 / TB-SCHEMA-API-v1.3.0 | **PROPOSED** (active on the remediation branch; `main` carries v1.2.0) |
+| P4G | **MERGED_TO_MAIN_FOR_IMPLEMENTED_SCOPE** (`c73cbda`); not VERIFIED_COMPLETE |
+| CandidateAssessment and later phases | **NOT_STARTED** |
+| External action | **NONE** |
+| Database / wire contract / dependencies | **No change** |
+
+Recommended next action: **an independent Astra re-audit of the exact new head.**
