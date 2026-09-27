@@ -17,6 +17,7 @@ import { contextQueryString, type ContextQuery } from '../../apps/web/src/app/ap
 import {
   AUTHORITY_IN_CONTEXT,
   CONTEXT_BOUNDARY,
+  NOT_APPLICABLE_CITED_MEANING,
   NOT_APPLICABLE_TO_CASE,
 } from '../../apps/web/src/app/cases/production-context.js';
 import { AS_SENT_COPY } from '../../apps/web/src/app/correspondence/correspondence-ui.js';
@@ -716,6 +717,95 @@ describe('P4D production context page', () => {
       for (const text of element === null ? [] : claimTexts(element)) {
         expect(text).not.toMatch(
           /invalid|unauthori[sz]ed|no authority|infringement not proven|g[1-7] failed|verified|approved/i,
+        );
+      }
+    }
+    expect(api.writes()).toEqual([]);
+  });
+
+  it('R14-AUD-009 / R14-AUD-010: a source the context records as not applicable to this case through SOURCE_NOT_APPLICABLE (a mandate version’s primary source; a linked policy source) is marked wherever the page shows it — beside the authority citation and in both source lists, with its own neutral explanation; an applicable source (the coverage basis and signer source) is not marked; the authority records are shown exactly as selected', async () => {
+    const api = new FakeDirectory();
+    const w = world(api);
+    const recorded = (sourceId: string, citation: string, reason: string) =>
+      `Recorded source ${sourceId} is not applicable to the current Case scope (${reason}). This context cites it as ${citation}. The citing records and the source are kept as recorded; this is a source-scope condition, not a finding about what the source shows or about any authority, right or gate.`;
+    const view = viewOf(w, {
+      sources: [manifest(w.primary), manifest(w.basis)] as unknown as ProductionContext['sources'],
+      policySources: [manifest(w.policy)] as unknown as ProductionContext['policySources'],
+      conflicts: [
+        {
+          code: 'SOURCE_NOT_APPLICABLE',
+          message: recorded(
+            w.primary.id as string,
+            `the primary source of mandate version ${w.version.id as string}`,
+            'SOURCE_SCOPE_UNRESOLVED: SCOPED_TO_OTHER_SUBJECT',
+          ),
+          fieldPath: 'sources[0]',
+        },
+        {
+          code: 'SOURCE_NOT_APPLICABLE',
+          message: recorded(
+            w.policy.id as string,
+            'case source link 00000000-0000-4000-8000-000000000001 (SYNTHETIC_POLICY)',
+            'CROSS_OWNER_REFERENCE',
+          ),
+          fieldPath: 'policySources[0]',
+        },
+      ],
+    });
+    api.contextReplies.set(w.caseA.id, answer(view));
+    await openContext(api, w.caseA.id, {
+      taskType: 'INITIAL',
+      generationMode: 'PREPARATION',
+      authoritySelectionId: w.selection.id as string,
+    });
+    await waitFor(() => q('[data-testid="context-result"]') !== null, 'the context');
+    // The conflicts are listed as recorded, in the neutral conflict treatment.
+    const conflicts = all('[data-testid="conflict-list"] li');
+    expect(conflicts.map((li) => li.textContent?.includes('SOURCE_NOT_APPLICABLE'))).toEqual([
+      true,
+      true,
+    ]);
+    // Beside the version's primary source; not beside the coverage basis or the signer's source.
+    const rowOf = (scope: Element | null, label: string) =>
+      [...(scope?.querySelectorAll('.details-row') ?? [])].filter(
+        (row) => row.querySelector('dt')?.textContent === label,
+      );
+    const coverage = q('[data-testid="context-coverage"]');
+    const tagged = (row: Element | undefined) =>
+      row?.querySelector('[data-testid="not-applicable-to-case"]')?.textContent ?? null;
+    expect(rowOf(coverage, 'Primary source').map(tagged)).toEqual([
+      'Not applicable to this case’s scope',
+    ]);
+    expect(rowOf(coverage, 'Basis source').map(tagged)).toEqual([null]);
+    expect(rowOf(coverage, 'Source').map(tagged)).toEqual([null]);
+    // In both lists: the source stays listed and is marked with the explanation of its conflict.
+    const entries = all('[data-testid="context-sources"] [data-testid="manifest-entry"]');
+    expect(entries).toHaveLength(2);
+    expect(entries[0]?.textContent).toContain(w.primary.id as string);
+    expect(entries[0]?.textContent).toContain(`Case scope`);
+    expect(entries[0]?.textContent).toContain(NOT_APPLICABLE_TO_CASE);
+    expect(entries[0]?.textContent).toContain(NOT_APPLICABLE_CITED_MEANING);
+    expect(entries[1]?.textContent).not.toContain('Case scope');
+    expect(entries[1]?.querySelector('[data-testid="not-applicable-to-case"]')).toBeNull();
+    const policy = all('[data-testid="context-policy-sources"] [data-testid="manifest-entry"]');
+    expect(policy).toHaveLength(1);
+    expect(policy[0]?.textContent).toContain(NOT_APPLICABLE_TO_CASE);
+    expect(policy[0]?.textContent).toContain(NOT_APPLICABLE_CITED_MEANING);
+    expect(NOT_APPLICABLE_CITED_MEANING).toBe(
+      'Recorded conflicts name every record of this context that cites it. The records and the source are kept as recorded, and this says nothing about what the source shows.',
+    );
+    // The authority records stay shown exactly as selected: no verdict about them anywhere.
+    for (const text of claimTexts(document.body)) expect(text).not.toMatch(FORBIDDEN_CLAIMS);
+    const added = [
+      q('[data-testid="conflict-list"]'),
+      ...all('[data-testid="not-applicable-to-case"]'),
+      entries[0] ?? null,
+      policy[0] ?? null,
+    ];
+    for (const element of added) {
+      for (const text of element === null ? [] : claimTexts(element)) {
+        expect(text).not.toMatch(
+          /(?<![.\w])invalid|unauthori[sz]ed|no authority|infringement not proven|g[1-7] fail|verified|approved|not authori[sz]ed|revoked|expired/i,
         );
       }
     }
