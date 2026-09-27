@@ -13,7 +13,7 @@ The wire contract of this release is TB-SCHEMA-API-v1.2.0, unchanged, plus exact
 
 The record names its base by the digest of the v1.2.0 record (`base.amendmentSha256`) and the digests of the v1.2.0 documents (`base.files`, equal to that record's `result.files`). The tests reproduce those documents from "frozen + v1.1.0 + v1.2.0" to exactly those digests.
 
-`PFC-YT-EMAIL-v1.1` (the production-form wire identifier) and `TB-TECHNICAL-RULESET-v1` (the technical ruleset, an implementation identifier) are unrelated and unchanged.
+`PFC-YT-EMAIL-v1.1` (the production-form wire identifier) is unrelated and unchanged. The technical ruleset is an implementation identifier, not part of this release. Revised before acceptance (2026-09-27, Astra audit finding R14-AUD-003, ADR-0006 §8): as first recorded, this line also called `TB-TECHNICAL-RULESET-v1` unchanged, but v1 read part of its internal-identifier vocabulary from the active release constant; new validations therefore run `TB-TECHNICAL-RULESET-v2`, whose vocabulary is pinned, and runs recorded as v1 stay as recorded. The wire delta and `amendment.json` are unchanged.
 
 ## Why
 
@@ -76,7 +76,7 @@ All 288 schemas and 143 operations of v1.2.0 stay byte-identical and in their or
 
 - `$id` `urn:tb:api-contract:v1`, OpenAPI 3.1.1, servers, tags and security;
 - shared parameters and responses;
-- `PFC-YT-EMAIL-v1.1` and `TB-TECHNICAL-RULESET-v1`;
+- `PFC-YT-EMAIL-v1.1` (the technical ruleset is outside this release: ADR-0006 §8);
 - `AppMeta.schemaRelease` — the unrouted `GET /meta`; left as recorded (ADR-0004, ADR-0005, ADR-0006);
 - the database schema (no migration);
 - the v1.1.0 and v1.2.0 release folders and ADR-0004 and ADR-0005 (byte-identical).
@@ -89,7 +89,7 @@ The identifiers that name the active release follow it, as the accepted P4D, P4E
 
 - the P4D dependency digest;
 - a new prompt snapshot's `contractVersion` and header line;
-- the internal identifier strings scanned by the technical ruleset.
+- (as first recorded, also the internal identifier strings scanned by the technical ruleset — no longer: `TB-TECHNICAL-RULESET-v2` pins them, ADR-0006 §8).
 
 Stored digests, prompts and runs are never rewritten.
 

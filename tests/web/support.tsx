@@ -1514,7 +1514,7 @@ export class FakeDirectory {
       dependencyDigest: view['dependencyDigest'],
       dependencyManifest: view['dependencies'],
       evaluatedContextJson: view['context'],
-      rulesetVersion: 'TB-TECHNICAL-RULESET-v1',
+      rulesetVersion: 'TB-TECHNICAL-RULESET-v2',
       result: outcome.result,
       coverageManifest: outcome.coverageManifest,
       blockerCount: count('BLOCKER'),
@@ -2792,7 +2792,7 @@ export class FakeDirectory {
 }
 
 /** SHA-256 (hex) of the UTF-8 bytes of a text, as the server computes a captured body's digest. */
-/** The 29 rules of TB-TECHNICAL-RULESET-v1 (the API tests pin the inventory). */
+/** The 29 rules of TB-TECHNICAL-RULESET-v2 — v1's inventory, unchanged (the API tests pin it). */
 export const TECHNICAL_RULE_IDS = [
   'ARTIFACT.TEXT_EXACT',
   'ARTIFACT.SHAPE',

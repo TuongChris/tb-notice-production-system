@@ -5,7 +5,7 @@
 // consistency tests use. Every response is recorded and checked against the active contract at the
 // end. All data is synthetic (example.invalid addresses only); every test deletes what it created.
 //
-// A ValidationRun records what the technical ruleset TB-TECHNICAL-RULESET-v1 found for one exact
+// A ValidationRun records what the technical ruleset TB-TECHNICAL-RULESET-v2 found for one exact
 // candidate artifact against the current production context of its prompt snapshot's scope: exact
 // bytes and hashes, envelope and thread, document plan, internal markers, recorded gaps and drift —
 // technical checks only. It is never a G1–G6 review, legal approval, readiness, READY_FOR_SIGNER, a
@@ -1047,7 +1047,7 @@ describe('P4G validateCandidate — a technical result for one exact artifact ag
       dependencyDigest: view.dependencyDigest,
       dependencyManifest: view.dependencies,
       evaluatedContextJson: view.context,
-      rulesetVersion: 'TB-TECHNICAL-RULESET-v1',
+      rulesetVersion: 'TB-TECHNICAL-RULESET-v2',
       result: 'TECHNICAL_PASS',
       coverageManifest: {
         requiredRuleIds: ALL_RULES,
@@ -1088,6 +1088,7 @@ describe('P4G validateCandidate — a technical result for one exact artifact ag
       { ...good, expectedArtifactSha256: good.expectedArtifactSha256.toUpperCase() },
       { ...good, result: 'TECHNICAL_PASS' },
       { ...good, rulesetVersion: 'TB-TECHNICAL-RULESET-v1' },
+      { ...good, rulesetVersion: 'TB-TECHNICAL-RULESET-v2' },
     ]) {
       expect(outcome(await validatePost(p.candidate.id, body)), JSON.stringify(body)).toEqual([
         422,
@@ -1838,7 +1839,7 @@ describe('P4G recorded context, preparation, drift and history', () => {
       generationMode: 'DRAFTING',
       artifactSha256: candidate.artifactSha256,
       dependencyDigest: run.dependencyDigest,
-      rulesetVersion: 'TB-TECHNICAL-RULESET-v1',
+      rulesetVersion: 'TB-TECHNICAL-RULESET-v2',
       result: 'REVIEW_REQUIRED',
       issues: {
         total: run.blockerCount + run.reviewRequiredCount + run.warningCount,
@@ -2001,7 +2002,7 @@ describe('R14 getValidationRun — one stored run read back exactly as recorded,
     expect(Object.keys(read).sort()).toEqual([...RUN_FIELDS].sort());
     expect(read.artifactSha256).toBe(p.candidate.artifactSha256);
     expect(read.dependencyDigest).toBe(view.dependencyDigest);
-    expect(read.rulesetVersion).toBe('TB-TECHNICAL-RULESET-v1');
+    expect(read.rulesetVersion).toBe('TB-TECHNICAL-RULESET-v2');
     expect(read.dependencyManifest).toEqual(view.dependencies);
     expect(read.evaluatedContextJson).toEqual(view.context);
     expect(read.result).toBe('TECHNICAL_PASS');
@@ -2117,6 +2118,50 @@ describe('R14 getValidationRun — one stored run read back exactly as recorded,
     expect(review.reviewRequiredCount).toBe(1);
   });
 
+  it('R14-AUD-003: a new run records TB-TECHNICAL-RULESET-v2 (the audit event too); a run recorded as TB-TECHNICAL-RULESET-v1 stays v1 — read back, listed and replayed exactly as recorded, never relabelled or re-executed — and a new validation is a new v2 run', async () => {
+    const p = await validationWorld();
+    const key = newKey();
+    const { run, view } = await validate(p.candidate, p.prompt, key);
+    expect(run.rulesetVersion).toBe('TB-TECHNICAL-RULESET-v2');
+    const event = await prisma.auditEvent.findFirstOrThrow({
+      where: { entityType: 'ValidationRun', entityId: run.id },
+    });
+    expect((event.afterRedacted as Record<string, unknown>)['rulesetVersion']).toBe(
+      'TB-TECHNICAL-RULESET-v2',
+    );
+    // The row as the v1 code recorded it (set directly in tb_notice_test: the application no
+    // longer writes TB-TECHNICAL-RULESET-v1).
+    await prisma.$executeRaw`
+      UPDATE validation_runs SET ruleset_version = ${'TB-TECHNICAL-RULESET-v1'} WHERE id = ${run.id}`;
+    const historical: ValidationRun = { ...run, rulesetVersion: 'TB-TECHNICAL-RULESET-v1' };
+    const runs = await countRows(prisma, 'validation_runs');
+    const issues = await issuesOf(run.id);
+    expect(await getRun(run.id)).toEqual(historical);
+    const listed = await listRuns(p.candidate.id);
+    expect(listed.items.map((item) => [item.id, item.rulesetVersion])).toEqual([
+      [run.id, 'TB-TECHNICAL-RULESET-v1'],
+    ]);
+    // The same key and body replay the stored v1 run exactly: nothing re-executed or relabelled.
+    const replay = immutable<ValidationRun>(
+      await validatePost(p.candidate.id, expectations(p.candidate, view), key),
+      201,
+    );
+    expect(replay).toEqual(historical);
+    expect(await countRows(prisma, 'validation_runs')).toBe(runs);
+    expect(await issuesOf(run.id)).toEqual(issues);
+    // A new validation executes the current rules and records a new run under v2.
+    t.clock.advance(1000);
+    const next = (await validate(p.candidate, p.prompt)).run;
+    expect(next.id).not.toBe(run.id);
+    expect(next.rulesetVersion).toBe('TB-TECHNICAL-RULESET-v2');
+    expect(await getRun(run.id)).toEqual(historical);
+    const both = await listRuns(p.candidate.id);
+    expect(both.items.map((item) => [item.id, item.rulesetVersion])).toEqual([
+      [next.id, 'TB-TECHNICAL-RULESET-v2'],
+      [run.id, 'TB-TECHNICAL-RULESET-v1'],
+    ]);
+  });
+
   it('a run recorded under another ruleset — a historical row the application never writes itself, set directly in tb_notice_test — is read back exactly: nothing is re-evaluated under the current ruleset, no coverage, result, count or digest recomputed', async () => {
     const p = await validationWorld();
     const view = await context(p.caseId, scopeOf(p.prompt));
@@ -2165,7 +2210,7 @@ describe('R14 getValidationRun — one stored run read back exactly as recorded,
     const current = (await validate(p.candidate, p.prompt)).run;
     expect([current.result, current.rulesetVersion, current.dependencyDigest]).toEqual([
       'TECHNICAL_PASS',
-      'TB-TECHNICAL-RULESET-v1',
+      'TB-TECHNICAL-RULESET-v2',
       view.dependencyDigest,
     ]);
     expect(current.coverageManifest.requiredRuleIds).toEqual(ALL_RULES);

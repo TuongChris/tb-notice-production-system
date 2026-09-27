@@ -15,7 +15,7 @@
 //   selection, reported item, work and mapping → an INITIAL DRAFTING prompt of each → a clean
 //   candidate of case A (one pending slot) → the current context of its prompt's scope (its digest
 //   is the prompt's) → validate against exactly that artifact and digest (201 TECHNICAL_PASS: the
-//   ruleset TB-TECHNICAL-RULESET-v1, every one of the 29 rules executed, none not executed,
+//   ruleset TB-TECHNICAL-RULESET-v2, every one of the 29 rules executed, none not executed,
 //   semanticReviewRequired true, the evaluated context equal to the read, no issue; the candidate
 //   and the case unchanged) → the same key again (the stored run, nothing new) → the same key with
 //   another body (409) → the run read back by its id (getValidationRun, TB-SCHEMA-API-v1.3.0:
@@ -62,7 +62,7 @@ const COUNTED_TABLES = [
 ] as const;
 type Counts = Record<(typeof COUNTED_TABLES)[number], number>;
 
-/** The 29 rules of TB-TECHNICAL-RULESET-v1, in the order they run and report. */
+/** The 29 rules of TB-TECHNICAL-RULESET-v2 (v1's inventory, unchanged), in run and report order. */
 const RULES = [
   'ARTIFACT.TEXT_EXACT',
   'ARTIFACT.SHAPE',
@@ -589,7 +589,7 @@ async function main(): Promise<void> {
   const passed = await validate(clean, readA.dependencyDigest, 'clean draft', key);
   if (
     passed.result !== 'TECHNICAL_PASS' ||
-    passed.rulesetVersion !== 'TB-TECHNICAL-RULESET-v1' ||
+    passed.rulesetVersion !== 'TB-TECHNICAL-RULESET-v2' ||
     passed.candidateId !== clean.id ||
     passed.caseId !== caseA.id ||
     passed.artifactSha256 !== clean.artifactSha256 ||
@@ -635,7 +635,7 @@ async function main(): Promise<void> {
   if (
     stored.artifactSha256 !== clean.artifactSha256 ||
     stored.dependencyDigest !== readA.dependencyDigest ||
-    stored.rulesetVersion !== 'TB-TECHNICAL-RULESET-v1' ||
+    stored.rulesetVersion !== 'TB-TECHNICAL-RULESET-v2' ||
     stored.result !== 'TECHNICAL_PASS' ||
     canonical(stored.coverageManifest) !==
       canonical({

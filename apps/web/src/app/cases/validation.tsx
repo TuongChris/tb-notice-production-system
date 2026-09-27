@@ -42,7 +42,7 @@ import { CASE_ARCHIVED_READ_ONLY } from './intake-ui.js';
 import { allPages, MODE_LABEL } from './production-context.js';
 
 /** The ruleset the server applies (a test pins it to the API's identifier). */
-export const TECHNICAL_RULESET_VERSION = 'TB-TECHNICAL-RULESET-v1';
+export const TECHNICAL_RULESET_VERSION = 'TB-TECHNICAL-RULESET-v2';
 /** The action (mission §32, verbatim). */
 export const RUN_VALIDATION_LABEL = 'Run technical validation';
 /** The permanent qualifier of every result (mission §33, verbatim). */

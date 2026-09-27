@@ -1,6 +1,6 @@
 // Technical validation (P4G) — validateCandidate, listValidationRuns and listValidationIssues
 // (TB-SCHEMA-API-v1.2.0), and the R14 read-back getValidationRun (TB-SCHEMA-API-v1.3.0, ADR-0006).
-// A ValidationRun records what the technical ruleset TB-TECHNICAL-RULESET-v1 found for one exact
+// A ValidationRun records what the technical ruleset TB-TECHNICAL-RULESET-v2 found for one exact
 // candidate artifact against the current production context of its prompt's scope. It is a
 // technical result only: never a G1–G6 review, legal approval or sufficiency, signer eligibility,
 // readiness, READY_FOR_SIGNER, a signature, G7 or permission to send, and it creates no
