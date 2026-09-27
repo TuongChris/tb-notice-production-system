@@ -6,6 +6,8 @@ Mission **TB_R13_CLOSEOUT_MERGE_AND_P4G_TECHNICAL_VALIDATION_TO_R14**, steps 9�
 
 **Merged (2026-09-26, by the operator):** `P4G = MERGED_TO_MAIN` (`MERGED_TO_MAIN_FOR_IMPLEMENTED_SCOPE`) — pull request #10, merge commit `c73cbda` (parents `5aa9248` and the R14 submission head `6fc5605`); `main` push CI run 36242994330 success. `P4G_IMPLEMENTATION = VERIFIED_FOR_IMPLEMENTED_SCOPE` (§34). No CandidateAssessment, G1–G6 review, readiness, READY_FOR_SIGNER, unsigned export, G7, signature, sending, mailbox, Drive or AI-provider action exists.
 
+**Astra audit (independent, operator; audit target `4a1618d`): R14 = HOLD_FOR_REMEDIATION**, ADR-0006 PROPOSED / REVISE_BEFORE_ACCEPTANCE, `ASTRA_AUDIT = PARTIAL`. Mission TB_R14_ASTRA_BLOCKER_REMEDIATION (2026-09-27) remediated the four authorized findings on the same branch (§36): R14-AUD-001 (a correspondence source restricted to another subject reached another case's production context as clean support), -003 (`TB-TECHNICAL-RULESET-v2` pins the internal-marker vocabulary), -004 (ui:sandbox cleanup ownership) and -008 (G6/G7 terminology) — each **REMEDIATED_PENDING_INDEPENDENT_REVIEW**. **R14 = HOLD_FOR_REVIEW**; ADR-0006 stays **PROPOSED** (revised); R14-AUD-002 and -007 are OPEN_BACKLOG, -005 and -006 FUTURE_ASSESSMENT_PREREQUISITE. P4G is not recorded as VERIFIED_COMPLETE, nor R14 as PASS.
+
 Persistent rules (they stay in force; `CLAUDE.md` carries them):
 
 - **Technical validation ≠ substantive review.** A ValidationRun records what the technical ruleset found for one exact candidate artifact against the current recorded context: exact bytes and hashes, the envelope and thread, the document plan, internal markers, recorded gaps and drift. It reviews nothing substantively — no authority (G1), work-specific rights (G2), identification sufficiency (G3), audiovisual infringement (G4), permission or exceptions (G5), exact-artifact consistency and traceability QA (G6), legal validity or signer eligibility — and it is no G7, the actual human review, adoption, signature and sending outside the application. (Terminology corrected 2026-09-27, R14-AUD-008: this line first named "human adoption of the text" as G6; personal adoption is G7.)
@@ -22,15 +24,16 @@ Persistent rules (they stay in force; `CLAUDE.md` carries them):
 |---|---|
 | R13 closeout, merge and branch (steps 1–8) | **DONE** — R13 = PASS recorded (`85d0aed`); P4F merged to `main` by PR #9 (merge commit `5aa9248`); post-merge `main` CI green; branch created from `5aa9248`; checkpoint `b71a2e0` (`P4F_NOTICE_CANDIDATE.md` §28–§29; §2) |
 | P4G implementation (step 9) | **IMPLEMENTED** on `feature/p4g-technical-validation` — code head `608800e` (§3) |
-| P4G home-PC automated tests | **PASS** — `yarn test` 1515 in 48 files and `yarn test:db` 520 in 14 files on the code head `608800e`; P4G: 36 rule-engine and 3 WriteExecutor unit tests, 11 web, 26 DB (§26). R14 remediation: `yarn test` 1532 in 49 files, `yarn test:db` 526 in 14 files on `31df6d7` (§35.6) |
+| P4G home-PC automated tests | **PASS** — `yarn test` 1515 in 48 files and `yarn test:db` 520 in 14 files on the code head `608800e`; P4G: 36 rule-engine and 3 WriteExecutor unit tests, 11 web, 26 DB (§26). R14 remediation: `yarn test` 1532 in 49 files, `yarn test:db` 526 in 14 files on `31df6d7` (§35.6). Astra-audit remediation: `yarn test` 1559 in 52 files, `yarn test:db` 534 in 14 files on `2117fba` (§36.7) |
 | Consistency / transaction tests | **PASS** — capture in one REPEATABLE READ snapshot, the ruleset outside any lock, one short SERIALIZABLE commit with the rechecks: a change committed after the capture is 412 with nothing written, a dependency write that never locks the case waits for the commit, an audit failure rolls back the run, its issues and the idempotency record (DB tests; negative controls NC-P4G-18, -19, -20) (§6) |
-| Browser verification (Playwright MCP, `tb_notice_test`) | **PASS** 32/32 — two sandbox sessions; one finding (F1) fixed in `3b56a41` and re-verified; limitations L1–L4 (§24). R14 read-back **PASS** 17/17 — one finding (the 390 px dependency table) fixed in `a5c22aa` and re-verified (§35.8) |
-| Negative controls | **PASS** 33/33 in the final run on `608800e` — all 22 control kinds of mission §43 plus 11 further; 60 responsible commands, each failing on an AssertionError (§25). R14 remediation **PASS** 24/24 on `31df6d7` — the 11 mandatory kinds plus 13 further; 32 commands, each failing on an AssertionError (§35.9) |
-| Full regression (mission §48) | **PASS** — 21/21 steps exit 0 on the code head `608800e` (§26). R14 remediation 21/21 on `31df6d7` (§35.10) |
-| Exact final branch CI | **PASS** for the code head `608800e` — push run 36233916154, both jobs success; the R14 submission head `6fc5605` — push run 36234677791 success. R14 remediation code head `31df6d7` — push run 36248642530, both jobs success (§35.10); the run of the remediation's documentation head is reported with the R14-final report |
-| Schema / migration | **No change** (§28; the R14 remediation made none either, §35.11) |
-| Wire contract | **No change in P4G** — TB-SCHEMA-API-v1.2.0 (§29). The R14 remediation adds the additive release **TB-SCHEMA-API-v1.3.0** (one read, one envelope schema; ADR-0006 **PROPOSED**, §35.3) |
-| R14 review | **PASS_WITH_ONE_CONTRACT_REMEDIATION** (operator, 2026-09-26) — V1–V12 and `ENVELOPE.REPLY_RECIPIENT` ACCEPTED; V13 **REMEDIATION_IMPLEMENTED_PENDING_R14_FINAL_REVIEW** on `feature/r14-validation-run-readback`, submitted for **R14 final (PENDING)** (§34, §35) |
+| Browser verification (Playwright MCP, `tb_notice_test`) | **PASS** 32/32 — two sandbox sessions; one finding (F1) fixed in `3b56a41` and re-verified; limitations L1–L4 (§24). R14 read-back **PASS** 17/17 — one finding (the 390 px dependency table) fixed in `a5c22aa` and re-verified (§35.8). Astra-audit remediation **PASS** 14/14, no finding (§36.9) |
+| Negative controls | **PASS** 33/33 in the final run on `608800e` — all 22 control kinds of mission §43 plus 11 further; 60 responsible commands, each failing on an AssertionError (§25). R14 remediation **PASS** 24/24 on `31df6d7` — the 11 mandatory kinds plus 13 further; 32 commands, each failing on an AssertionError (§35.9). Astra-audit remediation **PASS** 18/18 on `2117fba` — the 9 mandatory kinds of mission §40 plus 9 further; 28 commands, each failing on an AssertionError (§36.10) |
+| Full regression (mission §48) | **PASS** — 21/21 steps exit 0 on the code head `608800e` (§26). R14 remediation 21/21 on `31df6d7` (§35.10). Astra-audit remediation 21/21 on `2117fba` (§36.11) |
+| Exact final branch CI | **PASS** for the code head `608800e` — push run 36233916154, both jobs success; the R14 submission head `6fc5605` — push run 36234677791 success. R14 remediation code head `31df6d7` — push run 36248642530, both jobs success (§35.10); the run of the remediation's documentation head is reported with the R14-final report. Astra-audit remediation code head `2117fba` — push run 36290145394, both jobs success (§36.11); its documentation head's run is reported with the remediation report |
+| Schema / migration | **No change** (§28; the R14 remediation made none either, §35.11, nor the Astra-audit remediation, §36.12) |
+| Wire contract | **No change in P4G** — TB-SCHEMA-API-v1.2.0 (§29). The R14 remediation adds the additive release **TB-SCHEMA-API-v1.3.0** (one read, one envelope schema; ADR-0006 **PROPOSED**, §35.3). The Astra-audit remediation changed no wire contract: the v1.3.0 amendment digest is unchanged (§36.12) |
+| R14 review | **PASS_WITH_ONE_CONTRACT_REMEDIATION** (operator, 2026-09-26) — V1–V12 and `ENVELOPE.REPLY_RECIPIENT` ACCEPTED; V13 **REMEDIATION_IMPLEMENTED_PENDING_R14_FINAL_REVIEW** on `feature/r14-validation-run-readback`, submitted for R14 final (§34, §35). The operator's independent Astra audit of that submission (`4a1618d`) put **R14 = HOLD_FOR_REMEDIATION**; after the Astra-audit remediation, **R14 = HOLD_FOR_REVIEW** (§36) — not PASS |
+| Astra audit findings | R14-AUD-001, -003, -004 and -008 **REMEDIATED_PENDING_INDEPENDENT_REVIEW**; R14-AUD-002 and -007 **OPEN_BACKLOG**; R14-AUD-005 and -006 **FUTURE_ASSESSMENT_PREREQUISITE**; `ASTRA_AUDIT = PARTIAL` (§36) |
 | P4G status / merge | **MERGED_TO_MAIN_FOR_IMPLEMENTED_SCOPE** — pull request #10, merge commit `c73cbda` (merge commit method; 2026-09-26T12:46:40Z); `main` push CI run 36242994330 success; `P4G_IMPLEMENTATION = VERIFIED_FOR_IMPLEMENTED_SCOPE`. The R14 remediation is **not merged** (§34) |
 
 ## 1. Operation matrix and design (contract-first)
@@ -101,6 +104,8 @@ Recorded in `docs/verification/p4f/P4F_NOTICE_CANDIDATE.md` §28–§29 (verifie
 | (this record) | R14 submission: this record, the evidence, `CLAUDE.md`, `CURRENT_STATE.md` (documentation only) | reported with the R14 report |
 
 ## 4. Ruleset `TB-TECHNICAL-RULESET-v1` and its inventory
+
+New validations record `TB-TECHNICAL-RULESET-v2` since the Astra-audit remediation (§36.3): this inventory, the kinds, severities, order and aggregation are unchanged, and `MARKER.INTERNAL_IDENTIFIERS`' identifier strings are pinned instead of read from the active release. Runs recorded as v1 stay exactly as recorded.
 
 `TB-TECHNICAL-RULESET-v1` is an **implementation identifier**: not a wire-contract release, not a Production Form Contract version, not a legal or policy certification and not a G1–G6 review version. Its name claims no external or legal approval. Any change to a rule's meaning, kind or severity, or to the inventory, needs a new identifier (`technical-ruleset.ts` header; a unit test pins the inventory). No earlier ruleset existed in the repository. All 29 rules are **required** and run in this order (D = DETERMINISTIC, H = HEURISTIC; B = BLOCKER, RR = REVIEW_REQUIRED, W = WARNING):
 
@@ -397,7 +402,7 @@ Mission TB_R14_POST_MERGE_RECONCILE_AND_VALIDATION_RUN_READBACK_REMEDIATION_TO_R
 ### 35.1 Scope and branch
 
 - **Directed** (R14 result): the smallest additive historical read, `GET /validation-runs/{id}` (`getValidationRun`), returning the existing `ValidationRun` in `{data, meta}`, in the new additive release TB-SCHEMA-API-v1.3.0 with ADR-0006, composed on the accepted v1.2.0.
-- **Never edited:** the frozen v1.0.0 pack (`docs/reference/**`), the accepted v1.1.0 and v1.2.0 records, and ADR-0004 and ADR-0005. `PFC-YT-EMAIL-v1.1` and `TB-TECHNICAL-RULESET-v1` are unchanged (no rule semantics change), and no pre-existing operation or schema changed.
+- **Never edited:** the frozen v1.0.0 pack (`docs/reference/**`), the accepted v1.1.0 and v1.2.0 records, and ADR-0004 and ADR-0005. `PFC-YT-EMAIL-v1.1` and `TB-TECHNICAL-RULESET-v1` are unchanged (no rule semantics change), and no pre-existing operation or schema changed. [Corrected 2026-09-27 (Astra R14-AUD-003, §36.3): v1's `MARKER.INTERNAL_IDENTIFIERS` vocabulary followed `CONTRACT_BASELINE`, so v1's effective behaviour did change with this release; new validations run `TB-TECHNICAL-RULESET-v2`.]
 - **Excluded, and not used:** AuditEvent parsing, client-remembered POST responses, database queries from the UI, uncontracted fields in the summary or the issue list, and rebuilding a run from present-day state or by re-running the ruleset.
 - **Branch.** `feature/r14-validation-run-readback`, created from the exact `origin/main` `c73cbda` once its CI was green (not from `feature/p4g-technical-validation`) and pushed with upstream.
   - At creation, local and origin pointed at `c73cbda` and the worktree was clean.
@@ -437,13 +442,13 @@ Mission TB_R14_POST_MERGE_RECONCILE_AND_VALIDATION_RUN_READBACK_REMEDIATION_TO_R
   - Negative controls NC-R14-13 (one word of the v1.2.0 record) and NC-R14-14 (the v1.1.0 record) fail them (§35.9).
 - **Unchanged.**
   - All 288 schemas and 143 operations of v1.2.0 are byte-identical and in their order, and therefore all of v1.1.0 (286 / 142) and v1.0.0 (284 / 141) too. This includes `ValidationRun`, `ValidationRunSummary`, `CoverageManifest`, `ValidateCandidateResponse` and the three P4G operations.
-  - Also unchanged: `$id` `urn:tb:api-contract:v1`, OpenAPI 3.1.1, servers, tags, security, shared parameters and responses; `PFC-YT-EMAIL-v1.1`; `TB-TECHNICAL-RULESET-v1`; `AppMeta.schemaRelease` (`'TB-SCHEMA-API-v1.0.0'`, as recorded); the database schema.
+  - Also unchanged: `$id` `urn:tb:api-contract:v1`, OpenAPI 3.1.1, servers, tags, security, shared parameters and responses; `PFC-YT-EMAIL-v1.1`; `TB-TECHNICAL-RULESET-v1` (its definition, not its effective behaviour — §36.3); `AppMeta.schemaRelease` (`'TB-SCHEMA-API-v1.0.0'`, as recorded); the database schema.
 - **Compatibility: additive only.** No existing operation, path, parameter, schema, required field, enum, format, status code, header, security requirement or error code changed. A v1.0.0–v1.2.0 client keeps working. `listValidationRuns`, `listValidationIssues` and the `validateCandidate` response are unchanged (DB and release tests, §35.6).
 - **Identifiers that follow the active release** (ADR-0006, Consequences; by the accepted P4D, P4E and P4G designs, not a change of them — for the operator's review, §35.12):
   - The P4D dependency digest hashes `contract: CONTRACT_BASELINE`, so an unchanged context has another digest under v1.3.0 than under v1.2.0.
   - A new prompt snapshot records `contractVersion` TB-SCHEMA-API-v1.3.0 and the header line "Wire contract: TB-SCHEMA-API-v1.3.0".
   - A candidate drafted from a v1.2.0-era prompt, when validated, gets one REVIEW_REQUIRED `CONTEXT.PROMPT_DRIFT` issue (change `IDENTIFIERS`).
-  - `MARKER.INTERNAL_IDENTIFIERS` scans the v1.3.0 identifier string.
+  - `MARKER.INTERNAL_IDENTIFIERS` scans the v1.3.0 identifier string. [Corrected 2026-09-27: this was the R14-AUD-003 defect; `TB-TECHNICAL-RULESET-v2` pins the vocabulary, both release strings included (§36.3).]
 
   No stored digest, prompt or run is rewritten. The tests that pin these identifiers now name v1.3.0:
   - the P4D, P4E and P4F DB tests' `contractVersion`;
@@ -639,7 +644,7 @@ Run 1 (on `a5c22aa`) also caught 24/24, but three commands failed on a wait help
 ### 35.12 Warnings and open items for the operator (not decided here)
 
 1. **Acceptance of ADR-0006** (PROPOSED) and of TB-SCHEMA-API-v1.3.0 as the active release, at R14 final. Until then `main` carries v1.2.0.
-2. **Identifiers that follow the active release** (§35.3; ADR-0006, Consequences). Under v1.3.0 the same context has another P4D dependency digest, and new prompts name v1.3.0. A candidate drafted from a v1.2.0-era prompt therefore validates as REVIEW_REQUIRED (one `CONTEXT.PROMPT_DRIFT` issue, change `IDENTIFIERS`) rather than TECHNICAL_PASS until it is re-drafted from a v1.3.0 prompt. Stored digests, prompts and runs are never rewritten. This follows from the accepted designs; the operator's confirmation is asked.
+2. **Identifiers that follow the active release** (§35.3; ADR-0006, Consequences). Under v1.3.0 the same context has another P4D dependency digest, and new prompts name v1.3.0. A candidate drafted from a v1.2.0-era prompt therefore validates as REVIEW_REQUIRED (one `CONTEXT.PROMPT_DRIFT` issue, change `IDENTIFIERS`) rather than TECHNICAL_PASS. [Corrected 2026-09-27 (mission TB_R14_ASTRA_BLOCKER_REMEDIATION §24, §48): as first recorded this sentence ended "until it is re-drafted from a v1.3.0 prompt". REVIEW_REQUIRED asks a person to review the version-only difference; it is not a mandatory re-draft, and by itself it says nothing about the candidate's content, owner facts, authority or rights (§36.3; ADR-0006, Consequences).] Stored digests, prompts and runs are never rewritten. This follows from the accepted designs; the operator's confirmation is asked.
 3. **`AppMeta.schemaRelease`** stays `'TB-SCHEMA-API-v1.0.0'` as recorded (ADR-0004–ADR-0006).
 4. **The transition oracle** fails by design (§35.3).
 5. **Pre-existing, non-blocking:**
@@ -660,3 +665,247 @@ Run 1 (on `a5c22aa`) also caught 24/24, but three commands failed on a wait help
 | P4G | **MERGED_TO_MAIN_FOR_IMPLEMENTED_SCOPE** (`c73cbda`), `P4G_IMPLEMENTATION = VERIFIED_FOR_IMPLEMENTED_SCOPE`; not VERIFIED_COMPLETE until R14 final |
 | Database / dependencies | **No change** |
 | CandidateAssessment and later phases | **NOT_STARTED** |
+
+## 36. Astra audit remediation — R14-AUD-001, -003, -004 and -008 (2026-09-27, home PC)
+
+Mission TB_R14_ASTRA_BLOCKER_REMEDIATION (operator, 2026-09-27), on `feature/r14-validation-run-readback`. Primary source: the operator's independent Astra whole-system R14 pre-assessment audit of the R14-final submission head `4a1618d`, which put **R14 = HOLD_FOR_REMEDIATION** and ADR-0006 = PROPOSED / REVISE_BEFORE_ACCEPTANCE. `ASTRA_AUDIT = PARTIAL`: the audit continues from its saved checkpoint. Sections 1–35 keep the state at their time; where this mission corrected them, the correction is marked in place (the rule summary and §33 for the gate terminology; §35.1, §35.3 and §35.12 for the ruleset identity and version-only drift).
+
+### 36.1 Scope, pre-flight and independent confirmation
+
+| Item | Value |
+|---|---|
+| Authorized | exactly R14-AUD-001 (CONFIRMED_DEFECT / HIGH; blocks R14 final and assessment implementation), R14-AUD-003 (SPEC_CONFLICT / MEDIUM; blocks R14 final), R14-AUD-004 (CONFIRMED_DEFECT / MEDIUM; fixed before any further sandbox use) and R14-AUD-008 (SPEC_CONFLICT / LOW; documentation terminology) |
+| Recorded only, unchanged | R14-AUD-002 and -007 **OPEN_BACKLOG**; R14-AUD-005 and -006 **FUTURE_ASSESSMENT_PREREQUISITE** (§36.6) |
+| Not done (not authorized) | CandidateAssessment, AssessmentSource, G1–G6 capture, readiness, READY_FOR_SIGNER, unsigned export, G7, signature, sending, email, Drive, platform action, uploader contact, real-case work |
+| Pre-flight (before any change) | `HEAD` = `4a1618dd40b19ba461828072fbd3f3576bdf89a3` on `feature/r14-validation-run-readback`, equal to its origin, worktree clean; `origin/main` = `c73cbdad1fe5d09813525930b4df9ed9123fd9de`; CI run 36249749190 on `4a1618d` success; the branch not merged; ADR-0006 PROPOSED; R14 not recorded as PASS |
+
+Each finding was confirmed from the repository before it was changed, not from the audit's description:
+- **AUD-001.** `captureCorrespondence` checks the raw and attachment sources with `assertSourcesUsable(…, { kind: 'Agency', agencyId })`: an Agency target has no case, subject or owner dimension, so a source restricted to Subject A is a valid capture. `bindCaseCorrespondence` checks only that the message belongs to the case's agency. `readContextRows` then read every source a selected message cites into the manifest and the closure, without evaluating it against the case.
+- **AUD-003.** At `4a1618d`, `INTERNAL_IDENTIFIER_STRINGS` was `[PROMPT_TEMPLATE_VERSION, ARTIFACT_ALGORITHM, DEPENDENCY_DIGEST_ALGORITHM, TECHNICAL_RULESET_VERSION, CONTRACT_BASELINE, PFC_SCHEMA_VERSION]`. `CONTRACT_BASELINE` moved from `TB-SCHEMA-API-v1.2.0` (`c73cbda`) to v1.3.0 (`7972103`) while `TECHNICAL_RULESET_VERSION` stayed `TB-TECHNICAL-RULESET-v1`: a body naming TB-SCHEMA-API-v1.2.0 was found before and not after.
+- **AUD-004.** In `ui-sandbox.ts` at `4a1618d`, the catch of the start sequence called `stop(1)`, and `stop` ran the cleanup (15 pointer UPDATEs, then DELETE FROM every sandbox table) unconditionally: after `assertEmpty` refused pre-existing rows, and on Ctrl+C or SIGTERM before that check.
+- **AUD-008.** Active guidance named personal human adoption as the G6 gate in four places: `CLAUDE.md`'s P4G rule (the last item of its G1–G6 list), this record's rule summary (its G6 item) and §33 (the G1–G6 range of the proposed assessments), and the technical ruleset's header comment (the same list).
+
+### 36.2 R14-AUD-001 — sources cited by a captured message, rechecked against the Case scope
+
+**Root cause.** Capture-scope validity was used as production-case applicability. A capture is agency-level and reusable, and a binding checks only the agency, so nothing evaluated the sources a bound message cites against the case whose context lists them.
+
+**Remediation** — at the current production applicability evaluation; the history is unchanged:
+- `readContextRows` (`modules/production/context-snapshot.ts`) rechecks each source a selected message cites — its `rawSourceId`, then every `attachmentsManifest[*].sourceId` — against the case as the same REPEATABLE READ snapshot reads it: its agency, case scope, bound legal subject and owner (the case with its bound route, or the case without one).
+- **The existing rules, read-only.** `applicabilityProblem` (`modules/sources/source-scope.ts`) is the read-only form of what `assertSourcesUsable` enforces at a write: `scopeProblem` (agency, case and subject dimensions), then `otherOwnerUsing` (the owner dimension) when the case has an owner. It makes plain reads in the caller's transaction: no FOR SHARE or FOR UPDATE, no write, no audit event, nothing read outside the snapshot. The technical validation's plan-source check now calls the same helper (the same two calls as before; behaviour unchanged).
+- Each source is evaluated once per read; every citation of it is reported.
+- Not done (mission §4): no capture, binding or source is edited; no source id is removed; nothing is copied per case; provenance and review state are unchanged; no "applicable" flag is stored on a binding; shared reuse stays possible.
+
+**Representation — the existing `conflicts[]`, no wire change.** Each citation that does not apply is one conflict:
+
+| Field | Value |
+|---|---|
+| `code` | `CORRESPONDENCE_SOURCE_NOT_APPLICABLE` |
+| `message` | "Recorded source ‹source id›, the raw source of captured message ‹id› (or: the source of attachment observation ‹j› of captured message ‹id›), is not applicable to the current Case scope (‹reason›). The capture was checked against its agency only. The message and the source are kept as recorded; this is a source-scope condition, not a finding about what the source shows." |
+| `fieldPath` | `correspondence[i].rawSourceId` or `correspondence[i].attachmentsManifest[j].sourceId` |
+| reason | as the write refusals name it: `SOURCE_SCOPE_UNRESOLVED: SCOPED_TO_OTHER_SUBJECT`, `SOURCE_SCOPE_UNRESOLVED: CASE_SUBJECT_UNBOUND` (a case without a route: no subject is guessed), `CROSS_CASE_REFERENCE`, `CROSS_AGENCY_REFERENCE`, `CROSS_OWNER_REFERENCE` (no other owner named), or another `SOURCE_SCOPE_UNRESOLVED` reason of `scopeProblem` |
+
+- **Traceability.** The source stays in `sources` exactly as recorded and in the dependency closure; the message stays exactly as captured. It is listed with the conflict, never as unqualified support.
+- **Through the stack.** DRAFTING is not gated by it (a conflict is not a DRAFTING-blocking missing code; no new gate). A prompt freezes it in `conflicts` and PART 3 renders it (TB-PROMPT-TEMPLATE-v1 unchanged: PART 3 renders every recorded conflict). A technical validation evaluates the current context and reports it through `CONTEXT.CONFLICTS` (REVIEW_REQUIRED), so the run is not TECHNICAL_PASS while the condition remains. No P4G rule was added.
+- **Digest completeness.** The recorded-scope reasons follow from records already in the closure (the source's scope bindings, the case, its route and association), so a change to them already changes the digest. The owner dimension depends on another owner's records outside the closure; their existence is added to the cited source's fingerprint as `otherOwnerMaterial: true`, present only then. Every other fingerprint, and every context without that condition, keeps its digest (§36.12, item 2).
+- **Route and current scope** (mission §13). Applicability is derived from the case as each snapshot reads it. A first route binding may follow history, and the next read re-evaluates (its subject: no conflict; another subject: `SCOPED_TO_OTHER_SUBJECT`). A route replacement after history is 409 `BINDING_CORRECTION_REQUIRES_RECONCILIATION` (blockers `[CORRESPONDENCE_BINDING]`), so no other transition exists; the test proves both.
+- **UI** (`apps/web/src/app/cases/production-context.tsx`). The conflict list names the new kind. Each flagged raw source and attachment observation carries the neutral tag "Not applicable to this case’s scope". The source manifest adds a "Case scope" row for flagged sources only: "Recorded source is not applicable to the current Case scope." (mission §42), with "The capture was checked against its agency only; see Recorded conflicts. The source is kept as recorded, and this says nothing about what it shows." The view derives nothing itself: it marks only what the context lists. No "invalid evidence", "unauthorized", "no authority", "infringement not proven" or gate wording appears.
+
+**Tests** (mission §10–§14):
+
+| Scenario | Test | Result |
+|---|---|---|
+| A — raw source restricted to Subject A, message bound to a Case routed to Subject B | DB `p4d-http` "raw source: …" — the capture stays valid; one conflict naming the source, the message and `SCOPED_TO_OTHER_SUBJECT`; the source listed as recorded and in the closure; the message unchanged; repeated reads identical and writing nothing; a direct link of the same source refused by the same rules (422 `SOURCE_SCOPE_UNRESOLVED`) | PASS |
+| A — the same through an attachment observation | DB "attachment source: …" — the conflict at exactly attachment 2; an attachment without a source and an applicable one raise nothing | PASS |
+| Valid shared reuse | DB "valid shared reuse …" — a source naming both subjects, an unrestricted agency source, and one message bound to two cases of different subjects (and owners): no conflict in either case | PASS |
+| Unbound case | DB "a case without a route has no subject …" — `CASE_SUBJECT_UNBOUND`, no subject guessed (not even from the owner hint); an unrestricted source raises nothing | PASS |
+| Route / current scope | DB "applicability is read from the case in each snapshot …" (above) | PASS |
+| Owner isolation | DB "owner isolation: …" — once another owner's coverage cites the source, `CROSS_OWNER_REFERENCE` (no other owner named); exactly that source's fingerprint and the digest change, the revision does not | PASS |
+| Through the stack | DB `p4g-http` "R14-AUD-001 — …" — context → prompt (its `conflicts`, PART 3's exact line, the source in its manifest) → validation: REVIEW_REQUIRED with exactly one issue, `CONTEXT.CONFLICTS`, 0 blockers, no rule not executed; read back unchanged; the same draft of a prompt whose raw source applies is TECHNICAL_PASS | PASS |
+| Rules without a database | `source-rules` +5 (`applicabilityProblem`: recorded scope first, then the owner dimension, only the owner's plain reads, no lock or write), `production-context-rules` +3 (each citation to one conflict with its path and reason; the digest covers the owner condition exactly), `p4d.test.tsx` +1 (the tags, the Case scope row only where flagged, neutral wording) | PASS |
+
+### 36.3 R14-AUD-003 — TB-TECHNICAL-RULESET-v2 with a pinned marker vocabulary
+
+**Root cause.** `MARKER.INTERNAL_IDENTIFIERS` built part of its vocabulary from constants that follow the active release (`CONTRACT_BASELINE` among them), so a wire release changed what the rule detected under the same ruleset identifier.
+
+**Remediation** (`modules/validation/technical-ruleset.ts`):
+- New validations record **`TB-TECHNICAL-RULESET-v2`**: v1's 29 rules, kinds, severities, order and aggregation unchanged; `MARKER.INTERNAL_IDENTIFIERS` stays the same conceptual check.
+- **The pinned vocabulary**, written out in the ruleset (`INTERNAL_IDENTIFIER_STRINGS`): `TB-PROMPT-TEMPLATE-v1`, `TB-CANDIDATE-ARTIFACT-v1`, `TB-PRODUCTION-CONTEXT-DIGEST-v1`, `TB-TECHNICAL-RULESET-v1`, `TB-TECHNICAL-RULESET-v2`, `TB-SCHEMA-API-v1.2.0`, `TB-SCHEMA-API-v1.3.0`, `PFC-YT-EMAIL-v1.1`. Derived from the pre-v1.3 behaviour: the six strings v1 detected with `CONTRACT_BASELINE` = v1.2.0 (main `c73cbda`), plus the v1.3.0 release and v2's own identifier. The other parts of the rule (record ids of the evaluated context, the candidate's and prompt's ids, the prompt SHA-256, digests and fingerprints, internal state codes) are unchanged.
+- No rule reads `CONTRACT_BASELINE` or another value that follows the active release: the identifier alone reproduces the vocabulary. A future release (TB-SCHEMA-API-v1.4.0) does not change v2; an identifier the application starts to use makes a unit test fail, and a new ruleset version is then needed (mission §18).
+- The web page's displayed ruleset and `smoke:p4g` name v2.
+
+**History and compatibility.** Every run recorded as `TB-TECHNICAL-RULESET-v1` stays exactly as stored: `getValidationRun`, `listValidationRuns` and an idempotent replay return it as v1, and nothing is relabelled, re-executed or rewritten. A present-day evaluation is a new run under v2. `rulesetVersion` is the existing free string of the unchanged `ValidationRun`: no wire, schema or migration change.
+
+**ADR-0006 revised before acceptance** (status stays **PROPOSED**): §4 and §5 no longer call v1 unchanged; new §8 records the finding, the decision, the vocabulary, the history rule, that the ruleset change is not a wire release and creates no legal or policy certification, and the three separate identifiers (wire release TB-SCHEMA-API-v1.3.0, technical ruleset of new validations TB-TECHNICAL-RULESET-v2, production form PFC-YT-EMAIL-v1.1, unchanged); an alternative "keep v1 and pin it" is recorded as rejected. The v1.3.0 README is qualified the same way. `amendment.json` is unchanged: sha256 `6b74c09aba024dcf8cb2e0a0c6e374bbce17b45298d2aec83cc2e3ab166a1630`.
+
+**Release coupling and version-only drift** (mission §24, §48). `CONTRACT_BASELINE` stays in the P4D dependency digest: a contract release still gives a new digest, and nothing reuses or restores an old one. A v1.2-era prompt snapshot evaluated under the v1.3 current context can therefore produce one `CONTEXT.PROMPT_DRIFT` REVIEW_REQUIRED issue (change `IDENTIFIERS`) when the recorded context differs only by version identifiers. **REVIEW_REQUIRED is not a mandatory re-draft**: by itself it does not mean that the candidate's content is wrong, that it must be redrafted, or that owner facts, authority or rights changed. Whether unchanged bytes may continue is for a future authorized review or rebinding policy; none is implemented. (ADR-0006, Consequences; §35.12 item 2 corrected accordingly.)
+
+**Tests** (mission §20–§21):
+
+| Requirement | Test | Result |
+|---|---|---|
+| golden: TB-SCHEMA-API-v1.2.0 found | `validation-rules` "golden: TB-SCHEMA-API-v1.2.0 and TB-SCHEMA-API-v1.3.0 — and every other pinned identifier …" (exact finding, position, body and subject) | PASS |
+| golden: TB-SCHEMA-API-v1.3.0 found | the same test | PASS |
+| golden: lookalikes not found | "golden: lookalikes …" — v1.4.0, v1.1.0, v1.0.0, other letter case, a space, a prefix, `TB-TECHNICAL-RULESET-v3`, `PFC-YT-EMAIL-v1.2` | PASS |
+| the vocabulary is pinned, not derived | "the vocabulary is exactly the pinned list …" (the list, its literal declaration, no active-release constant in the ruleset's code) and "a later identifier needs a new ruleset version …" | PASS |
+| unchanged under a changed contract constant | `validation-ruleset-identity.test.ts` (new): `@tb/contracts`' `CONTRACT_BASELINE` replaced by `TB-SCHEMA-API-v9.9.9-SYNTHETIC` for that module graph; the rule still finds v1.2.0 and v1.3.0 and not the synthetic or a later release — no production constant changed at run time | PASS |
+| new run records v2 (and its audit event) | DB `p4g-http` "R14-AUD-003: …" and every P4G DB test's `rulesetVersion` | PASS |
+| a stored v1 run reads, lists and replays as v1 | the same DB test (a v1 row set directly in `tb_notice_test`); web `p4g.test.tsx` "R14-AUD-003: a run recorded under TB-TECHNICAL-RULESET-v1 opens exactly as recorded …" | PASS |
+| no current run relabelled without executing | the same DB test: the replay adds no run; a new validation is a new v2 run | PASS |
+| prompt drift unchanged | the existing `CONTEXT.PROMPT_DRIFT` unit and DB tests | PASS |
+
+### 36.4 R14-AUD-004 — ui:sandbox cleanup disarmed until the empty start is verified
+
+**Root cause.** The teardown did not know whether this run owned the rows: every exit path ran the cleanup, including a refused empty-start check.
+
+**Remediation.** The ownership lifecycle lives in `scripts/local/sandbox-lifecycle.ts`; `ui-sandbox.ts` uses it for every exit path.
+- The cleanup is **disarmed by default**. `claimEmptyStart()` arms it only after this run has itself verified that its connection is on `tb_notice_test` and that every sandbox table is empty — and never once a stop has begun (a signal during the check leaves it disarmed).
+- One `stop()` for every exit path (signal, start-up error, refused guard), once: it closes what this process opened (the web child, the API, its own pool). Only when armed does it run the cleanup and the empty check after it; otherwise it logs "cleanup not armed: this run never verified an empty tb_notice_test, so no row was updated or deleted".
+- The earlier guards (the target allowlist, ports, the build) fail before any database statement, as before. The target allowlist, the dev database and the migration tooling are unchanged (mission §29).
+
+**Tests** (`tests/tooling/ui-sandbox-lifecycle.test.ts`, new, 8; a stand-in connection, no database):
+
+| Mission §28 | Test | Result |
+|---|---|---|
+| 1 pre-existing row → refused, 0 cleanup SQL | "a row that was already in tb_notice_test refuses the start …": 0 UPDATE/DELETE, the rows stay, events stop → close own resources → not armed → disconnect → exit 1; also another schema: only `SELECT DATABASE()` | PASS |
+| 2 signal/error before a successful check → 0 cleanup SQL | "Ctrl+C or SIGTERM before the empty-start check …": no statement at all; "a signal while the empty-start check is still running …": stays disarmed | PASS |
+| 3 empty start → armed → expected cleanup | "an empty start arms the cleanup …": exactly the 15 pointer clears and 31 FK-ordered deletes, then the empty check; a signal after arming runs it once; a failed cleanup exits 1 | PASS |
+| the script uses only the lifecycle | "the script cleans up only through the lifecycle …" (static) | PASS |
+
+Supplemental disposable-database check (not the primary proof; `evidence/r14-astra-sandbox-refusal-check.txt`): on `2117fba`, one disabled, non-credential synthetic user row in `tb_notice_test`; `yarn ui:sandbox` then printed "FAIL tb_notice_test is not empty before start (users=1); refusing", "stopping…" and "cleanup not armed: this run never verified an empty tb_notice_test, so no row was updated or deleted", and exited 1 without writing a password file; the row read back unchanged and was then removed by the check itself (`db:verify test --expect-empty` PASS). The browser session afterwards (§36.9) was a run that verified its empty start: its teardown deleted every sandbox row.
+
+### 36.5 R14-AUD-008 — G6/G7 terminology
+
+- **Permanent terminology** (now in `CLAUDE.md`): G1 authority/standing · G2 work-specific rights · G3 reported-material identification · G4 evidence/audiovisual comparison · G5 permission/copyright exceptions · G6 exact candidate artifact consistency, traceability and whole-artifact QA (supported prose and material NMI asks where applicable) · G7 the actual authorized human review, adoption, signature and sending act, outside the application. AI cannot satisfy G7; personal adoption is G7, never G6.
+- **Corrected:** `CLAUDE.md` (the P4G persistent rule, and the terminology line); this record's rule summary and §33, each with a dated correction note keeping what was first recorded; the header of `technical-ruleset.ts`. A search of the active documentation for G6, G7, human adoption, adoption, signature, exact artifact and traceability found no other misassignment; the production form contract already uses the correct terms (§10 "G6 exact artifact/traceability QA"). Legitimate statements (G6 needs human semantic QA of the artifact; G7 needs personal adoption and signature; a signer identity may appear while the signature stays pending) are unchanged. `docs/reference/**` is untouched.
+- **Guard:** `tests/tooling/gate-terminology.test.ts` (new, 3) scans `CLAUDE.md`, `docs/**/*.md` (not `docs/reference` or evidence logs) and the app sources for the known misassignments, and proves its patterns match them and not the correct wording.
+
+### 36.6 Backlog and future prerequisites (recorded, not implemented)
+
+| Finding | Disposition | Unchanged here |
+|---|---|---|
+| R14-AUD-002 — a candidate import/revision replay after supersession returns the current lifecycle overlay, not the exact original response | **OPEN_BACKLOG** | WriteExecutor replay semantics, candidate replay storage, supersession, response snapshots |
+| R14-AUD-007 — the validation-history UI stops after about 1,000 runs | **OPEN_BACKLOG** | "Load older", history pagination, exact-run search, `PICKER_PAGES` / `allPages` |
+| R14-AUD-005 — a future plan-source freshness policy | **FUTURE_ASSESSMENT_PREREQUISITE** | no `planSourcesFingerprint`, ValidationRun schema or closure change; no assessment freshness design |
+| R14-AUD-006 — a future AssessmentSource read-back | **FUTURE_ASSESSMENT_PREREQUISITE** | no assessment route, AssessmentSource read or TB-SCHEMA-API-v1.4.0 |
+
+`captureCandidateAssessment` and `listCandidateAssessments` stay unrouted (the routed-inventory DB test lists 134 business operations and none of them; `smoke:p4f` and `smoke:p4g` probe the later phases as unavailable).
+
+### 36.7 Tests and totals
+
+| Suite | Change | Covers |
+|---|---|---|
+| `tests/api/source-rules.test.ts` | +5 | `applicabilityProblem`: the recorded scope first (a subject-scoped agency source a capture accepts does not apply to a case of another subject; no read needed), `CASE_SUBJECT_UNBOUND` for a case without a route, shared reuse (both subjects named, or none), owner isolation (`CROSS_OWNER_REFERENCE`), and only the owner dimension's plain reads (no lock or write) |
+| `tests/api/production-context-rules.test.ts` | +3 | each citation the snapshot found is one conflict (raw source and attachment observation, with path and reason); a clean citation raises nothing; the digest covers the owner condition exactly and nothing else |
+| `tests/web/p4d.test.tsx` | +1 | the tags beside the flagged raw source and attachment observation, the "Case scope" row only for flagged manifest entries, the neutral wording and no verdict wording |
+| `tests/db/p4d-http.test.ts` | +6 | §36.2 scenarios: raw source, attachment source, valid shared reuse, unbound case, route and current scope, owner isolation |
+| `tests/db/p4g-http.test.ts` | +2; v2 pins | the AUD-001 context → prompt → validation proof with its applicable contrast; the AUD-003 v2 / historical v1 test; every other P4G expectation names `TB-TECHNICAL-RULESET-v2` |
+| `tests/api/validation-rules.test.ts` | +4; v2 pins | the pinned vocabulary, the golden findings (v1.2.0, v1.3.0, every identifier, body and subject), the lookalikes, the "new identifier needs a new ruleset" tripwire |
+| `tests/api/validation-ruleset-identity.test.ts` | +2 (new) | the same findings under a synthetic later `CONTRACT_BASELINE` for the test's module graph |
+| `tests/web/p4g.test.tsx`, `tests/web/support.tsx` | +1; v2 pins | a run recorded as v1 opens exactly as recorded while the panel names v2; the fake server records v2 |
+| `tests/tooling/ui-sandbox-lifecycle.test.ts` | +8 (new) | §36.4 |
+| `tests/tooling/gate-terminology.test.ts` | +3 (new) | §36.5 |
+| `scripts/local/p4g-smoke.ts` (CI) | v2 pins (94 checks, unchanged count) | a new run records `TB-TECHNICAL-RULESET-v2` |
+
+Totals: `yarn test` **1559** in 52 files (R14 remediation: 1532 in 49); `yarn test:db` **534** in 14 files (526) — home PC and CI identical. Each of the three code commits was also verified on its own before the push: typecheck, lint (0 warnings), format and `yarn test` (1541 in 49, 1548 in 50, 1556 in 51 files), plus the DB suites it touched (`p4d` and `p4g` 81 on `d75b7d6`; `p4g` 34 on `9a528bc`) — the appendix of `evidence/r14-astra-first-pc-sweep.txt`.
+
+### 36.8 Commits
+
+| Commit | Content | CI |
+|---|---|---|
+| `d75b7d6` | fix(production): the cited correspondence sources rechecked against the case (`source-scope.ts` `applicabilityProblem`, `context-snapshot.ts`, `context-assembly.ts`, `context-dependencies.ts`; the plan-source check uses the same helper); the context page's marking; unit, web and DB tests (R14-AUD-001) | (pushed with `2117fba`) |
+| `9a528bc` | fix(validation): `TB-TECHNICAL-RULESET-v2` with the pinned vocabulary; the page's ruleset constant and `smoke:p4g`; golden, identity, DB and web tests; ADR-0006 revised (PROPOSED) and the v1.3.0 README qualified (R14-AUD-003) | (pushed with `2117fba`) |
+| `2f5ec24` | fix(tooling): the sandbox ownership lifecycle (`scripts/local/sandbox-lifecycle.ts`, `ui-sandbox.ts`) and its stand-in-connection test (R14-AUD-004) | (pushed with `2117fba`) |
+| `2117fba` | docs(gates): the G6/G7 terminology (`CLAUDE.md`, this record, the ruleset header), the guard test, the Astra backlog in `CURRENT_STATE.md` (R14-AUD-008) — the code head | push run 36290145394 success |
+| (this record) | docs(r14): §36, the evidence `r14-astra-*` and screenshots, `CLAUDE.md`, `CURRENT_STATE.md`, the v1.3.0 README pointer (documentation only) | reported with the remediation report |
+
+Nothing was amended, rebased, rewritten or force-pushed; no branch, tag, release or pull request was created. The branch moved `4a1618d..2117fba` by a normal push, and `origin/main` stays `c73cbda`.
+
+### 36.9 Browser verification (Playwright MCP)
+
+**14/14 PASS, no finding** (`evidence/r14-astra-playwright-mcp-verification.txt`; screenshots `evidence/screenshots/r14-astra-*`). Run only after the AUD-004 fix and its tests (mission §41). Target: `yarn ui:sandbox` built from `2117fba` on the disposable `tb_notice_test`, an isolated headless browser, synthetic data only.
+- **The AUD-001 effect.** Same agency; Case B routed to Subject B; message N1 (raw source restricted to Subject A) and message S1 (attachment observations: shared A+B, Subject A only, unrestricted) bound to it and selected explicitly. The context lists "Recorded conflicts (2)" with the neutral messages; the tag appears beside N1's raw source and S1's attachment 1 only, and the "Case scope" row on those two manifest entries only; DRAFTING is delivered; no verdict wording.
+- **Valid shared source.** Case A (Subject A), bound to the same N1: "Recorded conflicts (0)", no tag.
+- **Through the stack.** The prompt snapshot shows the two conflicts and renders them in PART 3. The technical validation run on the candidate is REVIEW_REQUIRED (0 blockers; `CONTEXT.CONFLICTS` twice and one `CONTEXT.MISSING` from the operator-reported prior), with the permanent qualifier and `TB-TECHNICAL-RULESET-v2`.
+- **History, actions, layout, keyboard.** After a reload, "Open run" reads the run from the server and shows it exactly as recorded. No assessment, readiness, approval, signing, sending or export action appears; `GET …/assessments` and `…/readiness` are 404. At 390 px the page does not scroll sideways and the tags fit. Enter on "Show context" and on "Open run" moves focus to the outcome.
+- **Writes and cleanup.** Reads change nothing: the messages, bindings, sources, cases, prompt and candidate have identical fingerprints, and the run added one run, three issues, one audit event and one idempotency record. Sign-out gives 401. The owned teardown deleted every row: `db:verify test --expect-empty` PASS.
+
+### 36.10 Negative controls
+
+**18/18 caught and restored byte-identically** (`evidence/r14-astra-negative-controls.txt`), on `2117fba`, 2026-09-27T03:03Z–03:22Z: 28 responsible commands, every one failing with an AssertionError as its first failure; the working-tree fingerprint identical before and after; `tb_notice_test` empty afterwards. The unmutated baseline passed 22/22 distinct commands, each selecting at least one test (a first baseline attempt caught a harness filter that selected nothing — a regular-expression `+` — before any mutation; the filter was fixed in the scratchpad harness, no product or test change).
+
+| Mission §40 | Control | Responsible tests |
+|---|---|---|
+| raw-source Case applicability disabled | NC-ASTRA-001-A | DB "raw source: …"; DB "R14-AUD-001 — …" (the stack) |
+| attachment-source Case applicability disabled | NC-ASTRA-001-B | DB "attachment source: …"; DB "a case without a route …" |
+| subject mismatch disabled | NC-ASTRA-001-C | unit "a subject-scoped agency source a capture accepts …"; DB "raw source: …" |
+| valid shared reuse broken | NC-ASTRA-001-D | unit "shared reuse stays valid …"; DB "valid shared reuse …" |
+| marker vocabulary from `CONTRACT_BASELINE` again | NC-ASTRA-003-A | unit "golden: …"; `validation-ruleset-identity.test.ts` |
+| new behaviour labelled `TB-TECHNICAL-RULESET-v1` | NC-ASTRA-003-B | unit "is one identifier with a pinned inventory …"; DB "R14-AUD-003: …" |
+| cleanup armed before the empty check succeeded | NC-ASTRA-004-A | tooling "a row that was already in tb_notice_test …" |
+| a signal before ownership triggers the cleanup | NC-ASTRA-004-B | tooling "Ctrl+C or SIGTERM before the empty-start check …" |
+| the misassignment of human adoption to G6 restored in active guidance | NC-ASTRA-008 | tooling "no active document or source assigns …" |
+| also (mission §14 and further) | NC-ASTRA-001-E (owner dimension skipped), -F (another owner's use left out of the fingerprint), -G (the conflict dropped from the context), -H (evaluated at the capture scope, target Agency), -I (the UI marking not rendered), -J (the unbound-Case check disabled); NC-ASTRA-003-C (a v1 run relabelled on read), -D (TB-SCHEMA-API-v1.2.0 dropped from the vocabulary); NC-ASTRA-004-C (the script bypasses the lifecycle) | |
+
+### 36.11 Regression sweep and CI
+
+**Sweep** (mission §43): 2026-09-27T03:12:40Z–03:21:10Z on `2117fba`, after the targeted tests, the negative controls and the browser session. All 21 steps exit 0 (`evidence/r14-astra-first-pc-sweep.txt`).
+
+| Command | Result |
+|---|---|
+| `yarn reference:check` (before and after) | frozen references intact (`MANIFEST.sha256` `42c2a419…` matches the pin) |
+| `yarn reference:helper-tests` | 27 pass, 0 fail |
+| `yarn contracts:check` | 3 generated outputs match the active source |
+| `yarn install --immutable` | lockfile unchanged (pre-existing YN0086 note) |
+| `yarn typecheck` · `yarn format:check` | exit 0 |
+| `yarn lint` · `oxlint --deny-warnings --format default` | exit 0 · exit 0 — **0 warnings** ("Found 0 warnings and 0 errors." on 329 files) |
+| `yarn test` | 1559 / 1559 in 52 files |
+| `yarn test:db` | 534 / 534 in 14 files (`tb_notice_test`) |
+| `yarn db:verify test --expect-empty` (before and after) | PASS, domain rows 0 |
+| `yarn db:verify dev` | PASS (metadata and a row count only: 5, unchanged — nothing written to `tb_notice_dev`) |
+| `yarn db:status test` / `dev` | up to date (1 migration) |
+| `yarn db:drift:diff-migrations` / `db:drift:diff-datasource dev` | empty migration (no drift) |
+| `yarn build` | exit 0, no chunk-size advisory (entry 329.93 kB; production-context chunk 32.87 kB, +1.54 kB; candidates 56.82 kB) |
+| `yarn smoke:local` | 62 checks |
+| `yarn dev:verify-shutdown` | 4 / 4 scenarios |
+
+`smoke:auth`, `smoke:directory`, `smoke:p3a`, `smoke:p3b` and `smoke:p4a`–`smoke:p4g` write records and run only in CI; all are kept and pass there. `yarn test:transition-baseline` is not a gate and was not run.
+
+**CI** (`evidence/r14-astra-ci-run-36290145394.txt`). Code head `2117fba`: push run [36290145394](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36290145394) (2026-09-27T03:00:23Z–03:08:56Z), **success**, both jobs:
+- "Non-DB checks (cold install)" (job 108538535068): the reference check and the 27 helper tests, `contracts:check`, lint "Found 0 warnings and 0 errors.", format, `yarn test` 1559 / 52 files, build, the frozen references and the working tree unchanged.
+- "Database, seed and smoke (MySQL 8.4.11)" (job 108538534929): migration and metadata verification on test, replay and dev; `yarn test:db` 534 / 14 files; the seed twice with the canonical digest unchanged; both drift diffs empty; `smoke:local` 62; `smoke:auth` 4; `smoke:directory` 14; `smoke:p3a` 24; `smoke:p3b` 36; `smoke:p4a` 50; `smoke:p4b` 64; `smoke:p4c` 62; `smoke:p4d` 87; `smoke:p4e` 84; `smoke:p4f` 90; `smoke:p4g` 94 (a new run records `TB-TECHNICAL-RULESET-v2`); the P1.1 recovery commands; `yarn dev` clean shutdown 4 / 4.
+
+The CI smokes cite only agency sources without a subject restriction in their captured messages, so none raises the new conflict and no smoke expectation changed. The documentation head's run is reported with the remediation report.
+
+### 36.12 Schema, contract and dependencies
+
+- **No migration, no Prisma schema change.** `20260923103912_initial_schema` is still the only migration; both drift diffs are empty.
+- **No wire change.** TB-SCHEMA-API-v1.3.0 is unchanged: 289 schemas, 144 operations, 99 paths, `info.version` 1.3.0; `amendment.json` sha256 `6b74c09aba024dcf8cb2e0a0c6e374bbce17b45298d2aec83cc2e3ab166a1630`; `contracts:check` passes. The new conflict is a value of the existing free-string `code` in the existing `conflicts[]`.
+- **Nothing else outside the change.** `git diff 4a1618d..2117fba` (29 files) touches nothing under `packages/`, `apps/api/prisma`, `docs/reference`, `docs/contracts/TB-SCHEMA-API-v1.1.0` or `-v1.2.0`, the v1.3.0 `amendment.json`, ADR-0004, ADR-0005, `yarn.lock`, `.yarnrc.yml`, `.nvmrc` or any `package.json`. No dependency was added. The target allowlist, the dev database and the migration tooling are unchanged.
+
+### 36.13 Warnings and open items for the operator (not decided here)
+
+1. **The dependency fingerprint of a cited source gains one conditional key** (§36.2). When another owner's records use a source a selected message cites, that source's fingerprint includes `otherOwnerMaterial: true`, so the digest changes when that condition arises. This is a narrow extension of what TB-PRODUCTION-CONTEXT-DIGEST-v1 fingerprints, following the design's rule that the existence of a later record changing a pinned record's meaning is fingerprinted. Contexts without the condition keep their digests; a new digest identifier would have changed every digest. The operator's confirmation is asked.
+2. **Recorded-scope conflicts are derived, not fingerprinted.** They follow from records the closure already covers, so an unchanged context keeps its digest across this rule change while its next read lists the conflict. A prompt or validation after the change records or reports it; a page opened before the change shows it after a new read.
+3. **Observation for the continued audit — not classified, not changed.** A mandate version's sources (primary, additional and signed-date sources) and whole-mandate event sources are checked in the mandate's agency context (P3B, accepted at R7), much like a capture. A pinned selection then brings them into a case's context without a case-scope recheck. Whether a subject-restricted authority source should raise the same kind of conflict is outside this mission's scope (AUD-001 names correspondence). It is left to the Astra audit, with no inference either way.
+4. **Document-plan offers.** The candidate import page offers the prompt's source manifest (R13 decision 9), which can now include a correspondence source that does not apply to the case. `importCandidate` refuses such a plan entry with the source-scope reason, shown at its field. Pre-existing behaviour, not changed.
+5. **ADR-0006** stays PROPOSED (revised, §8); its acceptance and TB-SCHEMA-API-v1.3.0's belong to the operator's review.
+6. **Evidence limitations:**
+   - the stored v1 run of the AUD-003 DB and web tests is set directly in `tb_notice_test` or the fake server (data the application no longer writes);
+   - the supplemental AUD-004 check inserted one synthetic row directly;
+   - the browser scenario was seeded through the compiled API.
+7. **Pre-existing, non-blocking:** the YN0086 peer-dependency note; `yarn test:transition-baseline` fails by design (not run, not a gate).
+
+### 36.14 Status (maximum claim of this mission)
+
+| Scope | Status |
+|---|---|
+| `ASTRA_AUDIT` | **PARTIAL** — continues from its saved checkpoint |
+| R14-AUD-001 · -003 · -004 · -008 | **REMEDIATED_PENDING_INDEPENDENT_REVIEW** each |
+| R14-AUD-002 · -007 | **OPEN_BACKLOG** (unchanged) |
+| R14-AUD-005 · -006 | **FUTURE_ASSESSMENT_PREREQUISITE** (unchanged) |
+| R14 | **HOLD_FOR_REVIEW** — not PASS |
+| ADR-0006 / TB-SCHEMA-API-v1.3.0 | **PROPOSED** (revised before acceptance; active on the remediation branch, `main` carries v1.2.0) |
+| P4G | **MERGED_TO_MAIN_FOR_IMPLEMENTED_SCOPE** (`c73cbda`); not VERIFIED_COMPLETE |
+| CandidateAssessment and later phases | **NOT_STARTED** / HOLD |
+| External action | **NONE** |
+| Database / wire contract / dependencies | **No change** |

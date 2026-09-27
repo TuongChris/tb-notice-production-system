@@ -7,7 +7,7 @@
 | Decision | `docs/decisions/ADR-0006-tb-schema-api-v1-3-0-validation-run-read.md` — **PROPOSED** (R14 remediation), for the operator's review at gate R14 final |
 | Recorded | 2026-09-26, R14 remediation (mission TB_R14_POST_MERGE_RECONCILE_AND_VALIDATION_RUN_READBACK_REMEDIATION_TO_R14_FINAL) |
 | Record | `amendment.json` (this folder), sha256 `6b74c09aba024dcf8cb2e0a0c6e374bbce17b45298d2aec83cc2e3ab166a1630` |
-| Verification | `docs/verification/p4g/P4G_TECHNICAL_VALIDATION.md` §34 (R14 result and merge reconciliation) and §35 (R14 remediation; evidence `docs/verification/p4g/evidence/r14-*`) |
+| Verification | `docs/verification/p4g/P4G_TECHNICAL_VALIDATION.md` §34 (R14 result and merge reconciliation) and §35 (R14 remediation; evidence `docs/verification/p4g/evidence/r14-*`); §36 (the Astra-audit remediation, the technical ruleset identity included; evidence `r14-astra-*`) |
 
 The wire contract of this release is TB-SCHEMA-API-v1.2.0, unchanged, plus exactly the amendment recorded here. The generated artifacts `packages/contracts/schemas/api-schemas.json` and `packages/contracts/openapi/openapi.{json,yaml}` are the release's documents. Their digests are in `amendment.json` (`result.files`).
 

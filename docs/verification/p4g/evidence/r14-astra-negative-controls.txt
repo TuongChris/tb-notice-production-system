@@ -1,0 +1,149 @@
+R14 Astra-audit remediation — negative controls (mission TB_R14_ASTRA_BLOCKER_REMEDIATION §14, §40), home PC, 2026-09-27 (UTC)
+==================================================================================================================
+Method (a scratchpad harness, never committed): each control mutates exactly one protection in one file (an exact anchor
+that must occur exactly once), runs its responsible commands and requires every one of them to FAIL with an AssertionError
+as its first failure — not a helper TypeError, a timeout or an unrelated backstop — then restores the file and checks its
+SHA-256 against the original (byte-identical). The working tree fingerprint (SHA-256 of `git status --porcelain -uall` and
+`git diff HEAD`) must be identical before and after. Unit commands run Vitest on the named file with `-t` (a regular
+expression); DB commands run the guarded `scripts/db/run-db-tests.mjs` on `tb_notice_test`.
+
+Baseline first (unmutated head): every distinct responsible command must pass and select at least one test. The first
+baseline attempt found one filter that selected nothing — `-t "Ctrl+C or SIGTERM …"`, whose `+` is a regular-expression
+quantifier — and stopped the run before any mutation; the harness filter was changed to plain words ("SIGTERM before the
+empty-start check closes only"; no product or test change) and the baseline re-run below passed 20/20.
+
+Mission §40 mandatory controls → harness ids
+  NC-ASTRA-001-A  disable raw-source Case applicability                → NC-ASTRA-001-A
+  NC-ASTRA-001-B  disable attachment-source Case applicability         → NC-ASTRA-001-B
+  NC-ASTRA-001-C  disable Subject mismatch                             → NC-ASTRA-001-C
+  NC-ASTRA-001-D  break valid shared reuse                             → NC-ASTRA-001-D
+  NC-ASTRA-003-A  derive marker vocabulary from CONTRACT_BASELINE again → NC-ASTRA-003-A
+  NC-ASTRA-003-B  label new behavior TB-TECHNICAL-RULESET-v1           → NC-ASTRA-003-B
+  NC-ASTRA-004-A  arm cleanup before assertEmpty success               → NC-ASTRA-004-A
+  NC-ASTRA-004-B  signal before ownership triggers cleanup             → NC-ASTRA-004-B
+  NC-ASTRA-008    restore "G6 = human adoption" in active guidance     → NC-ASTRA-008 (tests/tooling/gate-terminology.test.ts)
+  Mission §14 also names the unbound-Case check: NC-ASTRA-001-B's second command (a subject-scoped attachment source of a
+  case without a route) and the recorded-scope evaluation of NC-ASTRA-001-C/-H cover it.
+Further controls: NC-ASTRA-001-E (owner dimension skipped), -F (another owner's use left out of the fingerprint), -G (the
+conflict dropped from the assembled context), -H (evaluated at the capture scope, target Agency, instead of the case), -I
+(the UI qualifier not rendered); NC-ASTRA-003-C (a historical v1 run relabelled on read), -D (TB-SCHEMA-API-v1.2.0 dropped
+from the pinned vocabulary); NC-ASTRA-004-C (the script bypasses the lifecycle with its own signal handlers).
+
+== Baseline
+# baseline (unmutated) — 2026-09-27T03:02:46.388Z — HEAD 2117fbae2c59ae78a8ad27bd6a4e554fdf8aa338
+  PASS test:db tests/db/p4d-http.test.ts -t "raw source: a source restricted": exit 0, 1 passed
+  PASS test:db tests/db/p4g-http.test.ts -t "R14-AUD-001": exit 0, 1 passed
+  PASS test:db tests/db/p4d-http.test.ts -t "attachment source: a source one attachment": exit 0, 1 passed
+  PASS test:db tests/db/p4d-http.test.ts -t "a case without a route has no subject": exit 0, 1 passed
+  PASS vitest tests/api/source-rules.test.ts -t "a subject-scoped agency source a capture accepts": exit 0, 1 passed
+  PASS vitest tests/api/source-rules.test.ts -t "shared reuse stays valid": exit 0, 1 passed
+  PASS test:db tests/db/p4d-http.test.ts -t "valid shared reuse": exit 0, 1 passed
+  PASS vitest tests/api/source-rules.test.ts -t "owner isolation": exit 0, 1 passed
+  PASS test:db tests/db/p4d-http.test.ts -t "owner isolation": exit 0, 1 passed
+  PASS vitest tests/api/production-context-rules.test.ts -t "the digest covers it exactly": exit 0, 1 passed
+  PASS vitest tests/api/production-context-rules.test.ts -t "each citation the snapshot found": exit 0, 1 passed
+  PASS vitest tests/web/p4d.test.tsx -t "R14-AUD-001": exit 0, 1 passed
+  PASS vitest tests/api/validation-rules.test.ts -t "golden: TB-SCHEMA-API-v1.2.0": exit 0, 1 passed
+  PASS vitest tests/api/validation-ruleset-identity.test.ts: exit 0, 2 passed
+  PASS vitest tests/api/validation-rules.test.ts -t "is one identifier with a pinned inventory": exit 0, 1 passed
+  PASS test:db tests/db/p4g-http.test.ts -t "R14-AUD-003": exit 0, 1 passed
+  PASS vitest tests/tooling/ui-sandbox-lifecycle.test.ts -t "a row that was already in tb_notice_test": exit 0, 1 passed
+  PASS vitest tests/tooling/ui-sandbox-lifecycle.test.ts -t "SIGTERM before the empty-start check closes only": exit 0, 1 passed
+  PASS vitest tests/tooling/ui-sandbox-lifecycle.test.ts -t "the script cleans up only through the lifecycle": exit 0, 1 passed
+  PASS vitest tests/tooling/gate-terminology.test.ts -t "no active document or source assigns": exit 0, 1 passed
+# baseline: 20/20 commands pass with at least one selected test
+
+== Controls
+# negative controls — 2026-09-27T03:03:17.939Z — HEAD 2117fbae2c59ae78a8ad27bd6a4e554fdf8aa338
+# working tree fingerprint before: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+NC-ASTRA-001-A CAUGHT — raw-source Case applicability disabled (apps/api/src/modules/production/context-snapshot.ts); restored byte-identically: true
+  - test:db tests/db/p4d-http.test.ts -t "raw source: a source restricted": FAILED; first failure: AssertionError: expected [] to deeply equal [ { …(3) } ]
+      failed test: tests/db/p4d-http.test.ts > CORRESPONDENCE SOURCE SCOPE (R14-AUD-001) — capture-scope validity is not production-case applicability > raw source: a source restricted to another legal subject is a valid agency-level capture; in the context o
+  - test:db tests/db/p4g-http.test.ts -t "R14-AUD-001": FAILED; first failure: AssertionError: expected [] to have a length of 1 but got +0
+      failed test: tests/db/p4g-http.test.ts > R14-AUD-001 — a captured message’s source outside the case scope never flows through the stack as a clean context > the conflict is listed in the production context, frozen in the prompt snapshot (its conflicts a
+NC-ASTRA-001-B CAUGHT — attachment-source Case applicability disabled (apps/api/src/modules/production/context-snapshot.ts); restored byte-identically: true
+  - test:db tests/db/p4d-http.test.ts -t "attachment source: a source one attachment": FAILED; first failure: AssertionError: expected [] to deeply equal [ { …(3) } ]
+      failed test: tests/db/p4d-http.test.ts > CORRESPONDENCE SOURCE SCOPE (R14-AUD-001) — capture-scope validity is not production-case applicability > attachment source: a source one attachment observation cites (agency-shared, restricted to another subject
+  - test:db tests/db/p4d-http.test.ts -t "a case without a route has no subject": FAILED; first failure: AssertionError: expected [] to deeply equal [ Array(1) ]
+      failed test: tests/db/p4d-http.test.ts > CORRESPONDENCE SOURCE SCOPE (R14-AUD-001) — capture-scope validity is not production-case applicability > a case without a route has no subject: a subject-specific source a captured message cites is listed with C
+NC-ASTRA-001-C CAUGHT — subject mismatch ignored at read time (apps/api/src/modules/sources/source-scope.ts); restored byte-identically: true
+  - vitest tests/api/source-rules.test.ts -t "a subject-scoped agency source a capture accepts": FAILED; first failure: AssertionError: expected null to deeply equal { …(2) }
+      failed test: tests/api/source-rules.test.ts > applicabilityProblem — the same rules as a write, read-only, reported instead of refused (R14-AUD-001) > a subject-scoped agency source a capture accepts (target Agency) does not apply to a case bound to ano
+  - test:db tests/db/p4d-http.test.ts -t "raw source: a source restricted": FAILED; first failure: AssertionError: expected [] to deeply equal [ { …(3) } ]
+      failed test: tests/db/p4d-http.test.ts > CORRESPONDENCE SOURCE SCOPE (R14-AUD-001) — capture-scope validity is not production-case applicability > raw source: a source restricted to another legal subject is a valid agency-level capture; in the context o
+NC-ASTRA-001-D CAUGHT — valid shared reuse broken (any subject-scoped source treated as another subject’s) (apps/api/src/modules/sources/source-scope.ts); restored byte-identically: true
+  - vitest tests/api/source-rules.test.ts -t "shared reuse stays valid": FAILED; first failure: AssertionError: expected { …(2) } to be null // Object.is equality
+      failed test: tests/api/source-rules.test.ts > applicabilityProblem — the same rules as a write, read-only, reported instead of refused (R14-AUD-001) > shared reuse stays valid: a source naming the case’s subject among others, or no subject at all, appli
+  - test:db tests/db/p4d-http.test.ts -t "valid shared reuse": FAILED; first failure: AssertionError: 8e546e99-617e-475d-826e-561e04d082ef: expected [ { …(3) } ] to deeply equal []
+      failed test: tests/db/p4d-http.test.ts > CORRESPONDENCE SOURCE SCOPE (R14-AUD-001) — capture-scope validity is not production-case applicability > valid shared reuse: one message citing a source that names both subjects and one without a subject restric
+NC-ASTRA-001-E CAUGHT — owner dimension skipped at read time (apps/api/src/modules/sources/source-scope.ts); restored byte-identically: true
+  - vitest tests/api/source-rules.test.ts -t "owner isolation": FAILED; first failure: AssertionError: owner: expected null to deeply equal { code: 'CROSS_OWNER_REFERENCE', …(1) }
+      failed test: tests/api/source-rules.test.ts > applicabilityProblem — the same rules as a write, read-only, reported instead of refused (R14-AUD-001) > owner isolation: a source another owner’s records use does not apply to a case of this owner (CROSS_OW
+  - test:db tests/db/p4d-http.test.ts -t "owner isolation": FAILED; first failure: AssertionError: expected [] to deeply equal [ { …(3) } ]
+      failed test: tests/db/p4d-http.test.ts > CORRESPONDENCE SOURCE SCOPE (R14-AUD-001) — capture-scope validity is not production-case applicability > owner isolation: once another owner’s records use a source a captured message cites (the basis of a covera
+NC-ASTRA-001-F CAUGHT — another owner’s use left out of the cited source’s fingerprint (apps/api/src/modules/production/context-dependencies.ts); restored byte-identically: true
+  - vitest tests/api/production-context-rules.test.ts -t "the digest covers it exactly": FAILED; first failure: AssertionError: expected 'eb66b59c016a0dca4f451701d0cdc57aaa8e8…' not to be 'eb66b59c016a0dca4f451701d0cdc57aaa8e8…' // Object.is equality
+      failed test: tests/api/production-context-rules.test.ts > correspondence sources outside the case scope (R14-AUD-001) — a recorded conflict, never silently clean > the digest covers it exactly: a recorded-scope reason follows from records in the closure
+  - test:db tests/db/p4d-http.test.ts -t "owner isolation": FAILED; first failure: AssertionError: expected [] to deeply equal [ Array(1) ]
+      failed test: tests/db/p4d-http.test.ts > CORRESPONDENCE SOURCE SCOPE (R14-AUD-001) — capture-scope validity is not production-case applicability > owner isolation: once another owner’s records use a source a captured message cites (the basis of a covera
+NC-ASTRA-001-G CAUGHT — the conflict dropped from the assembled context (apps/api/src/modules/production/context-assembly.ts); restored byte-identically: true
+  - vitest tests/api/production-context-rules.test.ts -t "each citation the snapshot found": FAILED; first failure: AssertionError: expected [] to deeply equal [ { …(3) }, { …(3) } ]
+      failed test: tests/api/production-context-rules.test.ts > correspondence sources outside the case scope (R14-AUD-001) — a recorded conflict, never silently clean > each citation the snapshot found not applicable is one conflict naming the source, the me
+  - test:db tests/db/p4g-http.test.ts -t "R14-AUD-001": FAILED; first failure: AssertionError: expected [] to have a length of 1 but got +0
+      failed test: tests/db/p4g-http.test.ts > R14-AUD-001 — a captured message’s source outside the case scope never flows through the stack as a clean context > the conflict is listed in the production context, frozen in the prompt snapshot (its conflicts a
+NC-ASTRA-001-H CAUGHT — evaluated at the capture scope (target Agency) instead of the case (apps/api/src/modules/production/context-snapshot.ts); restored byte-identically: true
+  - test:db tests/db/p4d-http.test.ts -t "raw source: a source restricted": FAILED; first failure: AssertionError: expected [] to deeply equal [ { …(3) } ]
+      failed test: tests/db/p4d-http.test.ts > CORRESPONDENCE SOURCE SCOPE (R14-AUD-001) — capture-scope validity is not production-case applicability > raw source: a source restricted to another legal subject is a valid agency-level capture; in the context o
+NC-ASTRA-001-I CAUGHT — UI: the not-applicable qualifier not rendered (apps/web/src/app/cases/production-context.tsx); restored byte-identically: true
+  - vitest tests/web/p4d.test.tsx -t "R14-AUD-001": FAILED; first failure: AssertionError: expected undefined to be 'Not applicable to this case’s scope' // Object.is equality
+      failed test: tests/web/p4d.test.tsx > P4D production context page > R14-AUD-001: a source a captured message cites that the context records as not applicable to this case is marked wherever it is listed — beside the raw source, beside that attachment an
+NC-ASTRA-003-A CAUGHT — marker vocabulary derived from CONTRACT_BASELINE again (apps/api/src/modules/validation/technical-ruleset.ts); restored byte-identically: true
+  - vitest tests/api/validation-rules.test.ts -t "golden: TB-SCHEMA-API-v1.2.0": FAILED; first failure: AssertionError: TB-SCHEMA-API-v1.2.0: expected [] to deeply equal [ { …(6) } ]
+      failed test: tests/api/validation-rules.test.ts > MARKER.INTERNAL_IDENTIFIERS vocabulary — pinned by TB-TECHNICAL-RULESET-v2, never read from the active release (R14-AUD-003) > golden: TB-SCHEMA-API-v1.2.0 and TB-SCHEMA-API-v1.3.0 — and every other pinn
+  - vitest tests/api/validation-ruleset-identity.test.ts: FAILED; first failure: AssertionError: expected [ 'TB-PROMPT-TEMPLATE-v1', …(6) ] to deeply equal [ 'TB-PROMPT-TEMPLATE-v1', …(7) ]
+      failed test: tests/api/validation-ruleset-identity.test.ts > TB-TECHNICAL-RULESET-v2 under a changed active contract constant (R14-AUD-003) > MARKER.INTERNAL_IDENTIFIERS finds exactly what it finds under TB-SCHEMA-API-v1.3.0: v1.2.0 and v1.3.0 still, th
+NC-ASTRA-003-B CAUGHT — new behaviour labelled TB-TECHNICAL-RULESET-v1 (apps/api/src/modules/validation/technical-ruleset.ts); restored byte-identically: true
+  - vitest tests/api/validation-rules.test.ts -t "is one identifier with a pinned inventory": FAILED; first failure: AssertionError: expected 'TB-TECHNICAL-RULESET-v1' to be 'TB-TECHNICAL-RULESET-v2' // Object.is equality
+      failed test: tests/api/validation-rules.test.ts > the ruleset TB-TECHNICAL-RULESET-v2 — pinned inventory, coverage and aggregation > is one identifier with a pinned inventory of 29 required rules; the implementations are exactly that inventory, in order
+  - test:db tests/db/p4g-http.test.ts -t "R14-AUD-003": FAILED; first failure: AssertionError: expected 'TB-TECHNICAL-RULESET-v1' to be 'TB-TECHNICAL-RULESET-v2' // Object.is equality
+      failed test: tests/db/p4g-http.test.ts > R14 getValidationRun — one stored run read back exactly as recorded, historical and read-only > R14-AUD-003: a new run records TB-TECHNICAL-RULESET-v2 (the audit event too); a run recorded as TB-TECHNICAL-RULESET
+NC-ASTRA-003-C CAUGHT — a historical v1 run relabelled with the current ruleset on read (apps/api/src/modules/validation/validation-views.ts); restored byte-identically: true
+  - test:db tests/db/p4g-http.test.ts -t "R14-AUD-003": FAILED; first failure: AssertionError: expected { …(17) } to deeply equal { …(17) }
+      failed test: tests/db/p4g-http.test.ts > R14 getValidationRun — one stored run read back exactly as recorded, historical and read-only > R14-AUD-003: a new run records TB-TECHNICAL-RULESET-v2 (the audit event too); a run recorded as TB-TECHNICAL-RULESET
+NC-ASTRA-003-D CAUGHT — TB-SCHEMA-API-v1.2.0 dropped from the pinned vocabulary (apps/api/src/modules/validation/technical-ruleset.ts); restored byte-identically: true
+  - vitest tests/api/validation-rules.test.ts -t "golden: TB-SCHEMA-API-v1.2.0": FAILED; first failure: AssertionError: TB-SCHEMA-API-v1.2.0: expected [] to deeply equal [ { …(6) } ]
+      failed test: tests/api/validation-rules.test.ts > MARKER.INTERNAL_IDENTIFIERS vocabulary — pinned by TB-TECHNICAL-RULESET-v2, never read from the active release (R14-AUD-003) > golden: TB-SCHEMA-API-v1.2.0 and TB-SCHEMA-API-v1.3.0 — and every other pinn
+NC-ASTRA-004-A CAUGHT — cleanup armed before the empty-start check succeeded (scripts/local/sandbox-lifecycle.ts); restored byte-identically: true
+  - vitest tests/tooling/ui-sandbox-lifecycle.test.ts -t "a row that was already in tb_notice_test": FAILED; first failure: AssertionError: expected true to be false // Object.is equality
+      failed test: tests/tooling/ui-sandbox-lifecycle.test.ts > ui:sandbox cleanup ownership — disarmed until the empty-start check passes > a row that was already in tb_notice_test refuses the start, and the teardown issues no UPDATE or DELETE: the row stays
+NC-ASTRA-004-B CAUGHT — a signal before ownership triggers the cleanup (scripts/local/sandbox-lifecycle.ts); restored byte-identically: true
+  - vitest tests/tooling/ui-sandbox-lifecycle.test.ts -t "SIGTERM before the empty-start check closes only": FAILED; first failure: AssertionError: SIGINT: expected [ 'SELECT DATABASE() AS db', …(31) ] to deeply equal []
+      failed test: tests/tooling/ui-sandbox-lifecycle.test.ts > ui:sandbox cleanup ownership — disarmed until the empty-start check passes > Ctrl+C or SIGTERM before the empty-start check closes only what the process opened: no statement at all
+NC-ASTRA-004-C CAUGHT — the script bypasses the lifecycle with its own signal handler (scripts/local/ui-sandbox.ts); restored byte-identically: true
+  - vitest tests/tooling/ui-sandbox-lifecycle.test.ts -t "the script cleans up only through the lifecycle": FAILED; first failure: AssertionError: expected '\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\…' to contain 'stopOnSignals(process, lifecycle);'
+      failed test: tests/tooling/ui-sandbox-lifecycle.test.ts > ui:sandbox cleanup ownership — disarmed until the empty-start check passes > the script cleans up only through the lifecycle: signals, the empty-start check and every failure go through it
+NC-ASTRA-008 CAUGHT — "G6 = human adoption" restored in active guidance (CLAUDE.md); restored byte-identically: true
+  - vitest tests/tooling/gate-terminology.test.ts -t "no active document or source assigns": FAILED; first failure: AssertionError: expected [ 'CLAUDE.md:298' ] to deeply equal []
+      failed test: tests/tooling/gate-terminology.test.ts > gate terminology — personal adoption is G7, never G6 (R14-AUD-008) > no active document or source assigns personal human adoption to G6
+# working tree fingerprint after: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 (identical)
+# result: 17/17 caught
+[verify] domain rows total: 0
+[verify] PASS: metadata matches the reviewed inventory.
+
+== Added control (mission §14: the unbound-Case check broken independently), with its own baseline
+# baseline (unmutated) for NC-ASTRA-001-J — 2026-09-27T03:21:24Z — HEAD 2117fbae2c59ae78a8ad27bd6a4e554fdf8aa338
+  vitest tests/api/source-rules.test.ts -t "a case without a route has no subject to check": exit 0, Tests  1 passed
+  test:db tests/db/p4d-http.test.ts -t "a case without a route has no subject": exit 0, Tests  1 passed
+# negative controls — 2026-09-27T03:21:28.037Z — HEAD 2117fbae2c59ae78a8ad27bd6a4e554fdf8aa338
+# working tree fingerprint before: db84d5cbaa10226afcbb45479a49ade934167bb817396647a6054917c568eb69
+NC-ASTRA-001-J CAUGHT — unbound-Case check disabled (CASE_SUBJECT_UNBOUND ignored at read time) (apps/api/src/modules/sources/source-scope.ts); restored byte-identically: true
+  - vitest tests/api/source-rules.test.ts -t "a case without a route has no subject to check": FAILED; first failure: AssertionError: expected null to deeply equal { …(2) }
+      failed test: tests/api/source-rules.test.ts > applicabilityProblem — the same rules as a write, read-only, reported instead of refused (R14-AUD-001) > a case without a route has no subject to check a subject-scoped source against: CASE_SUBJECT_UNBOUND, 
+  - test:db tests/db/p4d-http.test.ts -t "a case without a route has no subject": FAILED; first failure: AssertionError: expected [] to deeply equal [ Array(1) ]
+      failed test: tests/db/p4d-http.test.ts > CORRESPONDENCE SOURCE SCOPE (R14-AUD-001) — capture-scope validity is not production-case applicability > a case without a route has no subject: a subject-specific source a captured message cites is listed with C
+# working tree fingerprint after: db84d5cbaa10226afcbb45479a49ade934167bb817396647a6054917c568eb69 (identical)
+# result: 1/1 caught
+[verify] domain rows total: 0
+[verify] PASS: metadata matches the reviewed inventory.
+
+== Totals: 18/18 controls caught (the 9 mandatory kinds of mission §40 plus 9 further: NC-ASTRA-001-E…J, NC-ASTRA-003-C, -D, NC-ASTRA-004-C); 28 responsible commands, every one failing with an AssertionError as its first failure; 22 distinct commands passing unmutated, each selecting at least one test; every mutated file restored byte-identically; the working tree identical before and after each run; tb_notice_test empty afterwards.

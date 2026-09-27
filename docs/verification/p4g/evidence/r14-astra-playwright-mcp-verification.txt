@@ -1,0 +1,123 @@
+R14 Astra-audit remediation — Playwright MCP browser verification (mission TB_R14_ASTRA_BLOCKER_REMEDIATION §41–§42),
+home PC, 2026-09-27 (UTC)
+==================================================================================================================
+
+Order (mission §41): run only after R14-AUD-004 was fixed and its non-destructive tooling test passed — the lifecycle
+fix 2f5ec24, tests/tooling/ui-sandbox-lifecycle.test.ts 8/8 on each later commit, and the supplemental refusal check
+(evidence/r14-astra-sandbox-refusal-check.txt) — all before this session.
+
+Target and isolation
+- `yarn ui:sandbox --password-file <scratchpad file outside the repository>`: the COMPILED API on the disposable
+  `tb_notice_test` schema plus the built web app (`vite preview`) on http://localhost:5173 (proxying /api). Built from
+  the committed code head 2117fba (clean tree): entry `index-zTf-_2ee.js` 329.93 kB (gzip 102.52 kB);
+  `production-context-K2HgnP5f.js` 32.87 kB (gzip 8.75 kB; R14 read-back build 31.33 kB — the not-applicable
+  marking adds 1.54 kB); `candidates-DDYuWcK2.js` 56.82 kB (unchanged); no Zod markers in either page chunk; no
+  chunk-size advisory.
+  The sandbox verified the empty start itself and so owned the session's rows (its cleanup armed only then).
+  Synthetic sandbox user p2-ui-sandbox@example.invalid; its password was typed into the isolated browser's login form
+  only, and the password file was deleted after the session. No password, cookie or CSRF token is recorded here.
+- Browser: the Playwright MCP isolated headless Chromium profile (no personal profile, no real login session), 1280×900
+  unless noted. Never `tb_notice_dev`, never the operator's `yarn dev`, never real case, owner, authority,
+  correspondence or draft data; every address is @example.invalid. No AI provider, mailbox, Drive or platform was
+  contacted.
+- Prerequisites, created through the compiled API with the sandbox user (a scratchpad script adapted from the R14
+  read-back pass, not committed):
+  agency "SYNTHETIC Agency ASTRA-G" with its canonical-record source; Subject A "SYNTHETIC Subject ASTRA-A LLC" (owner
+  "SYNTHETIC Brand ASTRA-X", route RA) and Subject B "SYNTHETIC Subject ASTRA-B LLC" (owner "SYNTHETIC Brand ASTRA-Y",
+  route RB); a signer and one frozen mandate whose coverage of RB records the signer.
+  Case B "SYNTHETIC Case ASTRA-B (Subject B)" bound to RB, with an authority selection, a reported item, a work and a
+  mapping; Case A "SYNTHETIC Case ASTRA-A (Subject A)" bound to RA.
+  Four sources of the agency: R_A "SYNTHETIC raw message file recorded for Subject A only" (legalSubjectIds [A]),
+  R_A_LETTER "SYNTHETIC letter recorded for Subject A only" ([A]), R_AB "SYNTHETIC letter shared by Subjects A and B"
+  ([A, B]) and R_OPEN "SYNTHETIC agency note without a subject restriction".
+  Message N1 — an inbound request for more information captured RAW_SOURCE with raw source R_A (a valid agency-level
+  capture) — bound as NMI to Case B and to Case A. Message S1 — an outbound notice, OPERATOR_REPORTED, attachment
+  observations [0] R_AB, [1] R_A_LETTER, [2] R_OPEN — bound to Case B as INITIAL_AS_SENT.
+  Case B's NMI_REPLY DRAFTING prompt (generated against exactly the context read before it) and one synthetic
+  candidate imported from it through `importCandidate` (envelope from the selection's mailbox, to N1's Reply-To,
+  thread = the N1 binding; one pending slot). The validation run was made in the browser.
+- Zero-write proof: a read-only scratchpad script fingerprints tb_notice_test (SHA-256 of every row of correspondence,
+  correspondence_bindings, source_references, cases, prompt_snapshots, notice_candidates, validation_runs and
+  validation_issues; the counts of audit events, idempotency records, candidate_assessments and assessment_sources)
+  after the seed, after the validation run and at the end.
+- Screenshots: docs/verification/p4g/evidence/screenshots/r14-astra-*.png (element or viewport screenshots of the
+  context, prompt and candidate pages — synthetic data only).
+
+Results (mission §41 items; all PASS)
+ 1 PASS  Case B, same agency, routed to Subject B: the production context page with task NMI_REPLY, mode DRAFTING, the
+         selection, parent = the N1 binding and prior = the S1 binding, each chosen explicitly; "Show context" activated
+         with Enter. DRAFTING is delivered (a conflict is no gate): revision 7, digest 73bd5238…9478, 1 missing item
+         (PRIOR_AS_SENT_RAW_SOURCE_ABSENT, the operator-reported prior) and "Recorded conflicts (2)":
+           CORRESPONDENCE_SOURCE_NOT_APPLICABLE correspondence[0].rawSourceId — "Recorded source f407486e-…,
+             the raw source of captured message b4de471f-…, is not applicable to the current Case scope
+             (SOURCE_SCOPE_UNRESOLVED: SCOPED_TO_OTHER_SUBJECT). The capture was checked against its agency only. The
+             message and the source are kept as recorded; this is a source-scope condition, not a finding about what
+             the source shows."
+           CORRESPONDENCE_SOURCE_NOT_APPLICABLE correspondence[1].attachmentsManifest[1].sourceId — the same for
+             "the source of attachment observation 1 of captured message 026d1dd3-…".
+         [r14-astra-01-case-b-recorded-conflicts.png]
+ 2 PASS  No misleading clean presentation, in the correspondence section: "Not applicable to this case’s scope"
+         beside N1's raw source and beside S1's attachment observation 1 ("synthetic-subject-a-letter.pdf"); nothing
+         beside S1's attachment 0 (R_AB, both subjects) or 2 (R_OPEN, unrestricted). Capture posture ("Raw source
+         captured", "Operator reported") unchanged. [r14-astra-02-case-b-correspondence-tags.png]
+ 3 PASS  Historical traceability, in "Sources (7)": R_A and R_A_LETTER stay listed exactly as recorded, each with a
+         "Case scope" row — the tag, "Recorded source is not applicable to the current Case scope." and "The capture
+         was checked against its agency only; see Recorded conflicts. The source is kept as recorded, and this says
+         nothing about what it shows." R_AB, R_OPEN, the coverage basis, the agency record and the mapping basis have
+         no such row. [r14-astra-03-case-b-source-manifest.png]
+ 4 PASS  Neutral wording (mission §42): none of "Invalid evidence", "Unauthorized", "Infringement not proven" or
+         "G1 failed" on the page. The one "No authority…" string is the pre-existing P4D empty state "No authority
+         event is recorded for this mandate or coverage. That does not make it current." (the authority-events list),
+         unrelated to the source condition.
+ 5 PASS  Valid shared source, no conflict: Case A (Subject A) with the same message N1 (NMI_REPLY, PREPARATION,
+         parent = its own N1 binding): "Recorded conflicts (0)", R_A listed ("Sources (1)") and no tag anywhere.
+         Case B's shared attachments (item 2) raise nothing either. [r14-astra-04-case-a-same-message-applicable.png]
+ 6 PASS  PromptSnapshot: Case B's prompt page shows "Recorded conflicts (2)" (the same two entries, frozen) and its
+         prompt text renders both under "PART 3 — KNOWN GAPS AND RECORDED CONFLICTS" as
+         `- CORRESPONDENCE_SOURCE_NOT_APPLICABLE (correspondence[0].rawSourceId): "Recorded source f407486e-…` (and the
+         attachment line); 4 occurrences in the text (2 in PART 3, 2 in PART 4's case data).
+         [r14-astra-05-prompt-frozen-conflicts.png]
+ 7 PASS  Technical-validation current context: on Case B's candidate, "Read the current context" (revision 7, digest
+         73bd5238…9478, "1 missing, 2 recorded conflicts"), then "Run technical validation" → run 851f9481-…
+         "Technical validation result: REVIEW REQUIRED" (focus on the heading) — not TECHNICAL_PASS: 0 blockers,
+         3 review required: CONTEXT.MISSING (PRIOR_AS_SENT_RAW_SOURCE_ABSENT) and CONTEXT.CONFLICTS twice
+         (CORRESPONDENCE_SOURCE_NOT_APPLICABLE, fields evaluatedContextJson.conflicts.0 and .1), each "Deterministic
+         check", "Review required"; 29 of 29 rules executed, "Not executed (0) — None", "Semantic review required: Yes
+         — this run performed no G1–G6 or legal review"; ruleset TB-TECHNICAL-RULESET-v2.
+         The technical validation qualifier remains: "Technical checks only. This is not G1–G6 review, legal approval,
+         readiness, signature, or permission to send." [r14-astra-06-validation-review-required-conflicts.png]
+ 8 PASS  Historical ValidationRun detail after reload: `location.reload()` → navigation type "reload", a window marker
+         set before is gone, no run detail shown; the history lists the run ("REVIEW REQUIRED", "Dependency digest
+         evaluated 73bd5238…9478", "Open run"). "Open run" → GET /api/v1/validation-runs/851f9481-… 200, then its
+         issues. Shown: "Recorded technical validation result: REVIEW REQUIRED" (focus), the qualifier, "Read back
+         exactly as this run recorded it. Nothing was checked again: …", ruleset TB-TECHNICAL-RULESET-v2, the
+         evaluated context holding both conflicts, the 3 issues. [r14-astra-07-recorded-run-after-reload.png]
+ 9 PASS  No assessment or readiness action: the candidate page's controls are the navigation, "Read the current
+         context", "Close run", "Supersede this draft artifact" and "Import a revision of this candidate" — no approve,
+         ready, assess, sign, send, export, submit or gate action, and no READY_FOR_SIGNER text; the context page offers
+         only "Show context" / "Read again". GET /api/v1/candidates/{id}/assessments and GET …/readiness from the
+         signed-in page → 404 NOT_FOUND (not routed).
+10 PASS  390 px: Case B's context at 390×844: document scrollWidth 390 = clientWidth (no page-level horizontal
+         scroll); the four tags fit (their right edges ≤ 347 px); each conflict wraps and stays readable. The existing
+         P4D tables (reported items, works, use mappings, dependencies) scroll inside their own 328 px frames, as
+         designed. The candidate page at 390 px: no horizontal scroll.
+         [r14-astra-08a-conflicts-390px.png, r14-astra-08b-correspondence-tags-390px.png]
+11 PASS  Keyboard and focus: "Show context" activated with Enter → focus on the context outcome (the P4D rule); at
+         390 px, "Open run" (aria-expanded false, aria-controls validation-run-851f9481-…) activated with Enter → focus
+         on "Recorded technical validation result: REVIEW REQUIRED", aria-expanded true, the button reads "Close run".
+         [r14-astra-09-keyboard-open-run-390px.png]
+12 PASS  Reads write nothing: the fingerprints of correspondence (2 rows), correspondence_bindings (3), source_references
+         (7), cases (2), prompt_snapshots (1) and notice_candidates (1) are identical after the seed, after the run and
+         at the end (the captures, bindings and sources were never edited). The run added exactly 1 validation run,
+         3 issues, 1 idempotency record and 1 audit event (VALIDATION_RUN_RECORDED; the other new audit event is the
+         browser login, AUTH_LOGIN_SUCCEEDED). After the run, the reload, the run read-back, the 390 px reads and the
+         probes nothing changed. candidate_assessments and assessment_sources stayed 0.
+13 PASS  Sign-out → the login page; GET the run and GET the context → 401 SESSION_REQUIRED.
+14 PASS  Cleanup (the sandbox legitimately owned the empty-start session): SIGINT → "[ui:sandbox] stopping…" →
+         "[ui:sandbox] sandbox rows deleted; tb_notice_test is empty again", exit 0; `yarn db:verify test
+         --expect-empty` PASS (domain rows 0); the password file deleted; ports 3000/5173 free.
+
+Console: the only console errors were the expected 401 of the pre-login session probe and the two 404s of the
+item-9 probes.
+
+Findings: none.
