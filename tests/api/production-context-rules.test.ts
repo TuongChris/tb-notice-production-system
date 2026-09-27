@@ -932,6 +932,58 @@ describe('assembleContext — every listed source is checked against the case; o
   });
 });
 
+describe('dependenciesOf — another owner’s use of ANY listed source is part of its fingerprint; recorded-scope reasons follow from the closure (R14-AUD-010)', () => {
+  const reply = () => scope({ authoritySelectionId: null, priorBindingIds: [] });
+  const owner: ApplicabilityProblem = { code: 'CROSS_OWNER_REFERENCE', ownerId: SHARED };
+  const changedSources = (after: ContextView, before: ContextView) =>
+    after.dependencies
+      .filter((d, index) => d.fingerprint !== before.dependencies[index]?.fingerprint)
+      .map((d) => `${d.entityType}:${d.entityId}`);
+
+  it('for a source cited only by a mandate version, a whole-mandate event, a case source link and mapping, a policy link or a message: another owner’s use changes exactly that source’s fingerprint and the digest — the case, its revision and the source row unchanged', () => {
+    const clean = assembleContext(listedRows(), reply()).view;
+    for (const sourceId of [VERSION_SOURCE, EVENT_SOURCE, LINK_SOURCE, POLICY_SOURCE, RAW]) {
+      const drifted = assembleContext(listedRows({ [sourceId]: owner }), reply()).view;
+      expect(drifted.dependencyDigest, sourceId).not.toBe(clean.dependencyDigest);
+      expect(changedSources(drifted, clean), sourceId).toEqual([`SourceReference:${sourceId}`]);
+      expect(drifted.contextRevision, sourceId).toBe(clean.contextRevision);
+    }
+  });
+
+  it('a recorded-scope reason changes no fingerprint: it follows from records in the closure (the source’s agency and scope bindings, the case, its route and association)', () => {
+    const clean = assembleContext(listedRows(), reply()).view;
+    const subject = assembleContext(
+      listedRows({
+        [VERSION_SOURCE]: { code: 'SOURCE_SCOPE_UNRESOLVED', reason: 'SCOPED_TO_OTHER_SUBJECT' },
+      }),
+      reply(),
+    ).view;
+    expect(subject.dependencies).toEqual(clean.dependencies);
+    expect(subject.dependencyDigest).toBe(clean.dependencyDigest);
+    expect(subject.context.conflicts).not.toEqual(clean.context.conflicts);
+  });
+
+  it('the fingerprint does not depend on the read order or on how often a source is cited', () => {
+    const rows = listedRows({ [LINK_SOURCE]: owner });
+    const view = assembleContext(rows, reply()).view;
+    const twice = listedRows({ [LINK_SOURCE]: owner }, [
+      { id: MAPPING(2), basisSourceId: LINK_SOURCE },
+    ]);
+    const cited = assembleContext(twice, reply()).view;
+    expect(cited.dependencies).toEqual(view.dependencies);
+    const reordered = assembleContext(
+      {
+        ...rows,
+        sources: [...rows.sources].reverse(),
+        sourceCitations: [...rows.sourceCitations].reverse(),
+        sourceApplicability: new Map([...rows.sourceApplicability].reverse()),
+      },
+      reply(),
+    ).view;
+    expect(reordered.dependencyDigest).toBe(view.dependencyDigest);
+  });
+});
+
 describe('exceededLimit — every contracted array bound, never a cut', () => {
   const base = (): ContextView =>
     assembleContext(

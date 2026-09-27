@@ -11,8 +11,9 @@
 // reasons) are left out; actual fact, event and as-of dates are kept. Where a later record changes
 // what a pinned record means without changing the record itself, the fingerprint also covers that
 // later record's existence: the head of a source's revision chain, successor versions and coverages
-// of a pinned coverage, the successor of a selected binding, and (R14-AUD-001) another owner's use
-// of a source a selected message cites. Nothing is re-pointed to them.
+// of a pinned coverage, the successor of a selected binding, and another owner's use of a listed
+// source (R14-AUD-001 for the sources a selected message cites; R14-AUD-009 and R14-AUD-010 for
+// every source the context lists). Nothing is re-pointed to them.
 // `rowVersion` is reported for version-checked records as a diagnostic only.
 //
 // dependencyDigest = SHA-256 of the TB canonical JSON v1 of { algorithm, contract, schemaVersion,
@@ -42,7 +43,6 @@ import {
 import { toSourceView } from '../sources/source-views.js';
 import type { ContextRows } from './context-snapshot.js';
 import type { ContextScope } from './context-scope.js';
-import { CORRESPONDENCE_CITATION_KINDS } from './context-sources.js';
 
 /** Identifier of this closure and digest definition (part of the digest). */
 export const DEPENDENCY_DIGEST_ALGORITHM = 'TB-PRODUCTION-CONTEXT-DIGEST-v1';
@@ -265,20 +265,24 @@ export function dependenciesOf(rows: ContextRows): Dependency[] {
       linkState: row.linkState,
     });
   }
-  // A source a selected message cites that another owner's records use (R14-AUD-001): those records
-  // lie outside this closure but make the source not applicable to this case, so their existence is
-  // part of its fingerprint — the key is present only then, and no other fingerprint changes. (The
-  // recorded-scope reasons follow from records already in the closure: the source, the case, its
-  // route and association.)
-  const otherOwnerMaterial = new Set(
-    rows.sourceCitations
-      .filter(
-        (citation) =>
-          CORRESPONDENCE_CITATION_KINDS.has(citation.kind) &&
-          rows.sourceApplicability.get(citation.sourceId)?.code === 'CROSS_OWNER_REFERENCE',
-      )
-      .map((citation) => citation.sourceId),
-  );
+  // Every listed source was evaluated against the case in the snapshot (context-sources.ts), and the
+  // closure determines each result. The recorded-scope part follows from records already in the
+  // closure: the source revision (its agency and scope bindings), the case, its route and
+  // association. The owner part does not: when another owner's records use the source, those
+  // records lie outside this closure but make the source not applicable to this case, so their
+  // existence is part of its fingerprint — the key is present only then, whichever record of the
+  // context cites the source (R14-AUD-001 for a selected message's sources, R14-AUD-009 and
+  // R14-AUD-010 for every other citation), and no other fingerprint changes. So any change in
+  // whether a listed source applies changes the digest, even when the source row, its head and the
+  // case's context revision are unchanged.
+  const otherOwnerMaterial = new Set<string>();
+  for (const row of rows.sources) {
+    const problem = rows.sourceApplicability.get(row.id);
+    if (problem === undefined) {
+      throw new Error('a listed source was not evaluated against the case');
+    }
+    if (problem?.code === 'CROSS_OWNER_REFERENCE') otherOwnerMaterial.add(row.id);
+  }
   for (const row of rows.sources) {
     add('SourceReference', row.id, null, {
       ...semantic(toSourceView(row)),

@@ -2770,7 +2770,7 @@ describe('PRODUCTION SOURCE SCOPE (R14-AUD-009, R14-AUD-010) — every source a 
 
   // ---- R14-AUD-010: a later owner-material anchor elsewhere changes the case's context ----------
 
-  it('R14-AUD-010: each of the case’s own citation paths — canonical binding, packet, case source link, fact support (link no longer LINKED), linked policy source, mapping basis and selection basis — applies at t0; after another owner’s coverage uses that one source (a valid later write that never touches this case), the next read lists it with SOURCE_NOT_APPLICABLE (CROSS_OWNER_REFERENCE, no other owner named) — the case’s revision and every case record stay exactly as recorded', async () => {
+  it('R14-AUD-010: each of the case’s own citation paths — canonical binding, packet, case source link, fact support (link no longer LINKED), linked policy source, mapping basis and selection basis — applies at t0; after another owner’s coverage uses that one source (a valid later write that never touches this case), the next read lists it with SOURCE_NOT_APPLICABLE (CROSS_OWNER_REFERENCE, no other owner named) and exactly its fingerprint and the digest change — the case’s revision and every case record stay exactly as recorded', async () => {
     const w = await world();
     const a = await authority(w);
     const agencyId = w.agency.data.id;
@@ -2856,6 +2856,7 @@ describe('PRODUCTION SOURCE SCOPE (R14-AUD-009, R14-AUD-010) — every source a 
       primarySourceId: w.source.id,
       documentState: 'SIGNED_APPEARING',
     });
+    let previous = t0;
     const anchored: string[] = [];
     for (const [index, [label, row, citation]] of paths.entries()) {
       await createCoverage(otherVersion.data.id, {
@@ -2867,6 +2868,8 @@ describe('PRODUCTION SOURCE SCOPE (R14-AUD-009, R14-AUD-010) — every source a 
       anchored.push(row.id);
       const now = await context(caseId, selected(selection.id));
       expect(now.contextRevision, label).toBe(t0.contextRevision);
+      expect(now.dependencyDigest, label).not.toBe(previous.dependencyDigest);
+      expect(changed(now, previous), label).toEqual([`SourceReference:${row.id}`]);
       expect(conflictOf(now, row.id), label).toEqual({
         code: NOT_APPLICABLE,
         message: `Recorded source ${row.id} is not applicable to the current Case scope (CROSS_OWNER_REFERENCE). This context cites it as ${citation}. ${NOT_A_FINDING}`,
@@ -2874,6 +2877,7 @@ describe('PRODUCTION SOURCE SCOPE (R14-AUD-009, R14-AUD-010) — every source a 
       });
       expect(scopeConflicts(now).length, label).toBe(anchored.length);
       expect(JSON.stringify(now.context), label).not.toContain(other.owner.data.id);
+      previous = now;
     }
     // Nothing of the case changed: its row, links, supports, mappings, selection and sources.
     expect(await historyRows(ids)).toEqual(history);

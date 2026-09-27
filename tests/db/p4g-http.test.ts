@@ -1958,6 +1958,14 @@ describe('R14-AUD-009 / R14-AUD-010 — a listed source outside the current case
   const NOT_APPLICABLE = 'SOURCE_NOT_APPLICABLE';
   const NOT_A_FINDING =
     'The citing records and the source are kept as recorded; this is a source-scope condition, not a finding about what the source shows or about any authority, right or gate.';
+  const readPrompt = async (id: string) =>
+    immutable<PromptSnapshot>(await client.get('getPrompt', `/prompts/${id}`), 200);
+  const changedKeys = (after: ContextView, before: ContextView) =>
+    after.dependencies
+      .filter(
+        (dependency, index) => dependency.fingerprint !== before.dependencies[index]?.fingerprint,
+      )
+      .map((dependency) => `${dependency.entityType}:${dependency.entityId}`);
 
   it('R14-AUD-009: a mandate version annex restricted to another legal subject of the same owner — listed with SOURCE_NOT_APPLICABLE in the production context, frozen in the prompt snapshot (its conflicts and PART 3), present in the context a validation evaluates: REVIEW_REQUIRED by CONTEXT.CONFLICTS, never TECHNICAL_PASS; the frozen version, its mandate, coverage and the source stay exactly as recorded; a fresh prompt of a chain whose sources apply passes with the same draft', async () => {
     const p = await promptWorld();
@@ -2048,6 +2056,97 @@ describe('R14-AUD-009 / R14-AUD-010 — a listed source outside the current case
     expect(cleanPrompt.conflicts).toEqual([]);
     const clean = await validate(await importCandidate(p.caseId, draft(cleanPrompt)), cleanPrompt);
     expect(clean.run.result).toBe('TECHNICAL_PASS');
+    await expectNoLaterRecords();
+  });
+
+  it('R14-AUD-010: a clean context at t0 (revision D0, digest H0); another owner’s valid later coverage cites the case’s linked source, touching nothing of this case; the revision stays D0 but the digest changes and SOURCE_NOT_APPLICABLE (CROSS_OWNER_REFERENCE) is listed; a prompt or a validation against H0 is 412 CONTEXT_CHANGED with nothing recorded; the prompt and the run recorded at t0 stay byte-identical; a new read gives a new prompt and a REVIEW_REQUIRED run', async () => {
+    const p = await validationWorld();
+    const agencyId = p.w.agency.data.id;
+    const { run: passed } = await validate(p.candidate, p.prompt);
+    expect(passed.result).toBe('TECHNICAL_PASS');
+    const scope = scopeOf(p.prompt);
+    const t0 = await context(p.caseId, scope);
+    expect(t0.dependencyDigest).toBe(p.prompt.dependencyDigest);
+    expect(t0.context.conflicts).toEqual([]);
+    const recorded = async () => ({
+      caseRow: await prisma.caseRecord.findUniqueOrThrow({ where: { id: p.caseId } }),
+      prompt: await prisma.promptSnapshot.findUniqueOrThrow({ where: { id: p.prompt.id } }),
+      run: await prisma.validationRun.findUniqueOrThrow({ where: { id: passed.id } }),
+      issues: await prisma.validationIssue.findMany({ where: { runId: passed.id } }),
+      candidate: await prisma.noticeCandidate.findUniqueOrThrow({ where: { id: p.candidate.id } }),
+      link: await prisma.caseSource.findUniqueOrThrow({ where: { id: p.caseSource.data.id } }),
+      source: await prisma.sourceReference.findUniqueOrThrow({ where: { id: p.linked.id } }),
+    });
+    const history = await recorded();
+
+    // t1: another owner of the agency; its DRAFT version's coverage cites the case's linked source.
+    const ownerB = await createOwner('B-other');
+    const subjectB = await createSubject('B-other');
+    const associationB = await link(ownerB.data.id, subjectB.data.id);
+    const routeB = await createRoute({ agencyId, ownerSubjectId: associationB.data.id });
+    const mandateB = await createMandate(agencyId, 'SYNTHETIC other owner mandate');
+    const versionB = await createVersion(mandateB.data.id, {
+      primarySourceId: p.w.source.id,
+      documentState: 'SIGNED_APPEARING',
+    });
+    await createCoverage(versionB.data.id, {
+      routeId: routeB.data.id,
+      basisSourceId: p.linked.id,
+      actionScope: ['PREPARE_NOTICE'],
+      coverageLabel: 'SYNTHETIC other owner coverage',
+    });
+
+    const t1 = await context(p.caseId, scope);
+    expect(t1.contextRevision).toBe(t0.contextRevision);
+    expect(t1.dependencyDigest).not.toBe(t0.dependencyDigest);
+    expect(changedKeys(t1, t0)).toEqual([`SourceReference:${p.linked.id}`]);
+    const index = t1.context.sources.findIndex((entry) => entry.sourceId === p.linked.id);
+    const listed = [
+      {
+        code: NOT_APPLICABLE,
+        message: `Recorded source ${p.linked.id} is not applicable to the current Case scope (CROSS_OWNER_REFERENCE). This context cites it as case source link ${p.caseSource.data.id} (SYNTHETIC_SUPPORT). ${NOT_A_FINDING}`,
+        fieldPath: `sources[${index}]`,
+      },
+    ];
+    expect(t1.context.conflicts).toEqual(listed);
+    expect(JSON.stringify(t1.context)).not.toContain(ownerB.data.id);
+
+    // Generating against the t0 read: 412 CONTEXT_CHANGED on the digest, nothing recorded.
+    const prompts = await countRows(prisma, 'prompt_snapshots');
+    const stalePrompt = await client.write('generatePrompt', 'POST', `/cases/${p.caseId}/prompts`, {
+      taskType: 'INITIAL',
+      generationMode: 'DRAFTING',
+      expectedContextRevision: t0.contextRevision,
+      expectedDependencyDigest: t0.dependencyDigest,
+      authoritySelectionId: p.selection.id,
+      priorBindingIds: [],
+    });
+    expect(outcome(stalePrompt)).toEqual([412, 'CONTEXT_CHANGED']);
+    expect(detailsOf(stalePrompt)).toMatchObject({ field: 'expectedDependencyDigest' });
+    expect(await countRows(prisma, 'prompt_snapshots')).toBe(prompts);
+    // Validating against the t0 read: 412 CONTEXT_CHANGED, nothing recorded.
+    const runs = await countRows(prisma, 'validation_runs');
+    const staleRun = await validatePost(p.candidate.id, expectations(p.candidate, t0));
+    expect(outcome(staleRun)).toEqual([412, 'CONTEXT_CHANGED']);
+    expect(await countRows(prisma, 'validation_runs')).toBe(runs);
+
+    // History: the t0 prompt and run, the candidate and this case's records are byte-identical.
+    expect(await recorded()).toEqual(history);
+    expect(await readPrompt(p.prompt.id)).toEqual(p.prompt);
+    expect(await getRun(passed.id)).toEqual(passed);
+
+    // A new read: a new prompt freezes the conflict; a new run is REVIEW_REQUIRED, never a pass.
+    const fresh = await generate(p.caseId, scope);
+    expect(fresh.dependencyDigest).toBe(t1.dependencyDigest);
+    expect(fresh.conflicts).toEqual(listed);
+    const { run: current } = await validate(p.candidate, p.prompt);
+    expect(current.dependencyDigest).toBe(t1.dependencyDigest);
+    expect(current.result).toBe('REVIEW_REQUIRED');
+    expect(ruleIds(await issuesOf(current.id)).sort()).toEqual([
+      'CONTEXT.CONFLICTS',
+      'CONTEXT.PROMPT_DRIFT',
+    ]);
+    expect(await getRun(passed.id)).toEqual(passed);
     await expectNoLaterRecords();
   });
 });
