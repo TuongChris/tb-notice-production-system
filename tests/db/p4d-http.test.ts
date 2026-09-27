@@ -2468,6 +2468,497 @@ describe('CORRESPONDENCE SOURCE SCOPE (R14-AUD-001) — capture-scope validity i
   });
 });
 
+describe('PRODUCTION SOURCE SCOPE (R14-AUD-009, R14-AUD-010) — every source a context lists is checked against the case as it is now', () => {
+  const NOT_APPLICABLE = 'SOURCE_NOT_APPLICABLE';
+  const NOT_A_FINDING =
+    'The citing records and the source are kept as recorded; this is a source-scope condition, not a finding about what the source shows or about any authority, right or gate.';
+  const scopeConflicts = (view: ContextView) =>
+    view.context.conflicts.filter((entry) => entry.code === NOT_APPLICABLE);
+  /** Where the context lists a source: its manifest entry. */
+  const entryPath = (view: ContextView, sourceId: string) => {
+    const index = view.context.sources.findIndex((entry) => entry.sourceId === sourceId);
+    if (index >= 0) return `sources[${index}]`;
+    const policy = view.context.policySources.findIndex((entry) => entry.sourceId === sourceId);
+    return policy >= 0 ? `policySources[${policy}]` : '(not listed)';
+  };
+  const conflictOf = (view: ContextView, sourceId: string) =>
+    scopeConflicts(view).find((entry) => entry.fieldPath === entryPath(view, sourceId));
+  const selected = (selectionId: string): ContextQuery => ({ authoritySelectionId: selectionId });
+  const annex = (sourceId: string) => ({
+    sourceId,
+    role: 'SYNTHETIC_ANNEX',
+    scopeText: 'SYNTHETIC annex as recorded',
+  });
+  const signedDate = (sourceId: string) => ({
+    subjectLabel: 'SYNTHETIC party',
+    dateRaw: '2026-09-01',
+    sourceId,
+  });
+  /** Another owner and legal subject of the world's agency, linked, with their own route. */
+  async function otherRoute(w: World, label: string) {
+    const owner = await createOwner(label);
+    const subject = await createSubject(label);
+    const association = await link(owner.data.id, subject.data.id);
+    const route = await createRoute({
+      agencyId: w.agency.data.id,
+      ownerSubjectId: association.data.id,
+    });
+    return { owner, subject, association, route };
+  }
+  /** The rows a context read must never change, and the rows history keeps. */
+  async function historyRows(ids: {
+    caseId: string;
+    mandateId?: string;
+    versionId?: string;
+    eventIds?: readonly string[];
+    sourceIds: readonly string[];
+  }) {
+    return {
+      caseRow: await prisma.caseRecord.findUniqueOrThrow({ where: { id: ids.caseId } }),
+      mandate:
+        ids.mandateId === undefined
+          ? null
+          : await prisma.mandate.findUniqueOrThrow({ where: { id: ids.mandateId } }),
+      version:
+        ids.versionId === undefined
+          ? null
+          : await prisma.mandateVersion.findUniqueOrThrow({ where: { id: ids.versionId } }),
+      events: await prisma.authorityEvent.findMany({
+        where: { id: { in: [...(ids.eventIds ?? [])] } },
+        orderBy: { id: 'asc' },
+      }),
+      sources: await prisma.sourceReference.findMany({
+        where: { id: { in: [...ids.sourceIds] } },
+        orderBy: { id: 'asc' },
+      }),
+      links: await prisma.caseSource.findMany({
+        where: { caseId: ids.caseId },
+        orderBy: { id: 'asc' },
+      }),
+      supports: await prisma.factSource.findMany({ orderBy: { id: 'asc' } }),
+      mappings: await prisma.useMapping.findMany({
+        where: { caseId: ids.caseId },
+        orderBy: { id: 'asc' },
+      }),
+      selections: await prisma.caseAuthoritySelection.findMany({
+        where: { caseId: ids.caseId },
+        orderBy: { id: 'asc' },
+      }),
+    };
+  }
+
+  // ---- R14-AUD-009: agency-level authority citations are checked against the case's subject ----
+
+  /** How a mandate version or a whole-mandate event cites a source (the four agency-level paths). */
+  const AUTHORITY_PATHS: ReadonlyArray<{
+    readonly label: string;
+    readonly version: (sourceId: string) => Record<string, unknown>;
+    readonly event: boolean;
+    readonly citation: (versionId: string, eventId: string | null) => string;
+  }> = [
+    {
+      label: 'A — MandateVersion.primarySourceId',
+      version: (sourceId) => ({ primarySourceId: sourceId }),
+      event: false,
+      citation: (versionId) => `the primary source of mandate version ${versionId}`,
+    },
+    {
+      label: 'B — MandateVersion.additionalSourceRefs[].sourceId',
+      version: (sourceId) => ({ additionalSourceRefs: [annex(sourceId)] }),
+      event: false,
+      citation: (versionId) => `additional source 0 of mandate version ${versionId}`,
+    },
+    {
+      label: 'C — MandateVersion.signedDatesRaw[].sourceId',
+      version: (sourceId) => ({ signedDatesRaw: [signedDate(sourceId)] }),
+      event: false,
+      citation: (versionId) => `the source of signed date 0 of mandate version ${versionId}`,
+    },
+    {
+      label: 'D — whole-mandate AuthorityEvent.sourceId (coverageId null)',
+      version: () => ({}),
+      event: true,
+      citation: (_versionId, eventId) => `the source of whole-mandate authority event ${eventId}`,
+    },
+  ];
+
+  for (const path of AUTHORITY_PATHS) {
+    it(`R14-AUD-009 ${path.label}: a source restricted to another legal subject of the same agency and owner is a valid agency-level citation; in the context of a case bound to this subject it is listed with one SOURCE_NOT_APPLICABLE naming the citation (SCOPED_TO_OTHER_SUBJECT) — the authority chain stays exactly as selected, nothing about it changes, the read writes nothing and no G1 wording appears`, async () => {
+      const w = await world();
+      // Subject M of the same owner and agency: the mandate may legitimately span both subjects.
+      const subjectM = await createSubject('A-M');
+      await link(w.owner.data.id, subjectM.data.id);
+      const restricted = await createSource({
+        agencyId: w.agency.data.id,
+        title: 'SYNTHETIC mandate annex recorded for subject M only',
+        scopeBindings: { legalSubjectIds: [subjectM.data.id] },
+      });
+      // The agency-level citation is valid (checked against the mandate's agency only).
+      const a = await authority(w, { version: path.version(restricted.id) });
+      const event = path.event
+        ? await recordEvent(a.mandate.data.id, { sourceId: restricted.id })
+        : null;
+      expect(event?.coverageId ?? null).toBeNull();
+      const created = await createCase(w.agency.data.id, { routeId: w.route.data.id });
+      const selection = await select(created.data.id, choose(w, [a.coverage.data.id]));
+      const ids = {
+        caseId: created.data.id,
+        mandateId: a.mandate.data.id,
+        versionId: a.version.data.id,
+        eventIds: event === null ? [] : [event.id],
+        sourceIds: [restricted.id, a.basis.id, w.source.id],
+      };
+      const history = await historyRows(ids);
+      const before = await suiteDump();
+      const view = await context(created.data.id, selected(selection.id));
+      const again = await context(created.data.id, selected(selection.id));
+      expect(await suiteDump()).toEqual(before);
+      expect(again).toEqual(view);
+      expect(await historyRows(ids)).toEqual(history);
+      // Exactly one conflict, at the source's manifest entry, naming the citation and the reason.
+      expect(scopeConflicts(view)).toEqual([
+        {
+          code: NOT_APPLICABLE,
+          message: `Recorded source ${restricted.id} is not applicable to the current Case scope (SOURCE_SCOPE_UNRESOLVED: SCOPED_TO_OTHER_SUBJECT). This context cites it as ${path.citation(a.version.data.id, event?.id ?? null)}. ${NOT_A_FINDING}`,
+          fieldPath: entryPath(view, restricted.id),
+        },
+      ]);
+      expect(view.context.conflicts).toEqual(scopeConflicts(view));
+      // Traceability: the source stays listed exactly as recorded; the chain exactly as selected.
+      expect(view.context.sources.find((entry) => entry.sourceId === restricted.id)).toEqual({
+        sourceId: restricted.id,
+        role: restricted.sourceRole,
+        canonicalUrl: restricted.canonicalUrl,
+        contentSha256: restricted.contentSha256,
+        hashTarget: restricted.hashTarget,
+        provenance: restricted.reportedProvenance,
+        scopeText: restricted.scopeText,
+        limitations: restricted.limitations,
+      });
+      const block = view.context.authority?.coverages[0];
+      expect(block?.version).toEqual((await getVersion(a.version.data.id)).data);
+      expect(block?.coverage).toEqual((await getCoverage(a.coverage.data.id)).data);
+      expect(block?.authorityEvents.map((row) => row.id)).toEqual(event === null ? [] : [event.id]);
+      expect(depOf(view, 'SourceReference', restricted.id)).toBeDefined();
+      // A source-scope condition only: no authority, validity or gate verdict.
+      expect(JSON.stringify(view.context.conflicts)).not.toMatch(
+        /invalid|unauthori[sz]ed|no authority|g[1-7]\b|failed|not authori|valid authority|current authority|verified|approved|eligib/i,
+      );
+      // A direct citation of the same source by this case is refused by the same rules.
+      const direct = await client.write(
+        'linkCaseSource',
+        'POST',
+        `/cases/${created.data.id}/sources`,
+        { sourceId: restricted.id, useRole: 'SYNTHETIC_SUPPORT', scopeNote: 'SYNTHETIC note' },
+        { ifMatch: (await getCase(created.data.id)).etag },
+      );
+      expect(outcome(direct)).toEqual([422, 'SOURCE_SCOPE_UNRESOLVED']);
+      expect(detailsOf(direct)).toMatchObject({ reason: 'SCOPED_TO_OTHER_SUBJECT' });
+      await expectNoLaterRecords();
+    });
+  }
+
+  it('R14-AUD-009 controls: a source scoped to the case’s subject, one naming both subjects and an unrestricted agency source — each as primary, additional, signed-date and whole-mandate event source — raise no conflict; so do the route-level coverage basis, coverage signer and coverage-scoped event sources of the case’s own route', async () => {
+    const w = await world();
+    const subjectM = await createSubject('A-M');
+    await link(w.owner.data.id, subjectM.data.id);
+    const scopes: Array<[string, Record<string, unknown>]> = [
+      ['the case’s subject', { legalSubjectIds: [w.subject.data.id] }],
+      ['both subjects', { legalSubjectIds: [subjectM.data.id, w.subject.data.id] }],
+      ['no subject restriction', {}],
+    ];
+    for (const [label, scopeBindings] of scopes) {
+      const shared = await createSource({
+        agencyId: w.agency.data.id,
+        title: `SYNTHETIC mandate source (${label})`,
+        ...(Object.keys(scopeBindings).length === 0 ? {} : { scopeBindings }),
+      });
+      const a = await authority(w, {
+        label,
+        version: {
+          primarySourceId: shared.id,
+          additionalSourceRefs: [annex(shared.id)],
+          signedDatesRaw: [signedDate(shared.id)],
+        },
+      });
+      await recordEvent(a.mandate.data.id, { sourceId: shared.id });
+      const routeLevel = await createSource({
+        agencyId: w.agency.data.id,
+        title: `SYNTHETIC coverage-scoped event source (${label})`,
+        scopeBindings: { legalSubjectIds: [w.subject.data.id] },
+      });
+      await recordEvent(a.mandate.data.id, {
+        sourceId: routeLevel.id,
+        coverageId: a.coverage.data.id,
+        scopeText: 'SYNTHETIC this coverage',
+      });
+      const created = await createCase(w.agency.data.id, { routeId: w.route.data.id });
+      const selection = await select(created.data.id, choose(w, [a.coverage.data.id]));
+      const view = await context(created.data.id, selected(selection.id));
+      expect(view.context.conflicts, label).toEqual([]);
+      const listed = view.context.sources.map((entry) => entry.sourceId);
+      for (const sourceId of [shared.id, routeLevel.id, a.basis.id]) {
+        expect(listed, label).toContain(sourceId);
+      }
+      expect(view.context.authority?.coverages[0]?.authorityEvents, label).toHaveLength(2);
+    }
+  });
+
+  it('R14-AUD-009 control: a legitimate multi-route mandate — one version whose sources name both subjects, a coverage per route — gives no conflict in the context of a case of either route; each case lists only its own coverage’s basis', async () => {
+    const w = await world();
+    const subjectM = await createSubject('A-M');
+    const associationM = await link(w.owner.data.id, subjectM.data.id);
+    const routeM = await createRoute({
+      agencyId: w.agency.data.id,
+      ownerSubjectId: associationM.data.id,
+    });
+    const both = { legalSubjectIds: [w.subject.data.id, subjectM.data.id] };
+    const agreement = await createSource({
+      agencyId: w.agency.data.id,
+      title: 'SYNTHETIC agreement naming both subjects',
+      scopeBindings: both,
+    });
+    const schedule = await createSource({
+      agencyId: w.agency.data.id,
+      title: 'SYNTHETIC schedule without a subject restriction',
+    });
+    const mandate = await createMandate(w.agency.data.id, 'SYNTHETIC multi-route mandate');
+    const version = await createVersion(mandate.data.id, {
+      primarySourceId: agreement.id,
+      documentState: 'SIGNED_APPEARING',
+      additionalSourceRefs: [annex(schedule.id)],
+      signedDatesRaw: [signedDate(agreement.id)],
+    });
+    const coverageOf = async (routeId: string, subjectId: string, label: string) => {
+      const basis = await createSource({
+        agencyId: w.agency.data.id,
+        title: `SYNTHETIC coverage basis (${label})`,
+        scopeBindings: { legalSubjectIds: [subjectId] },
+      });
+      const coverage = await createCoverage(version.data.id, {
+        routeId,
+        basisSourceId: basis.id,
+        actionScope: ['PREPARE_NOTICE'],
+        coverageLabel: `SYNTHETIC coverage ${label}`,
+      });
+      await addCoverageSigner(coverage.data.id, {
+        signerId: w.signer.data.id,
+        sourceId: basis.id,
+      });
+      return { coverage, basis };
+    };
+    const onL = await coverageOf(w.route.data.id, w.subject.data.id, 'L');
+    const onM = await coverageOf(routeM.data.id, subjectM.data.id, 'M');
+    await freeze(version.data.id);
+    await recordEvent(mandate.data.id, { sourceId: agreement.id });
+    for (const [routeId, own, other] of [
+      [w.route.data.id, onL, onM],
+      [routeM.data.id, onM, onL],
+    ] as const) {
+      const created = await createCase(w.agency.data.id, { routeId });
+      const selection = await select(created.data.id, {
+        ...choose(w, [own.coverage.data.id]),
+        routeId,
+      });
+      const view = await context(created.data.id, selected(selection.id));
+      expect(view.context.conflicts, routeId).toEqual([]);
+      const listed = view.context.sources.map((entry) => entry.sourceId).sort();
+      expect(listed, routeId).toEqual([agreement.id, schedule.id, own.basis.id].sort());
+      expect(listed, routeId).not.toContain(other.basis.id);
+    }
+  });
+
+  // ---- R14-AUD-010: a later owner-material anchor elsewhere changes the case's context ----------
+
+  it('R14-AUD-010: each of the case’s own citation paths — canonical binding, packet, case source link, fact support (link no longer LINKED), linked policy source, mapping basis and selection basis — applies at t0; after another owner’s coverage uses that one source (a valid later write that never touches this case), the next read lists it with SOURCE_NOT_APPLICABLE (CROSS_OWNER_REFERENCE, no other owner named) — the case’s revision and every case record stay exactly as recorded', async () => {
+    const w = await world();
+    const a = await authority(w);
+    const agencyId = w.agency.data.id;
+    const created = await createCase(agencyId, { routeId: w.route.data.id });
+    const caseId = created.data.id;
+    const source = (title: string, extra: Record<string, unknown> = {}) =>
+      createSource({ agencyId, title: `SYNTHETIC ${title}`, ...extra });
+    const canonical = await source('case canonical record', { sourceRole: 'CANONICAL_RECORD' });
+    await caseCommand('CanonicalBindingCase', caseId, 'canonical-binding', {
+      canonicalCode: 'SYN-CASE-AUD010',
+      sourceId: canonical.id,
+      reason: 'SYNTHETIC canonical binding',
+    });
+    const packet = await source('case packet');
+    await patchCase(caseId, { packetSourceId: packet.id });
+    const linkedOnly = await source('linked evidence');
+    const linkedRow = await linkSource(caseId, linkedOnly.id);
+    const supported = await source('fact support source');
+    const supportLink = await linkSource(caseId, supported.id);
+    const fact = await createFact(caseId, {
+      factType: 'RIGHTS_BASIS',
+      provenance: 'OPERATOR_REPORTED',
+      sources: [support(supportLink.data.id)],
+    });
+    await setLinkState(supportLink.data.id, 'UNLINKED');
+    const policy = await source('policy reference', { sourceRole: 'POLICY_REFERENCE' });
+    const policyLink = await linkSource(caseId, policy.id, 'SYNTHETIC_POLICY');
+    const item = await createItem(caseId);
+    const work = await createWork(caseId);
+    const basis = await source('mapping basis');
+    const mapping = await createMapping(caseId, {
+      caseWorkId: work.data.id,
+      reportedItemId: item.data.id,
+      basisSourceId: basis.id,
+      provenance: 'OPERATOR_REPORTED',
+    });
+    const selectionBasis = await source('selection basis');
+    const selection = await select(
+      caseId,
+      choose(w, [a.coverage.data.id], { basisSourceId: selectionBasis.id }),
+    );
+    const paths: Array<[string, SourceReference, string]> = [
+      [
+        'CaseRecord.canonicalBindingSourceId',
+        canonical,
+        'the canonical binding source of the case',
+      ],
+      ['CaseRecord.packetSourceId', packet, 'the packet source of the case'],
+      ['CaseSource', linkedOnly, `case source link ${linkedRow.data.id} (SYNTHETIC_SUPPORT)`],
+      [
+        'FactSource → CaseSource',
+        supported,
+        `case source link ${supportLink.data.id} (SYNTHETIC_SUPPORT); a recorded support of fact ${fact.id} (through case source link ${supportLink.data.id})`,
+      ],
+      [
+        'POLICY_REFERENCE link',
+        policy,
+        `case source link ${policyLink.data.id} (SYNTHETIC_POLICY)`,
+      ],
+      ['UseMapping.basisSourceId', basis, `the basis source of use mapping ${mapping.data.id}`],
+      [
+        'CaseAuthoritySelection.basisSourceId',
+        selectionBasis,
+        `the basis source of authority selection ${selection.id}`,
+      ],
+    ];
+    const t0 = await context(caseId, selected(selection.id));
+    expect(scopeConflicts(t0)).toEqual([]);
+    for (const [label, row] of paths) {
+      expect(entryPath(t0, row.id), label).not.toBe('(not listed)');
+    }
+    expect(entryPath(t0, policy.id)).toMatch(/^policySources\[/);
+    const ids = {
+      caseId,
+      sourceIds: paths.map(([, row]) => row.id),
+    };
+    const history = await historyRows(ids);
+
+    // Another owner of the same agency: one DRAFT version, one coverage per source, one at a time.
+    const other = await otherRoute(w, 'A-other-owner');
+    const otherMandate = await createMandate(agencyId, 'SYNTHETIC other owner mandate');
+    const otherVersion = await createVersion(otherMandate.data.id, {
+      primarySourceId: w.source.id,
+      documentState: 'SIGNED_APPEARING',
+    });
+    const anchored: string[] = [];
+    for (const [index, [label, row, citation]] of paths.entries()) {
+      await createCoverage(otherVersion.data.id, {
+        routeId: other.route.data.id,
+        basisSourceId: row.id,
+        actionScope: ['PREPARE_NOTICE'],
+        coverageLabel: `SYNTHETIC other owner coverage ${index}`,
+      });
+      anchored.push(row.id);
+      const now = await context(caseId, selected(selection.id));
+      expect(now.contextRevision, label).toBe(t0.contextRevision);
+      expect(conflictOf(now, row.id), label).toEqual({
+        code: NOT_APPLICABLE,
+        message: `Recorded source ${row.id} is not applicable to the current Case scope (CROSS_OWNER_REFERENCE). This context cites it as ${citation}. ${NOT_A_FINDING}`,
+        fieldPath: entryPath(now, row.id),
+      });
+      expect(scopeConflicts(now).length, label).toBe(anchored.length);
+      expect(JSON.stringify(now.context), label).not.toContain(other.owner.data.id);
+    }
+    // Nothing of the case changed: its row, links, supports, mappings, selection and sources.
+    expect(await historyRows(ids)).toEqual(history);
+    expect((await getCase(caseId)).data.contextRevision).toBe(t0.contextRevision);
+    // A new direct citation of one of them by this case is refused by the same owner rule.
+    const direct = await client.write(
+      'linkCaseSource',
+      'POST',
+      `/cases/${caseId}/sources`,
+      { sourceId: packet.id, useRole: 'SYNTHETIC_OTHER_ROLE', scopeNote: 'SYNTHETIC note' },
+      { ifMatch: (await getCase(caseId)).etag },
+    );
+    expect(outcome(direct)).toEqual([422, 'CROSS_OWNER_REFERENCE']);
+    await expectNoLaterRecords();
+  });
+
+  it('R14-AUD-010 controls: valid shared reuse — one source linked to and used as the mapping basis of cases of two owners, while it is no owner’s material — and one owner using a source several ways (its coverage basis, a version annex, and a case link, a mapping basis and the selection basis of its own case) raise no conflict', async () => {
+    const w = await world();
+    const agencyId = w.agency.data.id;
+    const other = await otherRoute(w, 'A-other-owner');
+    // Shared by two owners' cases, no owner's material.
+    const shared = await createSource({ agencyId, title: 'SYNTHETIC source shared by two cases' });
+    const views: ContextView[] = [];
+    for (const routeId of [w.route.data.id, other.route.data.id]) {
+      const created = await createCase(agencyId, { routeId });
+      await linkSource(created.data.id, shared.id);
+      const item = await createItem(created.data.id);
+      const work = await createWork(created.data.id);
+      await createMapping(created.data.id, {
+        caseWorkId: work.data.id,
+        reportedItemId: item.data.id,
+        basisSourceId: shared.id,
+        provenance: 'OPERATOR_REPORTED',
+      });
+      views.push(await context(created.data.id));
+    }
+    for (const view of views) {
+      expect(view.context.conflicts).toEqual([]);
+      expect(view.context.sources.map((entry) => entry.sourceId)).toContain(shared.id);
+    }
+    // One owner's material used by that owner's own case in several ways.
+    const own = await createSource({ agencyId, title: 'SYNTHETIC owner X material' });
+    const a = await authority(w, {
+      coverage: { basisSourceId: own.id },
+      version: { additionalSourceRefs: [annex(own.id)] },
+    });
+    const created = await createCase(agencyId, { routeId: w.route.data.id });
+    await linkSource(created.data.id, own.id);
+    const item = await createItem(created.data.id);
+    const work = await createWork(created.data.id);
+    await createMapping(created.data.id, {
+      caseWorkId: work.data.id,
+      reportedItemId: item.data.id,
+      basisSourceId: own.id,
+      provenance: 'OPERATOR_REPORTED',
+    });
+    const selection = await select(
+      created.data.id,
+      choose(w, [a.coverage.data.id], { basisSourceId: own.id }),
+    );
+    const view = await context(created.data.id, selected(selection.id));
+    expect(view.context.conflicts).toEqual([]);
+    expect(view.context.sources.map((entry) => entry.sourceId)).toContain(own.id);
+    // The same source is refused to the other owner: it is owner X's material.
+    const draftMandate = await createMandate(agencyId, 'SYNTHETIC other owner draft mandate');
+    const draft = await createVersion(draftMandate.data.id, {
+      primarySourceId: w.source.id,
+      documentState: 'SIGNED_APPEARING',
+    });
+    const refused = await client.write(
+      'createCoverage',
+      'POST',
+      `/mandate-versions/${draft.data.id}/coverages`,
+      {
+        routeId: other.route.data.id,
+        basisSourceId: own.id,
+        actionScope: ['PREPARE_NOTICE'],
+        coverageLabel: 'SYNTHETIC refused coverage',
+      },
+      { ifMatch: (await getVersion(draft.data.id)).etag },
+    );
+    expect(outcome(refused)).toEqual([422, 'CROSS_OWNER_REFERENCE']);
+  });
+});
+
 describe('DEPENDENCIES AND DIGEST — the complete closure, deterministic, never a row version or a clock', () => {
   it('the dependencies are exactly the closure of a reply context, in (entityType, entityId) order; row versions only for version-checked records, matching the records; repeated reads are identical', async () => {
     const r = await replyWorld();

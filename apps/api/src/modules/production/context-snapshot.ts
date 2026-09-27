@@ -13,12 +13,14 @@
 // corrected binding is 409 BINDING_ALREADY_SUPERSEDED naming its correction — which is never used
 // in its place.
 //
-// The sources a selected message cites (its raw source, each attachment's source) were checked
-// against the message's agency only when it was captured: a capture is agency-level and may be
-// bound into several cases. Here each is rechecked against THIS case as the snapshot reads it — its
-// agency, case scope, bound legal subject and owner (source-scope.ts applicabilityProblem, plain
-// reads) — and one that does not apply is reported, never dropped, rewritten or refused
-// (R14-AUD-001). Nothing about the capture, the binding or the source changes.
+// Every source the context lists is one its records cite (context-sources.ts sourceCitations), and
+// each was checked when its citing record was written against that record's own target — a mandate
+// version's and a whole-mandate event's sources and a captured message's sources against an agency
+// only. Here every listed source is checked again against THIS case as the snapshot reads it — its
+// agency, case scope, bound legal subject and owner (currentSourceApplicability, plain reads) — and
+// one that does not apply is reported, never dropped, rewritten or refused (R14-AUD-001 for
+// correspondence, R14-AUD-009 and R14-AUD-010 for every other citation). Nothing about the citing
+// records or the sources changes.
 import type {
   Agency,
   AuthorityEvent,
@@ -47,13 +49,14 @@ import type {
 } from '../../../generated/prisma/client.js';
 import { apiErrors } from '../../infrastructure/http/api-error.js';
 import { caseTargetWith } from '../cases/case-rules.js';
-import {
-  applicabilityProblem,
-  type ApplicabilityProblem,
-  type SourceTarget,
-} from '../sources/source-scope.js';
+import type { ApplicabilityProblem, SourceTarget } from '../sources/source-scope.js';
 import type { ContextReadObserver } from './context-read-observer.js';
 import type { ContextScope } from './context-scope.js';
+import {
+  currentSourceApplicability,
+  sourceCitations,
+  type SourceCitation,
+} from './context-sources.js';
 
 type Tx = Prisma.TransactionClient;
 
@@ -77,15 +80,6 @@ export interface VersionSuccessor {
 export interface CoverageSuccessor {
   readonly id: string;
   readonly predecessorCoverageId: string | null;
-}
-
-/** A source a selected message cites that does not apply to the case's current scope. */
-export interface CorrespondenceSourceProblem {
-  readonly correspondenceId: string;
-  readonly sourceId: string;
-  /** Null for the message's raw source; otherwise the index of the citing attachment observation. */
-  readonly attachmentIndex: number | null;
-  readonly problem: ApplicabilityProblem;
 }
 
 /** Every row the context is assembled from, read in one snapshot. Arrays are in a fixed order. */
@@ -124,12 +118,13 @@ export interface ContextRows {
   readonly parent: CorrespondenceBinding | null;
   readonly priors: readonly CorrespondenceBinding[];
   readonly correspondence: readonly Correspondence[];
+  /** Every citation of a source by the records above (context-sources.ts order). */
+  readonly sourceCitations: readonly SourceCitation[];
   /**
-   * Each citation of a source by a selected message (raw source first, then the attachments in
-   * manifest order; messages in recording order) whose source does not apply to this case as read
-   * in this snapshot. Empty when every cited source applies.
+   * Whether each source of `sources` applies to this case as read in this snapshot: one entry per
+   * source, null when it applies (R14-AUD-001, R14-AUD-009, R14-AUD-010).
    */
-  readonly correspondenceSourceProblems: readonly CorrespondenceSourceProblem[];
+  readonly sourceApplicability: ReadonlyMap<string, ApplicabilityProblem | null>;
 }
 
 const RECORDING_ORDER = [{ createdAt: 'asc' as const }, { id: 'asc' as const }];
@@ -200,17 +195,21 @@ export async function readContextRows(
   const supports = await factSupports(tx, caseRow.id, intake.facts);
   const correspondence = await selectedCorrespondence(tx, caseRow.agencyId, bindings);
 
-  const sourceIds = distinct(
-    [
-      caseRow.canonicalBindingSourceId,
-      caseRow.packetSourceId,
-      ...supports.caseSources.map((link) => link.sourceId),
-      ...intake.mappings.map((mapping) => mapping.basisSourceId),
-      selection?.basisSourceId,
-      ...(authority === null ? [] : authoritySourceIds(authority)),
-      ...correspondence.flatMap((row) => citations(row).map((use) => use.sourceId)),
-    ].filter(present),
-  );
+  // The context lists exactly the sources its records cite; each citation says which record cites
+  // which source through which field.
+  const citations = sourceCitations({
+    caseRow,
+    caseSources: supports.caseSources,
+    factSources: supports.factSources,
+    mappings: intake.mappings,
+    selection,
+    versions: authority?.versions ?? [],
+    coverages: authority?.coverages ?? [],
+    coverageSigners: authority?.coverageSigners ?? [],
+    events: authority?.events ?? [],
+    correspondence,
+  });
+  const sourceIds = distinct(citations.map((citation) => citation.sourceId));
   const sources =
     sourceIds.length === 0
       ? []
@@ -251,12 +250,8 @@ export async function readContextRows(
     parent,
     priors,
     correspondence,
-    correspondenceSourceProblems: await correspondenceSourceScope(
-      tx,
-      correspondence,
-      sources,
-      target,
-    ),
+    sourceCitations: citations,
+    sourceApplicability: await currentSourceApplicability(tx, sources, target),
   };
 }
 
@@ -369,71 +364,6 @@ async function authorityChain(
     versionSuccessors,
     coverageSuccessors,
   };
-}
-
-function authoritySourceIds(authority: AuthorityRows): Array<string | null | undefined> {
-  const listed = (value: unknown): string[] =>
-    Array.isArray(value)
-      ? value
-          .map((entry) => (entry as { sourceId?: unknown }).sourceId)
-          .filter((id): id is string => typeof id === 'string')
-      : [];
-  return [
-    ...authority.versions.flatMap((version) => [
-      version.primarySourceId,
-      ...listed(version.additionalSourceRefs),
-      ...listed(version.signedDatesRaw),
-    ]),
-    ...authority.coverages.map((coverage) => coverage.basisSourceId),
-    ...authority.coverageSigners.map((row) => row.sourceId),
-    ...authority.events.map((event) => event.sourceId),
-  ];
-}
-
-/** The sources a captured message cites: its raw source, then each attachment's, in manifest order. */
-function citations(
-  row: Correspondence,
-): Array<{ readonly sourceId: string; readonly attachmentIndex: number | null }> {
-  const attachments = Array.isArray(row.attachmentsManifest) ? row.attachmentsManifest : [];
-  const cited: Array<{ sourceId: string; attachmentIndex: number | null }> = [];
-  if (row.rawSourceId !== null) cited.push({ sourceId: row.rawSourceId, attachmentIndex: null });
-  attachments.forEach((entry, index) => {
-    const id = (entry as { sourceId?: unknown } | null)?.sourceId;
-    if (typeof id === 'string') cited.push({ sourceId: id, attachmentIndex: index });
-  });
-  return cited;
-}
-
-/**
- * Every citation of a source by the selected messages whose source does not apply to the case as
- * this snapshot reads it (R14-AUD-001). The capture checked the source against the message's agency
- * only; the case's scope — agency, case, bound subject and owner — is checked here, with the same
- * rules as a direct case citation (applicabilityProblem: plain reads, no lock, no write). Each
- * source is evaluated once; every citation of it is reported.
- */
-async function correspondenceSourceScope(
-  tx: Tx,
-  correspondence: readonly Correspondence[],
-  sources: readonly SourceReference[],
-  target: SourceTarget,
-): Promise<CorrespondenceSourceProblem[]> {
-  const byId = new Map(sources.map((source) => [source.id, source]));
-  const evaluated = new Map<string, ApplicabilityProblem | null>();
-  const problems: CorrespondenceSourceProblem[] = [];
-  for (const message of correspondence) {
-    for (const { sourceId, attachmentIndex } of citations(message)) {
-      const source = byId.get(sourceId);
-      if (source === undefined) throw apiErrors.internal();
-      if (!evaluated.has(sourceId)) {
-        evaluated.set(sourceId, await applicabilityProblem(tx, source, target));
-      }
-      const problem = evaluated.get(sourceId) ?? null;
-      if (problem !== null) {
-        problems.push({ correspondenceId: message.id, sourceId, attachmentIndex, problem });
-      }
-    }
-  }
-  return problems;
 }
 
 interface IntakeRows {

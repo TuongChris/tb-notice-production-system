@@ -42,6 +42,7 @@ import {
 import { toSourceView } from '../sources/source-views.js';
 import type { ContextRows } from './context-snapshot.js';
 import type { ContextScope } from './context-scope.js';
+import { CORRESPONDENCE_CITATION_KINDS } from './context-sources.js';
 
 /** Identifier of this closure and digest definition (part of the digest). */
 export const DEPENDENCY_DIGEST_ALGORITHM = 'TB-PRODUCTION-CONTEXT-DIGEST-v1';
@@ -270,9 +271,13 @@ export function dependenciesOf(rows: ContextRows): Dependency[] {
   // recorded-scope reasons follow from records already in the closure: the source, the case, its
   // route and association.)
   const otherOwnerMaterial = new Set(
-    rows.correspondenceSourceProblems
-      .filter((entry) => entry.problem.code === 'CROSS_OWNER_REFERENCE')
-      .map((entry) => entry.sourceId),
+    rows.sourceCitations
+      .filter(
+        (citation) =>
+          CORRESPONDENCE_CITATION_KINDS.has(citation.kind) &&
+          rows.sourceApplicability.get(citation.sourceId)?.code === 'CROSS_OWNER_REFERENCE',
+      )
+      .map((citation) => citation.sourceId),
   );
   for (const row of rows.sources) {
     add('SourceReference', row.id, null, {

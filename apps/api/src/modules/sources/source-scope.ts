@@ -47,12 +47,16 @@
 //     route the case has no subject to check it against (CASE_SUBJECT_UNBOUND). With a bound route
 //     the owner dimension is that route's owner. A case link does not itself make a source any
 //     owner's material (the owner-material definition above is unchanged).
-//   read-time applicability (R14-AUD-001, applicabilityProblem)
-//     A capture is agency-level (target Agency, no subject or owner dimension), so the raw and
-//     attachment sources of a captured message are rechecked against the case — its agency, case
-//     scope, bound subject and owner — whenever the message is part of that case's production
-//     context. Capture-scope validity is not production-case applicability; nothing is refused or
-//     rewritten, the result is reported.
+//   read-time applicability (applicabilityProblem)
+//     A citation is checked against its own record's target when that record is written: a capture
+//     and the mandate-context citations against an agency only (no subject or owner dimension), a
+//     route-level citation against its route, a case citation against the case. Valid when recorded
+//     is not applicable to a case now: every source a case's production context lists — a selected
+//     message's raw and attachment sources (R14-AUD-001), the pinned chain's version, coverage,
+//     signer and event sources and the case's own citations (R14-AUD-009, R14-AUD-010) — is
+//     rechecked against the case, its agency, case scope, bound subject and owner, in the read's
+//     snapshot (production/context-sources.ts). Another owner's material recorded later outside the
+//     case is seen there too. Nothing is refused or rewritten; the result is reported.
 import { Prisma } from '../../../generated/prisma/client.js';
 import { apiErrors } from '../../infrastructure/http/api-error.js';
 
@@ -253,10 +257,11 @@ export type ApplicabilityProblem =
 /**
  * The read-only form of the rules assertSourcesUsable enforces at a write — the recorded-scope
  * dimensions (scopeProblem), then, when the target has an Owner, the owner dimension
- * (otherOwnerUsing) — for a read that reports applicability instead of refusing: the sources a
- * captured message cites, rechecked against the case in the production context's snapshot
- * (R14-AUD-001), and a candidate's document-plan sources in a technical validation. Plain reads in
- * the caller's transaction: nothing is locked, written or re-pointed. Null when the source applies.
+ * (otherOwnerUsing) — for a read that reports applicability instead of refusing: every source a
+ * production context lists, rechecked against the case in the context's snapshot (R14-AUD-001,
+ * R14-AUD-009, R14-AUD-010), and a candidate's document-plan sources in a technical validation.
+ * Plain reads in the caller's transaction: nothing is locked, written or re-pointed. Null when the
+ * source applies.
  */
 export async function applicabilityProblem(
   tx: Prisma.TransactionClient,

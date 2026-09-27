@@ -28,6 +28,8 @@ import {
   CORRESPONDENCE_SOURCE_NOT_APPLICABLE,
   DRAFTING_BLOCKING_CODES,
   exceededLimit,
+  NAMED_CITATIONS_MAXIMUM,
+  SOURCE_NOT_APPLICABLE,
 } from '../../apps/api/src/modules/production/context-assembly.js';
 import {
   DEPENDENCY_DIGEST_ALGORITHM,
@@ -37,10 +39,14 @@ import {
   contextScope,
   type ContextScope,
 } from '../../apps/api/src/modules/production/context-scope.js';
-import type {
-  ContextRows,
-  CorrespondenceSourceProblem,
-} from '../../apps/api/src/modules/production/context-snapshot.js';
+import type { ContextRows } from '../../apps/api/src/modules/production/context-snapshot.js';
+import {
+  type CitingRows,
+  SOURCE_CITATION_KINDS,
+  type SourceCitationKind,
+  sourceCitations,
+} from '../../apps/api/src/modules/production/context-sources.js';
+import type { ApplicabilityProblem } from '../../apps/api/src/modules/sources/source-scope.js';
 
 const repoRoot = path.resolve(import.meta.dirname, '../..');
 const FROZEN_HELPER = path.join(
@@ -283,7 +289,8 @@ function bareRows(overrides: { contextRevision?: number; rowVersion?: number } =
     parent: null,
     priors: [],
     correspondence: [],
-    correspondenceSourceProblems: [],
+    sourceCitations: [],
+    sourceApplicability: new Map(),
   };
 }
 
@@ -405,9 +412,10 @@ function sourceRow(id: string, scopeBindings: unknown) {
 /**
  * A case bound to a route (owner OWNER, subject SUBJECT) whose parent NMI message cites a raw source
  * and, in attachment observation 1, another source; attachment 0 names none. `problems` are what the
- * snapshot found when it rechecked those citations against the case.
+ * snapshot found when it evaluated each listed source against the case (by source id; every other
+ * listed source applies). The citations are collected from the rows by the production collector.
  */
-function citedRows(problems: CorrespondenceSourceProblem[] = []): ContextRows {
+function citedRows(problems: Record<string, ApplicabilityProblem> = {}): ContextRows {
   const rows = bareRows();
   const caseRow = { ...rows.caseRow, routeId: ROUTE };
   const message = {
@@ -453,7 +461,7 @@ function citedRows(problems: CorrespondenceSourceProblem[] = []): ContextRows {
     createdAt: RECORDED,
     createdById: USER,
   };
-  return {
+  const cited: ContextRows = {
     ...rows,
     caseRow: caseRow as unknown as ContextRows['caseRow'],
     route: {
@@ -482,27 +490,25 @@ function citedRows(problems: CorrespondenceSourceProblem[] = []): ContextRows {
     ] as unknown as ContextRows['sources'],
     parent: binding as unknown as ContextRows['parent'],
     correspondence: [message] as unknown as ContextRows['correspondence'],
-    correspondenceSourceProblems: problems,
+  };
+  return {
+    ...cited,
+    sourceCitations: sourceCitations(cited),
+    sourceApplicability: new Map(cited.sources.map((row) => [row.id, problems[row.id] ?? null])),
   };
 }
 
 describe('correspondence sources outside the case scope (R14-AUD-001) — a recorded conflict, never silently clean', () => {
   const reply = () => scope({ authoritySelectionId: null, priorBindingIds: [] });
-  const subjectProblem: CorrespondenceSourceProblem = {
-    correspondenceId: MESSAGE,
-    sourceId: RAW,
-    attachmentIndex: null,
-    problem: { code: 'SOURCE_SCOPE_UNRESOLVED', reason: 'SCOPED_TO_OTHER_SUBJECT' },
+  const subjectProblem: Record<string, ApplicabilityProblem> = {
+    [RAW]: { code: 'SOURCE_SCOPE_UNRESOLVED', reason: 'SCOPED_TO_OTHER_SUBJECT' },
   };
-  const ownerProblem: CorrespondenceSourceProblem = {
-    correspondenceId: MESSAGE,
-    sourceId: ATTACHED,
-    attachmentIndex: 1,
-    problem: { code: 'CROSS_OWNER_REFERENCE', ownerId: SHARED },
+  const ownerProblem: Record<string, ApplicabilityProblem> = {
+    [ATTACHED]: { code: 'CROSS_OWNER_REFERENCE', ownerId: SHARED },
   };
 
   it('each citation the snapshot found not applicable is one conflict naming the source, the message, raw or attachment, and the reason; the sources stay listed as recorded', () => {
-    const { view } = assembleContext(citedRows([subjectProblem, ownerProblem]), reply());
+    const { view } = assembleContext(citedRows({ ...subjectProblem, ...ownerProblem }), reply());
     expect(view.context.conflicts).toEqual([
       {
         code: 'CORRESPONDENCE_SOURCE_NOT_APPLICABLE',
@@ -541,10 +547,10 @@ describe('correspondence sources outside the case scope (R14-AUD-001) — a reco
 
   it('the digest covers it exactly: a recorded-scope reason follows from records in the closure (no fingerprint changes); another owner’s use lies outside it, so its existence joins that source’s fingerprint', () => {
     const clean = assembleContext(citedRows(), reply()).view;
-    const subject = assembleContext(citedRows([subjectProblem]), reply()).view;
+    const subject = assembleContext(citedRows(subjectProblem), reply()).view;
     expect(subject.dependencies).toEqual(clean.dependencies);
     expect(subject.dependencyDigest).toBe(clean.dependencyDigest);
-    const owner = assembleContext(citedRows([ownerProblem]), reply()).view;
+    const owner = assembleContext(citedRows(ownerProblem), reply()).view;
     expect(owner.dependencyDigest).not.toBe(clean.dependencyDigest);
     const differing = owner.dependencies.filter(
       (d, index) => d.fingerprint !== clean.dependencies[index]?.fingerprint,
@@ -554,6 +560,375 @@ describe('correspondence sources outside the case scope (R14-AUD-001) — a reco
     ]);
     const cleanAttached = clean.dependencies.find((d) => d.entityId === ATTACHED);
     expect(cleanAttached?.fingerprint).not.toBe(differing[0]?.fingerprint);
+  });
+});
+
+// ---- R14-AUD-009 / R14-AUD-010: every source a context lists is cited and checked ---------------
+
+/** Synthetic ids: sources, case source links, facts, mappings, versions, coverages, events. */
+const id = (prefix: string, n: number) =>
+  `${prefix}${String(n).padStart(8 - prefix.length, '0')}-0000-4000-8000-000000000000`;
+const SRC = (n: number) => id('5', n);
+const LINK = (n: number) => id('6', n);
+const FACT = (n: number) => id('7', n);
+const MAPPING = (n: number) => id('8', n);
+const VERSION = (n: number) => id('9', n);
+const COVERAGE = (n: number) => id('a', n);
+const SIGNER_ROW = (n: number) => id('b', n);
+const EVENT = (n: number) => id('c', n);
+
+/** Records citing seventeen sources, one kind of citation each (SRC(5) also through its link). */
+function allCitingRows(): CitingRows {
+  return {
+    caseRow: { id: CASE, canonicalBindingSourceId: SRC(1), packetSourceId: SRC(2) },
+    caseSources: [
+      { id: LINK(1), sourceId: SRC(3), useRole: 'SYNTHETIC_SUPPORT' },
+      { id: LINK(2), sourceId: SRC(4), useRole: 'SYNTHETIC_POLICY' },
+      // Not LINKED: part of the context only because the fact support below names it.
+      { id: LINK(3), sourceId: SRC(5), useRole: 'SYNTHETIC_SUPPORT' },
+    ],
+    factSources: [{ id: FACT(1), factId: FACT(9), caseSourceId: LINK(3) }],
+    mappings: [
+      { id: MAPPING(1), basisSourceId: SRC(6) },
+      { id: MAPPING(2), basisSourceId: null },
+    ],
+    selection: { id: SELECTION, basisSourceId: SRC(7) },
+    versions: [
+      {
+        id: VERSION(1),
+        primarySourceId: SRC(8),
+        additionalSourceRefs: [
+          { sourceId: SRC(9), role: 'SYNTHETIC_ANNEX', scopeText: 'SYNTHETIC annex' },
+          { sourceId: SRC(10), role: 'SYNTHETIC_ANNEX', scopeText: 'SYNTHETIC annex' },
+        ],
+        signedDatesRaw: [
+          { subjectLabel: 'SYNTHETIC party', dateRaw: '2026-09-01', sourceId: SRC(11) },
+        ],
+      },
+    ],
+    coverages: [{ id: COVERAGE(1), basisSourceId: SRC(12) }],
+    coverageSigners: [{ id: SIGNER_ROW(1), sourceId: SRC(13) }],
+    events: [
+      { id: EVENT(1), sourceId: SRC(14), coverageId: null },
+      { id: EVENT(2), sourceId: SRC(15), coverageId: COVERAGE(1) },
+    ],
+    correspondence: [
+      {
+        id: MESSAGE,
+        rawSourceId: SRC(16),
+        attachmentsManifest: [
+          { fileName: 'SYNTHETIC-note.txt', state: 'COPIED_TEXT_ALLEGATION' },
+          { fileName: 'SYNTHETIC-licence.pdf', sourceId: SRC(17), state: 'UNKNOWN' },
+        ],
+      },
+    ],
+  } as unknown as CitingRows;
+}
+
+describe('sourceCitations — every record of a context that cites a source, one inventory for every path (R14-AUD-009, R14-AUD-010)', () => {
+  const inventory = () => sourceCitations(allCitingRows());
+  const of = (kind: SourceCitationKind) =>
+    inventory()
+      .filter((citation) => citation.kind === kind)
+      .map((citation) => [
+        citation.sourceId,
+        citation.parentEntityType,
+        citation.parentEntityId,
+        citation.fieldPath,
+      ]);
+
+  it('the case’s canonical binding and packet sources', () => {
+    expect(of('CASE_CANONICAL')).toEqual([
+      [SRC(1), 'CaseRecord', CASE, 'canonicalBindingSourceId'],
+    ]);
+    expect(of('CASE_PACKET')).toEqual([[SRC(2), 'CaseRecord', CASE, 'packetSourceId']]);
+  });
+
+  it('every case source link of the context, and every fact support through its link (a link that is no longer LINKED is in the context only through a support)', () => {
+    expect(of('CASE_SOURCE')).toEqual([
+      [SRC(3), 'CaseSource', LINK(1), 'sourceId'],
+      [SRC(4), 'CaseSource', LINK(2), 'sourceId'],
+      [SRC(5), 'CaseSource', LINK(3), 'sourceId'],
+    ]);
+    expect(of('FACT_SUPPORT')).toEqual([[SRC(5), 'FactSource', FACT(1), 'caseSourceId']]);
+  });
+
+  it('the basis of each use mapping and of the named authority selection (none for an empty basis)', () => {
+    expect(of('MAPPING_BASIS')).toEqual([[SRC(6), 'UseMapping', MAPPING(1), 'basisSourceId']]);
+    expect(of('SELECTION_BASIS')).toEqual([
+      [SRC(7), 'CaseAuthoritySelection', SELECTION, 'basisSourceId'],
+    ]);
+  });
+
+  it('a pinned mandate version’s primary, additional and signed-date sources (agency-level when recorded)', () => {
+    expect(of('MANDATE_VERSION_PRIMARY')).toEqual([
+      [SRC(8), 'MandateVersion', VERSION(1), 'primarySourceId'],
+    ]);
+    expect(of('MANDATE_VERSION_ADDITIONAL')).toEqual([
+      [SRC(9), 'MandateVersion', VERSION(1), 'additionalSourceRefs[0].sourceId'],
+      [SRC(10), 'MandateVersion', VERSION(1), 'additionalSourceRefs[1].sourceId'],
+    ]);
+    expect(of('MANDATE_VERSION_SIGNED_DATE')).toEqual([
+      [SRC(11), 'MandateVersion', VERSION(1), 'signedDatesRaw[0].sourceId'],
+    ]);
+  });
+
+  it('the coverage basis, the coverage signer row’s source, and each authority event’s source — a whole-mandate event (agency-level when recorded) apart from a coverage-scoped one', () => {
+    expect(of('COVERAGE_BASIS')).toEqual([
+      [SRC(12), 'MandateCoverage', COVERAGE(1), 'basisSourceId'],
+    ]);
+    expect(of('COVERAGE_SIGNER')).toEqual([[SRC(13), 'CoverageSigner', SIGNER_ROW(1), 'sourceId']]);
+    expect(of('MANDATE_EVENT')).toEqual([[SRC(14), 'AuthorityEvent', EVENT(1), 'sourceId']]);
+    expect(of('COVERAGE_EVENT')).toEqual([[SRC(15), 'AuthorityEvent', EVENT(2), 'sourceId']]);
+  });
+
+  it('a selected message’s raw source and each attachment observation that names a source (R14-AUD-001)', () => {
+    expect(of('CORRESPONDENCE_RAW')).toEqual([[SRC(16), 'Correspondence', MESSAGE, 'rawSourceId']]);
+    expect(of('CORRESPONDENCE_ATTACHMENT')).toEqual([
+      [SRC(17), 'Correspondence', MESSAGE, 'attachmentsManifest[1].sourceId'],
+    ]);
+  });
+
+  it('the inventory is complete and fixed: every kind, in its order; every cited source; the same rows give the same citations; each citation in words', () => {
+    const cited = inventory();
+    expect([...new Set(cited.map((citation) => citation.kind))]).toEqual([
+      ...SOURCE_CITATION_KINDS,
+    ]);
+    expect([...new Set(cited.map((citation) => citation.sourceId))].sort()).toEqual(
+      Array.from({ length: 17 }, (_, index) => SRC(index + 1)).sort(),
+    );
+    expect(inventory()).toEqual(cited);
+    expect(cited.map((citation) => citation.description)).toEqual([
+      'the canonical binding source of the case',
+      'the packet source of the case',
+      `case source link ${LINK(1)} (SYNTHETIC_SUPPORT)`,
+      `case source link ${LINK(2)} (SYNTHETIC_POLICY)`,
+      `case source link ${LINK(3)} (SYNTHETIC_SUPPORT)`,
+      `a recorded support of fact ${FACT(9)} (through case source link ${LINK(3)})`,
+      `the basis source of use mapping ${MAPPING(1)}`,
+      `the basis source of authority selection ${SELECTION}`,
+      `the primary source of mandate version ${VERSION(1)}`,
+      `additional source 0 of mandate version ${VERSION(1)}`,
+      `additional source 1 of mandate version ${VERSION(1)}`,
+      `the source of signed date 0 of mandate version ${VERSION(1)}`,
+      `the basis source of mandate coverage ${COVERAGE(1)}`,
+      `the source of coverage signer row ${SIGNER_ROW(1)}`,
+      `the source of whole-mandate authority event ${EVENT(1)}`,
+      `the source of authority event ${EVENT(2)} of mandate coverage ${COVERAGE(1)}`,
+      `the raw source of captured message ${MESSAGE}`,
+      `the source of attachment observation 1 of captured message ${MESSAGE}`,
+    ]);
+  });
+
+  it('nothing is cited that no record names: no packet, canonical, basis or source; a support naming a link outside the rows is an internal error, never a guess', () => {
+    const rows = allCitingRows();
+    const bare = sourceCitations({
+      ...rows,
+      caseRow: { id: CASE, canonicalBindingSourceId: null, packetSourceId: null },
+      caseSources: [],
+      factSources: [],
+      mappings: [{ id: MAPPING(1), basisSourceId: null }],
+      selection: { id: SELECTION, basisSourceId: null },
+      versions: [
+        { id: VERSION(1), primarySourceId: null, additionalSourceRefs: null, signedDatesRaw: [] },
+      ],
+      coverages: [{ id: COVERAGE(1), basisSourceId: null }],
+      coverageSigners: [{ id: SIGNER_ROW(1), sourceId: null }],
+      events: [],
+      correspondence: [{ id: MESSAGE, rawSourceId: null, attachmentsManifest: null }],
+    } as unknown as CitingRows);
+    expect(bare).toEqual([]);
+    expect(thrown(() => sourceCitations({ ...rows, caseSources: [] }))).toBe(
+      'a fact support names a case source outside the rows',
+    );
+  });
+});
+
+/** The four sources a record other than a message cites, besides the message's two. */
+const VERSION_SOURCE = SRC(21);
+const EVENT_SOURCE = SRC(22);
+const LINK_SOURCE = SRC(23);
+const POLICY_SOURCE = SRC(24);
+const NOT_A_FINDING =
+  'The citing records and the source are kept as recorded; this is a source-scope condition, not a finding about what the source shows or about any authority, right or gate.';
+
+/** A case source link row of the case (the fields the context reads). */
+function linkRow(linkId: string, sourceId: string, useRole = 'SYNTHETIC_SUPPORT') {
+  return {
+    id: linkId,
+    caseId: CASE,
+    sourceId,
+    useRole,
+    scopeNote: 'SYNTHETIC scope note',
+    linkState: 'LINKED',
+    rowVersion: 1,
+    createdAt: RECORDED,
+    createdById: USER,
+  };
+}
+
+/**
+ * The cited rows (a message citing RAW and ATTACHED) plus sources other records cite: a mandate
+ * version's primary source, a whole-mandate event's source, a case source link's source that is
+ * also a mapping's basis, a linked policy source, and ATTACHED linked to the case as well. The
+ * citations are collected by the production collector; `problems` are the evaluation by source id.
+ */
+function listedRows(
+  problems: Record<string, ApplicabilityProblem> = {},
+  extraMappings: ReadonlyArray<{ id: string; basisSourceId: string }> = [],
+): ContextRows {
+  const base = citedRows();
+  const caseSources = [
+    linkRow(LINK(1), LINK_SOURCE),
+    linkRow(LINK(2), POLICY_SOURCE, 'SYNTHETIC_POLICY'),
+    linkRow(LINK(3), ATTACHED),
+  ];
+  const rows: ContextRows = {
+    ...base,
+    caseSources: caseSources as unknown as ContextRows['caseSources'],
+    sources: [
+      ...base.sources,
+      sourceRow(VERSION_SOURCE, { legalSubjectIds: ['1a1a1a1a-1a1a-4a1a-8a1a-1a1a1a1a1a1a'] }),
+      sourceRow(EVENT_SOURCE, { legalSubjectIds: ['1a1a1a1a-1a1a-4a1a-8a1a-1a1a1a1a1a1a'] }),
+      sourceRow(LINK_SOURCE, null),
+      { ...sourceRow(POLICY_SOURCE, null), sourceRole: 'POLICY_REFERENCE' },
+    ] as unknown as ContextRows['sources'],
+  };
+  const citations = sourceCitations({
+    ...rows,
+    mappings: [{ id: MAPPING(1), basisSourceId: LINK_SOURCE }, ...extraMappings],
+    versions: [
+      {
+        id: VERSION(1),
+        primarySourceId: VERSION_SOURCE,
+        additionalSourceRefs: null,
+        signedDatesRaw: null,
+      },
+    ],
+    events: [{ id: EVENT(1), sourceId: EVENT_SOURCE, coverageId: null }],
+  } as unknown as CitingRows);
+  return {
+    ...rows,
+    sourceCitations: citations,
+    sourceApplicability: new Map(rows.sources.map((row) => [row.id, problems[row.id] ?? null])),
+  };
+}
+
+describe('assembleContext — every listed source is checked against the case; one that does not apply is a recorded conflict, never clean support (R14-AUD-009, R14-AUD-010)', () => {
+  const reply = () => scope({ authoritySelectionId: null, priorBindingIds: [] });
+  const subject: ApplicabilityProblem = {
+    code: 'SOURCE_SCOPE_UNRESOLVED',
+    reason: 'SCOPED_TO_OTHER_SUBJECT',
+  };
+  const owner: ApplicabilityProblem = { code: 'CROSS_OWNER_REFERENCE', ownerId: SHARED };
+  const at = (view: ContextView, sourceId: string) => {
+    const index = view.context.sources.findIndex((entry) => entry.sourceId === sourceId);
+    if (index >= 0) return `sources[${index}]`;
+    return `policySources[${view.context.policySources.findIndex((e) => e.sourceId === sourceId)}]`;
+  };
+  const sourceConflicts = (view: ContextView) =>
+    view.context.conflicts.filter((entry) => entry.code === SOURCE_NOT_APPLICABLE);
+
+  it('one SOURCE_NOT_APPLICABLE per source at its manifest entry (sources or policySources), naming the reason and every record that cites it; the sources stay listed as recorded; an applicable one raises nothing', () => {
+    const view = assembleContext(
+      listedRows({
+        [VERSION_SOURCE]: subject,
+        [EVENT_SOURCE]: subject,
+        [LINK_SOURCE]: owner,
+        [POLICY_SOURCE]: owner,
+      }),
+      reply(),
+    ).view;
+    const byPath = new Map(sourceConflicts(view).map((entry) => [entry.fieldPath, entry]));
+    expect(sourceConflicts(view)).toHaveLength(4);
+    expect(byPath.get(at(view, VERSION_SOURCE))?.message).toBe(
+      `Recorded source ${VERSION_SOURCE} is not applicable to the current Case scope (SOURCE_SCOPE_UNRESOLVED: SCOPED_TO_OTHER_SUBJECT). This context cites it as the primary source of mandate version ${VERSION(1)}. ${NOT_A_FINDING}`,
+    );
+    expect(byPath.get(at(view, EVENT_SOURCE))?.message).toBe(
+      `Recorded source ${EVENT_SOURCE} is not applicable to the current Case scope (SOURCE_SCOPE_UNRESOLVED: SCOPED_TO_OTHER_SUBJECT). This context cites it as the source of whole-mandate authority event ${EVENT(1)}. ${NOT_A_FINDING}`,
+    );
+    expect(byPath.get(at(view, LINK_SOURCE))?.message).toBe(
+      `Recorded source ${LINK_SOURCE} is not applicable to the current Case scope (CROSS_OWNER_REFERENCE). This context cites it as case source link ${LINK(1)} (SYNTHETIC_SUPPORT); the basis source of use mapping ${MAPPING(1)}. ${NOT_A_FINDING}`,
+    );
+    expect(at(view, POLICY_SOURCE)).toBe('policySources[0]');
+    expect(byPath.get('policySources[0]')?.message).toBe(
+      `Recorded source ${POLICY_SOURCE} is not applicable to the current Case scope (CROSS_OWNER_REFERENCE). This context cites it as case source link ${LINK(2)} (SYNTHETIC_POLICY). ${NOT_A_FINDING}`,
+    );
+    expect(SOURCE_NOT_APPLICABLE).toBe('SOURCE_NOT_APPLICABLE');
+    // Traceability: every source stays listed exactly once, and in the closure.
+    const listed = [...view.context.sources, ...view.context.policySources].map((e) => e.sourceId);
+    expect(listed.sort()).toEqual(
+      [RAW, ATTACHED, VERSION_SOURCE, EVENT_SOURCE, LINK_SOURCE, POLICY_SOURCE].sort(),
+    );
+    // No other owner's id, no verdict wording.
+    expect(JSON.stringify(view.context.conflicts)).not.toContain(SHARED);
+    expect(JSON.stringify(view.context.conflicts)).not.toMatch(
+      /invalid|unauthori[sz]ed|no authority|infring|G[1-7]\b|verified|approved|current authority|valid authority|failed/i,
+    );
+    expect(ContextViewSchema.safeParse(view).success).toBe(true);
+    const clean = assembleContext(listedRows(), reply()).view;
+    expect(clean.context.conflicts).toEqual([]);
+    expect(clean.context.sources).toEqual(view.context.sources);
+    expect(clean.context.policySources).toEqual(view.context.policySources);
+  });
+
+  it('a source a captured message cites that another record cites too: the message’s citation keeps its CORRESPONDENCE_SOURCE_NOT_APPLICABLE (R14-AUD-001 wording), the other record is named once in SOURCE_NOT_APPLICABLE — no citation is reported twice', () => {
+    const view = assembleContext(listedRows({ [ATTACHED]: owner }), reply()).view;
+    expect(view.context.conflicts).toEqual([
+      {
+        code: 'SOURCE_NOT_APPLICABLE',
+        message: `Recorded source ${ATTACHED} is not applicable to the current Case scope (CROSS_OWNER_REFERENCE). This context cites it as case source link ${LINK(3)} (SYNTHETIC_SUPPORT). ${NOT_A_FINDING}`,
+        fieldPath: at(view, ATTACHED),
+      },
+      {
+        code: 'CORRESPONDENCE_SOURCE_NOT_APPLICABLE',
+        message: `Recorded source ${ATTACHED}, the source of attachment observation 1 of captured message ${MESSAGE}, is not applicable to the current Case scope (CROSS_OWNER_REFERENCE). The capture was checked against its agency only. The message and the source are kept as recorded; this is a source-scope condition, not a finding about what the source shows.`,
+        fieldPath: 'correspondence[0].attachmentsManifest[1].sourceId',
+      },
+    ]);
+    // A source only a message cites has no SOURCE_NOT_APPLICABLE (R14-AUD-001 exactly).
+    const raw = assembleContext(listedRows({ [RAW]: subject }), reply()).view;
+    expect(raw.context.conflicts.map((entry) => [entry.code, entry.fieldPath])).toEqual([
+      ['CORRESPONDENCE_SOURCE_NOT_APPLICABLE', 'correspondence[0].rawSourceId'],
+    ]);
+  });
+
+  it('one source cited hundreds of times is one conflict: at most 20 citations named, in a fixed order whatever the read order, the rest counted — within the contract', () => {
+    const mappings = Array.from({ length: 25 }, (_, index) => ({
+      id: MAPPING(100 + index),
+      basisSourceId: LINK_SOURCE,
+    }));
+    const rows = listedRows({ [LINK_SOURCE]: owner }, mappings);
+    const view = assembleContext(rows, reply()).view;
+    const conflicts = sourceConflicts(view);
+    expect(conflicts).toHaveLength(1);
+    const message = conflicts[0]?.message ?? '';
+    expect(NAMED_CITATIONS_MAXIMUM).toBe(20);
+    expect(message).toContain(`case source link ${LINK(1)} (SYNTHETIC_SUPPORT); `);
+    expect(message.match(/the basis source of use mapping /g)).toHaveLength(19);
+    expect(message).toContain('; and 7 more citations.');
+    expect(message).toContain(`the basis source of use mapping ${MAPPING(1)}`);
+    expect(message).not.toContain(MAPPING(124));
+    expect(ContextViewSchema.safeParse(view).success).toBe(true);
+    const reversed = assembleContext(
+      {
+        ...rows,
+        sourceCitations: [...rows.sourceCitations].reverse(),
+        sources: [...rows.sources].reverse(),
+      },
+      reply(),
+    ).view;
+    expect(reversed.context.conflicts).toEqual(view.context.conflicts);
+    expect(reversed.dependencyDigest).toBe(view.dependencyDigest);
+  });
+
+  it('a listed source the snapshot did not evaluate is an internal error, never listed as clean', () => {
+    const rows = listedRows();
+    const missing = new Map(rows.sourceApplicability);
+    missing.delete(VERSION_SOURCE);
+    expect(thrown(() => assembleContext({ ...rows, sourceApplicability: missing }, reply()))).toBe(
+      'a listed source was not evaluated against the case',
+    );
   });
 });
 
@@ -783,6 +1158,7 @@ describe('module source — a read and nothing else', () => {
       'context-read-observer.ts',
       'context-scope.ts',
       'context-snapshot.ts',
+      'context-sources.ts',
       'production-context.controller.ts',
       'production-context.service.ts',
       'production.module.ts',

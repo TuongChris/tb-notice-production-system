@@ -1954,6 +1954,104 @@ describe('R14-AUD-001 — a captured message’s source outside the case scope n
   });
 });
 
+describe('R14-AUD-009 / R14-AUD-010 — a listed source outside the current case scope never flows through the stack as a clean context', () => {
+  const NOT_APPLICABLE = 'SOURCE_NOT_APPLICABLE';
+  const NOT_A_FINDING =
+    'The citing records and the source are kept as recorded; this is a source-scope condition, not a finding about what the source shows or about any authority, right or gate.';
+
+  it('R14-AUD-009: a mandate version annex restricted to another legal subject of the same owner — listed with SOURCE_NOT_APPLICABLE in the production context, frozen in the prompt snapshot (its conflicts and PART 3), present in the context a validation evaluates: REVIEW_REQUIRED by CONTEXT.CONFLICTS, never TECHNICAL_PASS; the frozen version, its mandate, coverage and the source stay exactly as recorded; a fresh prompt of a chain whose sources apply passes with the same draft', async () => {
+    const p = await promptWorld();
+    const agencyId = p.w.agency.data.id;
+    const subjectM = await createSubject('A-M');
+    await link(p.w.owner.data.id, subjectM.data.id);
+    const restricted = await createSource({
+      agencyId,
+      title: 'SYNTHETIC mandate annex recorded for subject M only',
+      scopeBindings: { legalSubjectIds: [subjectM.data.id] },
+    });
+    // Another mandate of the agency: its version cites the annex (an agency-level citation, valid).
+    const mandate = await createMandate(agencyId, 'SYNTHETIC mandate with a subject-M annex');
+    const basis = await createSource({ agencyId, title: 'SYNTHETIC annex coverage basis' });
+    const version = await createVersion(mandate.data.id, {
+      primarySourceId: p.w.source.id,
+      documentState: 'SIGNED_APPEARING',
+      additionalSourceRefs: [
+        { sourceId: restricted.id, role: 'SYNTHETIC_ANNEX', scopeText: 'SYNTHETIC annex' },
+      ],
+    });
+    const coverage = await createCoverage(version.data.id, {
+      routeId: p.w.route.data.id,
+      basisSourceId: basis.id,
+      actionScope: ['PREPARE_NOTICE'],
+      coverageLabel: 'SYNTHETIC annex coverage',
+    });
+    await addCoverageSigner(coverage.data.id, { signerId: p.w.signer.data.id, sourceId: basis.id });
+    await freeze(version.data.id);
+    const selection = await select(p.caseId, choose(p.w, [coverage.data.id]));
+    const recorded = async () => ({
+      mandate: await prisma.mandate.findUniqueOrThrow({ where: { id: mandate.data.id } }),
+      version: await prisma.mandateVersion.findUniqueOrThrow({ where: { id: version.data.id } }),
+      coverage: await prisma.mandateCoverage.findUniqueOrThrow({
+        where: { id: coverage.data.id },
+      }),
+      source: await prisma.sourceReference.findUniqueOrThrow({ where: { id: restricted.id } }),
+      selection: await prisma.caseAuthoritySelection.findUniqueOrThrow({
+        where: { id: selection.id },
+      }),
+    });
+    const history = await recorded();
+    const scope: Scope = { authoritySelectionId: selection.id };
+
+    // ProductionContext: DRAFTING is delivered (a conflict is no gate) and lists the condition.
+    const view = await context(p.caseId, scope);
+    const index = view.context.sources.findIndex((entry) => entry.sourceId === restricted.id);
+    const listed = [
+      {
+        code: NOT_APPLICABLE,
+        message: `Recorded source ${restricted.id} is not applicable to the current Case scope (SOURCE_SCOPE_UNRESOLVED: SCOPED_TO_OTHER_SUBJECT). This context cites it as additional source 0 of mandate version ${version.data.id}. ${NOT_A_FINDING}`,
+        fieldPath: `sources[${index}]`,
+      },
+    ];
+    expect(view.context.conflicts).toEqual(listed);
+
+    // PromptSnapshot: frozen with the conflict, rendered in PART 3; the source stays traceable.
+    const prompt = await generate(p.caseId, scope);
+    expect(prompt.dependencyDigest).toBe(view.dependencyDigest);
+    expect(prompt.conflicts).toEqual(listed);
+    expect(prompt.contextJson.conflicts).toEqual(listed);
+    expect(prompt.renderedPrompt).toContain(
+      `- ${NOT_APPLICABLE} (sources[${index}]): ${JSON.stringify(listed[0]?.message)}`,
+    );
+    expect(prompt.sourceManifest.map((entry) => entry.sourceId)).toContain(restricted.id);
+    expect(prompt.contextJson.authority?.coverages[0]?.version.id).toBe(version.data.id);
+
+    // ValidationRun: the current context holds the conflict — REVIEW_REQUIRED, not a pass.
+    const candidate = await importCandidate(p.caseId, draft(prompt));
+    const { run } = await validate(candidate, prompt);
+    expect(run.result).toBe('REVIEW_REQUIRED');
+    expect(run.evaluatedContextJson.conflicts).toEqual(listed);
+    expect(run.coverageManifest.notExecutedRuleIds).toEqual([]);
+    expect([run.blockerCount, run.reviewRequiredCount]).toEqual([0, 1]);
+    const issues = await issuesOf(run.id);
+    expect(ruleIds(issues)).toEqual(['CONTEXT.CONFLICTS']);
+    expect(issues[0]).toMatchObject({
+      checkKind: 'DETERMINISTIC',
+      severity: 'REVIEW_REQUIRED',
+      details: expect.objectContaining({ code: NOT_APPLICABLE }),
+    });
+    expect(await getRun(run.id)).toEqual(run);
+    // History: nothing of the authority chain or the source changed.
+    expect(await recorded()).toEqual(history);
+
+    // The same draft of a fresh prompt of the world's own chain (its sources apply): a pass.
+    const cleanPrompt = await generate(p.caseId, { authoritySelectionId: p.selection.id });
+    expect(cleanPrompt.conflicts).toEqual([]);
+    const clean = await validate(await importCandidate(p.caseId, draft(cleanPrompt)), cleanPrompt);
+    expect(clean.run.result).toBe('TECHNICAL_PASS');
+    await expectNoLaterRecords();
+  });
+});
+
 describe('R14 getValidationRun — one stored run read back exactly as recorded, historical and read-only', () => {
   const RUN_FIELDS = [
     'id',
