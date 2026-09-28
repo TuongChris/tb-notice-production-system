@@ -58,11 +58,16 @@ import {
   CONTRACT_BASELINE,
   OperationErrorSchema,
   operations,
+  PFC_SCHEMA_VERSION,
 } from '../../packages/contracts/src/index.js';
 import { LAST_SEEN_WRITE_INTERVAL_MS } from '../../apps/api/src/modules/auth/auth-config.js';
 import { assembleContext } from '../../apps/api/src/modules/production/context-assembly.js';
 import { NO_CONTEXT_READ_OBSERVER } from '../../apps/api/src/modules/production/context-read-observer.js';
+import type { ContextScope } from '../../apps/api/src/modules/production/context-scope.js';
 import { readContextRows } from '../../apps/api/src/modules/production/context-snapshot.js';
+import { renderPrompt } from '../../apps/api/src/modules/prompts/prompt-renderer.js';
+import { promptSourceManifest } from '../../apps/api/src/modules/prompts/prompt-snapshot-rules.js';
+import { PROMPT_TEMPLATE_VERSION } from '../../apps/api/src/modules/prompts/prompt-template.js';
 import {
   REQUIRED_RULES,
   RULE_ERROR_MESSAGE,
@@ -90,6 +95,7 @@ import {
   signIn,
   type Recorded,
 } from './directory-support.js';
+import { currentV2Digest, legacyV1Digest } from '../support/context-digest-oracles.js';
 
 interface FrozenHelper {
   readonly PENDING_SIGNATURE: string;
@@ -2099,6 +2105,14 @@ describe('R14-AUD-009 / R14-AUD-010 — a listed source outside the current case
     const t1 = await context(p.caseId, scope);
     expect(t1.contextRevision).toBe(t0.contextRevision);
     expect(t1.dependencyDigest).not.toBe(t0.dependencyDigest);
+    // R14-AUD-013: H0 and H1 are both TB-PRODUCTION-CONTEXT-DIGEST-v2 — the move is the owner marker
+    // in the source's fingerprint within one definition, not a change of definition.
+    const digestScope = validationScope(
+      await prisma.promptSnapshot.findUniqueOrThrow({ where: { id: p.prompt.id } }),
+    );
+    const identifiers = { contract: CONTRACT_BASELINE, schemaVersion: PFC_SCHEMA_VERSION };
+    expect(t0.dependencyDigest).toBe(currentV2Digest(identifiers, digestScope, t0.dependencies));
+    expect(t1.dependencyDigest).toBe(currentV2Digest(identifiers, digestScope, t1.dependencies));
     expect(changedKeys(t1, t0)).toEqual([`SourceReference:${p.linked.id}`]);
     const index = t1.context.sources.findIndex((entry) => entry.sourceId === p.linked.id);
     const listed = [
@@ -2147,6 +2161,372 @@ describe('R14-AUD-009 / R14-AUD-010 — a listed source outside the current case
       'CONTEXT.PROMPT_DRIFT',
     ]);
     expect(await getRun(passed.id)).toEqual(passed);
+    await expectNoLaterRecords();
+  });
+});
+
+describe('R14-AUD-013 — a preview digest of an earlier digest definition never authorizes a write: TB-PRODUCTION-CONTEXT-DIGEST-v2', () => {
+  const NOT_APPLICABLE = 'SOURCE_NOT_APPLICABLE';
+  const NOT_A_FINDING =
+    'The citing records and the source are kept as recorded; this is a source-scope condition, not a finding about what the source shows or about any authority, right or gate.';
+  const IDENTIFIERS = { contract: CONTRACT_BASELINE, schemaVersion: PFC_SCHEMA_VERSION };
+  const readPrompt = async (id: string) =>
+    immutable<PromptSnapshot>(await client.get('getPrompt', `/prompts/${id}`), 200);
+  /** The prompt summaries a list query returns, as [id, dependencyDigest]. */
+  const listPrompts = async (caseId: string, q: string) => {
+    const result = await client.get(
+      'listCasePrompts',
+      `/cases/${caseId}/prompts?q=${encodeURIComponent(q)}`,
+    );
+    expect(result.status, result.text).toBe(200);
+    return dataOf<{ items: Array<{ id: string; dependencyDigest: string }> }>(result).items.map(
+      (item) => [item.id, item.dependencyDigest],
+    );
+  };
+
+  /**
+   * The R14-AUD-009 fixture: the case of owner X's subject selects a frozen chain whose mandate
+   * version cites an annex restricted to another legal subject (M) of the same owner X. No other
+   * owner's material exists, so no fingerprint carries an owner marker: every fingerprint is what a
+   * TB-PRODUCTION-CONTEXT-DIGEST-v1 deployment computed for these rows — whose semantics did not
+   * evaluate a mandate version's sources against the case and listed no conflict.
+   */
+  async function annexWorld() {
+    const p = await promptWorld();
+    const agencyId = p.w.agency.data.id;
+    const subjectM = await createSubject('A-M');
+    await link(p.w.owner.data.id, subjectM.data.id);
+    const restricted = await createSource({
+      agencyId,
+      title: 'SYNTHETIC mandate annex recorded for subject M only',
+      scopeBindings: { legalSubjectIds: [subjectM.data.id] },
+    });
+    const mandate = await createMandate(agencyId, 'SYNTHETIC mandate with a subject-M annex');
+    const basis = await createSource({ agencyId, title: 'SYNTHETIC annex coverage basis' });
+    const version = await createVersion(mandate.data.id, {
+      primarySourceId: p.w.source.id,
+      documentState: 'SIGNED_APPEARING',
+      additionalSourceRefs: [
+        { sourceId: restricted.id, role: 'SYNTHETIC_ANNEX', scopeText: 'SYNTHETIC annex' },
+      ],
+    });
+    const coverage = await createCoverage(version.data.id, {
+      routeId: p.w.route.data.id,
+      basisSourceId: basis.id,
+      actionScope: ['PREPARE_NOTICE'],
+      coverageLabel: 'SYNTHETIC annex coverage',
+    });
+    await addCoverageSigner(coverage.data.id, { signerId: p.w.signer.data.id, sourceId: basis.id });
+    await freeze(version.data.id);
+    const selection = await select(p.caseId, choose(p.w, [coverage.data.id]));
+    /** The digest's request scope, exactly as the reader and the prompt rebuild use it. */
+    const full = (generationMode: 'DRAFTING' | 'PREPARATION' = 'DRAFTING'): ContextScope => ({
+      caseId: p.caseId,
+      taskType: 'INITIAL',
+      generationMode,
+      authoritySelectionId: selection.id,
+      parentBindingId: null,
+      priorBindingIds: [],
+    });
+    const listed = (view: ContextView) => [
+      {
+        code: NOT_APPLICABLE,
+        message: `Recorded source ${restricted.id} is not applicable to the current Case scope (SOURCE_SCOPE_UNRESOLVED: SCOPED_TO_OTHER_SUBJECT). This context cites it as additional source 0 of mandate version ${version.data.id}. ${NOT_A_FINDING}`,
+        fieldPath: `sources[${view.context.sources.findIndex((entry) => entry.sourceId === restricted.id)}]`,
+      },
+    ];
+    return { p, restricted, version, selection, full, listed };
+  }
+
+  /**
+   * The context the same snapshot's rows gave under the earlier interpretation: read exactly as the
+   * application reads them, with no listed source evaluated against the case — no conflict. Its
+   * dependencies are the closure and fingerprints of those rows (the evaluation is no persisted
+   * input); its own digest field is not used.
+   */
+  async function earlierInterpretation(scope: ContextScope): Promise<ContextView> {
+    const rows = await prisma.$transaction((tx) =>
+      readContextRows(tx, scope, NO_CONTEXT_READ_OBSERVER),
+    );
+    const unevaluated = new Map([...rows.sourceApplicability.keys()].map((id) => [id, null]));
+    return assembleContext({ ...rows, sourceApplicability: unevaluated }, scope).view;
+  }
+
+  const promptBody = (scope: ContextScope, contextRevision: number, digest: string) => ({
+    taskType: scope.taskType,
+    generationMode: scope.generationMode,
+    expectedContextRevision: contextRevision,
+    expectedDependencyDigest: digest,
+    authoritySelectionId: scope.authoritySelectionId,
+    priorBindingIds: [],
+  });
+  const postPrompt = (caseId: string, body: unknown, key?: string) =>
+    client.write(
+      'generatePrompt',
+      'POST',
+      `/cases/${caseId}/prompts`,
+      body,
+      key === undefined ? {} : { key },
+    );
+
+  it('old semantic preview cannot authorize prompt generation after the digest definition changed: the same rows, the same contextRevision D, the preview’s v1 digest H_v1 — 412 CONTEXT_CHANGED on the digest with nothing recorded, no claim kept and the case untouched; the current read gives H_v2 and a fresh generation, DRAFTING and PREPARATION, freezes the SOURCE_NOT_APPLICABLE conflict', async () => {
+    const a = await annexWorld();
+    for (const generationMode of ['DRAFTING', 'PREPARATION'] as const) {
+      const scope = a.full(generationMode);
+      // The earlier deployment's preview of these rows: no conflict; its digest H_v1.
+      const earlier = await earlierInterpretation(scope);
+      expect(earlier.context.conflicts, generationMode).toEqual([]);
+      const hV1 = legacyV1Digest(IDENTIFIERS, scope, earlier.dependencies);
+      // The current deployment reads the same rows: the same revision D, closure and fingerprints,
+      // the conflict listed, and the v2 digest H_v2.
+      const view = await context(a.p.caseId, {
+        authoritySelectionId: a.selection.id,
+        generationMode,
+      });
+      expect(view.contextRevision).toBe(earlier.contextRevision);
+      expect(view.dependencies).toEqual(earlier.dependencies);
+      expect(view.context.conflicts).toEqual(a.listed(view));
+      const hV2 = view.dependencyDigest;
+      expect(hV2).toBe(currentV2Digest(IDENTIFIERS, scope, view.dependencies));
+      expect(hV2).not.toBe(hV1);
+
+      // The preview's tokens D and H_v1: refused on the digest, twice under the same key (the claim
+      // is released, nothing replayed); no snapshot, audit event, idempotency record or case change.
+      const caseRow = await prisma.caseRecord.findUniqueOrThrow({ where: { id: a.p.caseId } });
+      const before = await suiteDump();
+      const key = newKey();
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        const stale = await postPrompt(
+          a.p.caseId,
+          promptBody(scope, view.contextRevision, hV1),
+          key,
+        );
+        expect(outcome(stale), generationMode).toEqual([412, 'CONTEXT_CHANGED']);
+        expect(detailsOf(stale)).toEqual({ field: 'expectedDependencyDigest' });
+        expect(await prisma.idempotencyRecord.count({ where: { idempotencyKey: key } })).toBe(0);
+      }
+      expect(await suiteDump()).toEqual(before);
+      expect(await prisma.caseRecord.findUniqueOrThrow({ where: { id: a.p.caseId } })).toEqual(
+        caseRow,
+      );
+
+      // A fresh request under a new key with the current read's H_v2: generated against exactly
+      // that context — the conflict frozen, not suppressed; the case row locked, never changed.
+      const prompts = await countRows(prisma, 'prompt_snapshots');
+      const generated = await prisma.auditEvent.count({ where: { action: 'PROMPT_GENERATED' } });
+      const prompt = immutable<PromptSnapshot>(
+        await postPrompt(a.p.caseId, promptBody(scope, view.contextRevision, hV2)),
+        201,
+      );
+      expect(await countRows(prisma, 'prompt_snapshots')).toBe(prompts + 1);
+      expect(await prisma.auditEvent.count({ where: { action: 'PROMPT_GENERATED' } })).toBe(
+        generated + 1,
+      );
+      expect([prompt.generationMode, prompt.contextRevision, prompt.dependencyDigest]).toEqual([
+        generationMode,
+        view.contextRevision,
+        hV2,
+      ]);
+      expect(prompt.dependencyManifest).toEqual(view.dependencies);
+      expect(prompt.contextJson).toEqual(view.context);
+      expect(prompt.conflicts).toEqual(a.listed(view));
+      const [conflict] = a.listed(view);
+      expect(prompt.renderedPrompt).toContain(
+        `- ${NOT_APPLICABLE} (${conflict?.fieldPath}): ${JSON.stringify(conflict?.message)}`,
+      );
+      expect(await prisma.caseRecord.findUniqueOrThrow({ where: { id: a.p.caseId } })).toEqual(
+        caseRow,
+      );
+    }
+    await expectNoLaterRecords();
+  });
+
+  it('validateCandidate: the v1 digest of the unchanged closure is 412 CONTEXT_CHANGED before any run is recorded (the claim released, nothing written); the current digest records a new run against exactly the current context — REVIEW_REQUIRED by CONTEXT.CONFLICTS, never TECHNICAL_PASS', async () => {
+    const a = await annexWorld();
+    const scope = a.full();
+    const prompt = await generate(a.p.caseId, { authoritySelectionId: a.selection.id });
+    const candidate = await importCandidate(a.p.caseId, draft(prompt));
+    const view = await context(a.p.caseId, scopeOf(prompt));
+    const hV1 = legacyV1Digest(IDENTIFIERS, scope, view.dependencies);
+    expect(view.dependencyDigest).toBe(currentV2Digest(IDENTIFIERS, scope, view.dependencies));
+    expect(view.dependencyDigest).toBe(prompt.dependencyDigest);
+    expect(hV1).not.toBe(view.dependencyDigest);
+
+    const before = await suiteDump();
+    const key = newKey();
+    const stale = await validatePost(
+      candidate.id,
+      { expectedArtifactSha256: candidate.artifactSha256, expectedDependencyDigest: hV1 },
+      key,
+    );
+    expect(outcome(stale)).toEqual([412, 'CONTEXT_CHANGED']);
+    expect(detailsOf(stale)).toEqual({ field: 'expectedDependencyDigest' });
+    expect(await prisma.idempotencyRecord.count({ where: { idempotencyKey: key } })).toBe(0);
+    expect(await suiteDump()).toEqual(before);
+
+    const { run } = await validate(candidate, prompt);
+    expect(run.dependencyDigest).toBe(view.dependencyDigest);
+    expect(run.dependencyManifest).toEqual(view.dependencies);
+    expect(run.evaluatedContextJson.conflicts).toEqual(a.listed(view));
+    expect(run.result).toBe('REVIEW_REQUIRED');
+    expect(ruleIds(await issuesOf(run.id))).toEqual(['CONTEXT.CONFLICTS']);
+    expect(await countRows(prisma, 'validation_runs')).toBe(1);
+    await expectNoLaterRecords();
+  });
+
+  it('history: a prompt snapshot and a validation run recorded under TB-PRODUCTION-CONTEXT-DIGEST-v1 (digest H_v1, the earlier context without the conflict) read back exactly — never re-digested, re-evaluated or given the current conflict; a new read is H_v2 with the conflict; a new validation of that prompt’s candidate is a new run (the conflict, and a digest that differs only in its identifiers); both historical rows stay byte-identical', async () => {
+    const a = await annexWorld();
+    const scope = a.full();
+    const earlier = await earlierInterpretation(scope);
+    const hV1 = legacyV1Digest(IDENTIFIERS, scope, earlier.dependencies);
+    const legacy: ContextView = { ...earlier, dependencyDigest: hV1 };
+
+    // The snapshot as the v1 deployment recorded it, before this test's clock (set directly in
+    // tb_notice_test: the application no longer computes a v1 digest).
+    const promptId = randomUUID();
+    const promptAt = new Date(Date.UTC(2026, 8, 22, 12, 0, 0, 0));
+    const renderedPrompt = renderPrompt(legacy, CONTRACT_BASELINE);
+    const sourceManifest = promptSourceManifest(legacy.context);
+    const version =
+      (await prisma.promptSnapshot.count({ where: { caseId: a.p.caseId, taskType: 'INITIAL' } })) +
+      1;
+    const userId = client.session.userId;
+    await prisma.$executeRaw`
+      INSERT INTO prompt_snapshots (id, case_id, task_type, generation_mode, version,
+        authority_selection_id, parent_binding_id, contract_version, template_version,
+        context_revision, dependency_digest, dependency_manifest, context_json, source_manifest,
+        missing_items, conflicts, rendered_prompt, prompt_sha256, created_at, created_by_id)
+      VALUES (${promptId}, ${a.p.caseId}, ${'INITIAL'}, ${'DRAFTING'}, ${version},
+        ${a.selection.id}, ${null}, ${CONTRACT_BASELINE}, ${PROMPT_TEMPLATE_VERSION},
+        ${legacy.contextRevision}, ${hV1}, CAST(${JSON.stringify(legacy.dependencies)} AS JSON),
+        CAST(${JSON.stringify(legacy.context)} AS JSON), CAST(${JSON.stringify(sourceManifest)} AS JSON),
+        CAST(${JSON.stringify(legacy.context.missing)} AS JSON), CAST(${'[]'} AS JSON),
+        ${renderedPrompt}, ${sha256(renderedPrompt)}, ${promptAt}, ${userId})`;
+    const historicalPrompt: PromptSnapshot = {
+      id: promptId,
+      caseId: a.p.caseId,
+      taskType: 'INITIAL',
+      generationMode: 'DRAFTING',
+      version,
+      authoritySelectionId: a.selection.id,
+      parentBindingId: null,
+      contractVersion: CONTRACT_BASELINE,
+      templateVersion: PROMPT_TEMPLATE_VERSION,
+      contextRevision: legacy.contextRevision,
+      dependencyDigest: hV1,
+      dependencyManifest: legacy.dependencies,
+      contextJson: legacy.context,
+      sourceManifest,
+      missingItems: legacy.context.missing,
+      conflicts: [],
+      renderedPrompt,
+      promptSha256: sha256(renderedPrompt),
+      createdAt: promptAt.toISOString(),
+      createdById: userId,
+    };
+    expect(await readPrompt(promptId)).toEqual(historicalPrompt);
+    expect(historicalPrompt.renderedPrompt).not.toContain(NOT_APPLICABLE);
+
+    // Its candidate, and the run the v1 deployment recorded for it (TECHNICAL_PASS then).
+    const candidate = await importCandidate(a.p.caseId, draft(historicalPrompt));
+    const runId = randomUUID();
+    const runAt = new Date(Date.UTC(2026, 8, 22, 12, 0, 1, 0));
+    const coverage = {
+      requiredRuleIds: ALL_RULES,
+      executedRuleIds: ALL_RULES,
+      notExecutedRuleIds: [],
+      semanticReviewRequired: true as const,
+    };
+    await prisma.$executeRaw`
+      INSERT INTO validation_runs (id, candidate_id, case_id, artifact_sha256, dependency_digest,
+        dependency_manifest, evaluated_context_json, ruleset_version, result, coverage_manifest,
+        blocker_count, review_required_count, warning_count, started_at, completed_at, created_at,
+        created_by_id)
+      VALUES (${runId}, ${candidate.id}, ${a.p.caseId}, ${candidate.artifactSha256}, ${hV1},
+        CAST(${JSON.stringify(legacy.dependencies)} AS JSON), CAST(${JSON.stringify(legacy.context)} AS JSON),
+        ${'TB-TECHNICAL-RULESET-v2'}, ${'TECHNICAL_PASS'}, CAST(${JSON.stringify(coverage)} AS JSON),
+        0, 0, 0, ${runAt}, ${runAt}, ${runAt}, ${userId})`;
+    const historicalRun: ValidationRun = {
+      id: runId,
+      candidateId: candidate.id,
+      caseId: a.p.caseId,
+      artifactSha256: candidate.artifactSha256,
+      dependencyDigest: hV1,
+      dependencyManifest: legacy.dependencies,
+      evaluatedContextJson: legacy.context,
+      rulesetVersion: 'TB-TECHNICAL-RULESET-v2',
+      result: 'TECHNICAL_PASS',
+      coverageManifest: coverage,
+      blockerCount: 0,
+      reviewRequiredCount: 0,
+      warningCount: 0,
+      startedAt: runAt.toISOString(),
+      completedAt: runAt.toISOString(),
+      createdAt: runAt.toISOString(),
+      createdById: userId,
+    };
+    expect(await getRun(runId)).toEqual(historicalRun);
+    const stored = async () => ({
+      prompt: await prisma.promptSnapshot.findUniqueOrThrow({ where: { id: promptId } }),
+      run: await prisma.validationRun.findUniqueOrThrow({ where: { id: runId } }),
+      candidate: await candidateRow(candidate.id),
+    });
+    const history = await stored();
+
+    // The lists find them by their recorded digest; nothing carries the current one yet.
+    expect(await listPrompts(a.p.caseId, hV1)).toEqual([[promptId, hV1]]);
+    expect(
+      (await listRuns(candidate.id, `?q=${hV1}`)).items.map((item) => [
+        item.id,
+        item.dependencyDigest,
+      ]),
+    ).toEqual([[runId, hV1]]);
+
+    // A new read: the same revision and closure, the conflict, and H_v2.
+    const view = await context(a.p.caseId, scopeOf(historicalPrompt));
+    expect(view.contextRevision).toBe(legacy.contextRevision);
+    expect(view.dependencies).toEqual(legacy.dependencies);
+    expect(view.context.conflicts).toEqual(a.listed(view));
+    expect(view.dependencyDigest).toBe(currentV2Digest(IDENTIFIERS, scope, view.dependencies));
+    expect(view.dependencyDigest).not.toBe(hV1);
+    expect(await listPrompts(a.p.caseId, view.dependencyDigest)).toEqual([]);
+
+    // Validating the v1-era candidate with the v1-era digest: 412, nothing recorded.
+    const runs = await countRows(prisma, 'validation_runs');
+    const stale = await validatePost(candidate.id, expectations(candidate, legacy));
+    expect(outcome(stale)).toEqual([412, 'CONTEXT_CHANGED']);
+    expect(await countRows(prisma, 'validation_runs')).toBe(runs);
+    // With the current read: a new run, REVIEW_REQUIRED by the conflict and by the prompt's digest,
+    // which differs from the current one although every record is unchanged (its identifiers).
+    const { run } = await validate(candidate, historicalPrompt);
+    expect(run.id).not.toBe(runId);
+    expect([run.result, run.dependencyDigest]).toEqual(['REVIEW_REQUIRED', view.dependencyDigest]);
+    expect(run.evaluatedContextJson.conflicts).toEqual(a.listed(view));
+    const issues = await issuesOf(run.id);
+    expect(ruleIds(issues).sort()).toEqual(['CONTEXT.CONFLICTS', 'CONTEXT.PROMPT_DRIFT']);
+    expect(issuesOfRule(issues, 'CONTEXT.PROMPT_DRIFT')).toEqual([
+      expect.objectContaining({
+        severity: 'REVIEW_REQUIRED',
+        fieldPath: 'dependencyDigest',
+        details: {
+          change: 'IDENTIFIERS',
+          promptDependencyDigest: hV1,
+          currentDependencyDigest: view.dependencyDigest,
+        },
+      }),
+    ]);
+
+    // History: exactly as recorded, by id and in the lists; the stored rows byte-identical.
+    expect(await readPrompt(promptId)).toEqual(historicalPrompt);
+    expect(await getRun(runId)).toEqual(historicalRun);
+    expect(await issuesOf(runId)).toEqual([]);
+    expect(
+      (await listRuns(candidate.id)).items.map((item) => [item.id, item.dependencyDigest]),
+    ).toEqual([
+      [run.id, view.dependencyDigest],
+      [runId, hV1],
+    ]);
+    expect(await stored()).toEqual(history);
     await expectNoLaterRecords();
   });
 });

@@ -45,6 +45,7 @@ import {
   CONTRACT_BASELINE,
   OperationErrorSchema,
   operations,
+  PFC_SCHEMA_VERSION,
 } from '../../packages/contracts/src/index.js';
 import {
   ALLOWED_ORIGIN,
@@ -67,6 +68,11 @@ import {
   signIn,
   type Recorded,
 } from './directory-support.js';
+import {
+  currentV2Digest,
+  type DigestScope,
+  legacyV1Digest,
+} from '../support/context-digest-oracles.js';
 
 let prisma: PrismaClient;
 let t: TestApp;
@@ -2964,6 +2970,49 @@ describe('PRODUCTION SOURCE SCOPE (R14-AUD-009, R14-AUD-010) — every source a 
 });
 
 describe('DEPENDENCIES AND DIGEST — the complete closure, deterministic, never a row version or a clock', () => {
+  it('TB-PRODUCTION-CONTEXT-DIGEST-v2 (R14-AUD-013, ADR-0007): every read’s digest is the v2 definition over its own closure and request scope — INITIAL in both modes and NMI_REPLY with its parent and prior — rebuilt independently of the application; the v1 digest of the same closure is another value; reading writes nothing', async () => {
+    const r = await replyWorld();
+    const identifiers = { contract: CONTRACT_BASELINE, schemaVersion: PFC_SCHEMA_VERSION };
+    const initial = (generationMode: 'PREPARATION' | 'DRAFTING'): DigestScope => ({
+      caseId: r.caseId,
+      taskType: 'INITIAL',
+      generationMode,
+      authoritySelectionId: r.selection.id,
+      parentBindingId: null,
+      priorBindingIds: [],
+    });
+    const reads: Array<[ContextQuery, DigestScope]> = [
+      [{ authoritySelectionId: r.selection.id }, initial('PREPARATION')],
+      [{ authoritySelectionId: r.selection.id, generationMode: 'DRAFTING' }, initial('DRAFTING')],
+      [
+        REPLY(r),
+        {
+          caseId: r.caseId,
+          taskType: 'NMI_REPLY',
+          generationMode: 'PREPARATION',
+          authoritySelectionId: r.selection.id,
+          parentBindingId: r.nmi.id,
+          priorBindingIds: [r.sent.id],
+        },
+      ],
+    ];
+    const before = await suiteDump();
+    const digests = new Set<string>();
+    for (const [query, scope] of reads) {
+      const view = await context(r.caseId, query);
+      const label = `${scope.taskType} ${scope.generationMode}`;
+      expect(view.dependencyDigest, label).toBe(
+        currentV2Digest(identifiers, scope, view.dependencies),
+      );
+      expect(legacyV1Digest(identifiers, scope, view.dependencies), label).not.toBe(
+        view.dependencyDigest,
+      );
+      digests.add(view.dependencyDigest);
+    }
+    expect(digests.size).toBe(reads.length);
+    expect(await suiteDump()).toEqual(before);
+  });
+
   it('the dependencies are exactly the closure of a reply context, in (entityType, entityId) order; row versions only for version-checked records, matching the records; repeated reads are identical', async () => {
     const r = await replyWorld();
     const view = await context(r.caseId, REPLY(r));
