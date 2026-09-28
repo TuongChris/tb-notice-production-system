@@ -47,6 +47,16 @@
 //     route the case has no subject to check it against (CASE_SUBJECT_UNBOUND). With a bound route
 //     the owner dimension is that route's owner. A case link does not itself make a source any
 //     owner's material (the owner-material definition above is unchanged).
+//   read-time applicability (applicabilityProblem)
+//     A citation is checked against its own record's target when that record is written: a capture
+//     and the mandate-context citations against an agency only (no subject or owner dimension), a
+//     route-level citation against its route, a case citation against the case. Valid when recorded
+//     is not applicable to a case now: every source a case's production context lists — a selected
+//     message's raw and attachment sources (R14-AUD-001), the pinned chain's version, coverage,
+//     signer and event sources and the case's own citations (R14-AUD-009, R14-AUD-010) — is
+//     rechecked against the case, its agency, case scope, bound subject and owner, in the read's
+//     snapshot (production/context-sources.ts). Another owner's material recorded later outside the
+//     case is seen there too. Nothing is refused or rewritten; the result is reported.
 import { Prisma } from '../../../generated/prisma/client.js';
 import { apiErrors } from '../../infrastructure/http/api-error.js';
 
@@ -238,6 +248,32 @@ export async function otherOwnerUsing(
     select: { coverage: { select: { route: ownerOfRoute } } },
   });
   return event?.coverage ? event.coverage.route.ownerSubject.ownerId : null;
+}
+
+/** Why a source does not apply to a target now: its recorded scope, or the owner dimension. */
+export type ApplicabilityProblem =
+  ScopeProblem | { readonly code: 'CROSS_OWNER_REFERENCE'; readonly ownerId: string };
+
+/**
+ * The read-only form of the rules assertSourcesUsable enforces at a write — the recorded-scope
+ * dimensions (scopeProblem), then, when the target has an Owner, the owner dimension
+ * (otherOwnerUsing) — for a read that reports applicability instead of refusing: every source a
+ * production context lists, rechecked against the case in the context's snapshot (R14-AUD-001,
+ * R14-AUD-009, R14-AUD-010), and a candidate's document-plan sources in a technical validation.
+ * Plain reads in the caller's transaction: nothing is locked, written or re-pointed. Null when the
+ * source applies.
+ */
+export async function applicabilityProblem(
+  tx: Prisma.TransactionClient,
+  source: ScopedSource & { readonly id: string },
+  target: SourceTarget,
+): Promise<ApplicabilityProblem | null> {
+  const recorded = scopeProblem(source, target);
+  if (recorded !== null) return recorded;
+  const owner = ownerOf(target);
+  if (owner === null) return null;
+  const other = await otherOwnerUsing(tx, source.id, owner);
+  return other === null ? null : { code: 'CROSS_OWNER_REFERENCE', ownerId: other };
 }
 
 export interface UsableSource {

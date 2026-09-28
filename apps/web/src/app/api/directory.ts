@@ -18,7 +18,8 @@
 // candidates (P4F): the exact unsigned draft artifact drafted outside the application from one
 // prompt snapshot; its content never changes (no ETag), a revision is a new candidate, and its
 // supersession is an internal lifecycle step — never an approval, readiness, signature, sending or
-// retraction.
+// retraction. Technical validation (P4G): a run is a technical result only; a recorded run is read
+// back by its id exactly as stored with getValidationRun (TB-SCHEMA-API-v1.3.0, ADR-0006).
 import type {
   Agency,
   ArchiveRequest,
@@ -755,6 +756,12 @@ export function createCasesApi(api: ApiClient) {
               `/api/v1/candidates/${candidateId}/validation-runs${queryString(query)}`,
             )
           ).data,
+        /**
+         * One recorded run exactly as stored (getValidationRun, TB-SCHEMA-API-v1.3.0): its result,
+         * coverage manifest, dependency manifest and evaluated context — never re-evaluated. No ETag.
+         */
+        get: async (runId: string) =>
+          (await api.request<ValidationRun>('GET', `/api/v1/validation-runs/${runId}`)).data,
         /** One run's issues in rule order; `q` = exact id, rule id, severity or check kind. */
         issues: async (runId: string, query: ListQuery = {}) =>
           (

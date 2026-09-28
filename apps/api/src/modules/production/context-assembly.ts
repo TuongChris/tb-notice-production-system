@@ -33,9 +33,15 @@ import {
   toCoverageView,
   toMandateVersionView,
 } from '../representation/authority-views.js';
+import type { ApplicabilityProblem } from '../sources/source-scope.js';
 import { dependenciesOf, dependencyDigest } from './context-dependencies.js';
 import type { ContextRows } from './context-snapshot.js';
 import type { ContextScope } from './context-scope.js';
+import {
+  CORRESPONDENCE_CITATION_KINDS,
+  SOURCE_CITATION_KINDS,
+  type SourceCitation,
+} from './context-sources.js';
 
 /**
  * Missing-item codes without which DRAFTING cannot proceed: the "Required content" of the Production
@@ -56,6 +62,53 @@ export const DRAFTING_BLOCKING_CODES: readonly string[] = [
 
 /** Largest scope text / limitations a SourceManifestEntry holds (code points, contract). */
 export const MANIFEST_TEXT_MAXIMUM = 5000;
+
+/**
+ * The conflict a source cited by a selected message raises when it does not apply to the case's
+ * current scope (R14-AUD-001): one per citation. It states a source-scope condition only: the source
+ * stays listed as recorded, and nothing is said about what it shows, about authority, rights or any
+ * gate.
+ */
+export const CORRESPONDENCE_SOURCE_NOT_APPLICABLE = 'CORRESPONDENCE_SOURCE_NOT_APPLICABLE';
+
+/**
+ * The conflict any other listed source raises when it does not apply to the case's current scope
+ * (R14-AUD-009, R14-AUD-010): one per source, naming every other record of the context that cites
+ * it. The same source-scope condition only — never a finding about what the source shows, about
+ * authority (a mandate version, coverage or signer stays exactly as selected), rights or any gate.
+ */
+export const SOURCE_NOT_APPLICABLE = 'SOURCE_NOT_APPLICABLE';
+
+/** The most citations one SOURCE_NOT_APPLICABLE message names; any further ones are counted. */
+export const NAMED_CITATIONS_MAXIMUM = 20;
+
+/** The source-scope reason of a problem as the write refusals name it (code, and reason if any). */
+function scopeReason(problem: ApplicabilityProblem): string {
+  return 'reason' in problem ? `${problem.code}: ${problem.reason}` : problem.code;
+}
+
+const byId = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+
+const KIND_RANK = new Map(SOURCE_CITATION_KINDS.map((kind, rank) => [kind, rank]));
+
+/**
+ * The citations of one source in words, in a fixed order whatever order the rows were read in: by
+ * kind, then citing record, then field; the same words once; at most NAMED_CITATIONS_MAXIMUM named.
+ */
+function namedCitations(citations: readonly SourceCitation[]): string {
+  const ordered = [...citations].sort(
+    (x, y) =>
+      (KIND_RANK.get(x.kind) ?? 0) - (KIND_RANK.get(y.kind) ?? 0) ||
+      byId(x.parentEntityId, y.parentEntityId) ||
+      byId(x.fieldPath, y.fieldPath),
+  );
+  const words = [...new Set(ordered.map((citation) => citation.description))];
+  const named = words.slice(0, NAMED_CITATIONS_MAXIMUM);
+  const more = words.length - named.length;
+  return more === 0
+    ? named.join('; ')
+    : `${named.join('; ')}; and ${more} more citation${more === 1 ? '' : 's'}`;
+}
 
 export interface AssembledContext {
   readonly view: ContextView;
@@ -89,8 +142,6 @@ function manifestEntry(source: SourceReference): SourceManifestEntry | { tooLong
     limitations: source.limitations,
   };
 }
-
-const byId = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
 export function assembleContext(rows: ContextRows, scope: ContextScope): AssembledContext {
   const missing: MissingItem[] = [];
@@ -385,6 +436,59 @@ export function assembleContext(rows: ContextRows, scope: ContextScope): Assembl
         ),
       );
     });
+  }
+  // Every listed source was checked against this case in the snapshot (context-sources.ts). One
+  // that does not apply stays listed as recorded, with a conflict. A source a captured message cites
+  // (a capture is checked against its agency only) has one conflict per citation, as since
+  // R14-AUD-001; every other record citing it is named in one SOURCE_NOT_APPLICABLE conflict at its
+  // manifest entry. Each citation is reported exactly once.
+  const problemOf = (sourceId: string): ApplicabilityProblem | null => {
+    const problem = rows.sourceApplicability.get(sourceId);
+    if (problem === undefined) {
+      throw new Error('a listed source was not evaluated against the case');
+    }
+    return problem;
+  };
+  const otherCitations = new Map<string, SourceCitation[]>();
+  for (const citation of rows.sourceCitations) {
+    if (CORRESPONDENCE_CITATION_KINDS.has(citation.kind)) continue;
+    const list = otherCitations.get(citation.sourceId) ?? [];
+    list.push(citation);
+    otherCitations.set(citation.sourceId, list);
+  }
+  const notApplicable = (sourceId: string, fieldPath: string) => {
+    const problem = problemOf(sourceId);
+    const citations = otherCitations.get(sourceId) ?? [];
+    if (problem === null || citations.length === 0) return;
+    conflicts.push(
+      item(
+        SOURCE_NOT_APPLICABLE,
+        `Recorded source ${sourceId} is not applicable to the current Case scope (${scopeReason(problem)}). This context cites it as ${namedCitations(citations)}. The citing records and the source are kept as recorded; this is a source-scope condition, not a finding about what the source shows or about any authority, right or gate.`,
+        fieldPath,
+      ),
+    );
+  };
+  for (const [field, list] of [
+    ['sources', sources],
+    ['policySources', policySources],
+  ] as const) {
+    list.forEach((entry, index) => notApplicable(entry.sourceId, `${field}[${index}]`));
+  }
+  for (const { source, field } of tooLong) notApplicable(source.id, field);
+  const messageIndex = new Map(correspondence.map((message, index) => [message.id, index]));
+  for (const citation of rows.sourceCitations) {
+    if (!CORRESPONDENCE_CITATION_KINDS.has(citation.kind)) continue;
+    const problem = problemOf(citation.sourceId);
+    if (problem === null) continue;
+    const index = messageIndex.get(citation.parentEntityId);
+    if (index === undefined) throw new Error('cited source of a message outside the context');
+    conflicts.push(
+      item(
+        CORRESPONDENCE_SOURCE_NOT_APPLICABLE,
+        `Recorded source ${citation.sourceId}, ${citation.description}, is not applicable to the current Case scope (${scopeReason(problem)}). The capture was checked against its agency only. The message and the source are kept as recorded; this is a source-scope condition, not a finding about what the source shows.`,
+        `correspondence[${index}].${citation.fieldPath}`,
+      ),
+    );
   }
   authority?.coverages.forEach((block, index) => {
     if (block.version.sourceReviewState === 'CONFLICT') {

@@ -1,5 +1,6 @@
 // Inventory and OpenAPI parity of the active contract source with its release baseline (P0-D;
-// TB-SCHEMA-API-v1.1.0 since R8, ADR-0004; TB-SCHEMA-API-v1.2.0 since R9, ADR-0005): the frozen
+// TB-SCHEMA-API-v1.1.0 since R8, ADR-0004; TB-SCHEMA-API-v1.2.0 since R9, ADR-0005;
+// TB-SCHEMA-API-v1.3.0 since the R14 remediation, ADR-0006): the frozen
 // TB-SCHEMA-API-v1.0.0 reference plus exactly the reviewed additive amendments, in release order
 // (./release.ts). Byte identity of the serialized JSON is checked first; the explicit inventory below
 // itemizes every frozen schema and operation against the frozen reference itself and every addition
@@ -110,7 +111,7 @@ function inventory(root: Json, rootPath: string): Record<string, string[]> {
 const frozenDefs = frozenBundle['$defs'] as JsonObject;
 const generatedDefs = jsonSchemaBundle['$defs'] as JsonObject;
 
-describe('JSON Schema bundle parity (the 284 frozen schemas + 2 of TB-SCHEMA-API-v1.1.0 + 2 of TB-SCHEMA-API-v1.2.0)', () => {
+describe('JSON Schema bundle parity (the 284 frozen schemas + 2 of TB-SCHEMA-API-v1.1.0 + 2 of TB-SCHEMA-API-v1.2.0 + 1 of TB-SCHEMA-API-v1.3.0)', () => {
   it('serializes byte-identically to the release baseline (the frozen api-schemas.json + the amendments)', () => {
     // The frozen file round-trips byte for byte, so the baseline keeps its exact serialization.
     expect(JSON.stringify(frozenBundle, null, 2) === frozenBundleRaw).toBe(true);
@@ -123,15 +124,15 @@ describe('JSON Schema bundle parity (the 284 frozen schemas + 2 of TB-SCHEMA-API
     expect(isDeepStrictEqual(jsonSchemaBundle, baseline.bundle)).toBe(true);
   });
 
-  it('retains all 284 frozen schema identities in the frozen order; each release’s 2 additions follow their insertion point', () => {
+  it('retains all 284 frozen schema identities in the frozen order; each release’s additions follow their insertion point', () => {
     const names = Object.keys(generatedDefs);
-    expect(names).toHaveLength(288);
+    expect(names).toHaveLength(289);
     expect(names).toEqual(Object.keys(baseline.bundle.$defs));
     expect(names.filter((name) => name in frozenDefs)).toEqual(Object.keys(frozenDefs));
     expect(names.filter((name) => !(name in frozenDefs))).toEqual(
       names.filter((name) => name in addedSchemas),
     );
-    expect(Object.keys(addedSchemas)).toHaveLength(4);
+    expect(Object.keys(addedSchemas)).toHaveLength(5);
     for (const amendment of amendments) {
       const added = Object.keys(amendment.schemas.added);
       const at = names.indexOf(amendment.schemas.insertAfter);
@@ -174,8 +175,8 @@ describe('JSON Schema bundle parity (the 284 frozen schemas + 2 of TB-SCHEMA-API
     );
     const generatedTotals = total(frozenSubset);
     expect(generatedTotals).toEqual(total(frozenDefs));
-    // The whole generated bundle = the frozen totals + each amendment's two schemas.
-    const [v110, v120] = amendments.map((amendment) =>
+    // The whole generated bundle = the frozen totals + each amendment's schemas.
+    const [v110, v120, v130] = amendments.map((amendment) =>
       total(amendment.schemas.added as JsonObject),
     );
     expect(v110).toMatchObject({
@@ -198,9 +199,23 @@ describe('JSON Schema bundle parity (the 284 frozen schemas + 2 of TB-SCHEMA-API
       minProperties: 0,
       descriptions: 1,
     });
+    // v1.3.0: only the {data, meta} envelope of the unchanged ValidationRun.
+    expect(v130).toMatchObject({
+      refs: 2,
+      arrayBounds: 0,
+      strictObjects: 1,
+      stringBounds: 0,
+      nullableUnions: 0,
+      formats: 0,
+      oneOf: 0,
+      minProperties: 0,
+      descriptions: 0,
+      enums: 0,
+      consts: 0,
+    });
     const addedTotals = total(addedSchemas as JsonObject);
     for (const [key, count] of Object.entries(addedTotals)) {
-      expect(count, key).toBe((v110?.[key] ?? 0) + (v120?.[key] ?? 0));
+      expect(count, key).toBe((v110?.[key] ?? 0) + (v120?.[key] ?? 0) + (v130?.[key] ?? 0));
     }
     const everything = total(generatedDefs);
     for (const [key, count] of Object.entries(everything)) {
@@ -269,7 +284,7 @@ const methodsOf = (doc: JsonObject) =>
     })),
   );
 
-describe('OpenAPI parity (the 141 frozen operations + getCaseAuthoritySelection of v1.1.0 + getCaseFactSources of v1.2.0)', () => {
+describe('OpenAPI parity (the 141 frozen operations + getCaseAuthoritySelection of v1.1.0 + getCaseFactSources of v1.2.0 + getValidationRun of v1.3.0)', () => {
   it('serializes byte-identically to the release baseline (the frozen openapi.json + the amendments) and is deep-equal', () => {
     expect(JSON.stringify(frozenOpenApi, null, 2) === frozenOpenApiRaw).toBe(true);
     expect(JSON.stringify(openApi, null, 2) === JSON.stringify(baseline.openApi, null, 2)).toBe(
@@ -278,7 +293,7 @@ describe('OpenAPI parity (the 141 frozen operations + getCaseAuthoritySelection 
     expect(isDeepStrictEqual(openApi, baseline.openApi)).toBe(true);
   });
 
-  it('keeps OpenAPI 3.1.1, the loopback server URL, info (version 1.2.0), tags, security and components', () => {
+  it('keeps OpenAPI 3.1.1, the loopback server URL, info (version 1.3.0), tags, security and components', () => {
     expect(openApi['openapi']).toBe('3.1.1');
     expect(openApi['servers']).toEqual([
       {
@@ -290,7 +305,7 @@ describe('OpenAPI parity (the 141 frozen operations + getCaseAuthoritySelection 
       ...(frozenOpenApi['info'] as JsonObject),
       version: amendments.at(-1)?.openApiInfoVersion.to,
     });
-    // The document version moves once per release: 1.0.0 → 1.1.0 → 1.2.0.
+    // The document version moves once per release: 1.0.0 → 1.1.0 → 1.2.0 → 1.3.0.
     expect(
       amendments.map((amendment) => [
         amendment.openApiInfoVersion.from,
@@ -299,6 +314,7 @@ describe('OpenAPI parity (the 141 frozen operations + getCaseAuthoritySelection 
     ).toEqual([
       [(frozenOpenApi['info'] as JsonObject)['version'], '1.1.0'],
       ['1.1.0', '1.2.0'],
+      ['1.2.0', '1.3.0'],
     ]);
     for (const key of ['tags', 'security']) expect(openApi[key], key).toEqual(frozenOpenApi[key]);
     const components = openApi['components'] as JsonObject;
@@ -320,17 +336,18 @@ describe('OpenAPI parity (the 141 frozen operations + getCaseAuthoritySelection 
   const frozenOps = methodsOf(frozenOpenApi);
   const generatedOps = new Map(methodsOf(openApi).map((o) => [`${o.method} ${o.route}`, o.op]));
 
-  it('keeps the 141 frozen method/path pairs; 143 operations with unique operationIds', () => {
+  it('keeps the 141 frozen method/path pairs; 144 operations with unique operationIds', () => {
     expect(frozenOps).toHaveLength(141);
-    expect(generatedOps.size).toBe(143);
-    expect(operations).toHaveLength(143);
-    expect(new Set(operations.map((o) => o.operationId)).size).toBe(143);
+    expect(generatedOps.size).toBe(144);
+    expect(operations).toHaveLength(144);
+    expect(new Set(operations.map((o) => o.operationId)).size).toBe(144);
     const added = [...generatedOps.keys()].filter(
       (key) => !frozenOps.some((o) => `${o.method} ${o.route}` === key),
     );
     expect(added).toEqual([
       'get /cases/{caseId}/authority-selections/{id}',
       'get /cases/{caseId}/facts/{id}/sources',
+      'get /validation-runs/{id}',
     ]);
     for (const [index, amendment] of amendments.entries()) {
       const route = (added[index] as string).replace(/^get /, '');

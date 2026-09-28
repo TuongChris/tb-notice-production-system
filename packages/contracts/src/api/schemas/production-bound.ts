@@ -8,6 +8,8 @@
 // After the Zod-first transition is accepted (ADR-0002) this file is editable active source; the
 // port is provenance only and must not be re-run over it. Build wire schemas with the `tb`
 // builders only — the JSON Schema/OpenAPI lowering rejects anything else.
+// Amended additively by TB-SCHEMA-API-v1.3.0 (ADR-0006, docs/contracts/TB-SCHEMA-API-v1.3.0):
+// GetValidationRunResponse.
 
 import type { z } from 'zod';
 import { tb } from '../../primitives/wire.js';
@@ -96,3 +98,12 @@ export const ValidateCandidateResponseSchema = tb.object({
   meta: ResponseMetaSchema,
 });
 export type ValidateCandidateResponse = z.infer<typeof ValidateCandidateResponseSchema>;
+
+// TB-SCHEMA-API-v1.3.0 (ADR-0006, additive): the read-back of one stored ValidationRun, in the
+// {data, meta} envelope of every get. The run is the unchanged v1.0.0 ValidationRun exactly as it
+// was recorded — nothing re-evaluated, rebuilt or current.
+export const GetValidationRunResponseSchema = tb.object({
+  data: ValidationRunSchema,
+  meta: ResponseMetaSchema,
+});
+export type GetValidationRunResponse = z.infer<typeof GetValidationRunResponseSchema>;

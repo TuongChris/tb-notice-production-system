@@ -12,6 +12,15 @@
 // recorded as sent is 422 PRIOR_BINDING_NOT_AS_SENT (a message's direction never makes one), and a
 // corrected binding is 409 BINDING_ALREADY_SUPERSEDED naming its correction — which is never used
 // in its place.
+//
+// Every source the context lists is one its records cite (context-sources.ts sourceCitations), and
+// each was checked when its citing record was written against that record's own target — a mandate
+// version's and a whole-mandate event's sources and a captured message's sources against an agency
+// only. Here every listed source is checked again against THIS case as the snapshot reads it — its
+// agency, case scope, bound legal subject and owner (currentSourceApplicability, plain reads) — and
+// one that does not apply is reported, never dropped, rewritten or refused (R14-AUD-001 for
+// correspondence, R14-AUD-009 and R14-AUD-010 for every other citation). Nothing about the citing
+// records or the sources changes.
 import type {
   Agency,
   AuthorityEvent,
@@ -39,8 +48,15 @@ import type {
   UseMapping,
 } from '../../../generated/prisma/client.js';
 import { apiErrors } from '../../infrastructure/http/api-error.js';
+import { caseTargetWith } from '../cases/case-rules.js';
+import type { ApplicabilityProblem, SourceTarget } from '../sources/source-scope.js';
 import type { ContextReadObserver } from './context-read-observer.js';
 import type { ContextScope } from './context-scope.js';
+import {
+  currentSourceApplicability,
+  sourceCitations,
+  type SourceCitation,
+} from './context-sources.js';
 
 type Tx = Prisma.TransactionClient;
 
@@ -102,6 +118,13 @@ export interface ContextRows {
   readonly parent: CorrespondenceBinding | null;
   readonly priors: readonly CorrespondenceBinding[];
   readonly correspondence: readonly Correspondence[];
+  /** Every citation of a source by the records above (context-sources.ts order). */
+  readonly sourceCitations: readonly SourceCitation[];
+  /**
+   * Whether each source of `sources` applies to this case as read in this snapshot: one entry per
+   * source, null when it applies (R14-AUD-001, R14-AUD-009, R14-AUD-010).
+   */
+  readonly sourceApplicability: ReadonlyMap<string, ApplicabilityProblem | null>;
 }
 
 const RECORDING_ORDER = [{ createdAt: 'asc' as const }, { id: 'asc' as const }];
@@ -172,22 +195,36 @@ export async function readContextRows(
   const supports = await factSupports(tx, caseRow.id, intake.facts);
   const correspondence = await selectedCorrespondence(tx, caseRow.agencyId, bindings);
 
-  const sourceIds = distinct(
-    [
-      caseRow.canonicalBindingSourceId,
-      caseRow.packetSourceId,
-      ...supports.caseSources.map((link) => link.sourceId),
-      ...intake.mappings.map((mapping) => mapping.basisSourceId),
-      selection?.basisSourceId,
-      ...(authority === null ? [] : authoritySourceIds(authority)),
-      ...correspondence.flatMap(correspondenceSourceIds),
-    ].filter(present),
-  );
+  // The context lists exactly the sources its records cite; each citation says which record cites
+  // which source through which field.
+  const citations = sourceCitations({
+    caseRow,
+    caseSources: supports.caseSources,
+    factSources: supports.factSources,
+    mappings: intake.mappings,
+    selection,
+    versions: authority?.versions ?? [],
+    coverages: authority?.coverages ?? [],
+    coverageSigners: authority?.coverageSigners ?? [],
+    events: authority?.events ?? [],
+    correspondence,
+  });
+  const sourceIds = distinct(citations.map((citation) => citation.sourceId));
   const sources =
     sourceIds.length === 0
       ? []
       : await tx.sourceReference.findMany({ where: { id: { in: sourceIds } } });
   integrity(sources.length === sourceIds.length);
+  const target: SourceTarget =
+    route === null || ownerSubject === null
+      ? { kind: 'Case', caseId: caseRow.id, agencyId: caseRow.agencyId, route: null }
+      : caseTargetWith(caseRow, {
+          routeId: route.id,
+          agencyId: route.agencyId,
+          ownerSubjectId: ownerSubject.id,
+          ownerId: ownerSubject.ownerId,
+          legalSubjectId: ownerSubject.legalSubjectId,
+        });
 
   return {
     caseRow,
@@ -213,6 +250,8 @@ export async function readContextRows(
     parent,
     priors,
     correspondence,
+    sourceCitations: citations,
+    sourceApplicability: await currentSourceApplicability(tx, sources, target),
   };
 }
 
@@ -325,36 +364,6 @@ async function authorityChain(
     versionSuccessors,
     coverageSuccessors,
   };
-}
-
-function authoritySourceIds(authority: AuthorityRows): Array<string | null | undefined> {
-  const listed = (value: unknown): string[] =>
-    Array.isArray(value)
-      ? value
-          .map((entry) => (entry as { sourceId?: unknown }).sourceId)
-          .filter((id): id is string => typeof id === 'string')
-      : [];
-  return [
-    ...authority.versions.flatMap((version) => [
-      version.primarySourceId,
-      ...listed(version.additionalSourceRefs),
-      ...listed(version.signedDatesRaw),
-    ]),
-    ...authority.coverages.map((coverage) => coverage.basisSourceId),
-    ...authority.coverageSigners.map((row) => row.sourceId),
-    ...authority.events.map((event) => event.sourceId),
-  ];
-}
-
-function correspondenceSourceIds(row: Correspondence): Array<string | null | undefined> {
-  const attachments = Array.isArray(row.attachmentsManifest) ? row.attachmentsManifest : [];
-  return [
-    row.rawSourceId,
-    ...attachments.map((entry) => {
-      const id = (entry as { sourceId?: unknown }).sourceId;
-      return typeof id === 'string' ? id : null;
-    }),
-  ];
 }
 
 interface IntakeRows {

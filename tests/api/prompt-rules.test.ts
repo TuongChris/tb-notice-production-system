@@ -134,10 +134,14 @@ describe('the synthetic fixtures — contract-valid contexts of one case', () =>
 describe('renderPrompt — deterministic (TB-PROMPT-TEMPLATE-v1)', () => {
   it('pins the rendered bytes of each fixture: any change to the rendered text needs a new template identifier', () => {
     expect(PROMPT_TEMPLATE_VERSION).toBe('TB-PROMPT-TEMPLATE-v1');
+    // The bytes were pinned with the wire-contract identifier of their time. The header names the
+    // caller's release (a later release changes that one line of a new prompt, below), so the
+    // template itself is pinned with that identifier, independent of the active release.
+    const pinned = (view: ContextView) => renderPrompt(view, 'TB-SCHEMA-API-v1.2.0');
     expect({
-      initial: exactTextSha256(render(initial)),
-      reply: exactTextSha256(render(reply)),
-      replyDrafting: exactTextSha256(render(replyDrafting)),
+      initial: exactTextSha256(pinned(initial)),
+      reply: exactTextSha256(pinned(reply)),
+      replyDrafting: exactTextSha256(pinned(replyDrafting)),
     }).toEqual({
       initial: '8f048cb5f5e6512f467e079723f3329dd8318721f97be41c185268014fc6330d',
       reply: 'ab136ce391b7ab883671bbf9d13593f7f02bb94c436ee4fd84e1742f81979678',
@@ -177,7 +181,7 @@ describe('renderPrompt — deterministic (TB-PROMPT-TEMPLATE-v1)', () => {
     expect(lines.slice(0, 11)).toEqual([
       'TB NOTICE PRODUCTION SYSTEM — PROMPT',
       'Template: TB-PROMPT-TEMPLATE-v1',
-      'Wire contract: TB-SCHEMA-API-v1.2.0',
+      'Wire contract: TB-SCHEMA-API-v1.3.0',
       'Context schema: PFC-YT-EMAIL-v1.1',
       'Task: NMI_REPLY',
       'Mode: PREPARATION',

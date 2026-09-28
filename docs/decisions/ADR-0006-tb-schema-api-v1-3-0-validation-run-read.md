@@ -1,0 +1,166 @@
+# ADR-0006 — TB-SCHEMA-API-v1.3.0: additive read of one stored ValidationRun
+
+Status: **ACCEPTED** with documented qualification — operator, 2026-09-28, at review gate **R14 final**, whose result is **PASS** (mission TB_R14_FINAL_ACCEPTANCE_CLOSEOUT_AND_MERGE), on the recommendation of the independent Astra review of the exact head `c889e63d868b524909882e5e4c0a61620ee86c20`. **TB-SCHEMA-API-v1.3.0 is the active wire contract**; TB-SCHEMA-API-v1.0.0 stays the frozen historical reference. The qualification: this ADR accepts only the additive historical ValidationRun read `GET /validation-runs/{id}` and the TB-SCHEMA-API-v1.3.0 wire release. It does not define the production-context digest semantics; those are governed separately by ADR-0007 (Acceptance, at the end). The same mission authorizes the merge of `feature/r14-validation-run-readback`, which generates v1.3.0, into `main`. Proposed 2026-09-26 with the R14 remediation (mission TB_R14_POST_MERGE_RECONCILE_AND_VALIDATION_RUN_READBACK_REMEDIATION_TO_R14_FINAL), for the operator's review at gate R14 final. **Revised before acceptance** on 2026-09-27 by mission TB_R14_ASTRA_BLOCKER_REMEDIATION for the independent Astra audit finding R14-AUD-003 (a technical-ruleset identity conflict, not a wire defect): Decision §4, §5 and the new §8, and the Consequences. The wire release itself is unchanged by that revision. The change itself was directed by the operator in the R14 review result (PASS_WITH_ONE_CONTRACT_REMEDIATION). That result confirms observation V13 as a contract read-back gap and names the path, the preferred operationId, the response shape, the release identifier and this ADR's number. **Cross-referenced** on 2026-09-28 by mission TB_R14_ASTRA_AUD013_SEMANTIC_DIGEST_REMEDIATION for the Astra re-audit finding R14-AUD-013: the production-context digest definition is a separate decision, ADR-0007 (accepted at the same gate; `TB-PRODUCTION-CONTEXT-DIGEST-v2`). This ADR's decision is unchanged, and v1.3.0 remains the additive, historical read of one stored ValidationRun; only §8 and the Consequences carry a dated qualification.
+Acceptance boundary: an engineering contract change only. It creates no legal or factual authority, no finding, no review, no G1–G7 decision and no readiness implication.
+Scope: `packages/contracts/src/**` (one schema, one operation, the document version, the release constant), the generated artifacts `packages/contracts/{schemas,openapi}/**`, the release record `docs/contracts/TB-SCHEMA-API-v1.3.0/`, the parity tests `tests/contracts/**`, and the API/UI that implement the read.
+Related: ADR-0002 §6 (an intentional wire change needs a new approved baseline: release + ADR), ADR-0004 and ADR-0005 (the releases this one extends and the pattern it follows), API_CONTRACT_v1 §6 (ETags for mutable resources only) and §11 ("Full bodies/manifests are fetched through detail endpoints"), P4G report §29–§30 (V13, the gap).
+Verification: P4G report §35 — implemented on `feature/r14-validation-run-readback` (code head `31df6d7`); tests, browser pass, negative controls, regression sweep and CI recorded there and in `docs/verification/p4g/evidence/r14-*`; the R14 result and the P4G merge in §34. The Astra-audit remediation (R14-AUD-001, -003, -004, -008): P4G report §36 and `docs/verification/p4g/evidence/r14-astra-*`. R14-AUD-013 (the digest definition): ADR-0007 and P4G report §38. R14 final acceptance: P4G report §39.
+
+## Context
+
+- **What P4G writes.** `validateCandidate` stores one `ValidationRun` row per run, in one transaction with its `ValidationIssue` rows:
+  - the exact `artifactSha256` and `dependencyDigest` it evaluated;
+  - the `dependencyManifest` and `evaluatedContextJson` (JSON columns);
+  - `rulesetVersion` and `result`;
+  - the `coverageManifest`: `requiredRuleIds`, `executedRuleIds`, `notExecutedRuleIds` and `semanticReviewRequired` (always true);
+  - the issue counts, `startedAt`, `completedAt`, `createdAt` and `createdById`.
+- **Root cause.** TB-SCHEMA-API-v1.0.0 (and v1.1.0, v1.2.0) define `ValidationRun` but return it only in the `201` (and replay) response of `validateCandidate`.
+  - `listValidationRuns` returns `ValidationRunSummary`. That is correct: the summary DTO carries no context, manifest or coverage (API_CONTRACT_v1 §11).
+  - `listValidationIssues` returns only the issues.
+  - API_CONTRACT_v1 §11 says full manifests are fetched through detail endpoints, but the frozen endpoint matrix has none for validation runs.
+  - So after a reload the product cannot read back which rules were required, executed and not executed, that semantic review is required, which dependencies were evaluated, or the context as evaluated. The rows are correct in the database, but the historical technical record is incomplete on the wire.
+  - The operator confirmed this at R14 as V13.
+- **Excluded workarounds.** Parsing AuditEvents (they keep counts and the not-executed ids only), client-side remembered POST responses, querying the database from the UI, uncontracted fields in the summary or the issue list, and rebuilding a run from the current context or by re-running the ruleset.
+- **Gate.** ADR-0002 §6, ADR-0004 §7 and ADR-0005 §7: an intentional wire change needs a new approved release + ADR.
+  - The accepted v1.1.0 and v1.2.0 records (`docs/contracts/TB-SCHEMA-API-v1.1.0/amendment.json`, `docs/contracts/TB-SCHEMA-API-v1.2.0/amendment.json`) are never edited.
+  - The frozen v1.0.0 pack (`docs/reference/**`) is never edited.
+
+## Decision
+
+1. **New release `TB-SCHEMA-API-v1.3.0`** (semantic minor: additive only).
+   - It consists of TB-SCHEMA-API-v1.2.0, unchanged (the frozen v1.0.0 reference plus the ADR-0004 and ADR-0005 amendments), plus one reviewed amendment: `docs/contracts/TB-SCHEMA-API-v1.3.0/amendment.json` (sha256 `6b74c09aba024dcf8cb2e0a0c6e374bbce17b45298d2aec83cc2e3ab166a1630`), described in `README.md` there.
+   - The record identifies its base by the v1.2.0 record's digest (`b5cae658…c294`) and the digests of the v1.2.0 documents, and records only its own delta.
+   - The generated artifacts (`api-schemas.json`, `openapi.json`, `openapi.yaml`) are the release's documents.
+2. **The amendment (exact).**
+   - **Operation `getValidationRun`** — `GET /validation-runs/{id}`:
+     - tag `Validation`; path parameter `id` (uuid, 36 characters); no query parameter;
+     - `200` `GetValidationRunResponse`; errors 400/401/403/404/409/413/422/429/500 (those of `getCandidate` and `getPrompt`);
+     - security: the session cookie; `x-precondition-target: null`, `x-idempotent-write: false`; no request body.
+   - **Schema `GetValidationRunResponse`** = `{ data: ValidationRun, meta: ResponseMeta }`, strict (unknown keys rejected).
+     - It is the envelope convention of every read: in v1.2.0 each of the 134 operations with a response body has its own `<OperationId>Response`, and no response schema is shared between operations.
+     - It references only the unchanged v1.0.0 `ValidationRun` and `ResponseMeta`, and is the same shape as `ValidateCandidateResponse`, the `201` body of the run's own write.
+     - No new semantic schema is added: `ValidationRun` is reused exactly.
+   - **Document:** OpenAPI `info.version` 1.2.0 → 1.3.0.
+   - **Placement:** the schema follows `ListValidationRunsResponse`; the path follows `/candidates/{candidateId}/validation-runs`; the operation follows `listValidationRuns` and precedes `listValidationIssues`.
+3. **Naming** is the mission's and follows the contract's conventions:
+   - `getValidationRun` is a `get*` by id, like `getPrompt` and `getCandidate`; it returns one record, not a page.
+   - `/validation-runs/{id}` is the collection the frozen `/validation-runs/{id}/issues` already addresses by the run's id.
+   - `GetValidationRunResponse` follows the per-operation envelope convention above.
+4. **Semantics.**
+   - **What it returns.**
+     - The run is found only by its id.
+     - The response is exactly the stored row as the wire `ValidationRun`, every field unchanged: `id`, `candidateId`, `caseId`, `artifactSha256`, `dependencyDigest`, `dependencyManifest`, `evaluatedContextJson`, `rulesetVersion`, `result`, `coverageManifest`, `blockerCount`, `reviewRequiredCount`, `warningCount`, `startedAt`, `completedAt`, `createdAt`, `createdById`.
+     - It is the same mapping as the run's `201` and replay responses.
+   - **Historical only: nothing is evaluated again.** The read never:
+     - runs a technical ruleset (TB-TECHNICAL-RULESET-v1, TB-TECHNICAL-RULESET-v2 or any other) or recomputes the result, the coverage or the counts;
+     - rebuilds the current production context or makes a freshness decision;
+     - follows a newer authority record or source revision;
+     - replaces the stored digest;
+     - hides a not-executed rule;
+     - derives readiness.
+
+     A later change to the case, its sources, its authority records or the candidate (its supersession included) never alters a stored run: a present-day evaluation is a new run.
+   - **What a result means is unchanged.** TECHNICAL_PASS means only: "The configured technical rules executed and found no technical blocker or review-required technical issue under the recorded ruleset."
+     - It is never G1–G6, legal approval, proven ownership or permission, valid authority, signer eligibility, READY_FOR_SIGNER, a signature or permission to send.
+     - `coverageManifest.semanticReviewRequired` is returned as stored; the frozen `CoverageManifest` makes it the constant `true`.
+   - **Issues** are not embedded. They stay with `listValidationIssues`, which is unchanged; a page combines the two reads.
+   - **Scope.**
+     - Global by id, like `getPrompt` and `getCandidate` (R13 decision 12). An unknown id is `404 NOT_FOUND`.
+     - Session-protected: without a session it is `401`, and nothing is read.
+     - No case data is copied between runs or cases. The case pages keep case isolation and list only the runs of the candidate they show.
+   - **Read only.**
+     - No body, no ETag (a run is immutable; API_CONTRACT_v1 §6 gives ETags to mutable resources only), no If-Match and no Idempotency-Key.
+     - No write, audit event or idempotency record. The authenticated session's activity touch (P1 global behaviour) is not a change to any run.
+   - **Integrity.** The stored JSON columns are returned as stored; nothing is repaired or normalized.
+5. **Unchanged.**
+   - All 288 schemas and 143 operations of v1.2.0 stay byte-identical and in their order, and so all of v1.1.0 and v1.0.0 do. This includes `ValidationRun`, `ValidationRunSummary`, `CoverageManifest`, `ValidateCandidateResponse` and the three P4G operations, so a strict v1.0.0–v1.2.0 client keeps validating every existing response.
+   - `$id` stays `urn:tb:api-contract:v1`. OpenAPI 3.1.1, servers, tags, security, shared parameters and responses are unchanged.
+   - `PFC-YT-EMAIL-v1.1` is unchanged.
+   - The wire release changes no technical rule: no rule's meaning, kind, severity, vocabulary or inventory is part of it. The ruleset identity is a separate implementation matter (§8): new validations run `TB-TECHNICAL-RULESET-v2`, and runs recorded as `TB-TECHNICAL-RULESET-v1` are read back exactly as recorded. (As first proposed this line read "`TB-TECHNICAL-RULESET-v1` is unchanged"; the Astra audit showed v1's effective behaviour did change with the release — §8.)
+   - `AppMeta.schemaRelease` is unchanged: the unrouted `GET /meta` constant `'TB-SCHEMA-API-v1.0.0'`, kept as recorded (ADR-0004, ADR-0005).
+   - The database schema is unchanged (no migration: the run's columns exist since the initial migration).
+   - These files are byte-identical:
+     - the v1.1.0 release folder: `amendment.json` sha256 `2f4df697…`, `README.md` `4856068f…`;
+     - the v1.2.0 release folder: `amendment.json` `b5cae658…`, `README.md` `f18e69d0…`;
+     - ADR-0004 (`1c8061c4…`) and ADR-0005 (`f40a8c81…`). Their statements are as of their acceptance.
+6. **Generation and parity procedure** (the v1.3.0 form of the ADR-0002 §6 gate).
+   - **Workflow (as before).** Only `packages/contracts/src/**` is edited; `yarn contracts:generate` writes the artifacts and `yarn contracts:check` detects drift.
+   - **The composition.** `tests/contracts/release.ts` composes a release from the frozen v1.0.0 JSON files and the amendments in release order; each amendment must name the previous release as its base.
+   - **What `yarn test` requires** (`tests/contracts/release-v1-3-0.test.ts`, `release-v1-2-0.test.ts`, `release-v1-1-0.test.ts`, `inventory-openapi.test.ts`, `runtime-parity.test.ts`):
+     - the v1.3.0 amendment digest and its base identity (the v1.2.0 record digest and the v1.2.0 documents' digests);
+     - the v1.2.0 and v1.1.0 documents (JSON Schema, OpenAPI JSON and YAML) reproduced from their compositions to the digests recorded at their acceptance;
+     - byte-identity of the generated JSON Schema bundle and OpenAPI JSON with "frozen + v1.1.0 + v1.2.0 + v1.3.0";
+     - the committed artifacts, YAML included, equal to the rendered release, with the v1.3.0 digests;
+     - the itemized inventory of each of the 284 frozen schemas against the frozen reference, and of each of the 5 additions against its own amendment;
+     - each of the 141 frozen, 142 v1.1.0 and 143 v1.2.0 operations unchanged and in order;
+     - three-way runtime parity (baseline Ajv, generated Ajv, Zod) for all 289 schemas, plus the 31 frozen fixtures against the frozen bundle itself.
+   - **The frozen pack.** `yarn reference:check` verifies the v1.0.0 pack exactly as before.
+7. **Later changes.** A later wire change is a new release with its own record and ADR. Once accepted, this amendment record is never edited; its digest is pinned in `tests/contracts/release-v1-3-0.test.ts`.
+8. **Technical ruleset identity (Astra R14-AUD-003; added before acceptance).**
+   - **Finding.** `TB-TECHNICAL-RULESET-v1` built part of `MARKER.INTERNAL_IDENTIFIERS`' vocabulary from `CONTRACT_BASELINE`. When this release moved that constant from TB-SCHEMA-API-v1.2.0 to v1.3.0, v1 stopped detecting the literal `TB-SCHEMA-API-v1.2.0` and detected `TB-SCHEMA-API-v1.3.0` instead: its effective behaviour changed under the same ruleset identity, contrary to the ruleset's own rule that any change to a rule's meaning needs a new identifier. The wire delta of this release was not affected.
+   - **Decision.** New validations record **`TB-TECHNICAL-RULESET-v2`**: v1's 29 rules, kinds, severities, order and aggregation unchanged, with `MARKER.INTERNAL_IDENTIFIERS`' identifier strings written out in the ruleset — `TB-PROMPT-TEMPLATE-v1`, `TB-CANDIDATE-ARTIFACT-v1`, `TB-PRODUCTION-CONTEXT-DIGEST-v1`, `TB-TECHNICAL-RULESET-v1`, `TB-TECHNICAL-RULESET-v2`, `TB-SCHEMA-API-v1.2.0`, `TB-SCHEMA-API-v1.3.0`, `PFC-YT-EMAIL-v1.1` (every string v1 detected under the accepted v1.2.0 state, plus the v1.3.0 release and v2's own identifier). No rule reads `CONTRACT_BASELINE` or any value that follows the active release, so the identifier alone reproduces the vocabulary; a later release or identifier needs a new ruleset version (a unit test fails when an identifier the application uses is missing from the pinned list), never a silent change of v2. *(Qualified 2026-09-28, R14-AUD-013, by operator decision: one named exception. The digest-definition identifier `TB-PRODUCTION-CONTEXT-DIGEST-v2` of ADR-0007 is outside v2's vocabulary, which stays exactly as listed above. The unit test pins that exception, and any other new identifier still fails it. A ruleset that detects the new identifier needs a new ruleset version; that is backlog.)*
+   - **History.** Every run recorded as `TB-TECHNICAL-RULESET-v1` stays exactly as stored: `getValidationRun`, `listValidationRuns` and an idempotent replay return it as v1; nothing is relabelled, re-executed or rewritten. A present-day evaluation is a new run under v2.
+   - **Not a wire release.** `rulesetVersion` is the existing free string (at most 80 characters) of the unchanged `ValidationRun`; no schema, operation, parameter or amendment changes, and `docs/contracts/TB-SCHEMA-API-v1.3.0/amendment.json` stays sha256 `6b74c09a…1630`. No database change.
+   - **Three separate identifiers.** Wire release: `TB-SCHEMA-API-v1.3.0`. Technical ruleset of new validations: `TB-TECHNICAL-RULESET-v2`. Production form: `PFC-YT-EMAIL-v1.1` (unchanged). Each has its own meaning; none is a legal approval, a policy certification or a G1–G6 review.
+
+## Consequences
+
+- **Compatibility: additive only.**
+  - No existing operation, path, parameter, schema, required field, enum, format, status code, header, security requirement or error code changed.
+  - v1.0.0–v1.2.0 clients keep working unchanged.
+  - The new capability is one additional read.
+- **The API routes 134 business operations** (P4G's 133 plus this read); every later case operation stays unrouted.
+- **Release constants.** `@tb/contracts` exports `CONTRACT_BASELINE = 'TB-SCHEMA-API-v1.3.0'` and `FROZEN_REFERENCE_RELEASE = 'TB-SCHEMA-API-v1.0.0'`.
+- **Identifiers that follow the active release** (by the accepted P4D, P4E and P4G designs, unchanged here). Listed for the operator's review, and accepted with this ADR at R14 final:
+  - **The P4D dependency digest names the active contract.** TB-PRODUCTION-CONTEXT-DIGEST-v1 hashes `contract: CONTRACT_BASELINE` with the PFC identifier, the scope and the closure. The same unchanged context therefore has another digest when read under v1.3.0 than under v1.2.0. No stored digest (prompt snapshot, validation run) is rewritten. *(Qualified 2026-09-28, R14-AUD-013: the definition is now TB-PRODUCTION-CONTEXT-DIGEST-v2 (ADR-0007). It is the same preimage under a new identifier, because the context's semantics changed while the stored inputs did not. The API contract version remains part of the preimage, and the coupling described here is unchanged. The wire release does not version the context semantics; ADR-0007 does. Neither ADR implies legal approval, a G1–G7 decision or readiness.)*
+  - **Prompts name the active release.** A new prompt snapshot records `contractVersion` TB-SCHEMA-API-v1.3.0, and its header line reads "Wire contract: TB-SCHEMA-API-v1.3.0". TB-PROMPT-TEMPLATE-v1 is unchanged: its bytes for a given contract argument are pinned exactly as before (the pin now names its identifier explicitly). A stored snapshot keeps its text: "a later release never rewrites an old snapshot's text" (P4E).
+  - **Validating a candidate drafted from an earlier-release prompt** reports the release change, as P4G's `CONTEXT.PROMPT_DRIFT` was designed to do. When every record is unchanged, the rule reports one REVIEW_REQUIRED issue ("the digest's contract or context-schema identifiers differ", change `IDENTIFIERS`), so such a run is REVIEW_REQUIRED rather than TECHNICAL_PASS. The rule itself is unchanged, and this conservative coupling (a contract release gives a new dependency digest) is kept.
+    - **REVIEW_REQUIRED is not a mandatory re-draft.** It asks a person to review that the recorded context differs only by version identifiers. By itself it does not mean that the candidate's content is wrong, that it must be redrafted, or that owner facts, authority or rights changed. Whether unchanged bytes may continue under a new release is for a future authorized review or rebinding policy; none exists or is implemented here, and the old digest is never reused or restored.
+  - **`MARKER.INTERNAL_IDENTIFIERS` does not follow the active release** (§8): `TB-TECHNICAL-RULESET-v2` pins its identifier strings, which contain both `TB-SCHEMA-API-v1.2.0` and `TB-SCHEMA-API-v1.3.0`. (As first proposed this item said the rule scans the active contract identifier; that was the defect of §8.)
+- **Transition check.** `yarn test:transition-baseline` keeps failing by design, as it has since the v1.1.0 edit. It is a historical oracle, not a gate, and is never "fixed".
+- **`AppMeta.schemaRelease`** stays open exactly as recorded in ADR-0004.
+- **The release record is fixed once accepted.** From R14 final acceptance, `docs/contracts/TB-SCHEMA-API-v1.3.0/amendment.json` (sha256 `6b74c09a…1630`) is a reviewed, pinned release record and is never edited; the same holds for the v1.1.0 and v1.2.0 records.
+
+## Alternatives considered
+
+- **Add the manifests and the coverage to `ValidationRunSummary` or to `listValidationRuns`.**
+  - This changes existing schemas, which strict v1.0.0–v1.2.0 validators would reject.
+  - It also breaks the summary-DTO rule of API_CONTRACT_v1 §11.
+  
+  Rejected.
+- **Embed the issues in the read (`{ run, issues }`).**
+  - It duplicates `listValidationIssues`, whose issues are paged and unbounded in number, and grows the response without bound.
+  - The mission excludes it: the detail read does not embed issue rows.
+  
+  Rejected.
+- **A candidate- or case-scoped path** (`/candidates/{candidateId}/validation-runs/{id}`, `/cases/{caseId}/…`). The frozen contract already addresses a run globally by its id (`/validation-runs/{id}/issues`), as `getPrompt` and `getCandidate` do, and the mission prefers `/validation-runs/{id}`. Rejected.
+- **A new view schema** (`ValidationRunView`, `ValidationRunDetail`). It would duplicate `ValidationRun` into a second semantic schema; the mission excludes it. Rejected.
+- **Annotate the read with present-day state** (a current digest, a "stale" or "current" flag, a re-evaluated result).
+  - That is present-day state, not the stored record.
+  - Freshness is decided only by recording a new run, against a new read of the current context.
+  
+  Rejected.
+- **AuditEvent parsing, client-remembered POST responses or database queries from the UI.** Excluded by the mission.
+- **Keep `TB-TECHNICAL-RULESET-v1` and pin its vocabulary** (to the v1.2.0 state, or to v1.3.0). Either way one identifier would name two behaviours — the one recorded on `main` and the one recorded on the remediation branch — and pinning to one release would drop the other release's identifier from the check. Rejected for a new identifier, v2 (§8). A separately versioned identifier policy for the vocabulary may be designed and approved later; it is not introduced here.
+- **Keep `CONTRACT_BASELINE` at v1.2.0 while serving v1.3.0**, or give the digest its own contract identifier.
+  - The first would make digests, prompts and snapshots name a release that lacks an operation the server serves.
+  - The second would change the accepted P4D digest definition.
+  
+  Rejected; the identifiers follow the active release as designed (Consequences).
+- **A full copy of the v1.3.0 artifacts as another frozen pack.** Rejected for the reasons in ADR-0004.
+
+## Acceptance (R14 final, 2026-09-28)
+
+- **Result.** R14 final = **PASS** (operator, 2026-09-28; mission TB_R14_FINAL_ACCEPTANCE_CLOSEOUT_AND_MERGE), on the recommendation of the independent Astra review of the exact head `c889e63d868b524909882e5e4c0a61620ee86c20`. V13's remediation is accepted.
+- **What is accepted: the documented qualification.** This ADR accepts only:
+  - the additive historical ValidationRun read `GET /validation-runs/{id}` (`getValidationRun`, `GetValidationRunResponse`; Decisions 2–4);
+  - the TB-SCHEMA-API-v1.3.0 wire release (Decisions 1 and 5–7).
+
+  §8 (the technical-ruleset identity) and the Consequences are accepted as recorded. This ADR does not define the production-context digest semantics. Those are governed separately by ADR-0007, accepted at the same gate (`TB-PRODUCTION-CONTEXT-DIGEST-v2`).
+- **Active identifiers.**
+  - Wire contract `TB-SCHEMA-API-v1.3.0` (active); frozen historical reference `TB-SCHEMA-API-v1.0.0`.
+  - `PFC-YT-EMAIL-v1.1` unchanged.
+  - Technical ruleset of new validations `TB-TECHNICAL-RULESET-v2`.
+  - `AppMeta.schemaRelease` stays as recorded (ADR-0004).
+- **The release record.** `docs/contracts/TB-SCHEMA-API-v1.3.0/amendment.json` is byte-identical to the proposed record, sha256 `6b74c09aba024dcf8cb2e0a0c6e374bbce17b45298d2aec83cc2e3ab166a1630`, measured at acceptance. It is pinned and never edited. The v1.1.0 and v1.2.0 records, ADR-0004 and ADR-0005 stay byte-identical as §5 lists them.
+- **Boundary.** A bounded technical acceptance of a contract release: not whole-repository assurance, legal approval, real-case authorization, a G1–G6 substantive assessment, G7 (the human review, adoption, signature and sending outside the application) or permission to send. CandidateAssessment stays NOT_STARTED, on hold for R14-AUD-005 and -006.

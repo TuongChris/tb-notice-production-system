@@ -1,0 +1,62 @@
+R14-AUD-004 — supplemental disposable-database check of the ui:sandbox ownership fix (mission TB_R14_ASTRA_BLOCKER_REMEDIATION §28),
+home PC, 2026-09-27 (UTC)
+==================================================================================================================
+Not the primary safety proof: that is the stand-in-connection tooling test tests/tooling/ui-sandbox-lifecycle.test.ts
+(8 tests; no database). This additional check runs the real script once against the disposable tb_notice_test with one
+synthetic row that the run did not create, after the fix (committed head 2117fba), before any browser session:
+  1. one disabled, non-credential synthetic user row (password_hash '!', @example.invalid) inserted by a scratchpad script
+     through the repository's allowlist guard (tooling account, tb_notice_test only);
+  2. `yarn ui:sandbox --password-file <scratchpad>` — expected: the empty-start check refuses, the cleanup stays disarmed,
+     no UPDATE or DELETE is issued, no user is created and no password file is written;
+  3. the row read back unchanged;
+  4. the synthetic row removed by the same scratchpad script (this check's own cleanup), then
+     `yarn db:verify test --expect-empty`.
+Before the fix, step 2 would have run the cleanup (15 pointer UPDATEs and a DELETE of every sandbox table, users included)
+after the refusal (finding R14-AUD-004); that path was not executed here.
+
+Log (the [ui:sandbox] lines of the run; nothing else omitted):
+# supplemental R14-AUD-004 check — 2026-09-27T03:04:43Z — HEAD 2117fbae2c59ae78a8ad27bd6a4e554fdf8aa338
+## 1. one synthetic row inserted into tb_notice_test (tooling account, allowlist guard)
+{
+ "action": "insert",
+ "users": [
+  {
+   "id": "00000000-0000-4000-8000-00000000a004",
+   "email": "aud004-preexisting@example.invalid",
+   "display_name": "SYNTHETIC pre-existing row (R14-AUD-004 check)",
+   "password_hash": "!",
+   "enabled": 0,
+   "created_at": "2026-09-27 00:00:00.000"
+  }
+ ]
+}
+## 2. yarn ui:sandbox (must refuse; cleanup must stay disarmed)
+[ui:sandbox] database target: tb_migrate@127.0.0.1:3307/tb_notice_test
+[ui:sandbox] building (yarn build)…
+[ui:sandbox] FAIL tb_notice_test is not empty before start (users=1); refusing
+[ui:sandbox] stopping…
+[ui:sandbox] cleanup not armed: this run never verified an empty tb_notice_test, so no row was updated or deleted
+ui:sandbox exit: 1
+password file written: no
+## 3. the row after the refused start
+{
+ "action": "check",
+ "users": [
+  {
+   "id": "00000000-0000-4000-8000-00000000a004",
+   "email": "aud004-preexisting@example.invalid",
+   "display_name": "SYNTHETIC pre-existing row (R14-AUD-004 check)",
+   "password_hash": "!",
+   "enabled": 0,
+   "created_at": "2026-09-27 00:00:00.000"
+  }
+ ]
+}
+## 4. the synthetic row removed by this check
+{
+ "action": "delete",
+ "users": []
+}
+## 5. yarn db:verify test --expect-empty
+[verify] domain rows total: 0
+[verify] PASS: metadata matches the reviewed inventory.

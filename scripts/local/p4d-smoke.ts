@@ -18,7 +18,9 @@
 //   INITIAL + PREPARATION without a selection (gaps listed, nothing filled in) → with the selection
 //   (the exact pinned chain; facts and supports as recorded; MISSING and CONFLICT kept) → the same
 //   read again (identical, same digest) → INITIAL + DRAFTING → NMI_REPLY + DRAFTING with the
-//   explicit parent and prior (posture kept) → the route's default signer and preferred coverage
+//   explicit parent and prior (posture kept) → the digests of these four reads are
+//   TB-PRODUCTION-CONTEXT-DIGEST-v2 of their closure and scope, rebuilt with the frozen helper, never
+//   the v1 value (R14-AUD-013) → the route's default signer and preferred coverage
 //   set: context and digest unchanged → a later authority event: included, digest changed, case
 //   unchanged → expected refusals (another case's selection and binding, OUTBOUND + OTHER as a prior,
 //   a reply without its parent in DRAFTING, INITIAL with a parent, an unknown selection, no task) →
@@ -31,6 +33,7 @@ import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { connect } from 'node:net';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { createConnection } from 'mariadb';
 import { argValue, repoRoot } from '../contracts/paths.ts';
 import { assertLocalTarget } from '../db/allowlist.mjs';
@@ -127,7 +130,11 @@ type Data = { readonly id: string } & Record<string, unknown>;
 interface ContextView {
   readonly contextRevision: number;
   readonly dependencyDigest: string;
-  readonly dependencies: ReadonlyArray<{ entityType: string; entityId: string }>;
+  readonly dependencies: ReadonlyArray<{
+    entityType: string;
+    entityId: string;
+    fingerprint: string;
+  }>;
   readonly context: Record<string, unknown> & {
     readonly missing: ReadonlyArray<{ code: string }>;
     readonly conflicts: ReadonlyArray<{ code: string }>;
@@ -166,6 +173,15 @@ async function main(): Promise<void> {
   if (!existsSync(entry)) fail('compiled API missing; run yarn build first');
   if (await listening(3000)) fail('port 3000 is already in use');
   const contracts = await import('../../packages/contracts/dist/index.js');
+  // The frozen reference helper (read-only): the independent oracle of the digest definition.
+  const frozen = (await import(
+    pathToFileURL(
+      path.join(
+        repoRoot,
+        'docs/reference/database-api-v1/TB_DATABASE_SCHEMA_API_CONTRACT_v1/contracts/consistency-reference.mjs',
+      ),
+    ).href
+  )) as { canonicalSha256(value: unknown): string };
 
   api = spawn(process.execPath, [entry], { cwd: path.join(repoRoot, 'apps/api'), stdio: 'ignore' });
   api.on('exit', () => {
@@ -600,7 +616,10 @@ async function main(): Promise<void> {
   if (JSON.stringify(again) !== JSON.stringify(initial))
     fail('an unchanged read must be identical');
   pass(`repeated read identical (digest ${initial.dependencyDigest.slice(0, 12)}…)`);
-  await read('INITIAL + DRAFTING', { ...initialScope, generationMode: 'DRAFTING' });
+  const drafting = await read('INITIAL + DRAFTING', {
+    ...initialScope,
+    generationMode: 'DRAFTING',
+  });
   const reply = await read('NMI_REPLY + DRAFTING, explicit parent and prior', {
     taskType: 'NMI_REPLY',
     generationMode: 'DRAFTING',
@@ -619,6 +638,85 @@ async function main(): Promise<void> {
     fail('the reply context must hold exactly the named bindings with their posture as recorded');
   }
   pass('reply: explicit parent and prior only; OPERATOR_REPORTED kept and listed as limited');
+  // R14-AUD-013 (ADR-0007): each digest is TB-PRODUCTION-CONTEXT-DIGEST-v2 of the read's closure and
+  // request scope, rebuilt here with the frozen helper; the v1 digest of the same closure (what a
+  // deployment of the earlier definition computed) is another value.
+  const digestOf = (
+    algorithm: string,
+    view: ContextView,
+    scope: Record<string, string | null | readonly string[]>,
+  ) =>
+    frozen.canonicalSha256({
+      algorithm,
+      contract: 'TB-SCHEMA-API-v1.3.0',
+      schemaVersion: 'PFC-YT-EMAIL-v1.1',
+      scope,
+      dependencies: view.dependencies.map(({ entityType, entityId, fingerprint }) => ({
+        entityType,
+        entityId,
+        fingerprint,
+      })),
+    });
+  for (const [label, view, scope] of [
+    [
+      'INITIAL + PREPARATION, no selection named',
+      bare,
+      {
+        caseId,
+        taskType: 'INITIAL',
+        generationMode: 'PREPARATION',
+        authoritySelectionId: null,
+        parentBindingId: null,
+        priorBindingIds: [],
+      },
+    ],
+    [
+      'INITIAL + PREPARATION',
+      initial,
+      {
+        caseId,
+        taskType: 'INITIAL',
+        generationMode: 'PREPARATION',
+        authoritySelectionId: selection.data.id,
+        parentBindingId: null,
+        priorBindingIds: [],
+      },
+    ],
+    [
+      'INITIAL + DRAFTING',
+      drafting,
+      {
+        caseId,
+        taskType: 'INITIAL',
+        generationMode: 'DRAFTING',
+        authoritySelectionId: selection.data.id,
+        parentBindingId: null,
+        priorBindingIds: [],
+      },
+    ],
+    [
+      'NMI_REPLY + DRAFTING',
+      reply,
+      {
+        caseId,
+        taskType: 'NMI_REPLY',
+        generationMode: 'DRAFTING',
+        authoritySelectionId: selection.data.id,
+        parentBindingId: nmi.data.id,
+        priorBindingIds: [sent.data.id],
+      },
+    ],
+  ] as const) {
+    if (
+      view.dependencyDigest !== digestOf('TB-PRODUCTION-CONTEXT-DIGEST-v2', view, scope) ||
+      digestOf('TB-PRODUCTION-CONTEXT-DIGEST-v1', view, scope) === view.dependencyDigest
+    ) {
+      fail(`${label}: the digest must be TB-PRODUCTION-CONTEXT-DIGEST-v2 of its closure and scope`);
+    }
+  }
+  pass(
+    'R14-AUD-013: the digests of the four reads (INITIAL + PREPARATION without and with the selection, INITIAL + DRAFTING, NMI_REPLY + DRAFTING) are TB-PRODUCTION-CONTEXT-DIGEST-v2 of their closure and scope (rebuilt with the frozen helper); the v1 digest of the same closure is another value',
+  );
   await unchanged('five context reads', countsBefore);
 
   // Route defaults change nothing; a later relevant authority event changes the digest ------------

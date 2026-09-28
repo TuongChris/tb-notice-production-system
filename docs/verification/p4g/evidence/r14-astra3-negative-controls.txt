@@ -1,0 +1,158 @@
+R14 Astra re-audit remediation (R14-AUD-013) — negative controls
+(mission TB_R14_ASTRA_AUD013_SEMANTIC_DIGEST_REMEDIATION), home PC, 2026-09-28 (UTC)
+==================================================================================================================
+Method (a scratchpad harness, never committed):
+- Each control mutates exactly one protection. The mutation is an exact anchor that must occur exactly once; a control
+  may change several anchors, or two files, when the protection spans them. The control runs its responsible commands
+  and requires every one of them to FAIL with an AssertionError as its first failure — not a helper TypeError, a timeout
+  or an unrelated backstop.
+- It then restores every changed file and checks its SHA-256 against the original (byte-identical).
+- The fingerprint of the code paths (SHA-256 of `git status --porcelain=v1 -uall` and `git diff HEAD` over apps/,
+  packages/, scripts/ and tests/) must be identical before and after. It was e3b0c442…b855, the SHA-256 of the empty
+  string: no code difference from HEAD before or after.
+- Unit commands run Vitest on the named file with `-t` (a regular expression). DB commands run the guarded
+  `scripts/db/run-db-tests.mjs` on `tb_notice_test`.
+
+Tree under test: the COMMITTED code head be8d74b80eb3657a565aa07c01173c5b0cbae4d7 (pushed). The record edits of this
+mission were uncommitted in docs/ at the time and are outside the code paths the fingerprint covers. The DB suites leave
+`tb_notice_test` empty (`yarn db:verify test --expect-empty` PASS afterwards: domain rows total 0).
+
+A first invocation was stopped during its baseline, before any mutation: one `-t` pattern contained an unbalanced "(".
+The pattern was fixed, and baseline and controls were run again from the start. Every result below is from that
+second invocation.
+
+Baseline first (unmutated): every distinct responsible command must pass and select at least one test — 16/16
+(03:53:45Z–03:54:28Z).
+
+Mission controls → harness ids
+  NC-013-A  revert the production algorithm constant to v1                       → NC-013-A
+  NC-013-B  make generatePrompt ignore expectedDependencyDigest                  → NC-013-B
+  NC-013-C  v1 in GET context but v2 in the generation rebuild, or vice versa    → NC-013-C1 (the rebuild v1),
+                                                                                   NC-013-C2 (GET v1), NC-013-C3
+                                                                                   (the validation commit rebuild v1)
+  NC-013-D  rewrite a historical PromptSnapshot digest to current                → NC-013-D
+  NC-013-E  rewrite a historical ValidationRun digest                            → NC-013-E
+  NC-013-F  remove the algorithm identifier from the digest preimage             → NC-013-F
+  NC-013-G  artificially increment Case.contextRevision to hide the problem      → NC-013-G (v1 kept, the revision
+                                                                                   incremented on every read)
+Further controls:
+  - NC-013-H: the legacy v1 test oracle computes v2, so the oracle is itself pinned.
+  - NC-013-I: TB-TECHNICAL-RULESET-v2's vocabulary silently widened with the v2 digest identifier.
+  - NC-013-J: validateCandidate ignores expectedDependencyDigest at its capture.
+  - NC-013-K: the prompt page silently retries a generation refused with 412.
+  - NC-010-B-R and NC-009-B-R: the R14-AUD-010 owner drift and the R14-AUD-009 annex applicability, disabled under v2.
+    These prove that within-v2 drift and the AUD-009 conflicts do not rely on the v1 → v2 change.
+
+Mutations (file · change)
+  NC-013-A    production/context-dependencies.ts · DEPENDENCY_DIGEST_ALGORITHM = 'TB-PRODUCTION-CONTEXT-DIGEST-v1'
+  NC-013-B    prompts/prompts.service.ts · the rebuilt-digest comparison with expectedDependencyDigest removed
+  NC-013-C1   prompts/prompts.service.ts · the rebuilt view's digest replaced by a v1 digest (inline v1 preimage)
+  NC-013-C2   production/production-context.service.ts · the returned view's digest replaced by a v1 digest
+  NC-013-C3   validation/validation.service.ts · the commit rebuild's digest replaced by a v1 digest
+  NC-013-D    prompts/prompt-views.ts · dependencyDigest recomputed on read with the current definition over the
+              stored manifest and scope (an "upgrade" of stored hashes)
+  NC-013-E    validation/validation-views.ts · the same for a stored run (its scope from the evaluated context)
+  NC-013-F    production/context-dependencies.ts · `algorithm: DEPENDENCY_DIGEST_ALGORITHM,` removed from the preimage
+  NC-013-G    production/context-dependencies.ts · the v1 constant; production/production-context.service.ts ·
+              `caseRecord.updateMany(… contextRevision: { increment: 1 })` at the start of every read
+  NC-013-H    tests/support/context-digest-oracles.ts · LEGACY_DIGEST_V1 = 'TB-PRODUCTION-CONTEXT-DIGEST-v2'
+  NC-013-I    validation/technical-ruleset.ts · 'TB-PRODUCTION-CONTEXT-DIGEST-v2' added to INTERNAL_IDENTIFIER_STRINGS
+  NC-013-J    validation/validation.service.ts · the capture's digest comparison removed
+  NC-013-K    web cases/prompts.tsx · on 412 the page posts the same request again
+  NC-010-B-R  production/context-dependencies.ts · the CROSS_OWNER_REFERENCE owner marker line removed
+  NC-009-B-R  production/context-assembly.ts · MANDATE_VERSION_ADDITIONAL citations skipped
+
+Log (verbatim harness output)
+# negative controls — 2026-09-28T03:54:28.951Z — HEAD be8d74b80eb3657a565aa07c01173c5b0cbae4d7
+# working tree fingerprint before: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+NC-013-A CAUGHT — the production digest identifier reverted to TB-PRODUCTION-CONTEXT-DIGEST-v1 (the e0a521a definition) (apps/api/src/modules/production/context-dependencies.ts); restored byte-identically: true
+  - test:db tests/db/p4g-http.test.ts -t "old semantic preview cannot authorize prompt generation": FAILED; first failure: AssertionError: expected '101c8925d039f6e17bb8f52b8066996644e53…' to be 'e8a17daee2c138c16b82ed141ab6d3424ee6d…' // Object.is equality
+      failed test: tests/db/p4g-http.test.ts > R14-AUD-013 — a preview digest of an earlier digest definition never authorizes a write: TB-PRODUCTION-CONTEXT-DIGEST-v2 > old semantic preview cannot authorize prompt generation after the digest definition chang
+  - test:db tests/db/p4g-http.test.ts -t "validateCandidate: the v1 digest of the unchanged closure": FAILED; first failure: AssertionError: expected '72bb3fe3b3c2c10f16a362d0cc303a9b488dd…' to be 'd78f4d2ba94be9d03f565bd94379854a2b299…' // Object.is equality
+      failed test: tests/db/p4g-http.test.ts > R14-AUD-013 — a preview digest of an earlier digest definition never authorizes a write: TB-PRODUCTION-CONTEXT-DIGEST-v2 > validateCandidate: the v1 digest of the unchanged closure is 412 CONTEXT_CHANGED before a
+  - test:db tests/db/p4d-http.test.ts -t "every read.s digest is the v2 definition": FAILED; first failure: AssertionError: INITIAL PREPARATION: expected 'f7f560b2ffb3631e5b9590be4d010a17e198b…' to be '91c6b969f847d0c2f0dea95176a6244e3f074…' // Object.is equality
+      failed test: tests/db/p4d-http.test.ts > DEPENDENCIES AND DIGEST — the complete closure, deterministic, never a row version or a clock > TB-PRODUCTION-CONTEXT-DIGEST-v2 (R14-AUD-013, ADR-0007): every read’s digest is the v2 definition over its own closu
+  - vitest tests/api/production-context-rules.test.ts -t "golden: the written-out v2 preimage": FAILED; first failure: AssertionError: expected 'TB-PRODUCTION-CONTEXT-DIGEST-v1' to be 'TB-PRODUCTION-CONTEXT-DIGEST-v2' // Object.is equality
+      failed test: tests/api/production-context-rules.test.ts > TB-PRODUCTION-CONTEXT-DIGEST-v2 — the digest definition names the context semantics (R14-AUD-013, ADR-0007) > golden: the written-out v2 preimage hashes to the pinned value and the application co
+  - vitest tests/api/validation-rules.test.ts -t "the one named exception": FAILED; first failure: AssertionError: expected 'TB-PRODUCTION-CONTEXT-DIGEST-v1' to be 'TB-PRODUCTION-CONTEXT-DIGEST-v2' // Object.is equality
+      failed test: tests/api/validation-rules.test.ts > MARKER.INTERNAL_IDENTIFIERS vocabulary — pinned by TB-TECHNICAL-RULESET-v2, never read from the active release (R14-AUD-003) > the one named exception (operator decision, R14-AUD-013, ADR-0007): the dige
+NC-013-B CAUGHT — generatePrompt ignores expectedDependencyDigest (apps/api/src/modules/prompts/prompts.service.ts); restored byte-identically: true
+  - test:db tests/db/p4g-http.test.ts -t "old semantic preview cannot authorize prompt generation": FAILED; first failure: AssertionError: DRAFTING: expected [ 201, '(no error: HTTP 201)' ] to deeply equal [ 412, 'CONTEXT_CHANGED' ]
+      failed test: tests/db/p4g-http.test.ts > R14-AUD-013 — a preview digest of an earlier digest definition never authorizes a write: TB-PRODUCTION-CONTEXT-DIGEST-v2 > old semantic preview cannot authorize prompt generation after the digest definition chang
+  - test:db tests/db/p4g-http.test.ts -t "R14-AUD-010: a clean context at t0": FAILED; first failure: AssertionError: expected [ 201, '(no error: HTTP 201)' ] to deeply equal [ 412, 'CONTEXT_CHANGED' ]
+      failed test: tests/db/p4g-http.test.ts > R14-AUD-009 / R14-AUD-010 — a listed source outside the current case scope never flows through the stack as a clean context > R14-AUD-010: a clean context at t0 (revision D0, digest H0); another owner’s valid lat
+NC-013-C1 CAUGHT — the generatePrompt rebuild computes a v1 digest while getProductionContext serves v2 (apps/api/src/modules/prompts/prompts.service.ts); restored byte-identically: true
+  - test:db tests/db/p4g-http.test.ts -t "old semantic preview cannot authorize prompt generation": FAILED; first failure: AssertionError: {"error":{"code":"CONTEXT_CHANGED","message":"The recorded context changed after it was read. Review the current context before generating again; no prompt was generated.","details":{"
+      failed test: tests/db/p4g-http.test.ts > R14-AUD-013 — a preview digest of an earlier digest definition never authorizes a write: TB-PRODUCTION-CONTEXT-DIGEST-v2 > old semantic preview cannot authorize prompt generation after the digest definition chang
+NC-013-C2 CAUGHT — getProductionContext serves a v1 digest while the rebuilds compute v2 (apps/api/src/modules/production/production-context.service.ts); restored byte-identically: true
+  - test:db tests/db/p4g-http.test.ts -t "old semantic preview cannot authorize prompt generation": FAILED; first failure: AssertionError: {"error":{"code":"CONTEXT_CHANGED","message":"The recorded context changed after it was read. Review the current context before generating again; no prompt was generated.","details":{"
+      failed test: tests/db/p4g-http.test.ts > R14-AUD-013 — a preview digest of an earlier digest definition never authorizes a write: TB-PRODUCTION-CONTEXT-DIGEST-v2 > old semantic preview cannot authorize prompt generation after the digest definition chang
+  - test:db tests/db/p4d-http.test.ts -t "every read.s digest is the v2 definition": FAILED; first failure: AssertionError: INITIAL PREPARATION: expected 'c46c85b06cb50b021d65de694a0d7bebf9d52…' to be '5a09f9f768d95b8fc0d4ab7fe42c4352661c1…' // Object.is equality
+      failed test: tests/db/p4d-http.test.ts > DEPENDENCIES AND DIGEST — the complete closure, deterministic, never a row version or a clock > TB-PRODUCTION-CONTEXT-DIGEST-v2 (R14-AUD-013, ADR-0007): every read’s digest is the v2 definition over its own closu
+NC-013-C3 CAUGHT — the validateCandidate commit rebuild computes a v1 digest while its capture computes v2 (apps/api/src/modules/validation/validation.service.ts); restored byte-identically: true
+  - test:db tests/db/p4g-http.test.ts -t "validateCandidate: the v1 digest of the unchanged closure": FAILED; first failure: AssertionError: {"error":{"code":"CONTEXT_CHANGED","message":"The recorded context changed after it was read. Read the current context before validating again; no validation run was recorded.","detail
+      failed test: tests/db/p4g-http.test.ts > R14-AUD-013 — a preview digest of an earlier digest definition never authorizes a write: TB-PRODUCTION-CONTEXT-DIGEST-v2 > validateCandidate: the v1 digest of the unchanged closure is 412 CONTEXT_CHANGED before a
+NC-013-D CAUGHT — a historical PromptSnapshot digest rewritten to the current definition on read (apps/api/src/modules/prompts/prompt-views.ts); restored byte-identically: true
+  - test:db tests/db/p4g-http.test.ts -t "history: a prompt snapshot and a validation run recorded under": FAILED; first failure: AssertionError: expected { …(20) } to deeply equal { …(20) }
+      failed test: tests/db/p4g-http.test.ts > R14-AUD-013 — a preview digest of an earlier digest definition never authorizes a write: TB-PRODUCTION-CONTEXT-DIGEST-v2 > history: a prompt snapshot and a validation run recorded under TB-PRODUCTION-CONTEXT-DIGE
+NC-013-E CAUGHT — a historical ValidationRun digest rewritten to the current definition on read (apps/api/src/modules/validation/validation-views.ts); restored byte-identically: true
+  - test:db tests/db/p4g-http.test.ts -t "history: a prompt snapshot and a validation run recorded under": FAILED; first failure: AssertionError: expected { …(17) } to deeply equal { …(17) }
+      failed test: tests/db/p4g-http.test.ts > R14-AUD-013 — a preview digest of an earlier digest definition never authorizes a write: TB-PRODUCTION-CONTEXT-DIGEST-v2 > history: a prompt snapshot and a validation run recorded under TB-PRODUCTION-CONTEXT-DIGE
+NC-013-F CAUGHT — the algorithm identifier removed from the digest preimage (apps/api/src/modules/production/context-dependencies.ts); restored byte-identically: true
+  - vitest tests/api/production-context-rules.test.ts -t "golden: the written-out v2 preimage": FAILED; first failure: AssertionError: expected '18da086336de1021ec5faf0d3d6add567a408…' to be '68c080db4609de5c744a0810c499d3b828c67…' // Object.is equality
+      failed test: tests/api/production-context-rules.test.ts > TB-PRODUCTION-CONTEXT-DIGEST-v2 — the digest definition names the context semantics (R14-AUD-013, ADR-0007) > golden: the written-out v2 preimage hashes to the pinned value and the application co
+  - vitest tests/api/production-context-rules.test.ts -t "one implementation path": FAILED; first failure: AssertionError: expected null to deeply equal [ 'algorithm:' ]
+      failed test: tests/api/production-context-rules.test.ts > TB-PRODUCTION-CONTEXT-DIGEST-v2 — the digest definition names the context semantics (R14-AUD-013, ADR-0007) > one implementation path: the application names the digest identifier in exactly one d
+  - test:db tests/db/p4d-http.test.ts -t "every read.s digest is the v2 definition": FAILED; first failure: AssertionError: INITIAL PREPARATION: expected '69a85a974cc4d1e7314d22d2fa9923f05ab08…' to be '78afb20eb8c452759f26afd0bc46817ce8262…' // Object.is equality
+      failed test: tests/db/p4d-http.test.ts > DEPENDENCIES AND DIGEST — the complete closure, deterministic, never a row version or a clock > TB-PRODUCTION-CONTEXT-DIGEST-v2 (R14-AUD-013, ADR-0007): every read’s digest is the v2 definition over its own closu
+  - test:db tests/db/p4g-http.test.ts -t "old semantic preview cannot authorize prompt generation": FAILED; first failure: AssertionError: expected '6c7dc0686fb029c0288b50a6562b13fdded74…' to be '8813f854ca3fa7d0c94106d4b5ae1047cd8cb…' // Object.is equality
+      failed test: tests/db/p4g-http.test.ts > R14-AUD-013 — a preview digest of an earlier digest definition never authorizes a write: TB-PRODUCTION-CONTEXT-DIGEST-v2 > old semantic preview cannot authorize prompt generation after the digest definition chang
+NC-013-G CAUGHT — v1 kept and Case.contextRevision incremented on every read to hide the problem (apps/api/src/modules/production/context-dependencies.ts, apps/api/src/modules/production/production-context.service.ts); restored byte-identically: true
+  - test:db tests/db/p4g-http.test.ts -t "old semantic preview cannot authorize prompt generation": FAILED; first failure: AssertionError: expected 10 to be 9 // Object.is equality
+      failed test: tests/db/p4g-http.test.ts > R14-AUD-013 — a preview digest of an earlier digest definition never authorizes a write: TB-PRODUCTION-CONTEXT-DIGEST-v2 > old semantic preview cannot authorize prompt generation after the digest definition chang
+  - vitest tests/api/production-context-rules.test.ts -t "the production module issues no write": FAILED; first failure: AssertionError: production-context.service.ts: write: expected true to be false // Object.is equality
+      failed test: tests/api/production-context-rules.test.ts > module source — a read and nothing else > the production module issues no write, lock, raw SQL, audit or idempotency call, reads no clock and opens no network, mail, Drive or process client
+NC-013-H CAUGHT — the legacy v1 test oracle computes the current definition instead (tests/support/context-digest-oracles.ts); restored byte-identically: true
+  - vitest tests/api/production-context-rules.test.ts -t "the legacy v1 oracle reproduces the accepted v1 digest exactly": FAILED; first failure: AssertionError: expected '{"algorithm":"TB-PRODUCTION-CONTEXT-D…' to be '{"algorithm":"TB-PRODUCTION-CONTEXT-D…' // Object.is equality
+      failed test: tests/api/production-context-rules.test.ts > TB-PRODUCTION-CONTEXT-DIGEST-v2 — the digest definition names the context semantics (R14-AUD-013, ADR-0007) > the legacy v1 oracle reproduces the accepted v1 digest exactly; the two definitions d
+NC-013-I CAUGHT — TB-TECHNICAL-RULESET-v2 vocabulary silently widened with the v2 digest identifier (apps/api/src/modules/validation/technical-ruleset.ts); restored byte-identically: true
+  - vitest tests/api/validation-rules.test.ts -t "the one named exception": FAILED; first failure: AssertionError: expected [ 'TB-PROMPT-TEMPLATE-v1', …(8) ] to not include 'TB-PRODUCTION-CONTEXT-DIGEST-v2'
+      failed test: tests/api/validation-rules.test.ts > MARKER.INTERNAL_IDENTIFIERS vocabulary — pinned by TB-TECHNICAL-RULESET-v2, never read from the active release (R14-AUD-003) > the one named exception (operator decision, R14-AUD-013, ADR-0007): the dige
+  - vitest tests/api/validation-rules.test.ts -t "the vocabulary is exactly the pinned list": FAILED; first failure: AssertionError: expected [ 'TB-PROMPT-TEMPLATE-v1', …(8) ] to deeply equal [ 'TB-PROMPT-TEMPLATE-v1', …(7) ]
+      failed test: tests/api/validation-rules.test.ts > MARKER.INTERNAL_IDENTIFIERS vocabulary — pinned by TB-TECHNICAL-RULESET-v2, never read from the active release (R14-AUD-003) > the vocabulary is exactly the pinned list: everything v1 detected under the 
+  - vitest tests/api/validation-ruleset-identity.test.ts -t "MARKER.INTERNAL_IDENTIFIERS finds exactly": FAILED; first failure: AssertionError: expected [ 'TB-PROMPT-TEMPLATE-v1', …(8) ] to deeply equal [ 'TB-PROMPT-TEMPLATE-v1', …(7) ]
+      failed test: tests/api/validation-ruleset-identity.test.ts > TB-TECHNICAL-RULESET-v2 under a changed active contract constant (R14-AUD-003) > MARKER.INTERNAL_IDENTIFIERS finds exactly what it finds under TB-SCHEMA-API-v1.3.0: v1.2.0 and v1.3.0 still, th
+NC-013-J CAUGHT — validateCandidate ignores expectedDependencyDigest at its capture (apps/api/src/modules/validation/validation.service.ts); restored byte-identically: true
+  - test:db tests/db/p4g-http.test.ts -t "validateCandidate: the v1 digest of the unchanged closure": FAILED; first failure: AssertionError: expected [ 201, '(no error: HTTP 201)' ] to deeply equal [ 412, 'CONTEXT_CHANGED' ]
+      failed test: tests/db/p4g-http.test.ts > R14-AUD-013 — a preview digest of an earlier digest definition never authorizes a write: TB-PRODUCTION-CONTEXT-DIGEST-v2 > validateCandidate: the v1 digest of the unchanged closure is 412 CONTEXT_CHANGED before a
+  - test:db tests/db/p4g-http.test.ts -t "history: a prompt snapshot and a validation run recorded under": FAILED; first failure: AssertionError: expected [ 201, '(no error: HTTP 201)' ] to deeply equal [ 412, 'CONTEXT_CHANGED' ]
+      failed test: tests/db/p4g-http.test.ts > R14-AUD-013 — a preview digest of an earlier digest definition never authorizes a write: TB-PRODUCTION-CONTEXT-DIGEST-v2 > history: a prompt snapshot and a validation run recorded under TB-PRODUCTION-CONTEXT-DIGE
+NC-013-K CAUGHT — the prompt page silently retries a generation refused with 412 (apps/web/src/app/cases/prompts.tsx); restored byte-identically: true
+  - vitest tests/web/p4e.test.tsx -t "a context changed after the read": FAILED; first failure: AssertionError: expected [ { method: 'POST', …(3) }, …(1) ] to have a length of 1 but got 2
+      failed test: tests/web/p4e.test.tsx > P4E prompt pages > a context changed after the read: the exact message "Context changed. Review the current context before generating again.", no prompt, no retry, no generation offered from that read; reading the c
+NC-010-B-R CAUGHT — within-v2 owner drift removed from the fingerprint (R14-AUD-010 regression under v2) (apps/api/src/modules/production/context-dependencies.ts); restored byte-identically: true
+  - test:db tests/db/p4g-http.test.ts -t "R14-AUD-010: a clean context at t0": FAILED; first failure: AssertionError: expected 'adda72072328844794ce90a82374e53000eaf…' not to be 'adda72072328844794ce90a82374e53000eaf…' // Object.is equality
+      failed test: tests/db/p4g-http.test.ts > R14-AUD-009 / R14-AUD-010 — a listed source outside the current case scope never flows through the stack as a clean context > R14-AUD-010: a clean context at t0 (revision D0, digest H0); another owner’s valid lat
+  - test:db tests/db/p4d-http.test.ts -t "R14-AUD-010: each of the case": FAILED; first failure: AssertionError: CaseRecord.canonicalBindingSourceId: expected '1368a51f4b7db01ebd5ddee16554b237aef8d…' not to be '1368a51f4b7db01ebd5ddee16554b237aef8d…' // Object.is equality
+      failed test: tests/db/p4d-http.test.ts > PRODUCTION SOURCE SCOPE (R14-AUD-009, R14-AUD-010) — every source a context lists is checked against the case as it is now > R14-AUD-010: each of the case’s own citation paths — canonical binding, packet, case so
+NC-009-B-R CAUGHT — MandateVersion additional-source applicability disabled (R14-AUD-009 regression under v2) (apps/api/src/modules/production/context-assembly.ts); restored byte-identically: true
+  - test:db tests/db/p4g-http.test.ts -t "old semantic preview cannot authorize prompt generation": FAILED; first failure: AssertionError: expected [] to deeply equal [ { …(3) } ]
+      failed test: tests/db/p4g-http.test.ts > R14-AUD-013 — a preview digest of an earlier digest definition never authorizes a write: TB-PRODUCTION-CONTEXT-DIGEST-v2 > old semantic preview cannot authorize prompt generation after the digest definition chang
+  - test:db tests/db/p4g-http.test.ts -t "R14-AUD-009: a mandate version annex": FAILED; first failure: AssertionError: expected [] to deeply equal [ { …(3) } ]
+      failed test: tests/db/p4g-http.test.ts > R14-AUD-009 / R14-AUD-010 — a listed source outside the current case scope never flows through the stack as a clean context > R14-AUD-009: a mandate version annex restricted to another legal subject of the same o
+  - test:db tests/db/p4d-http.test.ts -t "R14-AUD-009 B": FAILED; first failure: AssertionError: expected [] to deeply equal [ { …(3) } ]
+      failed test: tests/db/p4d-http.test.ts > PRODUCTION SOURCE SCOPE (R14-AUD-009, R14-AUD-010) — every source a context lists is checked against the case as it is now > R14-AUD-009 B — MandateVersion.additionalSourceRefs[].sourceId: a source restricted to 
+# working tree fingerprint after: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 (identical)
+# result: 15/15 caught
+
+Totals: 15/15 controls caught. 31/31 responsible commands failed, each with an AssertionError as its first failure.
+Every changed file was restored byte-identically, and the code-path fingerprint was identical before and after.
+Baseline 03:53:45Z–03:54:28Z; controls 03:54:28Z–03:56:00Z.
+
+Notes
+- NC-013-A is caught by five commands. The cross-deploy DB test fails at its first v2 check: the current digest is not
+  the independent v2 oracle's. The HTTP-level acceptance of an earlier preview under the v1 identifier is shown
+  separately in evidence/r14-astra3-cross-deploy-experiment.txt (second run: 201, a completed idempotency record, a
+  stored snapshot).
+- NC-013-G is caught on its own assertions. The cross-deploy DB test fails at "the current read has the same revision
+  as the earlier interpretation" (10 vs 9). The module-source test fails at "the production module issues no write".

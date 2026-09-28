@@ -7,12 +7,13 @@ import {
   parsePathParam,
   parseQuery,
 } from '../../infrastructure/write/request-parsing.js';
-import { pageReply, requesterOf, writeReply } from '../directory/directory-http.js';
+import { pageReply, requesterOf, resourceReply, writeReply } from '../directory/directory-http.js';
 import { ValidationService } from './validation.service.js';
 
 const op = {
   validate: contractOperation('validateCandidate'),
   runs: contractOperation('listValidationRuns'),
+  get: contractOperation('getValidationRun'),
   issues: contractOperation('listValidationIssues'),
 };
 
@@ -54,10 +55,18 @@ export class CandidateValidationController {
   }
 }
 
-/** The issues of one validation run, in the order the ruleset reported them (read-only). */
+/**
+ * One stored validation run exactly as recorded (getValidationRun, TB-SCHEMA-API-v1.3.0; no ETag: a
+ * run never changes) and its issues, in the order the ruleset reported them. Both read-only.
+ */
 @Controller('validation-runs')
 export class ValidationRunsController {
   constructor(private readonly validation: ValidationService) {}
+
+  @Get(':id')
+  async get(@Param('id') id: string, @Req() request: HttpRequest) {
+    return resourceReply(request, await this.validation.get(parsePathParam(op.get, 'id', id)));
+  }
 
   @Get(':id/issues')
   async issues(@Param('id') id: string, @Query() query: unknown, @Req() request: HttpRequest) {

@@ -5,7 +5,7 @@
 // consistency tests use. Every response is recorded and checked against the active contract at the
 // end. All data is synthetic (example.invalid addresses only); every test deletes what it created.
 //
-// A ValidationRun records what the technical ruleset TB-TECHNICAL-RULESET-v1 found for one exact
+// A ValidationRun records what the technical ruleset TB-TECHNICAL-RULESET-v2 found for one exact
 // candidate artifact against the current production context of its prompt snapshot's scope: exact
 // bytes and hashes, envelope and thread, document plan, internal markers, recorded gaps and drift —
 // technical checks only. It is never a G1–G6 review, legal approval, readiness, READY_FOR_SIGNER, a
@@ -14,6 +14,11 @@
 // either changed); the context is captured and checked outside any lock, then rechecked in a short
 // SERIALIZABLE transaction before the run is committed, so no run is published against mixed
 // snapshots. Nothing of one case appears in another case's runs. No AI provider or outbound call.
+//
+// R14 remediation (TB-SCHEMA-API-v1.3.0, ADR-0006): getValidationRun reads one stored run back by its
+// id exactly as recorded — every field, the coverage manifest with every not-executed rule and
+// semanticReviewRequired, the dependency manifest and the evaluated context — never re-evaluated,
+// rebuilt or brought up to date, and without writing anything.
 import { createHash, randomUUID } from 'node:crypto';
 import net from 'node:net';
 import path from 'node:path';
@@ -53,10 +58,16 @@ import {
   CONTRACT_BASELINE,
   OperationErrorSchema,
   operations,
+  PFC_SCHEMA_VERSION,
 } from '../../packages/contracts/src/index.js';
+import { LAST_SEEN_WRITE_INTERVAL_MS } from '../../apps/api/src/modules/auth/auth-config.js';
 import { assembleContext } from '../../apps/api/src/modules/production/context-assembly.js';
 import { NO_CONTEXT_READ_OBSERVER } from '../../apps/api/src/modules/production/context-read-observer.js';
+import type { ContextScope } from '../../apps/api/src/modules/production/context-scope.js';
 import { readContextRows } from '../../apps/api/src/modules/production/context-snapshot.js';
+import { renderPrompt } from '../../apps/api/src/modules/prompts/prompt-renderer.js';
+import { promptSourceManifest } from '../../apps/api/src/modules/prompts/prompt-snapshot-rules.js';
+import { PROMPT_TEMPLATE_VERSION } from '../../apps/api/src/modules/prompts/prompt-template.js';
 import {
   REQUIRED_RULES,
   RULE_ERROR_MESSAGE,
@@ -84,6 +95,7 @@ import {
   signIn,
   type Recorded,
 } from './directory-support.js';
+import { currentV2Digest, legacyV1Digest } from '../support/context-digest-oracles.js';
 
 interface FrozenHelper {
   readonly PENDING_SIGNATURE: string;
@@ -976,6 +988,13 @@ async function listRuns(candidateId: string, query = '') {
   expect(result.status, result.text).toBe(200);
   return dataOf<{ items: ValidationRunSummary[]; nextCursor: string | null }>(result);
 }
+/** One stored run read back by its id (getValidationRun, TB-SCHEMA-API-v1.3.0): no ETag. */
+async function getRun(id: string): Promise<ValidationRun> {
+  return immutable<ValidationRun>(
+    await client.get('getValidationRun', `/validation-runs/${id}`),
+    200,
+  );
+}
 async function listIssues(runId: string, query = '') {
   const result = await client.get(
     'listValidationIssues',
@@ -1034,7 +1053,7 @@ describe('P4G validateCandidate — a technical result for one exact artifact ag
       dependencyDigest: view.dependencyDigest,
       dependencyManifest: view.dependencies,
       evaluatedContextJson: view.context,
-      rulesetVersion: 'TB-TECHNICAL-RULESET-v1',
+      rulesetVersion: 'TB-TECHNICAL-RULESET-v2',
       result: 'TECHNICAL_PASS',
       coverageManifest: {
         requiredRuleIds: ALL_RULES,
@@ -1075,6 +1094,7 @@ describe('P4G validateCandidate — a technical result for one exact artifact ag
       { ...good, expectedArtifactSha256: good.expectedArtifactSha256.toUpperCase() },
       { ...good, result: 'TECHNICAL_PASS' },
       { ...good, rulesetVersion: 'TB-TECHNICAL-RULESET-v1' },
+      { ...good, rulesetVersion: 'TB-TECHNICAL-RULESET-v2' },
     ]) {
       expect(outcome(await validatePost(p.candidate.id, body)), JSON.stringify(body)).toEqual([
         422,
@@ -1825,7 +1845,7 @@ describe('P4G recorded context, preparation, drift and history', () => {
       generationMode: 'DRAFTING',
       artifactSha256: candidate.artifactSha256,
       dependencyDigest: run.dependencyDigest,
-      rulesetVersion: 'TB-TECHNICAL-RULESET-v1',
+      rulesetVersion: 'TB-TECHNICAL-RULESET-v2',
       result: 'REVIEW_REQUIRED',
       issues: {
         total: run.blockerCount + run.reviewRequiredCount + run.warningCount,
@@ -1845,6 +1865,1040 @@ describe('P4G recorded context, preparation, drift and history', () => {
     expect(text).not.toContain(marker);
     expect(text).not.toContain('@example.invalid');
     expect(text).not.toContain('Please find attached');
+  });
+});
+
+describe('R14-AUD-001 — a captured message’s source outside the case scope never flows through the stack as a clean context', () => {
+  it('the conflict is listed in the production context, frozen in the prompt snapshot (its conflicts and PART 3) and present in the context a validation evaluates: the run is REVIEW_REQUIRED by CONTEXT.CONFLICTS, never TECHNICAL_PASS — while the same draft of a prompt whose raw source applies passes', async () => {
+    const p = await promptWorld();
+    const agencyId = p.w.agency.data.id;
+    const otherSubject = await createSubject('A-other');
+    const outsideSource = await createSource({
+      agencyId,
+      title: 'SYNTHETIC raw message file of another subject',
+      scopeBindings: { legalSubjectIds: [otherSubject.data.id] },
+    });
+    const insideSource = await createSource({
+      agencyId,
+      title: 'SYNTHETIC raw message file of this subject',
+      scopeBindings: { legalSubjectIds: [p.w.subject.data.id] },
+    });
+    const nmiMessage = await capture(agencyId, {
+      subject: 'SYNTHETIC we need more information',
+      bodyText: 'SYNTHETIC Question 1: please provide the licence.',
+      fromAddress: 'synthetic-platform-review@example.invalid',
+      replyToAddress: 'synthetic-reply-here@example.invalid',
+    });
+    const nmi = await bind(p.caseId, { correspondenceId: nmiMessage.id, eventType: 'NMI' });
+    const sentWith = async (rawSourceId: string) => {
+      const message = await capture(agencyId, {
+        direction: 'OUTBOUND',
+        subject: 'SYNTHETIC copyright notice as sent (raw)',
+        captureMode: 'RAW_SOURCE',
+        rawSourceId,
+      });
+      return bind(p.caseId, {
+        correspondenceId: message.id,
+        eventType: 'INITIAL_AS_SENT',
+        reportedItemId: p.item.data.id,
+      });
+    };
+    const outside = await sentWith(outsideSource.id);
+    const inside = await sentWith(insideSource.id);
+    const replyScope = (priorId: string): Scope => ({
+      taskType: 'NMI_REPLY',
+      authoritySelectionId: p.selection.id,
+      parentBindingId: nmi.id,
+      priorBindingIds: [priorId],
+    });
+
+    // ProductionContext: DRAFTING is delivered (a conflict is no gate) and lists the condition.
+    const view = await context(p.caseId, replyScope(outside.id));
+    const listed = view.context.conflicts.filter(
+      (entry) => entry.code === 'CORRESPONDENCE_SOURCE_NOT_APPLICABLE',
+    );
+    expect(listed).toHaveLength(1);
+    expect(listed[0]?.message).toContain(`Recorded source ${outsideSource.id}`);
+    expect(listed[0]?.message).toContain('SCOPED_TO_OTHER_SUBJECT');
+    expect(view.context.conflicts).toEqual(listed);
+
+    // PromptSnapshot: frozen with the conflict, rendered in PART 3; the source stays traceable.
+    const prompt = await generate(p.caseId, replyScope(outside.id));
+    expect(prompt.dependencyDigest).toBe(view.dependencyDigest);
+    expect(prompt.conflicts).toEqual(listed);
+    expect(prompt.contextJson.conflicts).toEqual(listed);
+    const conflict = listed[0] as { code: string; message: string; fieldPath?: string | null };
+    expect(prompt.renderedPrompt).toContain(
+      `- ${conflict.code} (${conflict.fieldPath ?? ''}): ${JSON.stringify(conflict.message)}`,
+    );
+    expect(prompt.sourceManifest.map((entry) => entry.sourceId)).toContain(outsideSource.id);
+
+    // ValidationRun: the current context still holds the conflict — REVIEW_REQUIRED, not a pass.
+    const candidate = await importCandidate(p.caseId, draft(prompt));
+    const { run } = await validate(candidate, prompt);
+    expect(run.result).toBe('REVIEW_REQUIRED');
+    expect(run.evaluatedContextJson.conflicts).toEqual(listed);
+    expect(run.coverageManifest.notExecutedRuleIds).toEqual([]);
+    expect([run.blockerCount, run.reviewRequiredCount]).toEqual([0, 1]);
+    const issues = await issuesOf(run.id);
+    expect(ruleIds(issues)).toEqual(['CONTEXT.CONFLICTS']);
+    expect(issues[0]).toMatchObject({
+      checkKind: 'DETERMINISTIC',
+      severity: 'REVIEW_REQUIRED',
+      details: expect.objectContaining({ code: 'CORRESPONDENCE_SOURCE_NOT_APPLICABLE' }),
+    });
+    expect(await getRun(run.id)).toEqual(run);
+
+    // The same draft of a prompt whose prior transmission's raw source applies: no conflict, a pass.
+    const cleanPrompt = await generate(p.caseId, replyScope(inside.id));
+    expect(cleanPrompt.conflicts).toEqual([]);
+    const cleanCandidate = await importCandidate(p.caseId, draft(cleanPrompt));
+    const clean = await validate(cleanCandidate, cleanPrompt);
+    expect(clean.run.result).toBe('TECHNICAL_PASS');
+    expect(await issuesOf(clean.run.id)).toEqual([]);
+    await expectNoLaterRecords();
+  });
+});
+
+describe('R14-AUD-009 / R14-AUD-010 — a listed source outside the current case scope never flows through the stack as a clean context', () => {
+  const NOT_APPLICABLE = 'SOURCE_NOT_APPLICABLE';
+  const NOT_A_FINDING =
+    'The citing records and the source are kept as recorded; this is a source-scope condition, not a finding about what the source shows or about any authority, right or gate.';
+  const readPrompt = async (id: string) =>
+    immutable<PromptSnapshot>(await client.get('getPrompt', `/prompts/${id}`), 200);
+  const changedKeys = (after: ContextView, before: ContextView) =>
+    after.dependencies
+      .filter(
+        (dependency, index) => dependency.fingerprint !== before.dependencies[index]?.fingerprint,
+      )
+      .map((dependency) => `${dependency.entityType}:${dependency.entityId}`);
+
+  it('R14-AUD-009: a mandate version annex restricted to another legal subject of the same owner — listed with SOURCE_NOT_APPLICABLE in the production context, frozen in the prompt snapshot (its conflicts and PART 3), present in the context a validation evaluates: REVIEW_REQUIRED by CONTEXT.CONFLICTS, never TECHNICAL_PASS; the frozen version, its mandate, coverage and the source stay exactly as recorded; a fresh prompt of a chain whose sources apply passes with the same draft', async () => {
+    const p = await promptWorld();
+    const agencyId = p.w.agency.data.id;
+    const subjectM = await createSubject('A-M');
+    await link(p.w.owner.data.id, subjectM.data.id);
+    const restricted = await createSource({
+      agencyId,
+      title: 'SYNTHETIC mandate annex recorded for subject M only',
+      scopeBindings: { legalSubjectIds: [subjectM.data.id] },
+    });
+    // Another mandate of the agency: its version cites the annex (an agency-level citation, valid).
+    const mandate = await createMandate(agencyId, 'SYNTHETIC mandate with a subject-M annex');
+    const basis = await createSource({ agencyId, title: 'SYNTHETIC annex coverage basis' });
+    const version = await createVersion(mandate.data.id, {
+      primarySourceId: p.w.source.id,
+      documentState: 'SIGNED_APPEARING',
+      additionalSourceRefs: [
+        { sourceId: restricted.id, role: 'SYNTHETIC_ANNEX', scopeText: 'SYNTHETIC annex' },
+      ],
+    });
+    const coverage = await createCoverage(version.data.id, {
+      routeId: p.w.route.data.id,
+      basisSourceId: basis.id,
+      actionScope: ['PREPARE_NOTICE'],
+      coverageLabel: 'SYNTHETIC annex coverage',
+    });
+    await addCoverageSigner(coverage.data.id, { signerId: p.w.signer.data.id, sourceId: basis.id });
+    await freeze(version.data.id);
+    const selection = await select(p.caseId, choose(p.w, [coverage.data.id]));
+    const recorded = async () => ({
+      mandate: await prisma.mandate.findUniqueOrThrow({ where: { id: mandate.data.id } }),
+      version: await prisma.mandateVersion.findUniqueOrThrow({ where: { id: version.data.id } }),
+      coverage: await prisma.mandateCoverage.findUniqueOrThrow({
+        where: { id: coverage.data.id },
+      }),
+      source: await prisma.sourceReference.findUniqueOrThrow({ where: { id: restricted.id } }),
+      selection: await prisma.caseAuthoritySelection.findUniqueOrThrow({
+        where: { id: selection.id },
+      }),
+    });
+    const history = await recorded();
+    const scope: Scope = { authoritySelectionId: selection.id };
+
+    // ProductionContext: DRAFTING is delivered (a conflict is no gate) and lists the condition.
+    const view = await context(p.caseId, scope);
+    const index = view.context.sources.findIndex((entry) => entry.sourceId === restricted.id);
+    const listed = [
+      {
+        code: NOT_APPLICABLE,
+        message: `Recorded source ${restricted.id} is not applicable to the current Case scope (SOURCE_SCOPE_UNRESOLVED: SCOPED_TO_OTHER_SUBJECT). This context cites it as additional source 0 of mandate version ${version.data.id}. ${NOT_A_FINDING}`,
+        fieldPath: `sources[${index}]`,
+      },
+    ];
+    expect(view.context.conflicts).toEqual(listed);
+
+    // PromptSnapshot: frozen with the conflict, rendered in PART 3; the source stays traceable.
+    const prompt = await generate(p.caseId, scope);
+    expect(prompt.dependencyDigest).toBe(view.dependencyDigest);
+    expect(prompt.conflicts).toEqual(listed);
+    expect(prompt.contextJson.conflicts).toEqual(listed);
+    expect(prompt.renderedPrompt).toContain(
+      `- ${NOT_APPLICABLE} (sources[${index}]): ${JSON.stringify(listed[0]?.message)}`,
+    );
+    expect(prompt.sourceManifest.map((entry) => entry.sourceId)).toContain(restricted.id);
+    expect(prompt.contextJson.authority?.coverages[0]?.version.id).toBe(version.data.id);
+
+    // ValidationRun: the current context holds the conflict — REVIEW_REQUIRED, not a pass.
+    const candidate = await importCandidate(p.caseId, draft(prompt));
+    const { run } = await validate(candidate, prompt);
+    expect(run.result).toBe('REVIEW_REQUIRED');
+    expect(run.evaluatedContextJson.conflicts).toEqual(listed);
+    expect(run.coverageManifest.notExecutedRuleIds).toEqual([]);
+    expect([run.blockerCount, run.reviewRequiredCount]).toEqual([0, 1]);
+    const issues = await issuesOf(run.id);
+    expect(ruleIds(issues)).toEqual(['CONTEXT.CONFLICTS']);
+    expect(issues[0]).toMatchObject({
+      checkKind: 'DETERMINISTIC',
+      severity: 'REVIEW_REQUIRED',
+      details: expect.objectContaining({ code: NOT_APPLICABLE }),
+    });
+    expect(await getRun(run.id)).toEqual(run);
+    // History: nothing of the authority chain or the source changed.
+    expect(await recorded()).toEqual(history);
+
+    // The same draft of a fresh prompt of the world's own chain (its sources apply): a pass.
+    const cleanPrompt = await generate(p.caseId, { authoritySelectionId: p.selection.id });
+    expect(cleanPrompt.conflicts).toEqual([]);
+    const clean = await validate(await importCandidate(p.caseId, draft(cleanPrompt)), cleanPrompt);
+    expect(clean.run.result).toBe('TECHNICAL_PASS');
+    await expectNoLaterRecords();
+  });
+
+  it('R14-AUD-010: a clean context at t0 (revision D0, digest H0); another owner’s valid later coverage cites the case’s linked source, touching nothing of this case; the revision stays D0 but the digest changes and SOURCE_NOT_APPLICABLE (CROSS_OWNER_REFERENCE) is listed; a prompt or a validation against H0 is 412 CONTEXT_CHANGED with nothing recorded; the prompt and the run recorded at t0 stay byte-identical; a new read gives a new prompt and a REVIEW_REQUIRED run', async () => {
+    const p = await validationWorld();
+    const agencyId = p.w.agency.data.id;
+    const { run: passed } = await validate(p.candidate, p.prompt);
+    expect(passed.result).toBe('TECHNICAL_PASS');
+    const scope = scopeOf(p.prompt);
+    const t0 = await context(p.caseId, scope);
+    expect(t0.dependencyDigest).toBe(p.prompt.dependencyDigest);
+    expect(t0.context.conflicts).toEqual([]);
+    const recorded = async () => ({
+      caseRow: await prisma.caseRecord.findUniqueOrThrow({ where: { id: p.caseId } }),
+      prompt: await prisma.promptSnapshot.findUniqueOrThrow({ where: { id: p.prompt.id } }),
+      run: await prisma.validationRun.findUniqueOrThrow({ where: { id: passed.id } }),
+      issues: await prisma.validationIssue.findMany({ where: { runId: passed.id } }),
+      candidate: await prisma.noticeCandidate.findUniqueOrThrow({ where: { id: p.candidate.id } }),
+      link: await prisma.caseSource.findUniqueOrThrow({ where: { id: p.caseSource.data.id } }),
+      source: await prisma.sourceReference.findUniqueOrThrow({ where: { id: p.linked.id } }),
+    });
+    const history = await recorded();
+
+    // t1: another owner of the agency; its DRAFT version's coverage cites the case's linked source.
+    const ownerB = await createOwner('B-other');
+    const subjectB = await createSubject('B-other');
+    const associationB = await link(ownerB.data.id, subjectB.data.id);
+    const routeB = await createRoute({ agencyId, ownerSubjectId: associationB.data.id });
+    const mandateB = await createMandate(agencyId, 'SYNTHETIC other owner mandate');
+    const versionB = await createVersion(mandateB.data.id, {
+      primarySourceId: p.w.source.id,
+      documentState: 'SIGNED_APPEARING',
+    });
+    await createCoverage(versionB.data.id, {
+      routeId: routeB.data.id,
+      basisSourceId: p.linked.id,
+      actionScope: ['PREPARE_NOTICE'],
+      coverageLabel: 'SYNTHETIC other owner coverage',
+    });
+
+    const t1 = await context(p.caseId, scope);
+    expect(t1.contextRevision).toBe(t0.contextRevision);
+    expect(t1.dependencyDigest).not.toBe(t0.dependencyDigest);
+    // R14-AUD-013: H0 and H1 are both TB-PRODUCTION-CONTEXT-DIGEST-v2 — the move is the owner marker
+    // in the source's fingerprint within one definition, not a change of definition.
+    const digestScope = validationScope(
+      await prisma.promptSnapshot.findUniqueOrThrow({ where: { id: p.prompt.id } }),
+    );
+    const identifiers = { contract: CONTRACT_BASELINE, schemaVersion: PFC_SCHEMA_VERSION };
+    expect(t0.dependencyDigest).toBe(currentV2Digest(identifiers, digestScope, t0.dependencies));
+    expect(t1.dependencyDigest).toBe(currentV2Digest(identifiers, digestScope, t1.dependencies));
+    expect(changedKeys(t1, t0)).toEqual([`SourceReference:${p.linked.id}`]);
+    const index = t1.context.sources.findIndex((entry) => entry.sourceId === p.linked.id);
+    const listed = [
+      {
+        code: NOT_APPLICABLE,
+        message: `Recorded source ${p.linked.id} is not applicable to the current Case scope (CROSS_OWNER_REFERENCE). This context cites it as case source link ${p.caseSource.data.id} (SYNTHETIC_SUPPORT). ${NOT_A_FINDING}`,
+        fieldPath: `sources[${index}]`,
+      },
+    ];
+    expect(t1.context.conflicts).toEqual(listed);
+    expect(JSON.stringify(t1.context)).not.toContain(ownerB.data.id);
+
+    // Generating against the t0 read: 412 CONTEXT_CHANGED on the digest, nothing recorded.
+    const prompts = await countRows(prisma, 'prompt_snapshots');
+    const stalePrompt = await client.write('generatePrompt', 'POST', `/cases/${p.caseId}/prompts`, {
+      taskType: 'INITIAL',
+      generationMode: 'DRAFTING',
+      expectedContextRevision: t0.contextRevision,
+      expectedDependencyDigest: t0.dependencyDigest,
+      authoritySelectionId: p.selection.id,
+      priorBindingIds: [],
+    });
+    expect(outcome(stalePrompt)).toEqual([412, 'CONTEXT_CHANGED']);
+    expect(detailsOf(stalePrompt)).toMatchObject({ field: 'expectedDependencyDigest' });
+    expect(await countRows(prisma, 'prompt_snapshots')).toBe(prompts);
+    // Validating against the t0 read: 412 CONTEXT_CHANGED, nothing recorded.
+    const runs = await countRows(prisma, 'validation_runs');
+    const staleRun = await validatePost(p.candidate.id, expectations(p.candidate, t0));
+    expect(outcome(staleRun)).toEqual([412, 'CONTEXT_CHANGED']);
+    expect(await countRows(prisma, 'validation_runs')).toBe(runs);
+
+    // History: the t0 prompt and run, the candidate and this case's records are byte-identical.
+    expect(await recorded()).toEqual(history);
+    expect(await readPrompt(p.prompt.id)).toEqual(p.prompt);
+    expect(await getRun(passed.id)).toEqual(passed);
+
+    // A new read: a new prompt freezes the conflict; a new run is REVIEW_REQUIRED, never a pass.
+    const fresh = await generate(p.caseId, scope);
+    expect(fresh.dependencyDigest).toBe(t1.dependencyDigest);
+    expect(fresh.conflicts).toEqual(listed);
+    const { run: current } = await validate(p.candidate, p.prompt);
+    expect(current.dependencyDigest).toBe(t1.dependencyDigest);
+    expect(current.result).toBe('REVIEW_REQUIRED');
+    expect(ruleIds(await issuesOf(current.id)).sort()).toEqual([
+      'CONTEXT.CONFLICTS',
+      'CONTEXT.PROMPT_DRIFT',
+    ]);
+    expect(await getRun(passed.id)).toEqual(passed);
+    await expectNoLaterRecords();
+  });
+});
+
+describe('R14-AUD-013 — a preview digest of an earlier digest definition never authorizes a write: TB-PRODUCTION-CONTEXT-DIGEST-v2', () => {
+  const NOT_APPLICABLE = 'SOURCE_NOT_APPLICABLE';
+  const NOT_A_FINDING =
+    'The citing records and the source are kept as recorded; this is a source-scope condition, not a finding about what the source shows or about any authority, right or gate.';
+  const IDENTIFIERS = { contract: CONTRACT_BASELINE, schemaVersion: PFC_SCHEMA_VERSION };
+  const readPrompt = async (id: string) =>
+    immutable<PromptSnapshot>(await client.get('getPrompt', `/prompts/${id}`), 200);
+  /** The prompt summaries a list query returns, as [id, dependencyDigest]. */
+  const listPrompts = async (caseId: string, q: string) => {
+    const result = await client.get(
+      'listCasePrompts',
+      `/cases/${caseId}/prompts?q=${encodeURIComponent(q)}`,
+    );
+    expect(result.status, result.text).toBe(200);
+    return dataOf<{ items: Array<{ id: string; dependencyDigest: string }> }>(result).items.map(
+      (item) => [item.id, item.dependencyDigest],
+    );
+  };
+
+  /**
+   * The R14-AUD-009 fixture: the case of owner X's subject selects a frozen chain whose mandate
+   * version cites an annex restricted to another legal subject (M) of the same owner X. No other
+   * owner's material exists, so no fingerprint carries an owner marker: every fingerprint is what a
+   * TB-PRODUCTION-CONTEXT-DIGEST-v1 deployment computed for these rows — whose semantics did not
+   * evaluate a mandate version's sources against the case and listed no conflict.
+   */
+  async function annexWorld() {
+    const p = await promptWorld();
+    const agencyId = p.w.agency.data.id;
+    const subjectM = await createSubject('A-M');
+    await link(p.w.owner.data.id, subjectM.data.id);
+    const restricted = await createSource({
+      agencyId,
+      title: 'SYNTHETIC mandate annex recorded for subject M only',
+      scopeBindings: { legalSubjectIds: [subjectM.data.id] },
+    });
+    const mandate = await createMandate(agencyId, 'SYNTHETIC mandate with a subject-M annex');
+    const basis = await createSource({ agencyId, title: 'SYNTHETIC annex coverage basis' });
+    const version = await createVersion(mandate.data.id, {
+      primarySourceId: p.w.source.id,
+      documentState: 'SIGNED_APPEARING',
+      additionalSourceRefs: [
+        { sourceId: restricted.id, role: 'SYNTHETIC_ANNEX', scopeText: 'SYNTHETIC annex' },
+      ],
+    });
+    const coverage = await createCoverage(version.data.id, {
+      routeId: p.w.route.data.id,
+      basisSourceId: basis.id,
+      actionScope: ['PREPARE_NOTICE'],
+      coverageLabel: 'SYNTHETIC annex coverage',
+    });
+    await addCoverageSigner(coverage.data.id, { signerId: p.w.signer.data.id, sourceId: basis.id });
+    await freeze(version.data.id);
+    const selection = await select(p.caseId, choose(p.w, [coverage.data.id]));
+    /** The digest's request scope, exactly as the reader and the prompt rebuild use it. */
+    const full = (generationMode: 'DRAFTING' | 'PREPARATION' = 'DRAFTING'): ContextScope => ({
+      caseId: p.caseId,
+      taskType: 'INITIAL',
+      generationMode,
+      authoritySelectionId: selection.id,
+      parentBindingId: null,
+      priorBindingIds: [],
+    });
+    const listed = (view: ContextView) => [
+      {
+        code: NOT_APPLICABLE,
+        message: `Recorded source ${restricted.id} is not applicable to the current Case scope (SOURCE_SCOPE_UNRESOLVED: SCOPED_TO_OTHER_SUBJECT). This context cites it as additional source 0 of mandate version ${version.data.id}. ${NOT_A_FINDING}`,
+        fieldPath: `sources[${view.context.sources.findIndex((entry) => entry.sourceId === restricted.id)}]`,
+      },
+    ];
+    return { p, restricted, version, selection, full, listed };
+  }
+
+  /**
+   * The context the same snapshot's rows gave under the earlier interpretation: read exactly as the
+   * application reads them, with no listed source evaluated against the case — no conflict. Its
+   * dependencies are the closure and fingerprints of those rows (the evaluation is no persisted
+   * input); its own digest field is not used.
+   */
+  async function earlierInterpretation(scope: ContextScope): Promise<ContextView> {
+    const rows = await prisma.$transaction((tx) =>
+      readContextRows(tx, scope, NO_CONTEXT_READ_OBSERVER),
+    );
+    const unevaluated = new Map([...rows.sourceApplicability.keys()].map((id) => [id, null]));
+    return assembleContext({ ...rows, sourceApplicability: unevaluated }, scope).view;
+  }
+
+  const promptBody = (scope: ContextScope, contextRevision: number, digest: string) => ({
+    taskType: scope.taskType,
+    generationMode: scope.generationMode,
+    expectedContextRevision: contextRevision,
+    expectedDependencyDigest: digest,
+    authoritySelectionId: scope.authoritySelectionId,
+    priorBindingIds: [],
+  });
+  const postPrompt = (caseId: string, body: unknown, key?: string) =>
+    client.write(
+      'generatePrompt',
+      'POST',
+      `/cases/${caseId}/prompts`,
+      body,
+      key === undefined ? {} : { key },
+    );
+
+  it('old semantic preview cannot authorize prompt generation after the digest definition changed: the same rows, the same contextRevision D, the preview’s v1 digest H_v1 — 412 CONTEXT_CHANGED on the digest with nothing recorded, no claim kept and the case untouched; the current read gives H_v2 and a fresh generation, DRAFTING and PREPARATION, freezes the SOURCE_NOT_APPLICABLE conflict', async () => {
+    const a = await annexWorld();
+    for (const generationMode of ['DRAFTING', 'PREPARATION'] as const) {
+      const scope = a.full(generationMode);
+      // The earlier deployment's preview of these rows: no conflict; its digest H_v1.
+      const earlier = await earlierInterpretation(scope);
+      expect(earlier.context.conflicts, generationMode).toEqual([]);
+      const hV1 = legacyV1Digest(IDENTIFIERS, scope, earlier.dependencies);
+      // The current deployment reads the same rows: the same revision D, closure and fingerprints,
+      // the conflict listed, and the v2 digest H_v2.
+      const view = await context(a.p.caseId, {
+        authoritySelectionId: a.selection.id,
+        generationMode,
+      });
+      expect(view.contextRevision).toBe(earlier.contextRevision);
+      expect(view.dependencies).toEqual(earlier.dependencies);
+      expect(view.context.conflicts).toEqual(a.listed(view));
+      const hV2 = view.dependencyDigest;
+      expect(hV2).toBe(currentV2Digest(IDENTIFIERS, scope, view.dependencies));
+      expect(hV2).not.toBe(hV1);
+
+      // The preview's tokens D and H_v1: refused on the digest, twice under the same key (the claim
+      // is released, nothing replayed); no snapshot, audit event, idempotency record or case change.
+      const caseRow = await prisma.caseRecord.findUniqueOrThrow({ where: { id: a.p.caseId } });
+      const before = await suiteDump();
+      const key = newKey();
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        const stale = await postPrompt(
+          a.p.caseId,
+          promptBody(scope, view.contextRevision, hV1),
+          key,
+        );
+        expect(outcome(stale), generationMode).toEqual([412, 'CONTEXT_CHANGED']);
+        expect(detailsOf(stale)).toEqual({ field: 'expectedDependencyDigest' });
+        expect(await prisma.idempotencyRecord.count({ where: { idempotencyKey: key } })).toBe(0);
+      }
+      expect(await suiteDump()).toEqual(before);
+      expect(await prisma.caseRecord.findUniqueOrThrow({ where: { id: a.p.caseId } })).toEqual(
+        caseRow,
+      );
+
+      // A fresh request under a new key with the current read's H_v2: generated against exactly
+      // that context — the conflict frozen, not suppressed; the case row locked, never changed.
+      const prompts = await countRows(prisma, 'prompt_snapshots');
+      const generated = await prisma.auditEvent.count({ where: { action: 'PROMPT_GENERATED' } });
+      const prompt = immutable<PromptSnapshot>(
+        await postPrompt(a.p.caseId, promptBody(scope, view.contextRevision, hV2)),
+        201,
+      );
+      expect(await countRows(prisma, 'prompt_snapshots')).toBe(prompts + 1);
+      expect(await prisma.auditEvent.count({ where: { action: 'PROMPT_GENERATED' } })).toBe(
+        generated + 1,
+      );
+      expect([prompt.generationMode, prompt.contextRevision, prompt.dependencyDigest]).toEqual([
+        generationMode,
+        view.contextRevision,
+        hV2,
+      ]);
+      expect(prompt.dependencyManifest).toEqual(view.dependencies);
+      expect(prompt.contextJson).toEqual(view.context);
+      expect(prompt.conflicts).toEqual(a.listed(view));
+      const [conflict] = a.listed(view);
+      expect(prompt.renderedPrompt).toContain(
+        `- ${NOT_APPLICABLE} (${conflict?.fieldPath}): ${JSON.stringify(conflict?.message)}`,
+      );
+      expect(await prisma.caseRecord.findUniqueOrThrow({ where: { id: a.p.caseId } })).toEqual(
+        caseRow,
+      );
+    }
+    await expectNoLaterRecords();
+  });
+
+  it('validateCandidate: the v1 digest of the unchanged closure is 412 CONTEXT_CHANGED before any run is recorded (the claim released, nothing written); the current digest records a new run against exactly the current context — REVIEW_REQUIRED by CONTEXT.CONFLICTS, never TECHNICAL_PASS', async () => {
+    const a = await annexWorld();
+    const scope = a.full();
+    const prompt = await generate(a.p.caseId, { authoritySelectionId: a.selection.id });
+    const candidate = await importCandidate(a.p.caseId, draft(prompt));
+    const view = await context(a.p.caseId, scopeOf(prompt));
+    const hV1 = legacyV1Digest(IDENTIFIERS, scope, view.dependencies);
+    expect(view.dependencyDigest).toBe(currentV2Digest(IDENTIFIERS, scope, view.dependencies));
+    expect(view.dependencyDigest).toBe(prompt.dependencyDigest);
+    expect(hV1).not.toBe(view.dependencyDigest);
+
+    const before = await suiteDump();
+    const key = newKey();
+    const stale = await validatePost(
+      candidate.id,
+      { expectedArtifactSha256: candidate.artifactSha256, expectedDependencyDigest: hV1 },
+      key,
+    );
+    expect(outcome(stale)).toEqual([412, 'CONTEXT_CHANGED']);
+    expect(detailsOf(stale)).toEqual({ field: 'expectedDependencyDigest' });
+    expect(await prisma.idempotencyRecord.count({ where: { idempotencyKey: key } })).toBe(0);
+    expect(await suiteDump()).toEqual(before);
+
+    const { run } = await validate(candidate, prompt);
+    expect(run.dependencyDigest).toBe(view.dependencyDigest);
+    expect(run.dependencyManifest).toEqual(view.dependencies);
+    expect(run.evaluatedContextJson.conflicts).toEqual(a.listed(view));
+    expect(run.result).toBe('REVIEW_REQUIRED');
+    expect(ruleIds(await issuesOf(run.id))).toEqual(['CONTEXT.CONFLICTS']);
+    expect(await countRows(prisma, 'validation_runs')).toBe(1);
+    await expectNoLaterRecords();
+  });
+
+  it('history: a prompt snapshot and a validation run recorded under TB-PRODUCTION-CONTEXT-DIGEST-v1 (digest H_v1, the earlier context without the conflict) read back exactly — never re-digested, re-evaluated or given the current conflict; a new read is H_v2 with the conflict; a new validation of that prompt’s candidate is a new run (the conflict, and a digest that differs only in its identifiers); both historical rows stay byte-identical', async () => {
+    const a = await annexWorld();
+    const scope = a.full();
+    const earlier = await earlierInterpretation(scope);
+    const hV1 = legacyV1Digest(IDENTIFIERS, scope, earlier.dependencies);
+    const legacy: ContextView = { ...earlier, dependencyDigest: hV1 };
+
+    // The snapshot as the v1 deployment recorded it, before this test's clock (set directly in
+    // tb_notice_test: the application no longer computes a v1 digest).
+    const promptId = randomUUID();
+    const promptAt = new Date(Date.UTC(2026, 8, 22, 12, 0, 0, 0));
+    const renderedPrompt = renderPrompt(legacy, CONTRACT_BASELINE);
+    const sourceManifest = promptSourceManifest(legacy.context);
+    const version =
+      (await prisma.promptSnapshot.count({ where: { caseId: a.p.caseId, taskType: 'INITIAL' } })) +
+      1;
+    const userId = client.session.userId;
+    await prisma.$executeRaw`
+      INSERT INTO prompt_snapshots (id, case_id, task_type, generation_mode, version,
+        authority_selection_id, parent_binding_id, contract_version, template_version,
+        context_revision, dependency_digest, dependency_manifest, context_json, source_manifest,
+        missing_items, conflicts, rendered_prompt, prompt_sha256, created_at, created_by_id)
+      VALUES (${promptId}, ${a.p.caseId}, ${'INITIAL'}, ${'DRAFTING'}, ${version},
+        ${a.selection.id}, ${null}, ${CONTRACT_BASELINE}, ${PROMPT_TEMPLATE_VERSION},
+        ${legacy.contextRevision}, ${hV1}, CAST(${JSON.stringify(legacy.dependencies)} AS JSON),
+        CAST(${JSON.stringify(legacy.context)} AS JSON), CAST(${JSON.stringify(sourceManifest)} AS JSON),
+        CAST(${JSON.stringify(legacy.context.missing)} AS JSON), CAST(${'[]'} AS JSON),
+        ${renderedPrompt}, ${sha256(renderedPrompt)}, ${promptAt}, ${userId})`;
+    const historicalPrompt: PromptSnapshot = {
+      id: promptId,
+      caseId: a.p.caseId,
+      taskType: 'INITIAL',
+      generationMode: 'DRAFTING',
+      version,
+      authoritySelectionId: a.selection.id,
+      parentBindingId: null,
+      contractVersion: CONTRACT_BASELINE,
+      templateVersion: PROMPT_TEMPLATE_VERSION,
+      contextRevision: legacy.contextRevision,
+      dependencyDigest: hV1,
+      dependencyManifest: legacy.dependencies,
+      contextJson: legacy.context,
+      sourceManifest,
+      missingItems: legacy.context.missing,
+      conflicts: [],
+      renderedPrompt,
+      promptSha256: sha256(renderedPrompt),
+      createdAt: promptAt.toISOString(),
+      createdById: userId,
+    };
+    expect(await readPrompt(promptId)).toEqual(historicalPrompt);
+    expect(historicalPrompt.renderedPrompt).not.toContain(NOT_APPLICABLE);
+
+    // Its candidate, and the run the v1 deployment recorded for it (TECHNICAL_PASS then).
+    const candidate = await importCandidate(a.p.caseId, draft(historicalPrompt));
+    const runId = randomUUID();
+    const runAt = new Date(Date.UTC(2026, 8, 22, 12, 0, 1, 0));
+    const coverage = {
+      requiredRuleIds: ALL_RULES,
+      executedRuleIds: ALL_RULES,
+      notExecutedRuleIds: [],
+      semanticReviewRequired: true as const,
+    };
+    await prisma.$executeRaw`
+      INSERT INTO validation_runs (id, candidate_id, case_id, artifact_sha256, dependency_digest,
+        dependency_manifest, evaluated_context_json, ruleset_version, result, coverage_manifest,
+        blocker_count, review_required_count, warning_count, started_at, completed_at, created_at,
+        created_by_id)
+      VALUES (${runId}, ${candidate.id}, ${a.p.caseId}, ${candidate.artifactSha256}, ${hV1},
+        CAST(${JSON.stringify(legacy.dependencies)} AS JSON), CAST(${JSON.stringify(legacy.context)} AS JSON),
+        ${'TB-TECHNICAL-RULESET-v2'}, ${'TECHNICAL_PASS'}, CAST(${JSON.stringify(coverage)} AS JSON),
+        0, 0, 0, ${runAt}, ${runAt}, ${runAt}, ${userId})`;
+    const historicalRun: ValidationRun = {
+      id: runId,
+      candidateId: candidate.id,
+      caseId: a.p.caseId,
+      artifactSha256: candidate.artifactSha256,
+      dependencyDigest: hV1,
+      dependencyManifest: legacy.dependencies,
+      evaluatedContextJson: legacy.context,
+      rulesetVersion: 'TB-TECHNICAL-RULESET-v2',
+      result: 'TECHNICAL_PASS',
+      coverageManifest: coverage,
+      blockerCount: 0,
+      reviewRequiredCount: 0,
+      warningCount: 0,
+      startedAt: runAt.toISOString(),
+      completedAt: runAt.toISOString(),
+      createdAt: runAt.toISOString(),
+      createdById: userId,
+    };
+    expect(await getRun(runId)).toEqual(historicalRun);
+    const stored = async () => ({
+      prompt: await prisma.promptSnapshot.findUniqueOrThrow({ where: { id: promptId } }),
+      run: await prisma.validationRun.findUniqueOrThrow({ where: { id: runId } }),
+      candidate: await candidateRow(candidate.id),
+    });
+    const history = await stored();
+
+    // The lists find them by their recorded digest; nothing carries the current one yet.
+    expect(await listPrompts(a.p.caseId, hV1)).toEqual([[promptId, hV1]]);
+    expect(
+      (await listRuns(candidate.id, `?q=${hV1}`)).items.map((item) => [
+        item.id,
+        item.dependencyDigest,
+      ]),
+    ).toEqual([[runId, hV1]]);
+
+    // A new read: the same revision and closure, the conflict, and H_v2.
+    const view = await context(a.p.caseId, scopeOf(historicalPrompt));
+    expect(view.contextRevision).toBe(legacy.contextRevision);
+    expect(view.dependencies).toEqual(legacy.dependencies);
+    expect(view.context.conflicts).toEqual(a.listed(view));
+    expect(view.dependencyDigest).toBe(currentV2Digest(IDENTIFIERS, scope, view.dependencies));
+    expect(view.dependencyDigest).not.toBe(hV1);
+    expect(await listPrompts(a.p.caseId, view.dependencyDigest)).toEqual([]);
+
+    // Validating the v1-era candidate with the v1-era digest: 412, nothing recorded.
+    const runs = await countRows(prisma, 'validation_runs');
+    const stale = await validatePost(candidate.id, expectations(candidate, legacy));
+    expect(outcome(stale)).toEqual([412, 'CONTEXT_CHANGED']);
+    expect(await countRows(prisma, 'validation_runs')).toBe(runs);
+    // With the current read: a new run, REVIEW_REQUIRED by the conflict and by the prompt's digest,
+    // which differs from the current one although every record is unchanged (its identifiers).
+    const { run } = await validate(candidate, historicalPrompt);
+    expect(run.id).not.toBe(runId);
+    expect([run.result, run.dependencyDigest]).toEqual(['REVIEW_REQUIRED', view.dependencyDigest]);
+    expect(run.evaluatedContextJson.conflicts).toEqual(a.listed(view));
+    const issues = await issuesOf(run.id);
+    expect(ruleIds(issues).sort()).toEqual(['CONTEXT.CONFLICTS', 'CONTEXT.PROMPT_DRIFT']);
+    expect(issuesOfRule(issues, 'CONTEXT.PROMPT_DRIFT')).toEqual([
+      expect.objectContaining({
+        severity: 'REVIEW_REQUIRED',
+        fieldPath: 'dependencyDigest',
+        details: {
+          change: 'IDENTIFIERS',
+          promptDependencyDigest: hV1,
+          currentDependencyDigest: view.dependencyDigest,
+        },
+      }),
+    ]);
+
+    // History: exactly as recorded, by id and in the lists; the stored rows byte-identical.
+    expect(await readPrompt(promptId)).toEqual(historicalPrompt);
+    expect(await getRun(runId)).toEqual(historicalRun);
+    expect(await issuesOf(runId)).toEqual([]);
+    expect(
+      (await listRuns(candidate.id)).items.map((item) => [item.id, item.dependencyDigest]),
+    ).toEqual([
+      [run.id, view.dependencyDigest],
+      [runId, hV1],
+    ]);
+    expect(await stored()).toEqual(history);
+    await expectNoLaterRecords();
+  });
+});
+
+describe('R14 getValidationRun — one stored run read back exactly as recorded, historical and read-only', () => {
+  const RUN_FIELDS = [
+    'id',
+    'candidateId',
+    'caseId',
+    'artifactSha256',
+    'dependencyDigest',
+    'dependencyManifest',
+    'evaluatedContextJson',
+    'rulesetVersion',
+    'result',
+    'coverageManifest',
+    'blockerCount',
+    'reviewRequiredCount',
+    'warningCount',
+    'startedAt',
+    'completedAt',
+    'createdAt',
+    'createdById',
+  ];
+  const SUMMARY_FIELDS = [
+    'id',
+    'candidateId',
+    'caseId',
+    'artifactSha256',
+    'dependencyDigest',
+    'rulesetVersion',
+    'result',
+    'blockerCount',
+    'reviewRequiredCount',
+    'warningCount',
+    'startedAt',
+    'completedAt',
+    'createdAt',
+  ] as const;
+
+  it('TECHNICAL_PASS read back later: every stored field exactly as recorded and evaluated — the same run the write, its replay and the stored row carry; the summary and the issue list unchanged', async () => {
+    const p = await validationWorld();
+    const key = newKey();
+    const { run, view } = await validate(p.candidate, p.prompt, key);
+    const recordedAt = new Date(t.clock.ms).toISOString();
+    t.clock.advance(5000);
+    const read = await getRun(run.id);
+    // The body of the run's own 201, field for field (the unchanged v1.0.0 ValidationRun).
+    expect(read).toEqual(run);
+    expect(Object.keys(read).sort()).toEqual([...RUN_FIELDS].sort());
+    expect(read.artifactSha256).toBe(p.candidate.artifactSha256);
+    expect(read.dependencyDigest).toBe(view.dependencyDigest);
+    expect(read.rulesetVersion).toBe('TB-TECHNICAL-RULESET-v2');
+    expect(read.dependencyManifest).toEqual(view.dependencies);
+    expect(read.evaluatedContextJson).toEqual(view.context);
+    expect(read.result).toBe('TECHNICAL_PASS');
+    expect(read.coverageManifest).toEqual({
+      requiredRuleIds: ALL_RULES,
+      executedRuleIds: ALL_RULES,
+      notExecutedRuleIds: [],
+      semanticReviewRequired: true,
+    });
+    expect([read.blockerCount, read.reviewRequiredCount, read.warningCount]).toEqual([0, 0, 0]);
+    // The recorded instants, never the read's own.
+    expect([read.startedAt, read.completedAt, read.createdAt]).toEqual([
+      recordedAt,
+      recordedAt,
+      recordedAt,
+    ]);
+    expect(read.createdById).toBe(client.session.userId);
+    // Exactly the stored row: its JSON columns and instants as MySQL returns them.
+    const row = await prisma.validationRun.findUniqueOrThrow({ where: { id: run.id } });
+    expect(read.dependencyManifest).toEqual(row.dependencyManifest);
+    expect(read.evaluatedContextJson).toEqual(row.evaluatedContextJson);
+    expect(read.coverageManifest).toEqual(row.coverageManifest);
+    expect([read.dependencyDigest, read.rulesetVersion, read.result]).toEqual([
+      row.dependencyDigest,
+      row.rulesetVersion,
+      row.result,
+    ]);
+    expect([read.startedAt, read.completedAt, read.createdAt]).toEqual(
+      [row.startedAt, row.completedAt, row.createdAt].map((instant) => instant.toISOString()),
+    );
+    // Neighbours unchanged: the replay of the write is the same run; the summary is its projection
+    // and still carries no context, manifest or coverage; the issues stay with their own list.
+    const replay = immutable<ValidationRun>(
+      await validatePost(p.candidate.id, expectations(p.candidate, view), key),
+      201,
+    );
+    expect(replay).toEqual(read);
+    const [summary] = (await listRuns(p.candidate.id)).items;
+    expect(summary).toEqual(
+      Object.fromEntries(SUMMARY_FIELDS.map((field) => [field, read[field]])),
+    );
+    expect(Object.keys(summary ?? {}).sort()).toEqual([...SUMMARY_FIELDS].sort());
+    expect(await issuesOf(run.id)).toEqual([]);
+    expect(await countRows(prisma, 'validation_runs')).toBe(1);
+  });
+
+  it('BLOCKED, REVIEW_REQUIRED and ERROR runs read back exactly: the stored result and counts, every required, executed and not-executed rule and semanticReviewRequired — nothing recomputed or hidden; the counts agree with the unchanged issue list', async () => {
+    const p = await promptWorld();
+    const blocked = (
+      await validate(
+        await importCandidate(p.caseId, draft(p.prompt, { bodyText: `A\n${SLOT}\nB\n${SLOT}\n` })),
+        p.prompt,
+      )
+    ).run;
+    const review = (
+      await validate(
+        await importCandidate(
+          p.caseId,
+          draft(p.prompt, { bodyText: `A\n[PENDING SIGNER NAME]\n${SLOT}\n` }),
+        ),
+        p.prompt,
+      )
+    ).run;
+    validationObserver.failRule = 'ENVELOPE.SENDER';
+    const failing = (await validate(await importCandidate(p.caseId, draft(p.prompt)), p.prompt))
+      .run;
+    validationObserver.failRule = null;
+    // Inexact stored text: the two hash rules cannot run (not executed, never passed).
+    const base = await importCandidate(
+      p.caseId,
+      draft(p.prompt, { subject: 'SYNTHETIC NUL draft' }),
+    );
+    const withNul = await inject(base, {
+      bodyText: `SYNTHETIC\u0000body\n${SLOT}\n`,
+      artifactSha256: base.artifactSha256,
+    });
+    const partial = (await validate(withNul, p.prompt)).run;
+    const expected: Array<[string, ValidationRun, string, string[]]> = [
+      ['BLOCKED', blocked, 'BLOCKED', []],
+      ['REVIEW_REQUIRED', review, 'REVIEW_REQUIRED', []],
+      ['ERROR', failing, 'ERROR', ['ENVELOPE.SENDER']],
+      [
+        'BLOCKED, rules not executed',
+        partial,
+        'BLOCKED',
+        ['ARTIFACT.BODY_SHA256', 'ARTIFACT.ARTIFACT_SHA256'],
+      ],
+    ];
+    for (const [label, run, result, notExecuted] of expected) {
+      const read = await getRun(run.id);
+      expect(read, label).toEqual(run);
+      expect(read.result, label).toBe(result);
+      expect(read.coverageManifest, label).toEqual({
+        requiredRuleIds: ALL_RULES,
+        executedRuleIds: ALL_RULES.filter((id) => !notExecuted.includes(id)),
+        notExecutedRuleIds: notExecuted,
+        semanticReviewRequired: true,
+      });
+      const issues = await issuesOf(run.id);
+      const count = (severity: string) =>
+        issues.filter((issue) => issue.severity === severity).length;
+      expect([read.blockerCount, read.reviewRequiredCount, read.warningCount], label).toEqual([
+        count('BLOCKER'),
+        count('REVIEW_REQUIRED'),
+        count('WARNING'),
+      ]);
+      // Every rule that did not execute keeps its issue (why it is not passed).
+      for (const ruleId of notExecuted) {
+        expect(issuesOfRule(issues, ruleId), `${label} ${ruleId}`).toHaveLength(1);
+      }
+    }
+    expect(failing.blockerCount).toBe(1);
+    expect(review.reviewRequiredCount).toBe(1);
+  });
+
+  it('R14-AUD-003: a new run records TB-TECHNICAL-RULESET-v2 (the audit event too); a run recorded as TB-TECHNICAL-RULESET-v1 stays v1 — read back, listed and replayed exactly as recorded, never relabelled or re-executed — and a new validation is a new v2 run', async () => {
+    const p = await validationWorld();
+    const key = newKey();
+    const { run, view } = await validate(p.candidate, p.prompt, key);
+    expect(run.rulesetVersion).toBe('TB-TECHNICAL-RULESET-v2');
+    const event = await prisma.auditEvent.findFirstOrThrow({
+      where: { entityType: 'ValidationRun', entityId: run.id },
+    });
+    expect((event.afterRedacted as Record<string, unknown>)['rulesetVersion']).toBe(
+      'TB-TECHNICAL-RULESET-v2',
+    );
+    // The row as the v1 code recorded it (set directly in tb_notice_test: the application no
+    // longer writes TB-TECHNICAL-RULESET-v1).
+    await prisma.$executeRaw`
+      UPDATE validation_runs SET ruleset_version = ${'TB-TECHNICAL-RULESET-v1'} WHERE id = ${run.id}`;
+    const historical: ValidationRun = { ...run, rulesetVersion: 'TB-TECHNICAL-RULESET-v1' };
+    const runs = await countRows(prisma, 'validation_runs');
+    const issues = await issuesOf(run.id);
+    expect(await getRun(run.id)).toEqual(historical);
+    const listed = await listRuns(p.candidate.id);
+    expect(listed.items.map((item) => [item.id, item.rulesetVersion])).toEqual([
+      [run.id, 'TB-TECHNICAL-RULESET-v1'],
+    ]);
+    // The same key and body replay the stored v1 run exactly: nothing re-executed or relabelled.
+    const replay = immutable<ValidationRun>(
+      await validatePost(p.candidate.id, expectations(p.candidate, view), key),
+      201,
+    );
+    expect(replay).toEqual(historical);
+    expect(await countRows(prisma, 'validation_runs')).toBe(runs);
+    expect(await issuesOf(run.id)).toEqual(issues);
+    // A new validation executes the current rules and records a new run under v2.
+    t.clock.advance(1000);
+    const next = (await validate(p.candidate, p.prompt)).run;
+    expect(next.id).not.toBe(run.id);
+    expect(next.rulesetVersion).toBe('TB-TECHNICAL-RULESET-v2');
+    expect(await getRun(run.id)).toEqual(historical);
+    const both = await listRuns(p.candidate.id);
+    expect(both.items.map((item) => [item.id, item.rulesetVersion])).toEqual([
+      [next.id, 'TB-TECHNICAL-RULESET-v2'],
+      [run.id, 'TB-TECHNICAL-RULESET-v1'],
+    ]);
+  });
+
+  it('a run recorded under another ruleset — a historical row the application never writes itself, set directly in tb_notice_test — is read back exactly: nothing is re-evaluated under the current ruleset, no coverage, result, count or digest recomputed', async () => {
+    const p = await validationWorld();
+    const view = await context(p.caseId, scopeOf(p.prompt));
+    const id = randomUUID();
+    const recordedAt = new Date(Date.UTC(2026, 0, 2, 3, 4, 5, 678));
+    const coverage = {
+      requiredRuleIds: ['SYNTHETIC.RULE_A', 'SYNTHETIC.RULE_B'],
+      executedRuleIds: ['SYNTHETIC.RULE_A'],
+      notExecutedRuleIds: ['SYNTHETIC.RULE_B'],
+      semanticReviewRequired: true,
+    };
+    const manifest = view.dependencies.slice(0, 1);
+    const evaluated = { ...view.context, caseContextRevision: 1 };
+    await prisma.$executeRaw`
+      INSERT INTO validation_runs (id, candidate_id, case_id, artifact_sha256, dependency_digest,
+        dependency_manifest, evaluated_context_json, ruleset_version, result, coverage_manifest,
+        blocker_count, review_required_count, warning_count, started_at, completed_at, created_at,
+        created_by_id)
+      VALUES (${id}, ${p.candidate.id}, ${p.caseId}, ${p.candidate.artifactSha256}, ${'d'.repeat(64)},
+        CAST(${JSON.stringify(manifest)} AS JSON), CAST(${JSON.stringify(evaluated)} AS JSON),
+        ${'TB-TECHNICAL-RULESET-v0-SYNTHETIC'}, ${'REVIEW_REQUIRED'},
+        CAST(${JSON.stringify(coverage)} AS JSON), 0, 1, 0, ${recordedAt}, ${recordedAt},
+        ${recordedAt}, ${client.session.userId})`;
+    const read = await getRun(id);
+    expect(read).toEqual({
+      id,
+      candidateId: p.candidate.id,
+      caseId: p.caseId,
+      artifactSha256: p.candidate.artifactSha256,
+      dependencyDigest: 'd'.repeat(64),
+      dependencyManifest: manifest,
+      evaluatedContextJson: evaluated,
+      rulesetVersion: 'TB-TECHNICAL-RULESET-v0-SYNTHETIC',
+      result: 'REVIEW_REQUIRED',
+      coverageManifest: coverage,
+      blockerCount: 0,
+      reviewRequiredCount: 1,
+      warningCount: 0,
+      startedAt: recordedAt.toISOString(),
+      completedAt: recordedAt.toISOString(),
+      createdAt: recordedAt.toISOString(),
+      createdById: client.session.userId,
+    });
+    // The current ruleset and context would give something else: this candidate evaluates to a
+    // TECHNICAL_PASS with all 29 rules executed against the current digest.
+    const current = (await validate(p.candidate, p.prompt)).run;
+    expect([current.result, current.rulesetVersion, current.dependencyDigest]).toEqual([
+      'TECHNICAL_PASS',
+      'TB-TECHNICAL-RULESET-v2',
+      view.dependencyDigest,
+    ]);
+    expect(current.coverageManifest.requiredRuleIds).toEqual(ALL_RULES);
+    expect(await getRun(id)).toEqual(read);
+    expect(await issuesOf(id)).toEqual([]);
+    expect((await listRuns(p.candidate.id)).items.map((item) => item.id)).toEqual([current.id, id]);
+  });
+
+  it('a stored run is history: after a new authority event, a newer source revision, a paused case source, a fact revision, a mapping edit and the candidate’s supersession it reads back as recorded — its digest, manifest, evaluated context, coverage and result — while a new run records the changed context', async () => {
+    const p = await validationWorld();
+    const { run } = await validate(p.candidate, p.prompt);
+    const mappingStart = run.evaluatedContextJson.mappings[0]?.sourceStartMs ?? null;
+    const changes: Array<[string, () => Promise<unknown>]> = [
+      ['AuthorityEvent', () => recordEvent(p.a.mandate.data.id, p.w.source.id)],
+      [
+        'SourceReference revision',
+        () =>
+          reviseSource(p.basis.id, {
+            agencyId: p.w.agency.data.id,
+            title: 'SYNTHETIC revised basis',
+          }),
+      ],
+      ['CaseSource link state', () => setLinkState(p.caseSource.data.id, 'PAUSED')],
+      ['CaseFact revision', () => reviseFact(p.caseId, p.fact.id)],
+      [
+        'UseMapping edit',
+        () => patchMapping(p.caseId, p.mapping.data.id, { sourceStartMs: '1000' }),
+      ],
+      ['candidate supersession', () => supersede(p.candidate.id)],
+    ];
+    for (const [label, change] of changes) {
+      await change();
+      t.clock.advance(1000);
+      const read = await getRun(run.id);
+      expect(read, label).toEqual(run);
+      // Serialized the same way too (MySQL returns the stored JSON; nothing is rebuilt).
+      expect(JSON.stringify(read), label).toBe(JSON.stringify(run));
+    }
+    // The present has moved on; the stored run did not follow it.
+    const now = await context(p.caseId, scopeOf(p.prompt));
+    expect(now.dependencyDigest).not.toBe(run.dependencyDigest);
+    expect(now.context.mappings[0]?.sourceStartMs).toBe('1000');
+    expect(mappingStart).not.toBe('1000');
+    const later = (await validate(p.candidate, p.prompt)).run;
+    expect(later.dependencyDigest).toBe(now.dependencyDigest);
+    expect(later.result).toBe('REVIEW_REQUIRED');
+    const reread = await getRun(run.id);
+    expect(reread).toEqual(run);
+    expect(reread.result).toBe('TECHNICAL_PASS');
+    expect(reread.evaluatedContextJson.mappings[0]?.sourceStartMs ?? null).toBe(mappingStart);
+    expect((await listRuns(p.candidate.id)).items.map((item) => item.id)).toEqual([
+      later.id,
+      run.id,
+    ]);
+  });
+
+  it('reading writes nothing: repeated reads leave every row byte-identical — no run, issue, audit event, idempotency record, case row version or context revision, candidate, prompt or source change; P1’s session activity touch is the only write, once per interval', async () => {
+    const p = await validationWorld();
+    const { run } = await validate(p.candidate, p.prompt);
+    const tables = [...DIRECTORY_SUITE_TABLES, ...LATER_TABLES, 'auth_sessions', 'users'];
+    const caseBefore = await prisma.caseRecord.findUniqueOrThrow({ where: { id: p.caseId } });
+    const counts = async () =>
+      Promise.all(
+        ['validation_runs', 'validation_issues', 'audit_events', 'idempotency_records'].map(
+          (table) => countRows(prisma, table),
+        ),
+      );
+    const countsBefore = await counts();
+    const before = await suiteDump(tables);
+    for (let index = 0; index < 3; index += 1) expect(await getRun(run.id)).toEqual(run);
+    await issuesOf(run.id);
+    expect(await suiteDump(tables)).toEqual(before);
+    expect(await counts()).toEqual(countsBefore);
+    const caseAfter = await prisma.caseRecord.findUniqueOrThrow({ where: { id: p.caseId } });
+    expect([caseAfter.rowVersion, caseAfter.contextRevision]).toEqual([
+      caseBefore.rowVersion,
+      caseBefore.contextRevision,
+    ]);
+    // Once P1's write interval has passed, a request of the session records its activity
+    // (auth_sessions.last_seen_at) — the global session behaviour, not a change to any run.
+    t.clock.advance(LAST_SEEN_WRITE_INTERVAL_MS + 1);
+    expect(await getRun(run.id)).toEqual(run);
+    const after = await suiteDump(tables);
+    const withoutLastSeen = (rows: readonly string[] = []) =>
+      rows.map((row) => {
+        const { last_seen_at: _lastSeen, ...rest } = JSON.parse(row) as Record<string, unknown>;
+        return rest;
+      });
+    expect({ ...after, auth_sessions: [] }).toEqual({ ...before, auth_sessions: [] });
+    expect(withoutLastSeen(after['auth_sessions'])).toEqual(
+      withoutLastSeen(before['auth_sessions']),
+    );
+    expect(after['auth_sessions']).not.toEqual(before['auth_sessions']);
+    expect(await counts()).toEqual(countsBefore);
+  });
+
+  it('an unknown or malformed id is 404 like any unknown record (a candidate’s id is not a run’s); without a session it is 401 and nothing of the run is returned', async () => {
+    const p = await validationWorld();
+    const { run } = await validate(p.candidate, p.prompt);
+    for (const id of [randomUUID(), 'not-a-uuid', p.candidate.id, p.prompt.id]) {
+      expect(outcome(await client.get('getValidationRun', `/validation-runs/${id}`)), id).toEqual([
+        404,
+        'NOT_FOUND',
+      ]);
+    }
+    const anonymous = await http(t.port, 'GET', `/api/v1/validation-runs/${run.id}`, {});
+    expect(outcome(anonymous)).toEqual([401, 'SESSION_REQUIRED']);
+    for (const value of [run.artifactSha256, run.dependencyDigest, p.candidate.id, p.caseId]) {
+      expect(anonymous.text).not.toContain(value);
+    }
+    expect(anonymous.headers['cache-control']).toBe('no-store');
   });
 });
 
@@ -1943,6 +2997,10 @@ describe('CONTAMINATION — nothing of one case appears in or stales another cas
     expect((await listRuns(p.candidate.id)).items.map((item) => item.id).sort()).toEqual(
       [earlyA.run.id, runA.run.id].sort(),
     );
+    // Read back by id (TB-SCHEMA-API-v1.3.0), each run is exactly its own case's record.
+    expect(await getRun(runB.id)).toEqual(runB);
+    expect(await getRun(runA.run.id)).toEqual(runA.run);
+    expect(await getRun(earlyA.run.id)).toEqual(earlyA.run);
     const issuesB = await issuesOf(runB.id);
     expect(issuesB.every((issue) => issue.runId === runB.id)).toBe(true);
     await expectNoLaterRecords();
@@ -1986,12 +3044,12 @@ describe('P4G boundaries — no outbound call, no later phase, no mutation of a 
     ).toEqual([]);
   });
 
-  it('no run is read, updated or deleted by id, and assessments, readiness, unsigned export, signing and sending stay unrouted; P4G writes no later-phase record', async () => {
+  it('no run is updated or deleted by id (its read is getValidationRun), and assessments, readiness, unsigned export, signing and sending stay unrouted; P4G writes no later-phase record', async () => {
     const p = await validationWorld();
     const { run } = await validate(p.candidate, p.prompt);
     const before = await suiteDump();
     const paths: Array<['GET' | 'POST' | 'PATCH' | 'DELETE' | 'PUT', string]> = [
-      ['GET', `/validation-runs/${run.id}`],
+      ['POST', `/validation-runs/${run.id}`],
       ['PATCH', `/validation-runs/${run.id}`],
       ['PUT', `/validation-runs/${run.id}`],
       ['DELETE', `/validation-runs/${run.id}`],
@@ -2015,7 +3073,7 @@ describe('P4G boundaries — no outbound call, no later phase, no mutation of a 
     await expectNoLaterRecords();
   });
 
-  it('every collected response matches its operation: declared status, contract schema, no ETag on a run, no readiness or approval vocabulary as a key; the three validation operations were exercised', () => {
+  it('every collected response matches its operation: declared status, contract schema, no ETag on a run, no readiness or approval vocabulary as a key; the four validation operations were exercised', () => {
     const byId = new Map<string, (typeof operations)[number]>(
       operations.map((operation) => [operation.operationId, operation]),
     );
@@ -2031,6 +3089,7 @@ describe('P4G boundaries — no outbound call, no later phase, no mutation of a 
     const validationOperations = [
       'validateCandidate',
       'listValidationRuns',
+      'getValidationRun',
       'listValidationIssues',
     ];
     for (const { operationId, result } of collected) {
@@ -2064,7 +3123,7 @@ describe('P4G boundaries — no outbound call, no later phase, no mutation of a 
     for (const operationId of validationOperations) {
       expect(seen.has(operationId), operationId).toBe(true);
     }
-    expect(CONTRACT_BASELINE).toBe('TB-SCHEMA-API-v1.2.0');
+    expect(CONTRACT_BASELINE).toBe('TB-SCHEMA-API-v1.3.0');
   });
 });
 

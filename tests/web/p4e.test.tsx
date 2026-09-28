@@ -465,7 +465,11 @@ describe('P4E prompt pages', () => {
       authoritySelectionId: w.selection.id,
     });
     await waitFor(() => generateButton() !== null, 'the generate action');
-    // A relevant authority event is recorded elsewhere: the digest changes, the revision does not.
+    const contextReads = () =>
+      api.requests.filter((request) => request.path.includes('/production-context')).length;
+    const readsBefore = contextReads();
+    // A relevant authority event is recorded elsewhere, or the server now computes the digest under
+    // another definition (R14-AUD-013): the digest changes, the revision does not.
     api.contextReplies.set(w.caseA.id, answer(viewOf(w, {}, 'c'.repeat(64))));
     await click(generateButton() as HTMLElement);
     await waitFor(
@@ -489,6 +493,17 @@ describe('P4E prompt pages', () => {
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(generations(api, w.caseA.id)).toHaveLength(1);
     expect(api.prompts).toEqual([]);
+    // The refused request carried exactly the reviewed read, and nothing was read again silently.
+    const expectedBody = (digest: string) => ({
+      taskType: 'INITIAL',
+      generationMode: 'PREPARATION',
+      expectedContextRevision: 7,
+      expectedDependencyDigest: digest,
+      authoritySelectionId: w.selection.id,
+      priorBindingIds: [],
+    });
+    expect(generations(api, w.caseA.id)[0]?.body).toEqual(expectedBody('a'.repeat(64)));
+    expect(contextReads()).toBe(readsBefore);
     expect(document.activeElement?.contains(q('[data-testid="prompt-context-changed"]'))).toBe(
       true,
     );
@@ -504,8 +519,9 @@ describe('P4E prompt pages', () => {
     expect(q('[data-testid="prompt-context-changed"]')).toBeNull();
     await click(generateButton() as HTMLElement);
     await waitFor(() => q('[data-testid="prompt-detail"]') !== null, 'the detail page');
+    expect(contextReads()).toBe(readsBefore + 1);
     const [first, second] = generations(api, w.caseA.id);
-    expect(second?.body).toMatchObject({ expectedDependencyDigest: 'c'.repeat(64) });
+    expect(second?.body).toEqual(expectedBody('c'.repeat(64)));
     expect(second?.headers['Idempotency-Key']).not.toBe(first?.headers['Idempotency-Key']);
     expect(api.prompts).toHaveLength(1);
     expect(api.prompts[0]?.['dependencyDigest']).toBe('c'.repeat(64));

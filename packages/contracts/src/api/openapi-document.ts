@@ -8,9 +8,10 @@
 // After the Zod-first transition is accepted (ADR-0002) this file is editable active source; the
 // port is provenance only and must not be re-run over it. Build wire schemas with the `tb`
 // builders only — the JSON Schema/OpenAPI lowering rejects anything else.
-// Amended additively by TB-SCHEMA-API-v1.1.0 (ADR-0004, docs/contracts/TB-SCHEMA-API-v1.1.0) and
-// TB-SCHEMA-API-v1.2.0 (ADR-0005, docs/contracts/TB-SCHEMA-API-v1.2.0): the document version names
-// the active release; nothing else here changed.
+// Amended additively by TB-SCHEMA-API-v1.1.0 (ADR-0004, docs/contracts/TB-SCHEMA-API-v1.1.0),
+// TB-SCHEMA-API-v1.2.0 (ADR-0005, docs/contracts/TB-SCHEMA-API-v1.2.0) and TB-SCHEMA-API-v1.3.0
+// (ADR-0006, docs/contracts/TB-SCHEMA-API-v1.3.0): the document version names the active release;
+// nothing else here changed.
 
 import { tb } from '../primitives/wire.js';
 import type { OpenApiDocumentSource } from './operation-types.js';
@@ -20,7 +21,7 @@ export const openApiDocument = {
   openapi: '3.1.1',
   info: {
     title: 'TB Notice Production System — API Contract v1',
-    version: '1.2.0',
+    version: '1.3.0',
     description:
       'LOCAL-FIRST contract, not a deployed API. Terminal product: unsigned candidate. Technical validation does not certify rights/G1-G6. No send, signature, G7 or raw evidence export route.',
   },

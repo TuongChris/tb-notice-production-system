@@ -17,6 +17,8 @@ import { contextQueryString, type ContextQuery } from '../../apps/web/src/app/ap
 import {
   AUTHORITY_IN_CONTEXT,
   CONTEXT_BOUNDARY,
+  NOT_APPLICABLE_CITED_MEANING,
+  NOT_APPLICABLE_TO_CASE,
 } from '../../apps/web/src/app/cases/production-context.js';
 import { AS_SENT_COPY } from '../../apps/web/src/app/correspondence/correspondence-ui.js';
 import {
@@ -614,6 +616,199 @@ describe('P4D production context page', () => {
     expect(q('[data-testid="context-policy-sources"] a[href^="https://"]')).toBeNull();
     for (const text of claimTexts(document.body)) expect(text).not.toMatch(FORBIDDEN_CLAIMS);
     expect(actionTexts().filter((text) => FORBIDDEN_ACTIONS.test(text))).toEqual([]);
+    expect(api.writes()).toEqual([]);
+  });
+
+  it('R14-AUD-001: a source a captured message cites that the context records as not applicable to this case is marked wherever it is listed — beside the raw source, beside that attachment and in the source list — in neutral words; an applicable one is not marked; nothing is hidden', async () => {
+    const api = new FakeDirectory();
+    const w = world(api);
+    const restricted = api.seedSource({
+      agencyId: w.agency.id,
+      title: 'SYNTHETIC raw file of another subject',
+    });
+    const rawSent = api.seedCorrespondence({
+      agencyId: w.agency.id,
+      direction: 'OUTBOUND',
+      subject: 'SYNTHETIC notice as sent (raw)',
+      captureMode: 'RAW_SOURCE',
+      rawSourceId: restricted.id,
+      attachmentsManifest: [
+        { fileName: 'SYNTHETIC-ok.pdf', sourceId: w.basis.id, state: 'OBSERVED_IN_RAW_MIME' },
+        { fileName: 'SYNTHETIC-other.pdf', sourceId: restricted.id, state: 'OBSERVED_IN_RAW_MIME' },
+      ],
+    });
+    const binding = api.seedBinding({
+      caseId: w.caseA.id,
+      agencyId: w.agency.id,
+      correspondenceId: rawSent.id,
+      eventType: 'INITIAL_AS_SENT',
+    });
+    const recorded = (citation: string) =>
+      `Recorded source ${restricted.id}, ${citation} of captured message ${rawSent.id}, is not applicable to the current Case scope (SOURCE_SCOPE_UNRESOLVED: SCOPED_TO_OTHER_SUBJECT). The capture was checked against its agency only. The message and the source are kept as recorded; this is a source-scope condition, not a finding about what the source shows.`;
+    const view = viewOf(w, {
+      taskType: 'NMI_REPLY',
+      priorCorrespondenceIds: [rawSent.id],
+      correspondence: [rawSent] as unknown as ProductionContext['correspondence'],
+      sources: [
+        manifest(w.primary),
+        manifest(w.basis),
+        manifest(restricted),
+      ] as unknown as ProductionContext['sources'],
+      conflicts: [
+        {
+          code: 'CORRESPONDENCE_SOURCE_NOT_APPLICABLE',
+          message: recorded('the raw source'),
+          fieldPath: 'correspondence[0].rawSourceId',
+        },
+        {
+          code: 'CORRESPONDENCE_SOURCE_NOT_APPLICABLE',
+          message: recorded('the source of attachment observation 1'),
+          fieldPath: 'correspondence[0].attachmentsManifest[1].sourceId',
+        },
+      ],
+    });
+    api.contextReplies.set(w.caseA.id, answer(view));
+    await openContext(api, w.caseA.id, {
+      taskType: 'NMI_REPLY',
+      generationMode: 'PREPARATION',
+      priorBindingIds: [binding.id],
+    });
+    await waitFor(() => q('[data-testid="context-result"]') !== null, 'the context');
+    // The conflicts are listed as recorded, in the neutral conflict treatment.
+    const conflicts = all('[data-testid="conflict-list"] li');
+    expect(conflicts).toHaveLength(2);
+    expect(conflicts[0]?.textContent).toContain('Recorded conflict');
+    expect(conflicts[0]?.textContent).toContain('CORRESPONDENCE_SOURCE_NOT_APPLICABLE');
+    expect(conflicts[0]?.textContent).toContain(recorded('the raw source'));
+    // Beside the message's raw source and beside exactly that attachment.
+    const message = q('[data-testid="context-message"]');
+    const rawRow = [...(message?.querySelectorAll('.details-row') ?? [])].find(
+      (row) => row.querySelector('dt')?.textContent === 'Raw source',
+    );
+    expect(rawRow?.querySelector('[data-testid="not-applicable-to-case"]')?.textContent).toBe(
+      'Not applicable to this case’s scope',
+    );
+    const attachments = all('[data-testid="context-attachments"] li');
+    expect(
+      attachments.map((li) => li.querySelector('[data-testid="not-applicable-to-case"]') !== null),
+    ).toEqual([false, true]);
+    // In the source list: the source stays listed, marked; the applicable ones are not marked.
+    const entries = all('[data-testid="context-sources"] [data-testid="manifest-entry"]');
+    expect(entries).toHaveLength(3);
+    const marked = entries.filter((entry) => entry.textContent?.includes(NOT_APPLICABLE_TO_CASE));
+    expect(marked).toHaveLength(1);
+    expect(marked[0]?.textContent).toContain(restricted.id);
+    expect(marked[0]?.textContent).toContain('Case scope');
+    expect(NOT_APPLICABLE_TO_CASE).toBe(
+      'Recorded source is not applicable to the current Case scope.',
+    );
+    for (const entry of entries.filter((item) => item !== marked[0])) {
+      expect(entry.textContent).not.toContain('Case scope');
+      expect(entry.querySelector('[data-testid="not-applicable-to-case"]')).toBeNull();
+    }
+    // Neutral words only: no evidence, authority, infringement or gate verdict where it is marked.
+    for (const text of claimTexts(document.body)) expect(text).not.toMatch(FORBIDDEN_CLAIMS);
+    const added = [
+      q('[data-testid="conflict-list"]'),
+      ...all('[data-testid="not-applicable-to-case"]'),
+      marked[0] ?? null,
+    ];
+    for (const element of added) {
+      for (const text of element === null ? [] : claimTexts(element)) {
+        expect(text).not.toMatch(
+          /invalid|unauthori[sz]ed|no authority|infringement not proven|g[1-7] failed|verified|approved/i,
+        );
+      }
+    }
+    expect(api.writes()).toEqual([]);
+  });
+
+  it('R14-AUD-009 / R14-AUD-010: a source the context records as not applicable to this case through SOURCE_NOT_APPLICABLE (a mandate version’s primary source; a linked policy source) is marked wherever the page shows it — beside the authority citation and in both source lists, with its own neutral explanation; an applicable source (the coverage basis and signer source) is not marked; the authority records are shown exactly as selected', async () => {
+    const api = new FakeDirectory();
+    const w = world(api);
+    const recorded = (sourceId: string, citation: string, reason: string) =>
+      `Recorded source ${sourceId} is not applicable to the current Case scope (${reason}). This context cites it as ${citation}. The citing records and the source are kept as recorded; this is a source-scope condition, not a finding about what the source shows or about any authority, right or gate.`;
+    const view = viewOf(w, {
+      sources: [manifest(w.primary), manifest(w.basis)] as unknown as ProductionContext['sources'],
+      policySources: [manifest(w.policy)] as unknown as ProductionContext['policySources'],
+      conflicts: [
+        {
+          code: 'SOURCE_NOT_APPLICABLE',
+          message: recorded(
+            w.primary.id as string,
+            `the primary source of mandate version ${w.version.id as string}`,
+            'SOURCE_SCOPE_UNRESOLVED: SCOPED_TO_OTHER_SUBJECT',
+          ),
+          fieldPath: 'sources[0]',
+        },
+        {
+          code: 'SOURCE_NOT_APPLICABLE',
+          message: recorded(
+            w.policy.id as string,
+            'case source link 00000000-0000-4000-8000-000000000001 (SYNTHETIC_POLICY)',
+            'CROSS_OWNER_REFERENCE',
+          ),
+          fieldPath: 'policySources[0]',
+        },
+      ],
+    });
+    api.contextReplies.set(w.caseA.id, answer(view));
+    await openContext(api, w.caseA.id, {
+      taskType: 'INITIAL',
+      generationMode: 'PREPARATION',
+      authoritySelectionId: w.selection.id as string,
+    });
+    await waitFor(() => q('[data-testid="context-result"]') !== null, 'the context');
+    // The conflicts are listed as recorded, in the neutral conflict treatment.
+    const conflicts = all('[data-testid="conflict-list"] li');
+    expect(conflicts.map((li) => li.textContent?.includes('SOURCE_NOT_APPLICABLE'))).toEqual([
+      true,
+      true,
+    ]);
+    // Beside the version's primary source; not beside the coverage basis or the signer's source.
+    const rowOf = (scope: Element | null, label: string) =>
+      [...(scope?.querySelectorAll('.details-row') ?? [])].filter(
+        (row) => row.querySelector('dt')?.textContent === label,
+      );
+    const coverage = q('[data-testid="context-coverage"]');
+    const tagged = (row: Element | undefined) =>
+      row?.querySelector('[data-testid="not-applicable-to-case"]')?.textContent ?? null;
+    expect(rowOf(coverage, 'Primary source').map(tagged)).toEqual([
+      'Not applicable to this case’s scope',
+    ]);
+    expect(rowOf(coverage, 'Basis source').map(tagged)).toEqual([null]);
+    expect(rowOf(coverage, 'Source').map(tagged)).toEqual([null]);
+    // In both lists: the source stays listed and is marked with the explanation of its conflict.
+    const entries = all('[data-testid="context-sources"] [data-testid="manifest-entry"]');
+    expect(entries).toHaveLength(2);
+    expect(entries[0]?.textContent).toContain(w.primary.id as string);
+    expect(entries[0]?.textContent).toContain(`Case scope`);
+    expect(entries[0]?.textContent).toContain(NOT_APPLICABLE_TO_CASE);
+    expect(entries[0]?.textContent).toContain(NOT_APPLICABLE_CITED_MEANING);
+    expect(entries[1]?.textContent).not.toContain('Case scope');
+    expect(entries[1]?.querySelector('[data-testid="not-applicable-to-case"]')).toBeNull();
+    const policy = all('[data-testid="context-policy-sources"] [data-testid="manifest-entry"]');
+    expect(policy).toHaveLength(1);
+    expect(policy[0]?.textContent).toContain(NOT_APPLICABLE_TO_CASE);
+    expect(policy[0]?.textContent).toContain(NOT_APPLICABLE_CITED_MEANING);
+    expect(NOT_APPLICABLE_CITED_MEANING).toBe(
+      'Recorded conflicts name every record of this context that cites it. The records and the source are kept as recorded, and this says nothing about what the source shows.',
+    );
+    // The authority records stay shown exactly as selected: no verdict about them anywhere.
+    for (const text of claimTexts(document.body)) expect(text).not.toMatch(FORBIDDEN_CLAIMS);
+    const added = [
+      q('[data-testid="conflict-list"]'),
+      ...all('[data-testid="not-applicable-to-case"]'),
+      entries[0] ?? null,
+      policy[0] ?? null,
+    ];
+    for (const element of added) {
+      for (const text of element === null ? [] : claimTexts(element)) {
+        expect(text).not.toMatch(
+          /(?<![.\w])invalid|unauthori[sz]ed|no authority|infringement not proven|g[1-7] fail|verified|approved|not authori[sz]ed|revoked|expired/i,
+        );
+      }
+    }
     expect(api.writes()).toEqual([]);
   });
 

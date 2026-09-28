@@ -1,0 +1,173 @@
+R14 remediation — first-PC regression sweep (mission TB_R14_POST_MERGE_RECONCILE_AND_VALIDATION_RUN_READBACK_REMEDIATION_TO_R14_FINAL §25),
+home PC, 2026-09-26 (UTC)
+==================================================================================================================
+Tree: the remediation code head 31df6d7 (7972103, 11bdf0f, 60a15e1, a5c22aa, 31df6d7 on the post-P4G main c73cbda), clean
+except the untracked docs/verification/p4g/evidence/screenshots/r14-* files of the browser pass. Every step runs even
+after a failure; exit codes below. No listener on ports 3000/5173 before the sweep (the UI sandbox was stopped; no operator
+dev servers running; smoke:local and dev:verify-shutdown bind them). Nothing was written to tb_notice_dev: db:verify dev
+reads metadata and a row count only, db:status and the drift diffs only compare, and smoke:local checks the connection and
+unauthenticated boundaries only. yarn test:transition-baseline is not a gate and was not run (it fails by design since the
+accepted v1.1.0 edit). The compiled smokes that write records (smoke:auth, smoke:directory, smoke:p3a … smoke:p4g) run only
+in CI (evidence/r14-ci-run-36248642530.txt).
+
+Step summary
+------------
+sweep start 2026-09-26T14:29:29.214Z head 31df6d781f1d5fb419cdbb5423ff46b43583a070 (status: ?? docs/verification/p4g/evidence/screenshots/r14-01-technical-pass-recorded.png ?? docs/verification/p4g/evidence/screenshots/r14-02-after-reload-history-only.png ?? docs/verification/p4g/evidence/screenshots/r14-03-08-reload-open-run-pass.png ?? docs/verification/p4g/evidence/screenshots/r14-06-08-not-executed-and-issues-after-reload.png ?? docs/verification/p4g/evidence/screenshots/r14-09-dependency-manifest-open.png ?? docs/verification/p4g/evidence/screenshots/r14-10-evaluated-context-inert.png ?? docs/verification/p4g/evidence/screenshots/r14-11-14-after-changes-history-unchanged.png ?? docs/verification/p4g/evidence/screenshots/r14-15a-open-run-390px.png ?? docs/verification/p4g/evidence/screenshots/r14-15b-manifest-context-390px.png ?? docs/verification/p4g/evidence/screenshots/r14-15c-manifest-390px-after-fix.png ?? docs/verification/p4g/evidence/screenshots/r14-15d-manifest-390px-scrolled-in-frame.png ?? docs/verification/p4g/evidence/screenshots/r14-16a-keyboard-open-run-focus.png ?? docs/verification/p4g/evidence/screenshots/r14-16b-keyboard-context-pre-focus.png ?? docs/verification/p4g/evidence/screenshots/r14-16c-keyboard-close-run.png ?? docs/verification/p4g/evidence/screenshots/r14-17-signed-out-login.png )
+reference:check                                  exit 0       0s  reference:check.log
+reference:helper-tests                           exit 0       0s  reference:helper-tests.log
+contracts:check                                  exit 0       2s  contracts:check.log
+install --immutable                              exit 0       1s  install_--immutable.log
+typecheck                                        exit 0      10s  typecheck.log
+lint                                             exit 0       1s  lint.log
+oxlint --deny-warnings --format default          exit 0       0s  oxlint_--deny-warnings_--format_default.log
+format:check                                     exit 0       6s  format:check.log
+test                                             exit 0      44s  test.log
+test:db                                          exit 0     406s  test:db.log
+db:verify test --expect-empty                    exit 0       0s  db:verify_test_--expect-empty.log
+db:verify dev                                    exit 0       0s  db:verify_dev.log
+db:status test                                   exit 0       1s  db:status_test.log
+db:status dev                                    exit 0       1s  db:status_dev.log
+db:drift:diff-migrations                         exit 0      24s  db:drift:diff-migrations.log
+db:drift:diff-datasource dev                     exit 0       0s  db:drift:diff-datasource_dev.log
+build                                            exit 0       6s  build.log
+smoke:local                                      exit 0       6s  smoke:local.log
+dev:verify-shutdown                              exit 0      15s  dev:verify-shutdown.log
+reference:check (after)                          exit 0       0s  reference:check_after.log
+db:verify test --expect-empty (after)            exit 0       0s  db:verify_test_--expect-empty_after.log
+sweep end 2026-09-26T14:38:12.941Z status: ?? docs/verification/p4g/evidence/screenshots/r14-01-technical-pass-recorded.png ?? docs/verification/p4g/evidence/screenshots/r14-02-after-reload-history-only.png ?? docs/verification/p4g/evidence/screenshots/r14-03-08-reload-open-run-pass.png ?? docs/verification/p4g/evidence/screenshots/r14-06-08-not-executed-and-issues-after-reload.png ?? docs/verification/p4g/evidence/screenshots/r14-09-dependency-manifest-open.png ?? docs/verification/p4g/evidence/screenshots/r14-10-evaluated-context-inert.png ?? docs/verification/p4g/evidence/screenshots/r14-11-14-after-changes-history-unchanged.png ?? docs/verification/p4g/evidence/screenshots/r14-15a-open-run-390px.png ?? docs/verification/p4g/evidence/screenshots/r14-15b-manifest-context-390px.png ?? docs/verification/p4g/evidence/screenshots/r14-15c-manifest-390px-after-fix.png ?? docs/verification/p4g/evidence/screenshots/r14-15d-manifest-390px-scrolled-in-frame.png ?? docs/verification/p4g/evidence/screenshots/r14-16a-keyboard-open-run-focus.png ?? docs/verification/p4g/evidence/screenshots/r14-16b-keyboard-context-pre-focus.png ?? docs/verification/p4g/evidence/screenshots/r14-16c-keyboard-close-run.png ?? docs/verification/p4g/evidence/screenshots/r14-17-signed-out-login.png 
+FAILURES 0 — 21/21 steps exit 0
+
+Key output lines
+----------------
+  reference:check
+    [reference:check] database-api-v1: 31 manifest entries, MANIFEST.sha256 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c
+    [reference:check] architecture-v1: 18 manifest entries, MANIFEST.sha256 62b4d1136db81d31cf91dbd38a59c4ba57af265b228b479c909e0dbce693c3de
+    [reference:check] pinned identity (REFERENCE_BASELINE.json): 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c matches
+    [reference:check] OK — frozen references intact.
+  reference:helper-tests
+    [reference:helper-tests] frozen helper tests: pass 27, fail 0; exit 0
+    [reference:helper-tests] references after run: intact
+  contracts:check
+    [contracts:check] OK — 3 generated outputs match the active source.
+  install --immutable
+    ➤ YN0086: │ Some peer dependencies are incorrectly met by dependencies; run yarn explain peer-requirements for details.
+    ➤ YN0000: · Done with warnings in 0s 692ms
+  typecheck
+    exit 0 (0 error TS lines)
+  lint; oxlint --deny-warnings --format default
+    Found 0 warnings and 0 errors.
+    Finished in 59ms on 325 files with 96 rules using 20 threads.
+  format:check
+    All matched files use Prettier code style!
+  yarn test
+    Test Files  49 passed (49)
+    Tests  1532 passed (1532)
+  yarn test:db
+    [guard] test:db target: tb_migrate@127.0.0.1:3307/tb_notice_test
+    Test Files  14 passed (14)
+    Tests  526 passed (526)
+  db:verify test --expect-empty
+    [verify] target tb_migrate@127.0.0.1:3307/tb_notice_test — MySQL 8.4.11 (MySQL Community Server - GPL)
+    [verify] reviewed migration sha256 b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+    [verify] tables 33/33 (InnoDB 33, utf8mb4_0900_bin 33); columns 541/541 (character columns with binary collation 391)
+    [verify] primary keys 33/33; unique keys 50/50; indexes 34/34; implicit FK indexes 97
+    [verify] foreign keys 125/125 RESTRICT/RESTRICT (composite 27); CHECK constraints 30/30 semantically matching and ENFORCED=YES
+    [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+    [verify] domain rows total: 0
+    [verify] PASS: metadata matches the reviewed inventory.
+  db:verify dev (metadata and a row count only; nothing written)
+    [verify] domain rows total: 5
+    [verify] PASS: metadata matches the reviewed inventory.
+  db:status test
+    1 migration found in prisma/migrations
+    Database schema is up to date!
+  db:status dev
+    1 migration found in prisma/migrations
+    Database schema is up to date!
+  db:drift:diff-migrations
+    -- This is an empty migration.
+  db:drift:diff-datasource dev
+    -- This is an empty migration.
+  build (0 chunk-size advisory lines)
+    dist/assets/index-QvP54PA0.css                20.42 kB │ gzip:   5.08 kB
+    dist/assets/candidates-ChOvZHrw.js            56.82 kB │ gzip:  14.59 kB
+    dist/assets/index-Da03hor3.js                329.93 kB │ gzip: 102.51 kB
+    ✓ built in 212ms
+  smoke:local
+    [smoke] PASS MySQL compose service is healthy
+    [smoke] PASS database reachable as tb_dev@% on tb_notice_dev (MySQL 8.4.11)
+    [smoke] PASS Prisma client, contracts, API and web built (yarn build)
+    [smoke] PASS api listening on 127.0.0.1:3000
+    [smoke] PASS web listening on 127.0.0.1:5173
+    [smoke] PASS API /api/v1/health: 200, no-store, valid GetHealthResponse, status ok
+    [smoke] PASS web proxy /api/v1/health: 200, no-store, valid GetHealthResponse, status ok
+    [smoke] PASS web shell served on http://localhost:5173/ with bundle /assets/index-Da03hor3.js
+    [smoke] PASS auth boundary: GET /auth/session without a cookie → 401 SESSION_REQUIRED, no-store, no CORS
+    [smoke] PASS auth boundary: POST /auth/login without Origin → 403 ORIGIN_REJECTED, no-store, no CORS
+    [smoke] PASS auth boundary: POST /auth/login for a synthetic unknown account → 403 INVALID_CREDENTIALS, no-store, no CORS
+    [smoke] PASS auth boundary: POST /auth/logout without a session → 401 SESSION_REQUIRED, no-store, no CORS
+    [smoke] PASS auth boundary: GET /auth/session through the web proxy → 401 SESSION_REQUIRED, no-store, no CORS
+    [smoke] PASS business boundary: GET /agencies without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /owners without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /legal-subjects without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /signers without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /owners/{ownerId}/subjects without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /owner-subjects/{id} through the web proxy without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /agencies without Origin → 403 ORIGIN_REJECTED, no-store
+    [smoke] PASS business boundary: POST /agencies/{id}/canonical-bindings without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /sources without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /sources/{id}/revisions without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /routes through the web proxy without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /routes without Origin → 403 ORIGIN_REJECTED, no-store
+    [smoke] PASS business boundary: POST /routes/{id}/canonical-bindings without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /mandates without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /mandates/{id}/versions without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /mandate-versions/{id}/freeze without Origin → 403 ORIGIN_REJECTED, no-store
+    [smoke] PASS business boundary: GET /coverages/{id}/signers through the web proxy without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /mandates/{id}/events without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /cases without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /cases/{caseId}/authority-selections without Origin → 403 ORIGIN_REJECTED, no-store
+    [smoke] PASS business boundary: GET /cases/{caseId}/authority-selections/{id} without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /case-sources/{id} through the web proxy without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /cases/{caseId}/reported-items without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /cases/{caseId}/works without Origin → 403 ORIGIN_REJECTED, no-store
+    [smoke] PASS business boundary: GET /cases/{caseId}/mappings/{id} without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /cases/{caseId}/facts/{id}/revisions without Origin → 403 ORIGIN_REJECTED, no-store
+    [smoke] PASS business boundary: GET /cases/{caseId}/facts/{id}/sources without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /correspondence without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /correspondence without Origin → 403 ORIGIN_REJECTED, no-store
+    [smoke] PASS business boundary: POST /cases/{caseId}/correspondence-bindings without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /correspondence/{id} through the web proxy without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /cases/{caseId}/production-context without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /cases/{caseId}/production-context through the web proxy without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /cases/{caseId}/prompts without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /cases/{caseId}/prompts without Origin → 403 ORIGIN_REJECTED, no-store
+    [smoke] PASS business boundary: GET /cases/{caseId}/prompts without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /prompts/{id} through the web proxy without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /cases/{caseId}/candidates without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /candidates/{id}/revisions without Origin → 403 ORIGIN_REJECTED, no-store
+    [smoke] PASS business boundary: POST /candidates/{id}/supersede without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /cases/{caseId}/candidates without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /candidates/{id} through the web proxy without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /candidates/{id}/validation-runs without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /candidates/{id}/validation-runs without Origin → 403 ORIGIN_REJECTED, no-store
+    [smoke] PASS business boundary: GET /candidates/{id}/validation-runs through the web proxy without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /validation-runs/{id}/issues without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /validation-runs/{id} without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /candidates/{id}/assessments (later phase, not routed) → 404 NOT_FOUND, no-store
+    [smoke] PASS processes stopped; ports 3000 and 5173 released
+    [smoke] PASS (62 checks)
+  dev:verify-shutdown
+    [verify-dev] /home/dmin/.nvm/versions/node/v24.21.0/bin/node /home/dmin/projects/tb-notice-production-system/scripts/local/dev.ts [terminal-ctrl-c]: started=true exit=0 in 607ms portsReleased=true leftovers=0 → PASS
+    [verify-dev] /home/dmin/.nvm/versions/node/v24.21.0/bin/node /home/dmin/projects/tb-notice-production-system/scripts/local/dev.ts [top-sigint]: started=true exit=0 in 604ms portsReleased=true leftovers=0 → PASS
+    [verify-dev] /home/dmin/.nvm/versions/node/v24.21.0/bin/node /home/dmin/projects/tb-notice-production-system/scripts/local/dev.ts [top-sigterm]: started=true exit=0 in 604ms portsReleased=true leftovers=0 → PASS
+    [verify-dev] yarn dev [terminal-ctrl-c]: started=true exit=0 in 605ms portsReleased=true leftovers=0 → PASS
+    [verify-dev] PASS (4/4 scenarios)
+  reference:check (after)
+    [reference:check] database-api-v1: 31 manifest entries, MANIFEST.sha256 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c
+    [reference:check] architecture-v1: 18 manifest entries, MANIFEST.sha256 62b4d1136db81d31cf91dbd38a59c4ba57af265b228b479c909e0dbce693c3de
+    [reference:check] pinned identity (REFERENCE_BASELINE.json): 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c matches
+    [reference:check] OK — frozen references intact.
+  db:verify test --expect-empty (after)
+    [verify] domain rows total: 0
+    [verify] PASS: metadata matches the reviewed inventory.

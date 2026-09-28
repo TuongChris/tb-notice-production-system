@@ -1,7 +1,8 @@
 // TB-SCHEMA-API-v1.1.0 (ADR-0004, accepted at R8 final): the frozen TB-SCHEMA-API-v1.0.0 plus exactly
 // one reviewed additive amendment — the case-scoped read of one CaseAuthoritySelection with the
-// CaseAuthorityCoverage rows it pinned (R8 remediation). Since R9 the active contract is
-// TB-SCHEMA-API-v1.2.0 (ADR-0005), which extends this release (./release-v1-2-0.test.ts). These tests
+// CaseAuthorityCoverage rows it pinned (R8 remediation). Later releases extend it:
+// TB-SCHEMA-API-v1.2.0 (ADR-0005, ./release-v1-2-0.test.ts) and TB-SCHEMA-API-v1.3.0 (ADR-0006,
+// ./release-v1-3-0.test.ts), the active contract since the R14 remediation. These tests
 // pin this release as accepted: its record is unchanged, its base is the untouched frozen reference,
 // "frozen + amendment" still reproduces its documents to the digests recorded at acceptance, nothing
 // of v1.0.0 is changed or removed, and its addition — unchanged in the active contract — carries no

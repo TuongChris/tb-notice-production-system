@@ -1,0 +1,70 @@
+R14 Astra re-audit remediation (R14-AUD-013) — cross-deployment experiment with the real code of earlier deployments
+(mission TB_R14_ASTRA_AUD013_SEMANTIC_DIGEST_REMEDIATION), home PC, 2026-09-28 (UTC)
+==================================================================================================================
+
+Purpose
+- The committed tests prove the guarantee with an independent v1 oracle (tests/support/context-digest-oracles.ts). This
+  experiment adds what an oracle cannot: the context the REAL code of the earlier deployments builds from the SAME rows,
+  in the same process and database state, next to the current application.
+
+Method (scratchpad only; nothing of it is committed)
+- `git archive` of apps/api/src at fdcda2b (the deployment before R14-AUD-009/-010: a mandate version's sources were not
+  evaluated against the case; digest identifier TB-PRODUCTION-CONTEXT-DIGEST-v1) and at e0a521a (the R14-AUD-013 defect
+  state: the R14-AUD-009/-010 semantics under TB-PRODUCTION-CONTEXT-DIGEST-v1) into the session scratchpad, with the
+  repository's node_modules and generated Prisma client linked. packages/ and apps/api/prisma are identical at both
+  commits (`git diff --stat fdcda2b e0a521a -- packages apps/api/prisma` is empty).
+- A temporary DB test on tb_notice_test (a copy of tests/db/p4g-http.test.ts with one scratch test; the copy was deleted
+  after the run) built the R14-AUD-013 fixture through the current application over HTTP: owner X with Subjects A and M,
+  a case of Subject A bound to its route, and a frozen chain whose mandate version cites an annex restricted to Subject M.
+  That citation was valid when written (agency level). The fixture also had the case's selection of that chain, an item,
+  a work, a mapping, a fact and a linked source. No other owner exists, so no fingerprint carries an owner marker.
+- Each read used one REPEATABLE READ snapshot: fdcda2b's readContextRows + assembleContext, e0a521a's readContextRows +
+  assembleContext, and then the current application's getProductionContext over HTTP.
+- The earlier deployment's preview tokens (its contextRevision and digest) were then sent to the current application's
+  generatePrompt, followed by the current read's tokens. The suite's afterEach cleanup emptied the tables.
+
+Result, first run: the working tree as committed (INITIAL / DRAFTING, the case's selection; the ids were synthetic and the cleanup removed them)
+- digest identifier:  fdcda2b TB-PRODUCTION-CONTEXT-DIGEST-v1; e0a521a TB-PRODUCTION-CONTEXT-DIGEST-v1; current TB-PRODUCTION-CONTEXT-DIGEST-v2
+- contextRevision:    fdcda2b 8; e0a521a 8; current 8; the case row 8 before and 8 after (byte-identical: true)
+- dependencies:       23 records; identical fdcda2b vs current: true; e0a521a vs current: true
+- conflicts:          fdcda2b 0 (none); e0a521a 1 (SOURCE_NOT_APPLICABLE sources[2]); current 1 (SOURCE_NOT_APPLICABLE sources[2])
+- the context apart from its conflicts: fdcda2b equals current: true; e0a521a equals current as a whole: true
+- dependencyDigest:   fdcda2b  ab076d9eab3b8087187d9422036d20bbdcd5cd971681bae31f425dea320317b6  (H_v1: what the earlier preview carried)
+                      e0a521a  ab076d9eab3b8087187d9422036d20bbdcd5cd971681bae31f425dea320317b6  (the same digest for the context WITH the conflict: R14-AUD-013)
+                      current  21c3518bb4cb6a8ff03af21174715b11e2498d7486e582977b47910f1227c305  (H_v2)
+- legacy v1 oracle over the current dependencies: ab076d9eab3b8087187d9422036d20bbdcd5cd971681bae31f425dea320317b6 (= the real fdcda2b and e0a521a digest)
+- v2 oracle over the current dependencies:        21c3518bb4cb6a8ff03af21174715b11e2498d7486e582977b47910f1227c305 (= the current application's digest)
+- the three reads wrote nothing (whole-suite dump equal): true
+- generatePrompt on the current application with the earlier preview's tokens (revision 8, H_v1): HTTP 412 CONTEXT_CHANGED {field: expectedDependencyDigest}; idempotency records for its key: 0; nothing written (whole-suite dump equal): true
+- generatePrompt with the current read's tokens: 201, version 2, digest H_v2, revision 8; conflicts frozen: SOURCE_NOT_APPLICABLE sources[2]
+
+Defect reproduced over HTTP (second run, a new fixture of the same shape)
+- The scratch test was run again with the working tree's DEPENDENCY_DIGEST_ALGORITHM temporarily set back to
+  TB-PRODUCTION-CONTEXT-DIGEST-v1, which is the e0a521a definition over the unchanged R14-AUD-009/-010 semantics. The
+  file was then restored byte-identically (sha256 checked; `git status` shows no code change). The script's static label
+  "current: …-v2" does not apply to this run, because the application ran the v1 definition.
+- fdcda2b digest 1c42f9c6774d4aad6e014634146c86a3d8298ede8201063f1f8441137bec3a99; e0a521a 1c42f9c6774d4aad6e014634146c86a3d8298ede8201063f1f8441137bec3a99; the application over HTTP
+  1c42f9c6774d4aad6e014634146c86a3d8298ede8201063f1f8441137bec3a99. All three are equal, and equal to the legacy oracle, while the application's context
+  lists 1 conflict (SOURCE_NOT_APPLICABLE sources[2]) and fdcda2b's lists 0.
+- generatePrompt with the earlier preview's tokens: HTTP 201 (ACCEPTED). Idempotency records for its key:
+  1 (completed), and rows were written (dump equal: false). A prompt snapshot was stored with a
+  context the preview never showed. That is exactly R14-AUD-013. The scratch test's final assertion (412) failed, as
+  intended for this run.
+
+Reading
+- The root cause is confirmed with the real code:
+  - e0a521a builds a materially different context (the conflict) from exactly the rows, revision, closure and fingerprints
+    that fdcda2b read, and computes the same digest for it.
+  - Under that definition, the earlier preview is accepted over HTTP (the second run above).
+  - The committed negative control NC-013-A (the v1 identifier restored) is caught before the 412 check, at its first
+    v2 check: the current digest is not the independent v2 oracle's (evidence/r14-astra3-negative-controls.txt).
+- The remediation:
+  - the same rows now give the v2 digest;
+  - the earlier preview is refused with 412 and nothing is written;
+  - the current read generates normally and freezes the conflict.
+- The legacy oracle of the committed tests reproduces exactly what the earlier deployments computed for these rows.
+
+Limitations
+- The earlier deployments' modules ran in-process against the same database, not as separately compiled servers. The
+  current application ran over HTTP, as in every DB test. The fixture has no correspondence, so R14-AUD-001 is not
+  exercised here (it is covered by its own tests).

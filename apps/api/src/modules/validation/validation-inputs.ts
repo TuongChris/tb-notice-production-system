@@ -8,7 +8,7 @@
 import type { CaseRecord, Prisma } from '../../../generated/prisma/client.js';
 import { tbCanonicalSha256 } from '../../infrastructure/integrity/tb-canonical-json.js';
 import { caseTarget } from '../cases/case-rules.js';
-import { otherOwnerUsing, scopeProblem } from '../sources/source-scope.js';
+import { applicabilityProblem } from '../sources/source-scope.js';
 import type { PlanSourceRecord } from './technical-ruleset.js';
 
 type Tx = Prisma.TransactionClient;
@@ -60,7 +60,6 @@ export async function readPlanSources(
     }
   }
   const target = await caseTarget(tx, caseRow);
-  const ownerId = target.kind === 'Case' ? (target.route?.ownerId ?? null) : null;
   const byId = new Map(rows.map((row) => [row.id, row]));
   for (const id of ids) {
     const row = byId.get(id);
@@ -68,22 +67,12 @@ export async function readPlanSources(
       records.set(id, null);
       continue;
     }
-    const recorded = scopeProblem(row, target);
-    let problem: PlanSourceRecord['scopeProblem'] =
-      recorded === null
-        ? null
-        : 'reason' in recorded
-          ? { code: recorded.code, reason: recorded.reason }
-          : { code: recorded.code };
-    if (problem === null && ownerId !== null) {
-      const other = await otherOwnerUsing(tx, id, ownerId);
-      if (other !== null) problem = { code: 'CROSS_OWNER_REFERENCE', ownerId: other };
-    }
+    const problem = await applicabilityProblem(tx, row, target);
     records.set(id, {
       id,
       contentSha256: row.contentSha256,
       headId: heads.get(row.sourceGroupId)?.id ?? id,
-      scopeProblem: problem,
+      scopeProblem: problem === null ? null : { ...problem },
     });
   }
   return records;

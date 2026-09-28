@@ -2660,7 +2660,7 @@ describe('SECURITY / VALIDATION / CONTRACT', () => {
     expect(await countRows(prisma, 'source_references')).toBe(0);
   });
 
-  it('exposes exactly the P1 routes plus the 76 directory, source, route and authority operations, the 40 case operations, the 5 correspondence operations, the production-context read, the 3 prompt operations, the 5 candidate operations and the 3 validation operations', async () => {
+  it('exposes exactly the P1 routes plus the 76 directory, source, route and authority operations, the 40 case operations, the 5 correspondence operations, the production-context read, the 3 prompt operations, the 5 candidate operations and the 4 validation operations', async () => {
     const express = t.app.getHttpAdapter().getInstance() as {
       router: { stack: Array<{ route?: { path: string; methods: Record<string, boolean> } }> };
     };
@@ -2682,8 +2682,8 @@ describe('SECURITY / VALIDATION / CONTRACT', () => {
     // prompt operations (generatePrompt, listCasePrompts, getPrompt); P4F: the 5 candidate
     // operations (importCandidate, listCaseCandidates, getCandidate, reviseCandidate,
     // supersedeCandidate); P4G: the 3 Validation-tagged operations (validateCandidate,
-    // listValidationRuns, listValidationIssues). No assessment, readiness or export operation is
-    // routed.
+    // listValidationRuns, listValidationIssues), plus the read-back getValidationRun of
+    // TB-SCHEMA-API-v1.3.0 (ADR-0006, R14). No assessment, readiness or export operation is routed.
     const directory = operations
       .filter((operation) =>
         /^\/(agencies|owners|legal-subjects|signers|owner-subjects|sources|routes|mandates|mandate-versions|coverages|coverage-signers)(\/|$)/.test(
@@ -2799,6 +2799,7 @@ describe('SECURITY / VALIDATION / CONTRACT', () => {
     expect(validation).toEqual([
       'POST /api/v1/candidates/:candidateId/validation-runs',
       'GET /api/v1/candidates/:candidateId/validation-runs',
+      'GET /api/v1/validation-runs/:id',
       'GET /api/v1/validation-runs/:id/issues',
     ]);
     expect(routes).toEqual(

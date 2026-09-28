@@ -1,0 +1,198 @@
+R14 remediation — negative controls of the validation-run read-back (getValidationRun, TB-SCHEMA-API-v1.3.0;
+mission TB_R14_POST_MERGE_RECONCILE_AND_VALIDATION_RUN_READBACK_REMEDIATION_TO_R14_FINAL §22), home PC, 2026-09-26 (UTC)
+==================================================================================================================
+
+Method (scratchpad runner outside Git, the P4A–P4G method): each control disables exactly one protection of
+getValidationRun, its release record or the recorded-run view of the candidate page by an exact text replacement — or
+injects the forbidden behaviour — then runs every responsible test command. Each command must FAIL with a non-zero
+exit AND name at least one failed test; the first failure message is recorded to show that the failure is the test's
+own assertion, not a crash of a broken mutation, a helper timeout or a database backstop. Every mutated file is then
+restored and verified byte-identical by SHA-256. Every anchor is checked to occur exactly once before a control runs
+(`--check`: 24 controls, 0 anchor problems). Before each run an unmutated baseline runs every distinct responsible
+command (13), each of which must pass and select at least one test (`--baseline`: 13 commands, 0 problems, both
+times). DB commands run on the disposable tb_notice_test only (synthetic example.invalid records; every test cleans
+up). The working tree is fingerprinted (git diff HEAD + SHA-256 of every untracked file) before and after a run. No
+control touches docs/reference/**, a migration or the generated contract artifacts. NC-R14-13 and NC-R14-14 change
+one word of the accepted v1.2.0 and v1.1.0 release records for the length of the control only (the mission's
+"editing v1.2 is detected"); both records are restored byte-identical and `git diff` shows no change to them.
+
+Final run (run 2): 2026-09-26T14:27:17.279Z – 2026-09-26T14:28:40.596Z, head 31df6d781f1d5fb419cdbb5423ff46b43583a070
+(the code head; clean tree except the untracked docs/verification/p4g/evidence/screenshots/r14-* files), runner exit 0.
+  24 controls, 24 caught and restored (32 responsible commands, every one failed and named a test).
+  Working-tree fingerprint before and after: 4834e687663cba3bcb0d35b74d7d77bbffd050044ece617f163a7577ba55e938 (identical)
+  Afterwards `yarn db:verify test --expect-empty`: [verify] PASS: metadata matches the reviewed inventory (domain rows 0).
+  First failure message of each command: 32 AssertionError, 0 other (no timeout, no crash, no backstop).
+
+Run history
+  Run 1 (head a5c22aa, 2026-09-26T14:22:30.146Z – 14:24:03.553Z): 24 controls, 24 caught and restored (32 commands,
+    each failed and named a test; tree fingerprint identical). First failure: 29 AssertionError and 3 wait-helper
+    timeouts in the web tests — NC-R14-12 ("timed out waiting for the read of the run", in both of its tests) and
+    NC-R14-23 ("timed out waiting for the refusal to show another candidate's run"). The waits named the protection
+    itself, but a control must fail on the test's own assertion.
+    Fix 31df6d7 (test code only): the reload helper waits for the opened run's panel, which exists either way, and then
+    asserts that opening it read the run from the server; the history test waits for the reopened run's read to finish
+    and then asserts the refusal. Re-run of the two controls on the fix (14:26:18.793Z – 14:26:23.242Z): both caught,
+    3/3 commands on an AssertionError ("expected 0 to be greater than 0"; "expected undefined to be 'This run could not
+    be shown here: it …'").
+  Run 2 (final, above): the full set again on the new head.
+
+Mission §22 mandatory controls → controls (all caught in the final run)
+  historical coverage rebuilt from current ruleset ........ NC-R14-01
+  historical context rebuilt from current Case state ...... NC-R14-02
+  notExecuted rules hidden on reload ...................... NC-R14-03 (API), NC-R14-04 (UI)
+  semanticReviewRequired dropped .......................... NC-R14-05 (API), NC-R14-06 (UI)
+  dependencyManifest rebuilt current ...................... NC-R14-07
+  historical digest rewritten ............................. NC-R14-08
+  read writes AuditEvent .................................. NC-R14-10
+  read mutates Case ....................................... NC-R14-11
+  UI uses cached POST response rather than GET ............ NC-R14-12
+  v1.2.0 amended in place ................................. NC-R14-13 (and NC-R14-14: v1.1.0 amended in place)
+  current ruleset result substituted for stored result .... NC-R14-09
+  further ................................................. NC-R14-15 (a present-day field added to the read's schema),
+    NC-R14-16 (CONTRACT_BASELINE left at v1.2.0), NC-R14-17 (the read not routed), NC-R14-18 (the read without a
+    session), NC-R14-19 (an ETag on an immutable run), NC-R14-20 (issues embedded in the read), NC-R14-21 (a superseded
+    candidate's run hidden), NC-R14-22 (the evaluated context rendered as HTML), NC-R14-23 (another candidate's run
+    shown), NC-R14-24 (the dependency manifest resolved to present-day records)
+
+Responsible commands: `test:db p4g-http -t "…"` = node scripts/db/run-db-tests.mjs tests/db/p4g-http.test.ts -t "…"
+(tb_notice_test); `web p4g -t "…"` = yarn vitest run --config vitest.config.ts tests/web/p4g.test.tsx -t "…";
+`vitest <file>` = yarn vitest run --config vitest.config.ts <file>.
+
+Final run, control by control
+-----------------------------
+NC-R14-01  [historical coverage rebuilt from current ruleset]
+    protection: the stored coverage manifest is returned as recorded: replaced by one rebuilt from the current ruleset (all required rules executed, none not executed)
+    mutated: apps/api/src/modules/validation/validation.service.ts — restored byte-identical
+    test:db p4g-http -t "BLOCKED, REVIEW_REQUIRED and ERROR runs read back exactly"
+      exit 1 · Tests  1 failed | 31 skipped (32) · first failure: AssertionError: ERROR: expected { …(17) } to deeply equal { …(17) }
+    test:db p4g-http -t "a run recorded under another ruleset"
+      exit 1 · Tests  1 failed | 31 skipped (32) · first failure: AssertionError: expected { …(17) } to deeply equal { …(17) }
+NC-R14-02  [historical context rebuilt from current Case state]
+    protection: the stored evaluated context is returned as recorded: replaced by the context of the prompt scope as it is now
+    mutated: apps/api/src/modules/validation/validation.service.ts — restored byte-identical
+    test:db p4g-http -t "a stored run is history"
+      exit 1 · Tests  1 failed | 31 skipped (32) · first failure: AssertionError: AuthorityEvent: expected { …(17) } to deeply equal { …(17) }
+NC-R14-03  [notExecuted rules hidden on reload (API)]
+    protection: every not-executed rule of the stored coverage is returned: the list emptied on the read
+    mutated: apps/api/src/modules/validation/validation.service.ts — restored byte-identical
+    test:db p4g-http -t "BLOCKED, REVIEW_REQUIRED and ERROR runs read back exactly"
+      exit 1 · Tests  1 failed | 31 skipped (32) · first failure: AssertionError: ERROR: expected { …(17) } to deeply equal { …(17) }
+    test:db p4g-http -t "a run recorded under another ruleset"
+      exit 1 · Tests  1 failed | 31 skipped (32) · first failure: AssertionError: expected { …(17) } to deeply equal { …(17) }
+NC-R14-04  [notExecuted rules hidden on reload (UI)]
+    protection: the opened recorded run lists every not-executed rule it read back: a recorded run shows "None"
+    mutated: apps/web/src/app/cases/validation.tsx — restored byte-identical
+    web p4g -t "after a reload a recorded run is read back from the server"
+      exit 1 · Tests  1 failed | 13 skipped (14) · first failure: AssertionError: expected [] to deeply equal [ 'ENVELOPE.SENDER' ]
+NC-R14-05  [semanticReviewRequired dropped (API)]
+    protection: coverageManifest.semanticReviewRequired is returned exactly as stored: dropped from the read
+    mutated: apps/api/src/modules/validation/validation.service.ts — restored byte-identical
+    test:db p4g-http -t "TECHNICAL_PASS read back later"
+      exit 1 · Tests  1 failed | 31 skipped (32) · first failure: AssertionError: expected { …(17) } to deeply equal { …(17) }
+    test:db p4g-http -t "TECHNICAL_PASS read back later|every collected response matches its operation"
+      exit 1 · Tests  2 failed | 30 skipped (32) · first failure: AssertionError: expected { …(17) } to deeply equal { …(17) }
+NC-R14-06  [semanticReviewRequired dropped (UI)]
+    protection: the opened recorded run shows semantic review required as read back: the row left out for a recorded run
+    mutated: apps/web/src/app/cases/validation.tsx — restored byte-identical
+    web p4g -t "after a reload a recorded run is read back from the server"
+      exit 1 · Tests  1 failed | 13 skipped (14) · first failure: AssertionError: expected undefined to be 'Yes — this run performed no G1–G6 or …' // Object.is equality
+NC-R14-07  [dependencyManifest rebuilt current]
+    protection: the stored dependency manifest is returned as recorded: replaced by the current closure of the prompt scope
+    mutated: apps/api/src/modules/validation/validation.service.ts — restored byte-identical
+    test:db p4g-http -t "a stored run is history"
+      exit 1 · Tests  1 failed | 31 skipped (32) · first failure: AssertionError: AuthorityEvent: expected { …(17) } to deeply equal { …(17) }
+NC-R14-08  [historical digest rewritten]
+    protection: the stored dependency digest is returned as recorded: replaced by the current digest of the prompt scope
+    mutated: apps/api/src/modules/validation/validation.service.ts — restored byte-identical
+    test:db p4g-http -t "a stored run is history"
+      exit 1 · Tests  1 failed | 31 skipped (32) · first failure: AssertionError: AuthorityEvent: expected { …(17) } to deeply equal { …(17) }
+NC-R14-09  [current ruleset result substituted for stored result]
+    protection: the stored result is returned as recorded: replaced by the current ruleset’s result for the candidate against the current context
+    mutated: apps/api/src/modules/validation/validation.service.ts — restored byte-identical
+    test:db p4g-http -t "a stored run is history"
+      exit 1 · Tests  1 failed | 31 skipped (32) · first failure: AssertionError: AuthorityEvent: expected { …(17) } to deeply equal { …(17) }
+    test:db p4g-http -t "a run recorded under another ruleset"
+      exit 1 · Tests  1 failed | 31 skipped (32) · first failure: AssertionError: expected { …(17) } to deeply equal { …(17) }
+NC-R14-10  [read writes AuditEvent]
+    protection: a read writes no audit event: one audit row written per read
+    mutated: apps/api/src/modules/validation/validation.service.ts — restored byte-identical
+    test:db p4g-http -t "reading writes nothing"
+      exit 1 · Tests  1 failed | 31 skipped (32) · first failure: AssertionError: expected { assessment_sources: [], …(32) } to deeply equal { assessment_sources: [], …(32) }
+NC-R14-11  [read mutates Case]
+    protection: a read changes no case: the case row version moved on every read
+    mutated: apps/api/src/modules/validation/validation.service.ts — restored byte-identical
+    test:db p4g-http -t "reading writes nothing"
+      exit 1 · Tests  1 failed | 31 skipped (32) · first failure: AssertionError: expected { assessment_sources: [], …(32) } to deeply equal { assessment_sources: [], …(32) }
+NC-R14-12  [UI uses cached POST response rather than GET]
+    protection: an opened recorded run is read back from the server every time: the run this page recorded is shown from memory instead (a module-level cache survives the unmount)
+    mutated: apps/web/src/app/cases/validation.tsx — restored byte-identical
+    web p4g -t "after a reload a recorded run is read back from the server"
+      exit 1 · Tests  1 failed | 13 skipped (14) · first failure: AssertionError: expected 0 to be greater than 0
+    web p4g -t "a recorded run stays history"
+      exit 1 · Tests  1 failed | 13 skipped (14) · first failure: AssertionError: expected 0 to be greater than 0
+NC-R14-13  [v1.2.0 amended in place]
+    protection: the accepted TB-SCHEMA-API-v1.2.0 record is never edited: one word of its summary changed
+    mutated: docs/contracts/TB-SCHEMA-API-v1.2.0/amendment.json — restored byte-identical
+    vitest tests/contracts/release-v1-2-0.test.ts
+      exit 1 · Tests  1 failed | 11 passed (12) · first failure: AssertionError: expected '0dd15dc17f8bd8e389abf67176b21f8ac6f7f…' to be 'b5cae658a3f47639500e2220e4a91fcfb81c3…' // Object.is equality
+    vitest tests/contracts/release-v1-3-0.test.ts
+      exit 1 · Tests  1 failed | 12 passed (13) · first failure: AssertionError: expected '0dd15dc17f8bd8e389abf67176b21f8ac6f7f…' to be 'b5cae658a3f47639500e2220e4a91fcfb81c3…' // Object.is equality
+NC-R14-14  [v1.1.0 amended in place]
+    protection: the accepted TB-SCHEMA-API-v1.1.0 record is never edited: one word of its summary changed
+    mutated: docs/contracts/TB-SCHEMA-API-v1.1.0/amendment.json — restored byte-identical
+    vitest tests/contracts/release-v1-1-0.test.ts
+      exit 1 · Tests  1 failed | 11 passed (12) · first failure: AssertionError: expected '2f290fba8d7f74ab742193ceb97d72af7b665…' to be '2f4df69739926d4b50c22a1ba123ede51edec…' // Object.is equality
+    vitest tests/contracts/release-v1-2-0.test.ts
+      exit 1 · Tests  1 failed | 11 passed (12) · first failure: AssertionError: expected '2f290fba8d7f74ab742193ceb97d72af7b665…' to be '2f4df69739926d4b50c22a1ba123ede51edec…' // Object.is equality
+NC-R14-15  [a current field added to the read]
+    protection: the read returns only the unchanged ValidationRun in its envelope: a present-day field added to GetValidationRunResponse
+    mutated: packages/contracts/src/api/schemas/production-bound.ts — restored byte-identical
+    vitest tests/contracts/release-v1-3-0.test.ts
+      exit 1 · Tests  4 failed | 9 passed (13) · first failure: AssertionError: expected false to be true // Object.is equality
+NC-R14-16  [active release not named]
+    protection: CONTRACT_BASELINE names the release the server implements: left at TB-SCHEMA-API-v1.2.0
+    mutated: packages/contracts/src/index.ts — restored byte-identical
+    vitest tests/contracts/release-v1-3-0.test.ts
+      exit 1 · Tests  1 failed | 12 passed (13) · first failure: AssertionError: expected 'TB-SCHEMA-API-v1.2.0' to be 'TB-SCHEMA-API-v1.3.0' // Object.is equality
+NC-R14-17  [read not routed]
+    protection: GET /validation-runs/{id} is routed: the handler removed
+    mutated: apps/api/src/modules/validation/validation.controller.ts — restored byte-identical
+    test:db p4g-http -t "TECHNICAL_PASS read back later"
+      exit 1 · Tests  1 failed | 31 skipped (32) · first failure: AssertionError: {"error":{"code":"NOT_FOUND","message":"The requested resource does not exist.","details":{},"requestId":"d6ca42e3-e10e-4d1c-9f79-1a5f
+NC-R14-18  [read without a session]
+    protection: the read is session-protected (401): the handler marked public
+    mutated: apps/api/src/modules/validation/validation.controller.ts — restored byte-identical
+    test:db p4g-http -t "an unknown or malformed id is 404"
+      exit 1 · Tests  1 failed | 31 skipped (32) · first failure: AssertionError: expected [ 200, '(no error: HTTP 200)' ] to deeply equal [ 401, 'SESSION_REQUIRED' ]
+NC-R14-19  [an ETag on an immutable run]
+    protection: a stored run carries no ETag: the read sends one
+    mutated: apps/api/src/modules/validation/validation.controller.ts — restored byte-identical
+    test:db p4g-http -t "TECHNICAL_PASS read back later"
+      exit 1 · Tests  1 failed | 31 skipped (32) · first failure: AssertionError: expected '"ValidationRun:0521d0e5-f3f8-4ae2-91d…' to be undefined
+NC-R14-20  [issues embedded in the read]
+    protection: the read returns the run only; its issues stay with listValidationIssues: the issues embedded
+    mutated: apps/api/src/modules/validation/validation.service.ts — restored byte-identical
+    test:db p4g-http -t "BLOCKED, REVIEW_REQUIRED and ERROR runs read back exactly"
+      exit 1 · Tests  1 failed | 31 skipped (32) · first failure: AssertionError: BLOCKED: expected { …(18) } to deeply equal { …(17) }
+    test:db p4g-http -t "TECHNICAL_PASS read back later|every collected response matches its operation"
+      exit 1 · Tests  2 failed | 30 skipped (32) · first failure: AssertionError: expected { …(18) } to deeply equal { …(17) }
+NC-R14-21  [superseded candidate’s run hidden]
+    protection: a run stays readable after its candidate is superseded: the read refuses (404) a superseded candidate’s run
+    mutated: apps/api/src/modules/validation/validation.service.ts — restored byte-identical
+    test:db p4g-http -t "a stored run is history"
+      exit 1 · Tests  1 failed | 31 skipped (32) · first failure: AssertionError: {"error":{"code":"NOT_FOUND","message":"The requested resource does not exist.","details":{},"requestId":"75d0d66c-f0d7-43d4-a9c7-9607
+NC-R14-22  [UI renders the evaluated context as HTML]
+    protection: the evaluated context is inert text: rendered as HTML instead
+    mutated: apps/web/src/app/cases/validation.tsx — restored byte-identical
+    web p4g -t "the evaluated context of a recorded run is inert historical text"
+      exit 1 · Tests  1 failed | 13 skipped (14) · first failure: AssertionError: expected '{\n "schemaVersion": "PFC-YT-EMAIL-v…' to contain '<img src=\"x\" onerror=\"window.__tbI…'
+NC-R14-23  [UI shows another candidate’s run]
+    protection: a run read back by id that is not this candidate’s is not shown: the guard removed
+    mutated: apps/web/src/app/cases/validation.tsx — restored byte-identical
+    web p4g -t "a recorded run stays history"
+      exit 1 · Tests  1 failed | 13 skipped (14) · first failure: AssertionError: expected undefined to be 'This run could not be shown here: it …' // Object.is equality
+NC-R14-24  [UI resolves the dependency manifest to present-day records]
+    protection: the dependency manifest is shown as recorded, not resolved: each id linked to its present-day record
+    mutated: apps/web/src/app/cases/validation.tsx — restored byte-identical
+    web p4g -t "after a reload a recorded run is read back from the server"
+      exit 1 · Tests  1 failed | 13 skipped (14) · first failure: AssertionError: expected <a …(1)><code></code></a>

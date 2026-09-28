@@ -165,7 +165,7 @@ No reviewed legal declaration text exists in the application, and none was inven
 
 ## 12. Immutable context and dependency snapshot
 
-The stored `contextJson`, `dependencyManifest`, `sourceManifest`, `missingItems`, `conflicts`, `contextRevision` and `dependencyDigest` are exactly the rebuilt view's (DB test "INITIAL PREPARATION: …exactly the context read"); the stored snapshot renders again byte for byte and its digest recomputes from its own manifest and scope (DB test). No route updates or deletes a snapshot; later changes leave it byte-identical (DB tests; browser item 24; NC-P4E-13).
+The stored `contextJson`, `dependencyManifest`, `sourceManifest`, `missingItems`, `conflicts`, `contextRevision` and `dependencyDigest` are exactly the rebuilt view's (DB test "INITIAL PREPARATION: …exactly the context read"); the stored snapshot renders again byte for byte and its digest recomputes from its own manifest and scope (DB test). _(Qualified 2026-09-28, R14-AUD-013: it recomputes under the digest definition it was generated with. A snapshot recorded under `TB-PRODUCTION-CONTEXT-DIGEST-v1` is reproduced only by the v1 definition, a test oracle, never by the current implementation (§31).)_ No route updates or deletes a snapshot; later changes leave it byte-identical (DB tests; browser item 24; NC-P4E-13).
 
 ## 13. promptSha256
 
@@ -352,3 +352,15 @@ Nothing was amended, rebased, rewritten or force-pushed, and no tag or release w
 | Active contract | **TB-SCHEMA-API-v1.2.0** (ADR-0004 and ADR-0005 ACCEPTED; frozen historical reference TB-SCHEMA-API-v1.0.0; PFC wire id `PFC-YT-EMAIL-v1.1`); accepted internal prompt template `TB-PROMPT-TEMPLATE-v1` |
 | Database / dependencies | **No change** — `20260923103912_initial_schema` is still the only migration; lockfile unchanged |
 | P4F | Branch `feature/p4f-notice-candidate` created from the exact `origin/main` `79db09b` (not from `feature/p4e-prompt-snapshot`) and pushed with upstream (push run 36213422419 on the same commit). At creation, local and origin pointed at `79db09b`, the worktree was clean, and `reference:check` and `contracts:check` passed. **P4F implementation = NOT_STARTED** at this checkpoint; `docs/verification/p4f/` will record it when written |
+
+## 31. R14-AUD-013 — stale previews across a digest-definition change (2026-09-28, home PC)
+
+Mission TB_R14_ASTRA_AUD013_SEMANTIC_DIGEST_REMEDIATION, on `feature/r14-validation-run-readback` (not `main`). Sections 1–30 keep the state at their time. §12 carries a pointer here.
+
+- **The guarantee kept.** A prompt is generated only against the exact context that was reviewed. The digest definition is now `TB-PRODUCTION-CONTEXT-DIGEST-v2` (ADR-0007, PROPOSED; P4D §31).
+  - A preview read under the earlier definition carries the old revision D and digest H_v1. Even with the same rows and the same revision D, `generatePrompt` refuses it with 412 `CONTEXT_CHANGED` `{field: expectedDependencyDigest}`.
+  - After that refusal there is no snapshot, audit event or idempotency record, and the case row is unchanged.
+  - The page shows exactly "Context changed. Review the current context before generating again.", offers only a new read and never retries.
+  - A fresh read's digest H_v2 generates normally. A current `SOURCE_NOT_APPLICABLE` conflict is frozen with the snapshot, never suppressed; a conflict is no drafting gate.
+- **History.** A snapshot recorded under v1 keeps its digest, manifest, context, rendered prompt, contract version and SHA-256 exactly. `getPrompt`, the list and replays return it as stored. `TB-PROMPT-TEMPLATE-v1` is unchanged: the renderer did not change, and the same supplied context renders the same bytes.
+- **Evidence.** DB tests in `tests/db/p4g-http.test.ts`: "old semantic preview cannot authorize prompt generation after the digest definition changed …", and "history: a prompt snapshot and a validation run recorded under TB-PRODUCTION-CONTEXT-DIGEST-v1 …". The web test in `tests/web/p4e.test.tsx` checks the exact bodies and that there is no silent re-read. P4G report §38 holds the complete record.

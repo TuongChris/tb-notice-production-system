@@ -1,7 +1,8 @@
-// The active wire-contract release TB-SCHEMA-API-v1.2.0 (ADR-0005) = the frozen TB-SCHEMA-API-v1.0.0
+// The active wire-contract release TB-SCHEMA-API-v1.3.0 (ADR-0006) = the frozen TB-SCHEMA-API-v1.0.0
 // reference (docs/reference/database-api-v1/…, never edited) + the reviewed additive amendments, in
-// release order: TB-SCHEMA-API-v1.1.0 (ADR-0004) and TB-SCHEMA-API-v1.2.0 (ADR-0005), each recorded
-// once in docs/contracts/<release>/amendment.json and never edited. `releaseDocuments(release)`
+// release order: TB-SCHEMA-API-v1.1.0 (ADR-0004), TB-SCHEMA-API-v1.2.0 (ADR-0005) and
+// TB-SCHEMA-API-v1.3.0 (ADR-0006), each recorded once in docs/contracts/<release>/amendment.json and
+// never edited. `releaseDocuments(release)`
 // rebuilds the documents of a release from exactly those inputs: every earlier schema and operation
 // is copied unchanged, each amendment's schemas and operation are inserted at their declared places
 // and the OpenAPI document version becomes the release's. The parity tests require the generated
@@ -20,9 +21,13 @@ export type JsonObject = { [key: string]: Json };
 /** The frozen reference every release extends. */
 export const FROZEN_RELEASE = 'TB-SCHEMA-API-v1.0.0';
 /** The additive releases, in order; the last is the active one. */
-export const RELEASES = ['TB-SCHEMA-API-v1.1.0', 'TB-SCHEMA-API-v1.2.0'] as const;
+export const RELEASES = [
+  'TB-SCHEMA-API-v1.1.0',
+  'TB-SCHEMA-API-v1.2.0',
+  'TB-SCHEMA-API-v1.3.0',
+] as const;
 export type Release = (typeof RELEASES)[number];
-export const ACTIVE_RELEASE: Release = 'TB-SCHEMA-API-v1.2.0';
+export const ACTIVE_RELEASE: Release = 'TB-SCHEMA-API-v1.3.0';
 
 export const releaseDir = (release: Release): string =>
   path.join(repoRoot, 'docs/contracts', release);
@@ -192,7 +197,7 @@ export function releaseDocuments(release: Release = ACTIVE_RELEASE): ReleaseDocu
   return documents;
 }
 
-/** The active release (TB-SCHEMA-API-v1.2.0): what the generated artifacts must equal. */
+/** The active release (TB-SCHEMA-API-v1.3.0): what the generated artifacts must equal. */
 export const releaseBaseline = (): ReleaseDocuments => releaseDocuments(ACTIVE_RELEASE);
 
 /** YAML serialization options of the generator (scripts/contracts/render.ts), pinned by a test. */

@@ -9,7 +9,9 @@ import {
   sameScopeBindings,
   sourceAuditRecord,
 } from '../../apps/api/src/modules/sources/source-rules.js';
+import type { Prisma } from '../../apps/api/generated/prisma/client.js';
 import {
+  applicabilityProblem,
   scopeBindingsOf,
   scopeProblem,
   type SourceTarget,
@@ -203,6 +205,111 @@ describe('scopeProblem — the recorded-scope applicability matrix', () => {
       legalSubjectIds: [],
       limitation: 'x',
     });
+  });
+});
+
+/**
+ * A transaction that answers only the owner dimension's plain reads (each records its table) and has
+ * no raw SQL, lock or write method at all: a read-only evaluator that locked or wrote would fail.
+ */
+function readOnlyTx(usedBy: { readonly table: string; readonly ownerId: string } | null = null) {
+  const reads: string[] = [];
+  const nested = (ownerId: string) => ({ ownerSubject: { ownerId } });
+  const rows: Record<string, (ownerId: string) => unknown> = {
+    owner: (ownerId) => ({ id: ownerId }),
+    ownerSubject: (ownerId) => ({ ownerId }),
+    route: (ownerId) => nested(ownerId),
+    mandateCoverage: (ownerId) => ({ route: nested(ownerId) }),
+    coverageSigner: (ownerId) => ({ coverage: { route: nested(ownerId) } }),
+    authorityEvent: (ownerId) => ({ coverage: { route: nested(ownerId) } }),
+  };
+  const tx = Object.fromEntries(
+    Object.entries(rows).map(([table, row]) => [
+      table,
+      {
+        findFirst: async () => {
+          reads.push(table);
+          return usedBy?.table === table ? row(usedBy.ownerId) : null;
+        },
+      },
+    ]),
+  );
+  return { tx: tx as unknown as Prisma.TransactionClient, reads };
+}
+
+const OWNER_READS = [
+  'owner',
+  'ownerSubject',
+  'route',
+  'mandateCoverage',
+  'coverageSigner',
+  'authorityEvent',
+];
+
+describe('applicabilityProblem — the same rules as a write, read-only, reported instead of refused (R14-AUD-001)', () => {
+  const Y = '00000000-0000-4000-8000-0000000000d2';
+  const cited = (agencyId: string | null, scopeBindings: unknown = null) => ({
+    id: '00000000-0000-4000-8000-0000000000f1',
+    ...source(agencyId, scopeBindings),
+  });
+
+  it('a subject-scoped agency source a capture accepts (target Agency) does not apply to a case bound to another subject; a recorded-scope problem needs no read', async () => {
+    const subjectA = cited(A, { legalSubjectIds: [M] });
+    expect(scopeProblem(subjectA, agency)).toBeNull();
+    const { tx, reads } = readOnlyTx();
+    expect(await applicabilityProblem(tx, subjectA, boundCase)).toEqual({
+      code: 'SOURCE_SCOPE_UNRESOLVED',
+      reason: 'SCOPED_TO_OTHER_SUBJECT',
+    });
+    const shared = cited(null, { agencyIds: [A], legalSubjectIds: [M] });
+    expect(scopeProblem(shared, agency)).toBeNull();
+    expect(await applicabilityProblem(tx, shared, boundCase)).toEqual({
+      code: 'SOURCE_SCOPE_UNRESOLVED',
+      reason: 'SCOPED_TO_OTHER_SUBJECT',
+    });
+    expect(reads).toEqual([]);
+  });
+
+  it('a case without a route has no subject to check a subject-scoped source against: CASE_SUBJECT_UNBOUND, nothing guessed and nothing read', async () => {
+    const { tx, reads } = readOnlyTx();
+    expect(await applicabilityProblem(tx, cited(A, { legalSubjectIds: [L] }), unboundCase)).toEqual(
+      { code: 'SOURCE_SCOPE_UNRESOLVED', reason: 'CASE_SUBJECT_UNBOUND' },
+    );
+    expect(await applicabilityProblem(tx, cited(A), unboundCase)).toBeNull();
+    expect(reads).toEqual([]);
+  });
+
+  it('shared reuse stays valid: a source naming the case’s subject among others, or no subject at all, applies after the owner reads find no other owner', async () => {
+    const { tx, reads } = readOnlyTx();
+    expect(await applicabilityProblem(tx, cited(A, { legalSubjectIds: [M, L] }), boundCase)).toBe(
+      null,
+    );
+    expect(reads).toEqual(OWNER_READS);
+    reads.length = 0;
+    expect(await applicabilityProblem(tx, cited(A), boundCase)).toBeNull();
+    expect(await applicabilityProblem(tx, cited(null, { agencyIds: [A] }), boundCase)).toBeNull();
+    expect(reads).toEqual([...OWNER_READS, ...OWNER_READS]);
+  });
+
+  it('owner isolation: a source another owner’s records use does not apply to a case of this owner (CROSS_OWNER_REFERENCE), whichever record makes it that owner’s', async () => {
+    for (const table of OWNER_READS) {
+      const { tx } = readOnlyTx({ table, ownerId: Y });
+      expect(await applicabilityProblem(tx, cited(A), boundCase), table).toEqual({
+        code: 'CROSS_OWNER_REFERENCE',
+        ownerId: Y,
+      });
+    }
+  });
+
+  it('case scope and agency are not ignored: another case’s source and another agency’s source do not apply', async () => {
+    const { tx, reads } = readOnlyTx();
+    expect(await applicabilityProblem(tx, cited(null, { caseIds: [C2] }), boundCase)).toEqual({
+      code: 'CROSS_CASE_REFERENCE',
+    });
+    expect(await applicabilityProblem(tx, cited(B), boundCase)).toEqual({
+      code: 'CROSS_AGENCY_REFERENCE',
+    });
+    expect(reads).toEqual([]);
   });
 });
 
