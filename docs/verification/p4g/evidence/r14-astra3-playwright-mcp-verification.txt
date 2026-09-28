@@ -1,0 +1,148 @@
+R14 Astra re-audit remediation (R14-AUD-013) — Playwright MCP browser verification
+(mission TB_R14_ASTRA_AUD013_SEMANTIC_DIGEST_REMEDIATION), home PC, 2026-09-28 (UTC)
+==================================================================================================================
+
+Target and isolation
+- `yarn ui:sandbox --password-file <scratchpad file outside the repository>` ran the COMPILED API on the disposable
+  `tb_notice_test` schema plus the built web app (`vite preview`) on http://localhost:5173 (proxying /api).
+  - It was built from the committed code head be8d74b (the working tree's code paths were identical to it; only records
+    in docs/ were uncommitted).
+  - The web chunks are byte-identical to the previous remediation's build, because no web source changed:
+    `index-C7ODyXDz.js` 329.93 kB, `production-context-BqbfF_l_.js` 33.78 kB, `prompts-C9EbAvbY.js` 15.54 kB,
+    `candidates-CfezvaMi.js` 56.82 kB.
+- The sandbox ran under the R14-AUD-004 ownership guard.
+  - A read-only fingerprint of `tb_notice_test` before the start showed every table empty (fp-0).
+  - The start verified the empty schema itself, so its cleanup was armed only then.
+  - On SIGINT: "sandbox rows deleted; tb_notice_test is empty again". The fingerprint afterwards (fp-5) is
+    byte-identical to fp-0, and `yarn db:verify test --expect-empty` PASS (domain rows total 0).
+- The synthetic sandbox user was p2-ui-sandbox@example.invalid. Its generated password was typed into the isolated
+  browser's login form only, and the password file was deleted after the session. No password, cookie or CSRF token
+  is recorded here.
+- Browser: the Playwright MCP isolated headless Chromium profile (no personal profile, no real login session), 1280×720
+  unless noted.
+- Never `tb_notice_dev`, never the operator's `yarn dev`, never real case, owner, authority or draft data; every
+  address is @example.invalid. No AI provider, mailbox, Drive or platform was contacted.
+
+Prerequisites (a scratchpad script, not committed; seeded through the compiled API with the sandbox user)
+- Agency "SYNTHETIC Agency ASTRA3-G" with its canonical-record source; owner "SYNTHETIC Brand ASTRA3-X" linked to
+  Subject A "SYNTHETIC Subject ASTRA3-A LLC" (route RA) and Subject M "SYNTHETIC Subject ASTRA3-M LLC"; a signer.
+- Sources:
+  - ANNEX_M "SYNTHETIC annex recorded for Subject M only" (legalSubjectIds [M]);
+  - BASIS_A, the coverage basis, [A];
+  - a mapping basis;
+  - LINK_A "SYNTHETIC evidence linked to Case A (no subject restriction)".
+- Mandate "SYNTHETIC ASTRA3 mandate with a Subject M annex": version 1 (primary: the canonical record; additional
+  source 0: ANNEX_M — valid when written, agency level) and coverage CA of RA recording the signer; frozen.
+- Case A "SYNTHETIC Case ASTRA3-A (Subject A)": bound to RA, with a selection of CA, a reported item, a work, a mapping
+  and LINK_A linked.
+- The current context (INITIAL, DRAFTING, that selection) at contextRevision 6 lists ANNEX_M with
+  SOURCE_NOT_APPLICABLE at sources[3]. Its digest is H_v2 = 1d42b46d140bc2b45da232c0cbe5c7474fc3806a6e94fd4f36250243899713a1,
+  equal to the v2 definition rebuilt independently with the frozen reference helper.
+- The v1 definition over the same closure gives H_v1 = 322c636b1ca6215998cdc24f9ffd1faefbbb5323796680ddd0cc6385b1977b1e.
+- History as a TB-PRODUCTION-CONTEXT-DIGEST-v1 deployment recorded it was set directly in tb_notice_test with the
+  tooling account, as the DB tests do (the application no longer computes a v1 digest):
+  - prompt snapshot version 1: digest H_v1; the same context without the conflict; rendered with the compiled
+    TB-PROMPT-TEMPLATE-v1 renderer; promptSha256 f49e42bd4a98236fe457f0ec250eb0acf9df8e2fe7eb00c38ea856b240561a03;
+    contract TB-SCHEMA-API-v1.3.0;
+  - a candidate imported from it through the API;
+  - that candidate's TECHNICAL_PASS run (TB-TECHNICAL-RULESET-v2, all 29 rules executed, digest H_v1, the earlier
+    context).
+  - The mariadb driver stored the scripted instants in local time, so they read back as Sep 27, 2026, 11:30 PM and
+    11:31 PM in the page. The read-back is compared with the stored row, not with the scripted value.
+- The within-v2 drift of item 10 was a later write through the compiled API by the same script, touching nothing of
+  Case A: owner "SYNTHETIC Brand ASTRA3-Y", Subject C and route RC, then a mandate with one DRAFT version whose coverage
+  of RC cites LINK_A.
+
+Scenarios and results (18 items, all PASS; screenshots in evidence/screenshots/r14-astra3-*.png)
+ 1. Login to the sandbox — PASS.
+ 2. Case A production context (INITIAL, DRAFTING, the selection) — PASS.
+    - The digest shown is exactly H_v2, the independent v2 oracle's value.
+    - One recorded conflict SOURCE_NOT_APPLICABLE sources[3] ("… (SOURCE_SCOPE_UNRESOLVED: SCOPED_TO_OTHER_SUBJECT).
+      This context cites it as additional source 0 of mandate version …").
+    - The annex tagged "Not applicable to this case’s scope" (1), and its source-list row "Recorded source is not
+      applicable to the current Case scope." (1).
+    - Focus moved to the read's outcome. [01]
+ 3. Prompt history — PASS. Version 1, the v1-era snapshot, is listed with its recorded digest H_v1; no prompt carries
+    H_v2. [02]
+ 4. The v1-era prompt's detail — PASS. [03]
+    - Digest H_v1 (H_v2 nowhere on the page), 22 dependencies, contract TB-SCHEMA-API-v1.3.0, template
+      TB-PROMPT-TEMPLATE-v1.
+    - No SOURCE_NOT_APPLICABLE inserted anywhere.
+    - The SHA-256 of the displayed prompt text, computed in the browser (crypto.subtle), is
+      f49e42bd4a98236fe457f0ec250eb0acf9df8e2fe7eb00c38ea856b240561a03, exactly the stored promptSha256.
+    - The boundary statement is shown.
+ 5. Generate page, keyboard: the scope chosen, "Show context" focused and activated with Enter — PASS. The read shows
+    the expected digest H_v2 and the conflict; focus moved to the read's outcome.
+ 6. Fresh generation against exactly that read — PASS. [04]
+    - The request body (network log): {taskType INITIAL, generationMode DRAFTING, expectedContextRevision 6,
+      expectedDependencyDigest H_v2, authoritySelectionId …, priorBindingIds []}. 201.
+    - The detail of version 2 shows digest H_v2 and the frozen SOURCE_NOT_APPLICABLE conflict (not suppressed; no
+      drafting gate).
+    - "Prompt generated" was announced once, and focus moved to the heading.
+ 7. The v1-era candidate's technical-validation section — PASS.
+    - Current dependency digest "Not read yet": nothing is shown as current before a read.
+    - The recorded run is listed as TECHNICAL PASS with "Dependency digest evaluated H_v1".
+ 8. "Open run" on the v1-era run (getValidationRun) — PASS. [05]
+    - "Recorded technical validation result: TECHNICAL PASS", with focus on it.
+    - "Read back exactly as this run recorded it. Nothing was checked again …".
+    - Ruleset TB-TECHNICAL-RULESET-v2, "Dependency digest evaluated" H_v1.
+    - The historical evaluated context shows no inserted conflict: no SOURCE_NOT_APPLICABLE in any of its <pre> blocks.
+ 9. "Read the current context", then "Run technical validation" — PASS. [06]
+    - The current digest shown is H_v2. The POST body is exactly {expectedArtifactSha256 f82e4013…9ce9,
+      expectedDependencyDigest H_v2}, 201.
+    - A NEW run: "Technical validation result: REVIEW REQUIRED" (focus), digest evaluated H_v2.
+    - Issues: CONTEXT.CONFLICTS ("The evaluated context records a conflict (SOURCE_NOT_APPLICABLE). It stays a
+      conflict; nothing decides it here.") and CONTEXT.PROMPT_DRIFT ("The prompt snapshot's dependency digest differs
+      from the evaluated one although every record is unchanged: the digest's contract or context-schema identifiers
+      …"), both deterministic REVIEW_REQUIRED.
+    - The run history: REVIEW REQUIRED (Sep 28) and the untouched TECHNICAL PASS (Sep 27).
+10. Within-v2 drift after a read — PASS. The generate page's read showed H_v2; then owner Y's later write landed
+    (the prerequisites above). Afterwards, through the API:
+    - Case A's contextRevision is still 6, and its prompt, run, candidate and case rows are byte-identical (fp-2 vs fp-3).
+    - The current digest H1 = 8c973e689283df0cedd6280eab801233441ae57c16a9160dc0ac8088ad432866 equals the v2 oracle.
+    - Two conflicts now: LINK_A (CROSS_OWNER_REFERENCE) at sources[0] and ANNEX_M at sources[3].
+11. "Generate prompt from this context" with the pre-drift read — PASS: non-silent 412. [07]
+    - The alert (role=alert): "Context changed. Review the current context before generating again. No prompt was
+      generated. The context shown below is the one read before the change."
+    - Focus is on the focusable wrapper containing the alert. No generate action is offered; only "Read the current
+      context" (and the scope form's own "Show context" / "Read again").
+    - The refused digest H_v2 is still shown as the read it was refused for.
+    - The response: 412 {"code":"CONTEXT_CHANGED", "details":{"field":"expectedDependencyDigest"}}.
+    - The network log shows no request after the 412 until the person's click: no silent re-read, no retry.
+12. "Read the current context", then generate — PASS.
+    - The new read shows H1 and both conflicts. Generation (201) carries exactly H1 under a NEW Idempotency-Key.
+    - Version 3 stores H1 with both conflicts.
+    - Network sequence for the case's prompts and context: GET context (200) → POST (412) → GET context (200, only
+      after the click) → POST (201).
+13. 390×844: the version 3 prompt detail — PASS. No horizontal scroll (scrollWidth 390); the only actions are Sign out
+    and Copy prompt. [08]
+14. 390×844: the candidate page — PASS. No horizontal scroll; actions Read the current context, Open run (×2),
+    Supersede this draft artifact; no approve, ready, sign, send, export, assessment or adopt action; READY_FOR_SIGNER
+    absent. [09]
+15. 390×844: the production context after the drift — PASS. No horizontal scroll; 2 conflicts; the tag and the
+    source-list row for each; digest H1. [10]
+16. Later phases unrouted (fetch from the page with the session) — PASS. GET /candidates/{id}/assessments, /readiness
+    and /unsigned-exports each 404 NOT_FOUND.
+17. History after the whole session — PASS (fp-1 after the seed vs fp-4 after the browser session).
+    - The v1-era prompt row, the v1-era run row, the candidate row and Case A's row are byte-identical.
+    - The prompts are v1 H_v1, v2 H_v2 and v3 H1. The runs are the TECHNICAL_PASS with H_v1 and the new REVIEW_REQUIRED
+      with H_v2.
+    - Case A is at contextRevision 6 and rowVersion 6 throughout. candidate_assessments and assessment_sources are 0.
+18. Sandbox safety — PASS. The empty start was verified; SIGINT deleted every sandbox row; fp-5 is identical to fp-0;
+    `db:verify test --expect-empty` PASS; ports 3000 and 5173 are free; the password file is deleted.
+
+Console (errors only, whole session)
+- These are resource responses, not script errors: the pre-login 401 of GET /auth/session, the deliberate 412 of
+  item 11, and the three deliberate 404s of item 16.
+
+Limitations
+- No cross-deployment browser switch: a single compiled runtime cannot serve a v1 read and then a v2 write, and the
+  deployment was not faked by mutating a running server.
+  - The v1 → v2 guarantee is proven by the DB tests with the legacy oracle and the negative controls, and by the
+    cross-deploy experiment (evidence/r14-astra3-cross-deploy-experiment.txt).
+  - In the browser, items 3, 4, 7, 8 and 9 show v1-era history next to current v2 reads. Items 11 and 12 show the
+    unchanged, non-silent 412 path that a stale preview of either kind takes; the page treats the digest as an opaque
+    string.
+- The v1-era rows were inserted with the tooling account, which is the only way to have them.
+
+Findings: none.

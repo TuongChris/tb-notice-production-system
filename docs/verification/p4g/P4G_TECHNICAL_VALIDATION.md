@@ -10,6 +10,8 @@ Mission **TB_R13_CLOSEOUT_MERGE_AND_P4G_TECHNICAL_VALIDATION_TO_R14**, steps 9�
 
 **Astra audit continued (at `fdcda2b`; `ASTRA_AUDIT = PARTIAL`):** R14-AUD-001, -003, -004 and -008 **CLOSED_VERIFIED_WITH_LIMITS**; two further blockers of R14 final and of assessment implementation, R14-AUD-009 (a mandate version's sources and a whole-mandate event's source, checked at the agency level, reached the context of a case of another legal subject as clean) and R14-AUD-010 (a case-only citation made inapplicable by another owner's later records raised no conflict and left the digest unchanged). Mission TB_R14_ASTRA_REMAINING_BLOCKER_REMEDIATION (2026-09-27) remediated exactly those two on the same branch (§37): every source a context lists is checked against the case as it is now, and another owner's use of any of them joins its fingerprint — each **REMEDIATED_PENDING_INDEPENDENT_REVIEW**. **R14 = HOLD_FOR_REVIEW**; ADR-0006 stays **PROPOSED**; R14-AUD-011 and -012 are NON_BLOCKING_BACKLOG. No wire, schema, migration or ruleset change.
 
+**Astra re-audit (at `e0a521a`):** R14-AUD-009 and -010 **CLOSED_VERIFIED_WITH_LIMITS**, together with -001, -003, -004 and -008. One further blocker of R14 final and of assessment implementation: R14-AUD-013. The digest definition identifier stayed `TB-PRODUCTION-CONTEXT-DIGEST-v1` while the context semantics changed, so a preview from an earlier deployment could authorize a prompt of a context never seen. Mission TB_R14_ASTRA_AUD013_SEMANTIC_DIGEST_REMEDIATION (2026-09-28) remediated exactly that on the same branch (§38): `TB-PRODUCTION-CONTEXT-DIGEST-v2` (ADR-0007, PROPOSED), one definition for every read and rebuild, stored digests kept as recorded — **REMEDIATED_PENDING_INDEPENDENT_REVIEW**. **R14 = HOLD_FOR_REVIEW**; ADR-0006 and ADR-0007 stay **PROPOSED**. No wire, schema or migration change; `TB-TECHNICAL-RULESET-v2` and `TB-PROMPT-TEMPLATE-v1` unchanged, with one named exception in the ruleset's guard test (§38.7).
+
 Persistent rules (they stay in force; `CLAUDE.md` carries them):
 
 - **Technical validation ≠ substantive review.** A ValidationRun records what the technical ruleset found for one exact candidate artifact against the current recorded context: exact bytes and hashes, the envelope and thread, the document plan, internal markers, recorded gaps and drift. It reviews nothing substantively — no authority (G1), work-specific rights (G2), identification sufficiency (G3), audiovisual infringement (G4), permission or exceptions (G5), exact-artifact consistency and traceability QA (G6), legal validity or signer eligibility — and it is no G7, the actual human review, adoption, signature and sending outside the application. (Terminology corrected 2026-09-27, R14-AUD-008: this line first named "human adoption of the text" as G6; personal adoption is G7.)
@@ -26,16 +28,16 @@ Persistent rules (they stay in force; `CLAUDE.md` carries them):
 |---|---|
 | R13 closeout, merge and branch (steps 1–8) | **DONE** — R13 = PASS recorded (`85d0aed`); P4F merged to `main` by PR #9 (merge commit `5aa9248`); post-merge `main` CI green; branch created from `5aa9248`; checkpoint `b71a2e0` (`P4F_NOTICE_CANDIDATE.md` §28–§29; §2) |
 | P4G implementation (step 9) | **IMPLEMENTED** on `feature/p4g-technical-validation` — code head `608800e` (§3) |
-| P4G home-PC automated tests | **PASS** — `yarn test` 1515 in 48 files and `yarn test:db` 520 in 14 files on the code head `608800e`; P4G: 36 rule-engine and 3 WriteExecutor unit tests, 11 web, 26 DB (§26). R14 remediation: `yarn test` 1532 in 49 files, `yarn test:db` 526 in 14 files on `31df6d7` (§35.6). Astra-audit remediation: `yarn test` 1559 in 52 files, `yarn test:db` 534 in 14 files on `2117fba` (§36.7). Remaining-blocker remediation: `yarn test` 1575 in 52 files, `yarn test:db` 544 in 14 files on `51c5f44` (§37.7) |
+| P4G home-PC automated tests | **PASS** — `yarn test` 1515 in 48 files and `yarn test:db` 520 in 14 files on the code head `608800e`; P4G: 36 rule-engine and 3 WriteExecutor unit tests, 11 web, 26 DB (§26). R14 remediation: `yarn test` 1532 in 49 files, `yarn test:db` 526 in 14 files on `31df6d7` (§35.6). Astra-audit remediation: `yarn test` 1559 in 52 files, `yarn test:db` 534 in 14 files on `2117fba` (§36.7). Remaining-blocker remediation: `yarn test` 1575 in 52 files, `yarn test:db` 544 in 14 files on `51c5f44` (§37.7). R14-AUD-013 remediation: `yarn test` 1580 in 52 files, `yarn test:db` 548 in 14 files on `be8d74b` (§38.8) |
 | Consistency / transaction tests | **PASS** — capture in one REPEATABLE READ snapshot, the ruleset outside any lock, one short SERIALIZABLE commit with the rechecks: a change committed after the capture is 412 with nothing written, a dependency write that never locks the case waits for the commit, an audit failure rolls back the run, its issues and the idempotency record (DB tests; negative controls NC-P4G-18, -19, -20) (§6) |
-| Browser verification (Playwright MCP, `tb_notice_test`) | **PASS** 32/32 — two sandbox sessions; one finding (F1) fixed in `3b56a41` and re-verified; limitations L1–L4 (§24). R14 read-back **PASS** 17/17 — one finding (the 390 px dependency table) fixed in `a5c22aa` and re-verified (§35.8). Astra-audit remediation **PASS** 14/14, no finding (§36.9). Remaining-blocker remediation **PASS** 18/18, no finding (§37.9) |
-| Negative controls | **PASS** 33/33 in the final run on `608800e` — all 22 control kinds of mission §43 plus 11 further; 60 responsible commands, each failing on an AssertionError (§25). R14 remediation **PASS** 24/24 on `31df6d7` — the 11 mandatory kinds plus 13 further; 32 commands, each failing on an AssertionError (§35.9). Astra-audit remediation **PASS** 18/18 on `2117fba` — the 9 mandatory kinds of mission §40 plus 9 further; 28 commands, each failing on an AssertionError (§36.10). Remaining-blocker remediation **PASS** 14/14 on the code of `51c5f44` — the 10 mandatory controls plus 4 further; 27 commands, each failing on an AssertionError (§37.10) |
-| Full regression (mission §48) | **PASS** — 21/21 steps exit 0 on the code head `608800e` (§26). R14 remediation 21/21 on `31df6d7` (§35.10). Astra-audit remediation 21/21 on `2117fba` (§36.11). Remaining-blocker remediation 21/21 on `51c5f44` (§37.11) |
-| Exact final branch CI | **PASS** for the code head `608800e` — push run 36233916154, both jobs success; the R14 submission head `6fc5605` — push run 36234677791 success. R14 remediation code head `31df6d7` — push run 36248642530, both jobs success (§35.10); the run of the remediation's documentation head is reported with the R14-final report. Astra-audit remediation code head `2117fba` — push run 36290145394, both jobs success (§36.11); its documentation head `fdcda2b` — push run 36291505391, both jobs success. Remaining-blocker remediation code head `51c5f44` — push run 36325665818, both jobs success (§37.11); its documentation head's run is reported with the remediation report |
-| Schema / migration | **No change** (§28; the R14 remediation made none either, §35.11, nor the Astra-audit remediations, §36.12, §37.12) |
-| Wire contract | **No change in P4G** — TB-SCHEMA-API-v1.2.0 (§29). The R14 remediation adds the additive release **TB-SCHEMA-API-v1.3.0** (one read, one envelope schema; ADR-0006 **PROPOSED**, §35.3). The Astra-audit remediations changed no wire contract: the v1.3.0 amendment digest is unchanged (§36.12, §37.12) |
-| R14 review | **PASS_WITH_ONE_CONTRACT_REMEDIATION** (operator, 2026-09-26) — V1–V12 and `ENVELOPE.REPLY_RECIPIENT` ACCEPTED; V13 **REMEDIATION_IMPLEMENTED_PENDING_R14_FINAL_REVIEW** on `feature/r14-validation-run-readback`, submitted for R14 final (§34, §35). The operator's independent Astra audit of that submission (`4a1618d`) put **R14 = HOLD_FOR_REMEDIATION**; after the Astra-audit remediation, **R14 = HOLD_FOR_REVIEW** (§36); the audit continued at `fdcda2b` found R14-AUD-009 and -010, remediated in §37 — **R14 = HOLD_FOR_REVIEW**, not PASS |
-| Astra audit findings | R14-AUD-009 and -010 **REMEDIATED_PENDING_INDEPENDENT_REVIEW** (§37); R14-AUD-001, -003, -004 and -008 **CLOSED_VERIFIED_WITH_LIMITS** (continued audit; §36); R14-AUD-002 and -007 **OPEN_BACKLOG**; R14-AUD-011 and -012 **NON_BLOCKING_BACKLOG**; R14-AUD-005 and -006 **FUTURE_ASSESSMENT_PREREQUISITE**; `ASTRA_AUDIT = PARTIAL` |
+| Browser verification (Playwright MCP, `tb_notice_test`) | **PASS** 32/32 — two sandbox sessions; one finding (F1) fixed in `3b56a41` and re-verified; limitations L1–L4 (§24). R14 read-back **PASS** 17/17 — one finding (the 390 px dependency table) fixed in `a5c22aa` and re-verified (§35.8). Astra-audit remediation **PASS** 14/14, no finding (§36.9). Remaining-blocker remediation **PASS** 18/18, no finding (§37.9). R14-AUD-013 remediation **PASS** 18/18, no finding (§38.10) |
+| Negative controls | **PASS** 33/33 in the final run on `608800e` — all 22 control kinds of mission §43 plus 11 further; 60 responsible commands, each failing on an AssertionError (§25). R14 remediation **PASS** 24/24 on `31df6d7` — the 11 mandatory kinds plus 13 further; 32 commands, each failing on an AssertionError (§35.9). Astra-audit remediation **PASS** 18/18 on `2117fba` — the 9 mandatory kinds of mission §40 plus 9 further; 28 commands, each failing on an AssertionError (§36.10). Remaining-blocker remediation **PASS** 14/14 on the code of `51c5f44` — the 10 mandatory controls plus 4 further; 27 commands, each failing on an AssertionError (§37.10). R14-AUD-013 remediation **PASS** 15/15 on `be8d74b` — the 7 mission controls (NC-013-A…G, C in three variants) plus 6 further; 31 commands, each failing on an AssertionError (§38.11) |
+| Full regression (mission §48) | **PASS** — 21/21 steps exit 0 on the code head `608800e` (§26). R14 remediation 21/21 on `31df6d7` (§35.10). Astra-audit remediation 21/21 on `2117fba` (§36.11). Remaining-blocker remediation 21/21 on `51c5f44` (§37.11). R14-AUD-013 remediation 21/21 on `be8d74b`, and each code commit on its own (§38.12) |
+| Exact final branch CI | **PASS** for the code head `608800e` — push run 36233916154, both jobs success; the R14 submission head `6fc5605` — push run 36234677791 success. R14 remediation code head `31df6d7` — push run 36248642530, both jobs success (§35.10); the run of the remediation's documentation head is reported with the R14-final report. Astra-audit remediation code head `2117fba` — push run 36290145394, both jobs success (§36.11); its documentation head `fdcda2b` — push run 36291505391, both jobs success. Remaining-blocker remediation code head `51c5f44` — push run 36325665818, both jobs success (§37.11); its documentation head `e0a521a` — push run 36326570907, both jobs success (§38.1). R14-AUD-013 remediation code head `be8d74b` — push run 36375405502, both jobs success (§38.12); its documentation head's run is reported with the remediation report |
+| Schema / migration | **No change** (§28; the R14 remediation made none either, §35.11, nor the Astra-audit remediations, §36.12, §37.12, §38.13) |
+| Wire contract | **No change in P4G** — TB-SCHEMA-API-v1.2.0 (§29). The R14 remediation adds the additive release **TB-SCHEMA-API-v1.3.0** (one read, one envelope schema; ADR-0006 **PROPOSED**, §35.3). The Astra-audit remediations changed no wire contract: the v1.3.0 amendment digest is unchanged (§36.12, §37.12, §38.13) |
+| R14 review | **PASS_WITH_ONE_CONTRACT_REMEDIATION** (operator, 2026-09-26) — V1–V12 and `ENVELOPE.REPLY_RECIPIENT` ACCEPTED; V13 **REMEDIATION_IMPLEMENTED_PENDING_R14_FINAL_REVIEW** on `feature/r14-validation-run-readback`, submitted for R14 final (§34, §35). The operator's independent Astra audit of that submission (`4a1618d`) put **R14 = HOLD_FOR_REMEDIATION**; after the Astra-audit remediation, **R14 = HOLD_FOR_REVIEW** (§36); the audit continued at `fdcda2b` found R14-AUD-009 and -010, remediated in §37; the re-audit at `e0a521a` closed them with limits and found R14-AUD-013, remediated in §38 — **R14 = HOLD_FOR_REVIEW**, not PASS |
+| Astra audit findings | R14-AUD-013 **REMEDIATED_PENDING_INDEPENDENT_REVIEW** (§38); R14-AUD-001, -003, -004, -008, -009 and -010 **CLOSED_VERIFIED_WITH_LIMITS** (the continued audit at `fdcda2b` and the re-audit at `e0a521a`; §36–§38); R14-AUD-002 and -007 **OPEN_BACKLOG**; R14-AUD-011 and -012 **NON_BLOCKING_BACKLOG**; R14-AUD-005 and -006 **FUTURE_ASSESSMENT_PREREQUISITE**; `ASTRA_AUDIT = PARTIAL` |
 | P4G status / merge | **MERGED_TO_MAIN_FOR_IMPLEMENTED_SCOPE** — pull request #10, merge commit `c73cbda` (merge commit method; 2026-09-26T12:46:40Z); `main` push CI run 36242994330 success; `P4G_IMPLEMENTATION = VERIFIED_FOR_IMPLEMENTED_SCOPE`. The R14 remediation is **not merged** (§34) |
 
 ## 1. Operation matrix and design (contract-first)
@@ -167,7 +169,7 @@ SERIALIZABLE matters for the same reason as in P4E: a dependency write that neve
 ## 7. Fresh context and the dependency digest
 
 - The scope is exactly the prompt snapshot's (V4): its task, mode, authority selection and parent binding, and the prior bindings of its frozen manifest. Nothing latest, newer or default is chosen.
-- The context, closure, fingerprints and digest are P4D's, unchanged (`TB-PRODUCTION-CONTEXT-DIGEST-v1`; no second digest algorithm). The caller's `expectedDependencyDigest` must be the current digest — never substituted — or the request is 412 `CONTEXT_CHANGED` with nothing written; the page then requires a new read (§22).
+- The context, closure, fingerprints and digest are P4D's, unchanged (`TB-PRODUCTION-CONTEXT-DIGEST-v1`; no second digest algorithm; _since R14-AUD-013 the one definition is `TB-PRODUCTION-CONTEXT-DIGEST-v2`, §38_). The caller's `expectedDependencyDigest` must be the current digest — never substituted — or the request is 412 `CONTEXT_CHANGED` with nothing written; the page then requires a new read (§22).
 - Relevant changes that stale a read (DB test, 412 each, nothing written): a new AuthorityEvent, a new SourceReference head, a case-source link state, a fact revision, a mapping edit, and a correction of the prompt's parent binding (the fresh read then names the correction: 409 `BINDING_ALREADY_SUPERSEDED`). Changes P4D leaves out of the fingerprint do not stale it: a work's notes and the case's notes (DB test; browser item 19).
 - The run stores exactly what it evaluated: `evaluatedContextJson` = the current context, `dependencyManifest` = its closure, `dependencyDigest` = its digest — never reconstructed later. A change committed between capture and commit is caught by the commit's rebuild (DB test "no run is published against mixed snapshots").
 
@@ -960,7 +962,7 @@ The `SOURCE_NOT_APPLICABLE` message: "Recorded source ‹id› is not applicable
 - the recorded-scope part follows from records already in the closure — the source revision (its agency and scope bindings), the case (id, agency, route), its route and association (owner, legal subject);
 - the owner part is the only input outside the closure: when another owner's records use a listed source, `otherOwnerMaterial: true` joins **that source's** fingerprint — whichever record of the context cites it, no longer only a message (generalizing R14-AUD-001). The key is present only then; no other fingerprint changes.
 
-So any change in whether a listed source applies changes the digest, even when the source row, its head and the case's `contextRevision` are unchanged: `null → CROSS_OWNER_REFERENCE` on a case-only citation now changes the digest, and a prompt or validation against the earlier digest is 412 `CONTEXT_CHANGED`. The marker is a boolean — the same whichever other owner is found — so the digest does not depend on query order, and no other owner's identity enters this case's context. Contexts without the condition keep their digests, and R14-AUD-001's fingerprints are unchanged (the same key on the same sources). `TB-PRODUCTION-CONTEXT-DIGEST-v1`, the TB canonical JSON hashing, the digest's `CONTRACT_BASELINE` coupling and version-only drift (REVIEW_REQUIRED, not a mandatory re-draft) are unchanged.
+So any change in whether a listed source applies changes the digest, even when the source row, its head and the case's `contextRevision` are unchanged: `null → CROSS_OWNER_REFERENCE` on a case-only citation now changes the digest, and a prompt or validation against the earlier digest is 412 `CONTEXT_CHANGED`. The marker is a boolean — the same whichever other owner is found — so the digest does not depend on query order, and no other owner's identity enters this case's context. Contexts without the condition keep their digests, and R14-AUD-001's fingerprints are unchanged (the same key on the same sources). `TB-PRODUCTION-CONTEXT-DIGEST-v1`, the TB canonical JSON hashing, the digest's `CONTRACT_BASELINE` coupling and version-only drift (REVIEW_REQUIRED, not a mandatory re-draft) are unchanged. _(Qualified 2026-09-28, R14-AUD-013: keeping the v1 identifier while the recorded-scope result became part of the context let identical rows give the same digest for a different context. The definition is now `TB-PRODUCTION-CONTEXT-DIGEST-v2`, §38.)_
 
 **Consistent snapshot.** The citations, the source rows, the case target and every `otherOwnerUsing` read come from the one snapshot of the read (for `generatePrompt`'s and `validateCandidate`'s rebuilds, their SERIALIZABLE transaction). `getProductionContext` stays business-read-only (P1's session activity touch aside).
 
@@ -1103,12 +1105,12 @@ No other smoke was changed, and every smoke passes in CI. The documentation head
 
 - **No migration, no Prisma schema change.** `20260923103912_initial_schema` is still the only migration; both drift diffs are empty.
 - **No wire change.** TB-SCHEMA-API-v1.3.0 is unchanged: 289 schemas, 144 operations, 99 paths, `info.version` 1.3.0 (read from the generated OpenAPI document and schema bundle at `51c5f44`); `amendment.json` sha256 `6b74c09aba024dcf8cb2e0a0c6e374bbce17b45298d2aec83cc2e3ab166a1630`; `contracts:check` passes. `SOURCE_NOT_APPLICABLE` is a value of the existing free-string `code` of a `MissingItem` in the existing `conflicts[]` (code ≤ 100, message ≤ 8000, fieldPath ≤ 500 characters, at most 1000 entries); no query parameter, response field or schema was added, so `CONTRACT_CHANGE_REQUIRED` did not arise and no TB-SCHEMA-API-v1.4.0 exists.
-- **The ruleset, template and digest identifiers are unchanged.** `TB-TECHNICAL-RULESET-v2` (no rule added or changed — `CONTEXT.CONFLICTS` reports the new code), `TB-PROMPT-TEMPLATE-v1`, `TB-CANDIDATE-ARTIFACT-v1`, `TB-PRODUCTION-CONTEXT-DIGEST-v1` with its `CONTRACT_BASELINE` coupling; version-only drift stays REVIEW_REQUIRED.
+- **The ruleset, template and digest identifiers are unchanged.** `TB-TECHNICAL-RULESET-v2` (no rule added or changed — `CONTEXT.CONFLICTS` reports the new code), `TB-PROMPT-TEMPLATE-v1`, `TB-CANDIDATE-ARTIFACT-v1`, `TB-PRODUCTION-CONTEXT-DIGEST-v1` with its `CONTRACT_BASELINE` coupling; version-only drift stays REVIEW_REQUIRED. _(Superseded for the digest by R14-AUD-013: `TB-PRODUCTION-CONTEXT-DIGEST-v2`, §38.)_
 - **Nothing else outside the change.** `git diff fdcda2b..51c5f44` (11 files) touches nothing under `packages/`, `apps/api/prisma`, `docs/reference`, `docs/contracts`, `docs/decisions`, `yarn.lock`, `.yarnrc.yml`, `.nvmrc` or any `package.json`. No dependency was added. The write rules, the target allowlist, the dev database and the migration tooling are unchanged.
 
 ### 37.13 Warnings and open items for the operator (not decided here)
 
-1. **The owner marker of a listed source now covers every citation** (§37.2). When another owner's records use any source the context lists, that source's fingerprint includes `otherOwnerMaterial: true`, so the digest changes when that condition arises or ends. This generalizes the R14-AUD-001 extension (§36.13 item 1) under the same identifier `TB-PRODUCTION-CONTEXT-DIGEST-v1`. Contexts without the condition keep their digests; a new digest identifier would have changed every digest. The operator's confirmation is asked.
+1. **The owner marker of a listed source now covers every citation** (§37.2). When another owner's records use any source the context lists, that source's fingerprint includes `otherOwnerMaterial: true`, so the digest changes when that condition arises or ends. This generalizes the R14-AUD-001 extension (§36.13 item 1) under the same identifier `TB-PRODUCTION-CONTEXT-DIGEST-v1`. Contexts without the condition keep their digests; a new digest identifier would have changed every digest. The operator's confirmation is asked. _(Answered by the re-audit, R14-AUD-013: the identifier had to change; see §38.)_
 2. **A stored context may now read differently.** A context whose sources did not apply but that was read before this change keeps its stored digest when nothing it fingerprints changed (recorded-scope reasons are derived, not fingerprinted — §36.13 item 2). Its next read lists the conflicts. A prompt generated from it is not stale by digest; a later validation reports the conflicts through `CONTEXT.CONFLICTS`. A case whose listed source is another owner's material today gets a new digest at its next read, so a prompt or validation against an earlier read is 412.
 3. **The authority block names the conflict, not a verdict.** A `SOURCE_NOT_APPLICABLE` on a source of the selected chain is shown beside that citation. The selection, coverage, version and signer rows are shown exactly as pinned. Whether the chain still supports this case is G1, a later human review; nothing here decides it.
 4. **Candidate plan offers.** The candidate import page offers the prompt's source manifest (R13 decision 9), which can include a source this context records as not applicable. `importCandidate` refuses such a plan entry with the source-scope reason, and `PLAN.SOURCE_APPLIES` reports it. Pre-existing behaviour, not changed.
@@ -1135,5 +1137,298 @@ No other smoke was changed, and every smoke passes in CI. The documentation head
 | CandidateAssessment and later phases | **NOT_STARTED** |
 | External action | **NONE** |
 | Database / wire contract / dependencies | **No change** |
+
+Recommended next action: **an independent Astra re-audit of the exact new head.**
+
+## 38. Astra re-audit remediation — R14-AUD-013 (2026-09-28, home PC)
+
+Mission TB_R14_ASTRA_AUD013_SEMANTIC_DIGEST_REMEDIATION (operator, 2026-09-28), on `feature/r14-validation-run-readback`. Primary source: the operator's independent Astra re-audit of the §37 documentation head `e0a521a`.
+- It closed R14-AUD-009 and -010 **CLOSED_VERIFIED_WITH_LIMITS**, together with R14-AUD-001, -003, -004 and -008.
+- It found one further blocker of R14 final and of assessment implementation: **R14-AUD-013** (CONFIRMED_DEFECT / HIGH).
+- **R14 = HOLD_FOR_REMEDIATION**. TB-SCHEMA-API-v1.3.0 is supported as an additive historical read contract but not yet accepted as part of R14 final.
+
+Sections 1–37 keep the state at their time. §7, §37.2, §37.12 and §37.13 item 1 carry a pointer here.
+
+### 38.1 Scope, pre-flight and independent confirmation
+
+| Item | Value |
+|---|---|
+| Authorized | exactly R14-AUD-013: version the production-context digest definition (the audit's option 1) |
+| Kept as closed (not reopened) | R14-AUD-001, -003, -004, -008, -009, -010 **CLOSED_VERIFIED_WITH_LIMITS** — regression re-run (§38.6) |
+| Recorded only, unchanged | R14-AUD-002, -007 **OPEN_BACKLOG**; R14-AUD-011, -012 **NON_BLOCKING_BACKLOG**; R14-AUD-005, -006 **FUTURE_ASSESSMENT_PREREQUISITE** |
+| Not done (not authorized) | CandidateAssessment, AssessmentSource read, G1–G6 forms, readiness, READY_FOR_SIGNER, unsigned export, G7, signature, sending, email, Drive, uploader contact, platform action, real-case data. Also none of: a wire field or query parameter naming the algorithm, a v1 fallback, a backfill or rewrite of stored digests, a synthetic `contextRevision` write, an automatic redraft or rebinding workflow |
+| Pre-flight (before any change) | `HEAD` = `e0a521aed087fa436f011dadd94082fc5f844958`, equal to its origin, worktree clean; `origin/main` = `c73cbdad1fe5d09813525930b4df9ed9123fd9de`; no pull request of the branch, no tag; CI run 36326570907 on `e0a521a` success, both jobs |
+| Operator decision during the mission (2026-09-28) | The technical-ruleset identifier question (§38.7): keep `TB-TECHNICAL-RULESET-v2` byte-identical, with one named exception in the R14-AUD-003 guard |
+
+The finding was confirmed from the source before any change:
+- At `e0a521a`, `DEPENDENCY_DIGEST_ALGORITHM` was `TB-PRODUCTION-CONTEXT-DIGEST-v1`. The digest hashed `{algorithm, contract: CONTRACT_BASELINE, schemaVersion: PFC_SCHEMA_VERSION, scope, dependencies}`.
+- A listed source's recorded-scope result (for example `SCOPED_TO_OTHER_SUBJECT` for a mandate version's annex) follows from records already in the closure. So no fingerprint changes when an evaluator starts to report it (§37.2).
+- Only another owner's use adds a key (`otherOwnerMaterial`).
+- `generatePrompt` compares the expected revision, then the rebuilt digest. `validateCandidate` compares the digest at its capture and again at its commit.
+- Identical rows therefore passed both checks against a preview that listed no conflict, while the context now lists one.
+- The real code of the earlier deployments reproduces this on identical rows (§38.3).
+
+### 38.2 Root cause and remediation
+
+**Root cause.** The digest identifies the persisted dependency state, but the definition identifier did not change when the application started to read that state differently. R14-AUD-001, -009 and -010 changed what a context derives from identical rows: the current applicability of every listed source, with `SOURCE_NOT_APPLICABLE` and `CORRESPONDENCE_SOURCE_NOT_APPLICABLE` conflicts. `Case.contextRevision` tracks persisted case mutations, not application semantics, so it could not detect this either.
+
+**Remediation** (`apps/api/src/modules/production/context-dependencies.ts`; ADR-0007, PROPOSED):
+- `DEPENDENCY_DIGEST_ALGORITHM` = **`TB-PRODUCTION-CONTEXT-DIGEST-v2`**. Everything else in the definition is unchanged: the preimage fields, TB canonical JSON v1, SHA-256 (lowercase 64 hex), the closure, the fingerprints, and row versions outside the digest.
+- **One definition, one path.** `getProductionContext`, the `generatePrompt` rebuild, and the `validateCandidate` capture and commit rebuild all reach `assembleContext` → `dependencyDigest(scope, dependencies)`.
+  - No parameter, option or fallback selects another definition.
+  - A static unit test pins the identifier to one definition (plus the v1 string only in the unchanged ruleset vocabulary), the one call and the function's two parameters.
+  - The v1 definition exists only in test code: the oracle `tests/support/context-digest-oracles.ts` and the compiled smokes' recomputation. Both are written out and hashed with the frozen reference helper.
+- **The versioning rule** is documented at the definition, in CLAUDE.md and in ADR-0007.
+  - The identifier changes whenever identical rows, request scope, `CONTRACT_BASELINE` and PFC identifier could give a materially different context: a new current-applicability semantic, a conflict or missing-item derivation, a closure interpretation, or any other evaluator change that no fingerprint reflects.
+  - It never changes for a refactor with the same output, a UI, CSS, test, logging or performance change.
+  - A wire release is no substitute.
+- **Unchanged:**
+  - the wire contract and the database;
+  - `CONTRACT_BASELINE` in the preimage and the PFC identifier;
+  - `TB-PROMPT-TEMPLATE-v1`: the renderer is not in the diff, and the same supplied context renders the same bytes;
+  - `TB-TECHNICAL-RULESET-v2`: `technical-ruleset.ts` is not in the diff (§38.7);
+  - `contextRevision`, which never moves for a deployment;
+  - the P4D DRAFTING gate: a conflict is listed, not a gate.
+
+**Consequence at deployment.** Every current digest changes once.
+- A preview kept from before is refused once with 412 `CONTEXT_CHANGED` `{field: expectedDependencyDigest}`. The page shows its existing message and offers only a new read.
+- The dependency manifest of an unchanged context is identical under v2; only the digest differs.
+- A candidate of a prompt recorded under v1, validated now with every record it depends on unchanged, reports `CONTEXT.PROMPT_DRIFT` change `IDENTIFIERS` (REVIEW_REQUIRED), plus `CONTEXT.CONFLICTS` for a current conflict. A changed record gives its own ADDED / REMOVED / CHANGED drift issue instead of `IDENTIFIERS`; REVIEW_REQUIRED either way. REVIEW_REQUIRED is not a mandatory re-draft.
+
+### 38.3 The cross-deployment reproduction with the real code of earlier deployments
+
+A scratch experiment (never committed; `evidence/r14-astra3-cross-deploy-experiment.txt`) ran the real `readContextRows` + `assembleContext` of `fdcda2b` and of `e0a521a`, extracted with `git archive`, next to the current application. All three read the same rows of one fixture on `tb_notice_test`: the R14-AUD-013 case, whose mandate version cites an annex restricted to another legal subject of the same owner. No other owner's material was involved.
+
+| Deployment | Identifier | contextRevision | Dependencies | Conflicts | Digest |
+|---|---|---|---|---|---|
+| `fdcda2b` (before R14-AUD-009/-010) | v1 | 8 | 23, identical | none | `ab076d9e…17b6` (H_v1) |
+| `e0a521a` (the defect) | v1 | 8 | 23, identical | `SOURCE_NOT_APPLICABLE sources[2]` | `ab076d9e…17b6` — the same digest for a different context |
+| this remediation | v2 | 8 | 23, identical | `SOURCE_NOT_APPLICABLE sources[2]` | `21c3518b…c305` (H_v2) |
+
+- The legacy v1 oracle over the current dependencies gives exactly `ab076d9e…17b6`, and the v2 oracle exactly `21c3518b…c305`.
+- The contexts are identical apart from the conflict.
+- The earlier deployment's preview tokens (revision 8, H_v1) sent to the current `generatePrompt` gave 412 `CONTEXT_CHANGED` `{field: expectedDependencyDigest}`. No idempotency record for its key, nothing written (whole-suite dump equal), case row byte-identical.
+- The current read's tokens then generated version 2 with the conflict frozen.
+- **The defect over HTTP (second run).** A new fixture of the same shape was run with `DEPENDENCY_DIGEST_ALGORITHM` temporarily set back to `TB-PRODUCTION-CONTEXT-DIGEST-v1`, and the file was then restored byte-identically. `fdcda2b`, `e0a521a` and the application all gave `1c42f9c6…3a99`, the legacy oracle's value, while the application's context listed the conflict and `fdcda2b`'s did not. The earlier preview's tokens then gave **201**, a completed idempotency record and a stored snapshot of a context the preview never showed: R14-AUD-013 reproduced.
+
+### 38.4 The guarantee in tests
+
+| Mission § | Test | Result |
+|---|---|---|
+| §9, §16, §17 | Unit `production-context-rules` "golden: the written-out v2 preimage …": the TB canonical JSON text of the v2 preimage of a fixed NMI_REPLY scope is written out; its node:crypto SHA-256 is pinned (`68c080db…5ffc`); the oracle and `dependencyDigest` both give it, also with the priors reversed and other row versions | PASS |
+| §9, §17 | Unit "the legacy v1 oracle reproduces the accepted v1 digest exactly …": the v1 preimage differs from the v2 text only in the identifier. Its SHA-256 (`df75eed4…bc9e`) is the value the accepted implementation at `e0a521a` computed for the same inputs, recorded before the change | PASS |
+| §8, §17 | Unit "one implementation path": the identifier appears once in the application, in the one definition (the v1 string only in the unchanged ruleset vocabulary). One `dependencyDigest(` call, from the assembly every path uses. The function takes the scope and the closure only, and the preimage has one `algorithm:` key | PASS |
+| §9 | Unit "R14-AUD-013: the same rows under a definition that did not evaluate these citations … and under the current one …": the same revision, closure and fingerprints; no conflict versus two; the v1 digest of both is equal and is never the current one | PASS |
+| §9, §10, §11, §31, §32 | DB `p4g-http` "old semantic preview cannot authorize prompt generation after the digest definition changed …", for DRAFTING and PREPARATION, on the R14-AUD-009 fixture: | PASS |
+| | — the earlier interpretation of the same snapshot rows (every listed source unevaluated) lists no conflict; its v1 digest is H_v1 | |
+| | — the current read has the same revision, closure and fingerprints, lists `SOURCE_NOT_APPLICABLE`, and its digest is the v2 oracle's H_v2 ≠ H_v1 | |
+| | — `generatePrompt` with (D, H_v1): 412 `CONTEXT_CHANGED` `{field: expectedDependencyDigest}`, twice under one key. No idempotency record for the key; a whole-suite dump equal (no snapshot, audit event or case change); the case row byte-identical | |
+| | — a new key with (D, H_v2): 201, one snapshot and one `PROMPT_GENERATED`, the digest H_v2, the manifest and context exactly the read's, the conflict frozen in `conflicts` and PART 3, the case row unchanged | |
+| §12 | DB "validateCandidate: the v1 digest of the unchanged closure is 412 …": 412 `CONTEXT_CHANGED` `{field: expectedDependencyDigest}` before any run, no idempotency record, a whole-suite dump equal. The current digest records a run with exactly that digest and manifest: REVIEW_REQUIRED by `CONTEXT.CONFLICTS` only | PASS |
+| §13, §36 | DB "R14-AUD-010: a clean context at t0 …" (existing; extended): H0 and H1 are each the v2 oracle over their own dependencies. The move is the owner marker within one definition. The t0 prompt and validation against H0 are 412 | PASS |
+| §27, §28, §29 | DB "history: a prompt snapshot and a validation run recorded under TB-PRODUCTION-CONTEXT-DIGEST-v1 …": see §38.5 | PASS |
+| §8 | DB `p4d-http` "TB-PRODUCTION-CONTEXT-DIGEST-v2 (R14-AUD-013, ADR-0007): every read's digest is the v2 definition …": INITIAL PREPARATION and DRAFTING and NMI_REPLY with its parent and prior; the v1 value of each closure differs; nothing written | PASS |
+| §33 | Web `p4e` "a context changed after the read …" (tightened): the refused request carried exactly the reviewed read's body; no context read happened between the 412 and the person's "Read the current context"; exactly one read after it; the next request carries exactly the new digest under a new key | PASS |
+| §22 | Unit `validation-rules` "the one named exception …" (§38.7) | PASS |
+
+### 38.5 History, idempotency and the case revision
+
+- **Historical PromptSnapshot** (mission §27): a snapshot as a v1 deployment recorded it is set directly in `tb_notice_test`, since the application no longer computes a v1 digest. It carries the digest H_v1, the earlier context without the conflict, its rendered prompt (`renderPrompt` of that context, `TB-PROMPT-TEMPLATE-v1`) and SHA-256, and contract `TB-SCHEMA-API-v1.3.0`.
+  - `getPrompt` returns it exactly, and `listCasePrompts?q=H_v1` finds it with H_v1.
+  - No conflict is inserted and nothing is re-digested.
+  - A new read is H_v2 with the conflict, and no prompt carries H_v2 until one is generated.
+- **Historical ValidationRun** (§28): a TECHNICAL_PASS run of that snapshot's candidate as v1 recorded it (H_v1, the earlier context, `TB-TECHNICAL-RULESET-v2`, all 29 rules executed).
+  - `getValidationRun` returns it exactly, with no issues, and `listValidationRuns?q=H_v1` finds it with H_v1.
+  - A new validation with H_v1 is 412, and with the current read a **new** run: REVIEW_REQUIRED by `CONTEXT.CONFLICTS` and `CONTEXT.PROMPT_DRIFT` `{change: IDENTIFIERS, promptDependencyDigest: H_v1, currentDependencyDigest: H_v2}`.
+  - The list shows both, newest first, each with its own digest. The stored prompt, run and candidate rows are byte-identical before and after.
+- **Dependency manifest** (§29): for unchanged rows the v2 manifest equals the v1 manifest entry for entry, as the DB tests and §38.3 show. Only the digest differs.
+- **Case revision** (§30): the revision is the same D in the earlier interpretation, in the current read, after the refused requests and after a generation. The case row is byte-identical throughout; a generation locks it and never changes it.
+- **Idempotency** (§11): the refused request's claim is released, per the existing WriteExecutor semantics (the IN_PROGRESS row deleted, a 412 is not retried). The same key refused again is not a replay. A new key with H_v2 succeeds. The WriteExecutor is unchanged.
+
+### 38.6 Regression of the closed findings
+
+- **R14-AUD-001** (correspondence sources): its DB and unit tests pass unchanged, and its fingerprints are unchanged under the same key. Only the digest identifier moved.
+- **R14-AUD-003** (`TB-TECHNICAL-RULESET-v2` identity): the golden vocabulary tests (`validation-rules`, `validation-ruleset-identity`) pass unchanged. New runs record v2, and a v1 run reads back as v1. The guard is narrowed only as §38.7 records. NC-013-I shows a silent widening of v2 is caught.
+- **R14-AUD-004** (`ui:sandbox` ownership): the lifecycle test passes 8/8. The browser pass started only after a verified empty start, and its teardown ended empty (§38.10).
+- **R14-AUD-008** (G6/G7 terminology): `gate-terminology.test.ts` passes 3/3 on the final records. It passed in the sweep's `yarn test` with the ADR and P4D/P4E edits present, and again in the `yarn test` run after `CLAUDE.md`, `CURRENT_STATE.md` and this section were written and corrected (1580 / 1580).
+- **R14-AUD-009** (authority sources): the p4d A–D, controls and multi-route tests pass. The p4g stack test passes. NC-009-B-R is caught under v2.
+- **R14-AUD-010** (later owner material): the p4d seven-path test and the p4g t0 → t1 test pass. The within-v2 move H0 → H1 is asserted. NC-010-B-R is caught under v2, so stale detection does not rely only on the v1 → v2 change.
+
+### 38.7 The technical-ruleset identifier question (operator decision)
+
+- **The conflict.** The R14-AUD-003 guard (`validation-rules.test.ts`, "a later identifier needs a new ruleset version …") required every identifier the application uses, `DEPENDENCY_DIGEST_ALGORITHM` included, to be in `TB-TECHNICAL-RULESET-v2`'s pinned `MARKER.INTERNAL_IDENTIFIERS` vocabulary. ADR-0006 §8 recorded that rule. The mission, however, forbade a ruleset bump for the digest change (§22) and asked to confirm v2 unchanged (report item 27).
+- **The operator's decision (2026-09-28).** Keep `TB-TECHNICAL-RULESET-v2` byte-identical and name one exception:
+  - the vocabulary still lists `TB-PRODUCTION-CONTEXT-DIGEST-v1`;
+  - the guard checks the five other identifiers as before;
+  - a new test pins `DEPENDENCY_DIGEST_ALGORITHM` as `TB-PRODUCTION-CONTEXT-DIGEST-v2`, outside v2's vocabulary.
+
+  Any other new identifier, or a later digest identifier, still fails. Recorded in ADR-0006 §8 (a dated qualification) and ADR-0007 Decision 7.
+- **Effect.** A candidate whose text contains the literal `TB-PRODUCTION-CONTEXT-DIGEST-v2` raises no `MARKER.INTERNAL_IDENTIFIERS` finding; the v1 literal still does. The v2 string appears on no wire, in no prompt text and on no page, only in the hashed preimage.
+- **Backlog.** A ruleset that detects the new identifier needs a new ruleset version. So does clearer `CONTEXT.PROMPT_DRIFT` wording for a definition-only drift: the recorded message says "the digest's contract or context-schema identifiers differ", and the digest-definition identifier is one of the digest's identifiers.
+
+### 38.8 Tests and totals
+
+| Suite | Change | Covers |
+|---|---|---|
+| `tests/support/context-digest-oracles.ts` (new, test-only) | the v1 and v2 definitions written out and hashed with the frozen helper | the legacy oracle and the independent v2 oracle |
+| `tests/api/production-context-rules.test.ts` | +4 (v2 golden, v1 oracle, one path, the R14-AUD-013 assembly case); the preimage test now names v2 | §38.4 |
+| `tests/api/validation-rules.test.ts` | +1 (the named exception); the guard checks the five other identifiers | §38.7 |
+| `tests/db/p4g-http.test.ts` | +3 (the cross-deploy prompt test, the validation test, the history test); the R14-AUD-010 test asserts both digests are v2 | §38.4, §38.5 |
+| `tests/db/p4d-http.test.ts` | +1 (every read's digest is v2) | §38.4 |
+| `tests/web/p4e.test.tsx` | the 412 test tightened (exact bodies, no silent re-read) | §38.4 |
+| `scripts/local/p4d-smoke.ts`, `p4g-smoke.ts` | v2 recomputation, v1-token refusals, a fresh v2 generation keeping the conflict | §38.12 |
+
+Totals: `yarn test` **1580 / 1580 in 52 files** (1575 before); `yarn test:db` **548 / 548 in 14 files** (544 before). Both are equal on the home PC and in CI.
+
+### 38.9 Commits
+
+| Commit | Content | CI |
+|---|---|---|
+| `453cc2b` | fix(production): the digest definition names the context semantics — `DEPENDENCY_DIGEST_ALGORITHM` = `TB-PRODUCTION-CONTEXT-DIGEST-v2` and the versioning rule at the definition (`context-dependencies.ts`); the test-only oracles (`tests/support/context-digest-oracles.ts`); the v2 golden, the legacy v1 oracle, the one-path scan and the assembly case (`production-context-rules`); the named ruleset exception (`validation-rules`) | (pushed with `be8d74b`) |
+| `b239f96` | test(r14): the cross-deploy prompt, validation and history DB tests and the within-v2 assertions (`p4g-http`), every read's digest is v2 (`p4d-http`), the tightened 412 web test (`p4e`) | (pushed with `be8d74b`) |
+| `be8d74b` | test(smoke): `smoke:p4d` and `smoke:p4g` rebuild the v2 digest with the frozen helper and refuse the v1 digest of the same closure — the code head | push run 36375405502 success |
+| (this record) | docs(r14): ADR-0007 (new, PROPOSED), the ADR-0006 qualification, §38, P4D §31, P4E §31 with their pointers, the evidence `r14-astra3-*` and screenshots, `CLAUDE.md`, `CURRENT_STATE.md` (documentation only) | reported with the remediation report |
+
+Nothing was amended, rebased or force-pushed; no pull request, merge, tag or release. `origin/main` stays `c73cbda`.
+
+### 38.10 Browser verification (Playwright MCP)
+
+**18/18 PASS, no finding** (`evidence/r14-astra3-playwright-mcp-verification.txt`; screenshots `evidence/screenshots/r14-astra3-*`).
+- **Target.** `yarn ui:sandbox` built from `be8d74b` on the disposable `tb_notice_test`, under the R14-AUD-004 ownership guard. An isolated headless browser; synthetic data only, seeded through the compiled API. The web chunks are byte-identical to the §37 build: no web source changed.
+- **Fixture.** One agency and owner X with Subjects A and M. A frozen mandate whose version cites an annex restricted to Subject M. Case A (Subject A) selects its route's coverage.
+- **History as a v1 deployment recorded it.** Set directly in `tb_notice_test` with the tooling account, as the DB tests do, because the application no longer computes a v1 digest: prompt version 1 with digest H_v1 `322c636b…7b1e`, the context without the conflict and its rendered prompt; a candidate imported from it through the API; its TECHNICAL_PASS run with H_v1. The driver stored the scripted instants in local time, so they read back as 11:30 PM and 11:31 PM on Sep 27; the read-back is compared with the stored row.
+- **The current read.** The context shows H_v2 `1d42b46d…13a1`, the independent v2 oracle's value, with `SOURCE_NOT_APPLICABLE sources[3]`, its tag and the "Case scope" row. Focus moves to the read's outcome.
+- **History exact.**
+  - The prompt history lists version 1 with H_v1. Its detail shows H_v1, 22 dependencies, no conflict, and prompt text whose in-browser SHA-256 is exactly the stored `f49e42bd…1a03`.
+  - "Open run" on the v1-era run shows TECHNICAL PASS, "Dependency digest evaluated" H_v1, "Nothing was checked again", and a historical context without the conflict.
+- **Fresh v2 work.**
+  - Generation against the read (request body `expectedDependencyDigest` H_v2) gives 201. Version 2 stores H_v2 with the conflict frozen; "Prompt generated" is announced once.
+  - A validation against a new read gives a new REVIEW_REQUIRED run: `CONTEXT.CONFLICTS`, plus `CONTEXT.PROMPT_DRIFT` "… the digest's contract or context-schema identifiers …". The TECHNICAL_PASS run stays listed below it.
+- **Within-v2 drift and the non-silent 412.**
+  - Another owner's later write cites Case A's linked source. Case A's revision stays 6 and its rows are byte-identical. The current digest H1 `8c973e68…2866` equals the v2 oracle, with two conflicts.
+  - Generation with the pre-drift read gives 412 with the exact message in a focused alert and no retry or silent re-read in the network log.
+  - After "Read the current context", generation carries exactly H1 under a new key; version 3 stores H1.
+- **Actions, layout, later phases.** At 390 px nothing scrolls sideways on the prompt detail, candidate or context pages. No approve, ready, sign, send, export, assessment or adopt action appears, and READY_FOR_SIGNER is absent. `GET …/assessments`, `…/readiness` and `…/unsigned-exports` are 404.
+- **Writes and cleanup.** The v1-era prompt, run and candidate rows and Case A's row are byte-identical after the session. Case A stays at revision 6 and row version 6. `candidate_assessments` is 0. The owned teardown deleted every row: the fingerprint equals the empty start, and `db:verify test --expect-empty` PASS.
+- **Limitation.** No cross-deployment switch in the browser: one compiled runtime cannot serve a v1 read and then a v2 write, and a running server was not mutated to fake one. The v1 → v2 refusal is proven by the DB tests, the negative controls and §38.3. The browser shows v1-era history beside v2 reads, and the same non-silent 412 path that a stale preview of either kind takes (the page treats the digest as an opaque string).
+
+### 38.11 Negative controls
+
+**15/15 caught and restored byte-identically** (`evidence/r14-astra3-negative-controls.txt`), 2026-09-28T03:54:28Z–03:56:00Z, on the committed code head `be8d74b`.
+- 31 responsible commands; every one failed with an AssertionError as its first failure.
+- The code-path fingerprint was the empty-diff value before and after.
+- The unmutated baseline passed 16/16 distinct commands, each selecting at least one test.
+- A first invocation was stopped during its baseline, before any mutation (an unbalanced `(` in a `-t` pattern); every result is from the second invocation.
+
+| Mission | Control | Responsible tests |
+|---|---|---|
+| revert the production algorithm constant to v1 | NC-013-A | DB cross-deploy prompt and validation tests; DB p4d "every read's digest is the v2 definition"; unit v2 golden; unit "the one named exception" |
+| `generatePrompt` ignores `expectedDependencyDigest` | NC-013-B | DB cross-deploy prompt test (201 instead of 412); DB "R14-AUD-010: a clean context at t0 …" |
+| v1 in one path, v2 in another | NC-013-C1 (the generation rebuild v1), NC-013-C2 (`getProductionContext` v1), NC-013-C3 (the validation commit rebuild v1) | DB cross-deploy prompt test; DB p4d v2 test; DB validation test |
+| a historical PromptSnapshot digest rewritten on read | NC-013-D | DB history test |
+| a historical ValidationRun digest rewritten on read | NC-013-E | DB history test |
+| the identifier removed from the preimage | NC-013-F | unit v2 golden; unit one path; DB p4d v2 test; DB cross-deploy prompt test |
+| `contextRevision` incremented to hide the problem (v1 kept) | NC-013-G | DB cross-deploy prompt test ("the same revision", 10 vs 9); unit "the production module issues no write" |
+| further | NC-013-H (the legacy oracle computes v2), NC-013-I (the ruleset vocabulary silently widened with the v2 identifier), NC-013-J (`validateCandidate` ignores the digest at its capture), NC-013-K (the prompt page retries a 412 silently) | unit v1 oracle; unit named exception, vocabulary and ruleset identity; DB validation and history tests; web p4e 412 test |
+| within-v2 regressions | NC-010-B-R (the owner marker removed), NC-009-B-R (the version annex's applicability disabled) | DB AUD-010 t0 → t1 and seven paths; DB cross-deploy prompt test, the AUD-009 stack test and p4d "R14-AUD-009 B" |
+
+NC-013-A fails the cross-deploy DB test at its first v2 check (the current digest is not the v2 oracle's). The HTTP-level acceptance of an earlier preview under the v1 identifier is shown separately in §38.3's second run (`evidence/r14-astra3-cross-deploy-experiment.txt`, "Defect reproduced over HTTP"): with the constant reverted, the stale request gave 201, a completed idempotency record and a stored snapshot. The file was then restored byte-identically.
+
+### 38.12 Regression sweep and CI
+
+**Sweep:** 2026-09-28T03:57:48Z–04:07:20Z on `be8d74b`, after the targeted tests and the negative controls and before the browser session. All 21 steps exit 0 (`evidence/r14-astra3-first-pc-sweep.txt`). The uncommitted records in `docs/` are outside every checked code path, except the documentation scan of `gate-terminology.test.ts` (§38.6).
+
+| Command | Result |
+|---|---|
+| `yarn reference:check` (before and after) | frozen references intact (`MANIFEST.sha256` `42c2a419…` matches the pin) |
+| `yarn reference:helper-tests` | 27 pass, 0 fail |
+| `yarn contracts:check` | 3 generated outputs match the active source |
+| `yarn install --immutable` | lockfile unchanged (pre-existing YN0086 note) |
+| `yarn typecheck` · `yarn format:check` | exit 0 |
+| `yarn lint` · `oxlint --deny-warnings --format default` | exit 0 · exit 0 — **0 warnings** ("Found 0 warnings and 0 errors." on 331 files) |
+| `yarn test` | 1580 / 1580 in 52 files |
+| `yarn test:db` | 548 / 548 in 14 files (`tb_notice_test`) |
+| `yarn db:verify test --expect-empty` (before and after) | PASS, domain rows 0 |
+| `yarn db:verify dev` | PASS (metadata and a row count only: 5, unchanged — nothing written to `tb_notice_dev`) |
+| `yarn db:status test` / `dev` | up to date (1 migration) |
+| `yarn db:drift:diff-migrations` / `db:drift:diff-datasource dev` | empty migration (no drift) |
+| `yarn build` | exit 0, no chunk-size advisory. Every chunk is byte-identical by name and size to §37's (entry 329.93 kB; production-context 33.78 kB; prompts 15.54 kB; candidates 56.82 kB); no Zod runtime in the page chunks |
+| `yarn smoke:local` | 62 checks |
+| `yarn dev:verify-shutdown` | 4 / 4 scenarios |
+
+`smoke:auth`, `smoke:directory`, `smoke:p3a`, `smoke:p3b` and `smoke:p4a`–`smoke:p4g` write records and run only in CI. All are kept and pass there. `yarn test:transition-baseline` is not a gate and was not run.
+
+**Each code commit on its own.** Each commit's exact tree was rebuilt in the working tree by checking out the later files at that commit's version, with every code path's blob compared with the commit (0 mismatches). It was verified, and then HEAD was restored (0 code differences afterwards). Results:
+- `453cc2b`: typecheck exit 0; "Found 0 warnings and 0 errors."; format exit 0; `yarn test` 1580 / 52 files; the p4d + p4g DB suites 92 / 2 files (their R14-AUD-013 tests arrive in `b239f96`).
+- `b239f96`: typecheck exit 0; 0 warnings; format exit 0; `yarn test` 1580 / 52 files. Its DB test files are identical at `be8d74b`, so the sweep's `yarn test:db` 548 / 14 files covers them.
+- `be8d74b` (smokes only): the sweep above and CI (below).
+
+**`smoke:p4d` and `smoke:p4g` (extended, no new phase smoke).**
+- `smoke:p4d` rebuilds the digest of four reads with the frozen helper: INITIAL PREPARATION without and with the selection, INITIAL DRAFTING, and NMI_REPLY DRAFTING with its parent and prior. Each is the v2 definition, and the v1 value of the same closure differs.
+- `smoke:p4g`:
+  - the prompt's digest and the digests before and after another owner's write are v2 (the move is the owner marker within one definition);
+  - a prompt and a validation with the current revision and the v1 digest of the unchanged closure are 412 `CONTEXT_CHANGED` `{field: expectedDependencyDigest}`, with the case revision, row version and current digest unchanged;
+  - for case C, the v1 digest is 412 with nothing written, and the current v2 digest generates a PREPARATION prompt that freezes the `SOURCE_NOT_APPLICABLE` conflict, read back exactly.
+
+**CI** (`evidence/r14-astra3-ci-run-36375405502.txt`). Code head `be8d74b`: push run [36375405502](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36375405502) (2026-09-28T03:52:27Z–04:01:46Z), **success**, both jobs. Logs read:
+- "Non-DB checks (cold install)" (job 108780107714): the reference check and the 27 helper tests, `contracts:check`, lint "Found 0 warnings and 0 errors.", format, `yarn test` 1580 / 52 files, build, the frozen references and the working tree unchanged.
+- "Database, seed and smoke (MySQL 8.4.11)" (job 108780107670):
+  - migration and metadata verification on test, replay and dev; `yarn test:db` 548 / 14 files; the seed twice with the canonical digest unchanged; both drift diffs empty;
+  - smokes: `smoke:local` 62, `smoke:auth` 4, `smoke:directory` 14, `smoke:p3a` 24, `smoke:p3b` 36, `smoke:p4a` 50, `smoke:p4b` 64, `smoke:p4c` 62, `smoke:p4d` **88** (87 before; its R14-AUD-013 line is in the log), `smoke:p4e` 84, `smoke:p4f` 90, `smoke:p4g` **146** (133 before; four R14-AUD-013 lines);
+  - the P1.1 recovery commands; `yarn dev` clean shutdown 4 / 4.
+
+The documentation head's run is reported with the remediation report.
+
+### 38.13 Schema, contract and dependencies
+
+- **Database:** no migration, schema change, backfill or new table. `20260923103912_initial_schema` is still the only migration, and both drift diffs are empty. No stored PromptSnapshot, ValidationRun, NoticeCandidate, CaseRecord, SourceReference, CaseSource, FactSource or AuthorityEvent is updated.
+- **Wire contract:** no change. `dependencyDigest` stays the existing lowercase 64-hex string, with no new field, parameter or schema. TB-SCHEMA-API-v1.3.0 has **289 schemas, 144 operations, 99 paths**, OpenAPI `info.version` 1.3.0. The amendment `docs/contracts/TB-SCHEMA-API-v1.3.0/amendment.json` has sha256 `6b74c09aba024dcf8cb2e0a0c6e374bbce17b45298d2aec83cc2e3ab166a1630` (measured, byte-identical). No TB-SCHEMA-API-v1.4.0. `yarn contracts:check` passes.
+- **Identifiers:**
+  - `TB-PRODUCTION-CONTEXT-DIGEST-v2` is new (ADR-0007, PROPOSED).
+  - Unchanged: `TB-TECHNICAL-RULESET-v2` (`technical-ruleset.ts` not in the diff), `TB-PROMPT-TEMPLATE-v1` (`apps/api/src/modules/prompts/**` not in the diff), `TB-CANDIDATE-ARTIFACT-v1`, `PFC-YT-EMAIL-v1.1`, `CONTRACT_BASELINE` = TB-SCHEMA-API-v1.3.0.
+- **Dependencies:** none added; lockfile, `.yarnrc.yml`, `.nvmrc` and every `package.json` unchanged.
+- **Nothing else outside the change.** `git diff e0a521a..be8d74b` (9 files, +1054 −11): one application file (`context-dependencies.ts`, the constant and its comments), five test files, one new test support file and two smoke scripts. Nothing under `packages/`, `apps/api/prisma`, `apps/api/src/modules/prompts`, `apps/api/src/modules/validation`, `apps/web`, `docs/reference`, `docs/contracts`, `yarn.lock`, `.yarnrc.yml`, `.nvmrc` or any `package.json`. The write rules, the WriteExecutor, the target allowlist, the dev database and the migration tooling are unchanged.
+
+### 38.14 Warnings and open items for the operator (not decided here)
+
+1. **Every current digest changes once at deployment** (§38.2).
+   - Each preview kept from before is refused once with 412 and needs a new read.
+   - A candidate of a prompt recorded under v1, validated afterwards, reports `CONTEXT.PROMPT_DRIFT` change `IDENTIFIERS` (REVIEW_REQUIRED) when nothing it depends on changed. A changed record gives its own ADDED / REMOVED / CHANGED drift issue instead; REVIEW_REQUIRED either way. A person reviews it; it is not a mandatory re-draft, and no rebinding workflow exists.
+   - This is the intended effect of the remediation, not a new rule.
+2. **The digest is not self-describing** (ADR-0007 Decision 5). No stored record names the definition that produced its digest. It is established by recomputing under each written-out definition, as the oracle does.
+   - A field naming it would be a wire change; this mission forbade one, and none was made.
+   - Whether a later contract release should expose it is the operator's decision.
+3. **The versioning rule is a review discipline.**
+   - The static test pins one definition and one path. It cannot detect a future evaluator change that should bump the identifier but does not.
+   - A reviewer of any change to what a context derives from identical rows must apply the rule written at the definition, in CLAUDE.md and in ADR-0007.
+4. **The ruleset exception** (§38.7).
+   - `TB-TECHNICAL-RULESET-v2` does not flag the literal `TB-PRODUCTION-CONTEXT-DIGEST-v2` in a candidate's text. The string never reaches a prompt, page or wire, so a draft can only contain it by being typed.
+   - `CONTEXT.PROMPT_DRIFT`'s recorded wording covers a definition-only drift as one of "the digest's contract or context-schema identifiers".
+   - Both need a new ruleset version if the operator wants them changed.
+5. **ADR-0006 and ADR-0007** stay PROPOSED; their acceptance and TB-SCHEMA-API-v1.3.0's belong to the operator's review.
+6. **Evidence limitations:**
+   - the v1-era prompt snapshots and runs of the DB tests and the browser pass were inserted with the tooling account (the application cannot produce them any more);
+   - the cross-deployment reproduction ran the earlier deployments' extracted code in a scratch test that was not committed (§38.3);
+   - the browser pass shows the 412 path through a within-v2 drift, not a deployment switch (§38.10);
+   - the browser seed's scripted instants were stored in local time by the driver (compared as stored).
+7. **Pre-existing, non-blocking:** the YN0086 peer-dependency note; `yarn test:transition-baseline` fails by design (not run, not a gate); R14-AUD-011 and -012 recorded as NON_BLOCKING_BACKLOG (§38.1), not changed.
+
+### 38.15 Status (maximum claim of this mission)
+
+| Scope | Status |
+|---|---|
+| R14-AUD-013 | **REMEDIATED_PENDING_INDEPENDENT_REVIEW** |
+| R14-AUD-001, -003, -004, -008, -009, -010 | **CLOSED_VERIFIED_WITH_LIMITS** (the re-audit at `e0a521a`; regressions green, §38.6) |
+| R14-AUD-002, -007 | **OPEN_BACKLOG** (unchanged) |
+| R14-AUD-011, -012 | **NON_BLOCKING_BACKLOG** (unchanged) |
+| R14-AUD-005, -006 | **FUTURE_ASSESSMENT_PREREQUISITE** (unchanged; CandidateAssessment stays blocked until they are resolved) |
+| R14 | **HOLD_FOR_REVIEW** — not PASS |
+| ADR-0006 | **PROPOSED** (cross-referenced, §8 and the Consequences qualified) |
+| ADR-0007 | **PROPOSED** |
+| TB-SCHEMA-API-v1.3.0 | the additive historical ValidationRun read, proposed; not accepted as part of R14 final |
+| P4G | not VERIFIED_COMPLETE |
+| CandidateAssessment | **NOT_STARTED** (unrouted) |
+| External action | **NONE** |
+| Database / wire / dependencies | no change |
 
 Recommended next action: **an independent Astra re-audit of the exact new head.**
