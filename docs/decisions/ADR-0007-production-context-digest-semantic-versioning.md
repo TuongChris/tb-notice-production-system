@@ -1,10 +1,10 @@
 # ADR-0007 — TB-PRODUCTION-CONTEXT-DIGEST-v2: the dependency digest names the context semantics
 
-Status: **PROPOSED** — 2026-09-28, with mission TB_R14_ASTRA_AUD013_SEMANTIC_DIGEST_REMEDIATION, for the operator's review at gate **R14 final**. It remediates the independent Astra re-audit finding R14-AUD-013 (at `e0a521a`; CONFIRMED_DEFECT, HIGH; blocks R14 final and assessment implementation). It is a separate decision from ADR-0006 (the additive `getValidationRun` read, TB-SCHEMA-API-v1.3.0), which stays PROPOSED and is only cross-referenced.
-Acceptance boundary: an engineering change to an internal digest definition only. It creates no legal or factual authority, no finding, no review, no G1–G7 decision and no readiness implication. A conflict it makes visible decides no gate (Consequences).
+Status: **ACCEPTED** with documented qualification — operator, 2026-09-28, at review gate **R14 final**, whose result is **PASS** (mission TB_R14_FINAL_ACCEPTANCE_CLOSEOUT_AND_MERGE), on the recommendation of the independent Astra review of the exact head `c889e63d868b524909882e5e4c0a61620ee86c20`. **`TB-PRODUCTION-CONTEXT-DIGEST-v2` is the active production-context digest definition.** The qualification is documentation only (R14-AUD-014, CLOSED_DOCUMENTATION_ONLY): Decision 7's statement of where the literal can appear is corrected; no rule, assertion or behaviour changed (Acceptance, at the end). Proposed 2026-09-28 with mission TB_R14_ASTRA_AUD013_SEMANTIC_DIGEST_REMEDIATION for the operator's review at gate R14 final. It remediates the independent Astra re-audit finding R14-AUD-013 (at `e0a521a`; CONFIRMED_DEFECT, HIGH; it blocked R14 final and assessment implementation), now CLOSED_VERIFIED_WITH_LIMITS. It is a separate decision from ADR-0006 (the additive `getValidationRun` read, TB-SCHEMA-API-v1.3.0), accepted at the same gate and only cross-referenced.
+Acceptance boundary: an engineering change to an internal digest definition only. It creates no legal or factual authority, no finding, no review, no G1–G7 decision and no readiness implication. A conflict it makes visible decides no gate (Consequences). Its acceptance is a bounded technical acceptance: not legal approval, real-case authorization, a G1–G6 substantive assessment, G7 or permission to send.
 Scope: `apps/api/src/modules/production/context-dependencies.ts` (the identifier `DEPENDENCY_DIGEST_ALGORITHM` and its documented rule), the test-only oracles `tests/support/context-digest-oracles.ts`, the tests and compiled smokes that pin the definition, and the records that describe it.
 Related: P4D report §1.3 D5 (the accepted digest), P4E §5 (the stale-context 412) and §12 (the frozen digest), P4G §7 (fresh dependency binding), §36–§37 (R14-AUD-001, -009, -010: the semantic changes), ADR-0006 §8 and Consequences (the contract coupling and the technical-ruleset identity).
-Verification: P4G report §38 — implemented on `feature/r14-validation-run-readback` (code head recorded there); tests, negative controls, browser pass, regression sweep and CI in §38 and `docs/verification/p4g/evidence/r14-astra3-*`.
+Verification: P4G report §38 — implemented on `feature/r14-validation-run-readback` (code head recorded there); tests, negative controls, browser pass, regression sweep and CI in §38 and `docs/verification/p4g/evidence/r14-astra3-*`. R14 final acceptance and R14-AUD-014: P4G report §39.
 
 ## Context
 
@@ -89,7 +89,7 @@ Verification: P4G report §38 — implemented on `feature/r14-validation-run-rea
 7. **Technical ruleset: one named exception (operator decision, 2026-09-28).**
    - `MARKER.INTERNAL_IDENTIFIERS` of `TB-TECHNICAL-RULESET-v2` keeps its pinned vocabulary exactly, `TB-PRODUCTION-CONTEXT-DIGEST-v1` included. The ruleset is not re-versioned for this change.
    - The unit test that requires every identifier the application uses to be in that vocabulary (ADR-0006 §8) now exempts exactly this one identifier: it pins `DEPENDENCY_DIGEST_ALGORITHM` as `TB-PRODUCTION-CONTEXT-DIGEST-v2`, outside v2's vocabulary. Any other new identifier, including a later digest identifier, still fails it.
-   - Effect: a candidate whose text contains the literal `TB-PRODUCTION-CONTEXT-DIGEST-v2` raises no `MARKER.INTERNAL_IDENTIFIERS` finding. The string appears on no wire, in no prompt text and on no page, only inside the hashed preimage.
+   - Effect: a candidate whose text contains the literal `TB-PRODUCTION-CONTEXT-DIGEST-v2` raises no `MARKER.INTERNAL_IDENTIFIERS` finding. The application itself uses the identifier only inside the hashed digest preimage. The application does not itself emit `TB-PRODUCTION-CONTEXT-DIGEST-v2` as generated metadata, template text or UI metadata. Captured or operator-supplied free text can nevertheless contain that literal and may flow through context/prompt/candidate text. `TB-TECHNICAL-RULESET-v2` intentionally does not detect that new literal; this is a documented bounded limitation, not evidence that the literal cannot appear. *(Qualified before acceptance, 2026-09-28, R14-AUD-014 — documentation only. As first proposed, the second sentence read: "The string appears on no wire, in no prompt text and on no page, only inside the hashed preimage." That overstated it: recorded free text is carried on the wire, frozen into contexts and prompts and shown on pages exactly as recorded, so it can contain any literal.)*
    - A ruleset that detects it needs a new ruleset version (backlog).
 
 ## Consequences
@@ -123,3 +123,17 @@ Verification: P4G report §38 — implemented on `feature/r14-validation-run-rea
 - **Serve v1 digests alongside v2**, as a fallback or a compatibility window. That reopens the defect. Rejected.
 - **Recompute or rewrite stored digests to v2.** That falsifies what each record evaluated. Rejected.
 - **Re-version the technical ruleset (`TB-TECHNICAL-RULESET-v3`)** to add the new identifier to `MARKER.INTERNAL_IDENTIFIERS`. The mission kept the ruleset unchanged, and the operator chose the named exception (Decision 7). Rejected for now; backlog.
+
+## Acceptance (R14 final, 2026-09-28)
+
+- **Result.** R14 final = **PASS** (operator, 2026-09-28; mission TB_R14_FINAL_ACCEPTANCE_CLOSEOUT_AND_MERGE), on the recommendation of the independent Astra review of the exact head `c889e63d868b524909882e5e4c0a61620ee86c20`. R14-AUD-013 is **CLOSED_VERIFIED_WITH_LIMITS**.
+- **Active.** `TB-PRODUCTION-CONTEXT-DIGEST-v2` is the active production-context digest definition: the one definition of every read and rebuild (Decisions 1–2).
+- **Accepted as written and preserved:**
+  - the semantic versioning rule: what must and what must not change the identifier (Decision 3);
+  - historical immutability: stored digests, contexts, manifests, results and rendered prompts stay exactly as recorded (Decision 4);
+  - no backfill, migration or rewrite of a stored digest (Decision 4; Excluded workarounds);
+  - no wire field, parameter or option names the digest algorithm (Decision 5);
+  - `CONTRACT_BASELINE` remains part of the digest preimage, as does the PFC identifier (Decision 6; Consequences);
+  - REVIEW_REQUIRED from `CONTEXT.PROMPT_DRIFT` asks a person to review; it is not a mandatory re-draft (Consequences).
+- **The documented qualification (R14-AUD-014, CLOSED_DOCUMENTATION_ONLY).** Decision 7's statement of where the literal can appear was over-broad and is corrected there. The application does not itself emit the identifier; captured or operator-supplied free text can contain it; `TB-TECHNICAL-RULESET-v2` intentionally does not detect it — a documented bounded limitation. This is a documentation correction only: no runtime remediation, no production-code change, no change to `TB-TECHNICAL-RULESET-v2` and no `TB-TECHNICAL-RULESET-v3`.
+- **Boundary.** A bounded technical acceptance of an internal digest definition: not whole-repository assurance, legal approval, real-case authorization, a G1–G6 substantive assessment, G7 or permission to send. CandidateAssessment stays blocked by R14-AUD-005 and -006 (FUTURE_ASSESSMENT_PREREQUISITE).

@@ -12,6 +12,16 @@ Mission **TB_R13_CLOSEOUT_MERGE_AND_P4G_TECHNICAL_VALIDATION_TO_R14**, steps 9�
 
 **Astra re-audit (at `e0a521a`):** R14-AUD-009 and -010 **CLOSED_VERIFIED_WITH_LIMITS**, together with -001, -003, -004 and -008. One further blocker of R14 final and of assessment implementation: R14-AUD-013. The digest definition identifier stayed `TB-PRODUCTION-CONTEXT-DIGEST-v1` while the context semantics changed, so a preview from an earlier deployment could authorize a prompt of a context never seen. Mission TB_R14_ASTRA_AUD013_SEMANTIC_DIGEST_REMEDIATION (2026-09-28) remediated exactly that on the same branch (§38): `TB-PRODUCTION-CONTEXT-DIGEST-v2` (ADR-0007, PROPOSED), one definition for every read and rebuild, stored digests kept as recorded — **REMEDIATED_PENDING_INDEPENDENT_REVIEW**. **R14 = HOLD_FOR_REVIEW**; ADR-0006 and ADR-0007 stay **PROPOSED**. No wire, schema or migration change; `TB-TECHNICAL-RULESET-v2` and `TB-PROMPT-TEMPLATE-v1` unchanged, with one named exception in the ruleset's guard test (§38.7).
 
+**R14 final (operator, 2026-09-28): PASS.** On the recommendation of the independent Astra review of the exact head `c889e63`:
+- P4G = **VERIFIED_COMPLETE**.
+- R14-AUD-013 **CLOSED_VERIFIED_WITH_LIMITS** (with -001, -003, -004, -008, -009 and -010); R14-AUD-014 **CLOSED_DOCUMENTATION_ONLY**; current R14 blockers **NONE**.
+- ADR-0006 and ADR-0007 **ACCEPTED WITH DOCUMENTED QUALIFICATION**. **TB-SCHEMA-API-v1.3.0** is the active wire contract; `TB-PRODUCTION-CONTEXT-DIGEST-v2` and `TB-TECHNICAL-RULESET-v2` are active; `PFC-YT-EMAIL-v1.1` is unchanged.
+- A **bounded technical acceptance**: not legal approval, real-case authorization, a G1–G6 assessment, G7 or permission to send.
+- The remediation branch is authorized for merge to `main` by a normal merge commit (mission TB_R14_FINAL_ACCEPTANCE_CLOSEOUT_AND_MERGE; §39).
+- CandidateAssessment stays **NOT_STARTED**, on hold for R14-AUD-005 and -006.
+
+The statuses in the paragraphs above are those of their time.
+
 Persistent rules (they stay in force; `CLAUDE.md` carries them):
 
 - **Technical validation ≠ substantive review.** A ValidationRun records what the technical ruleset found for one exact candidate artifact against the current recorded context: exact bytes and hashes, the envelope and thread, the document plan, internal markers, recorded gaps and drift. It reviews nothing substantively — no authority (G1), work-specific rights (G2), identification sufficiency (G3), audiovisual infringement (G4), permission or exceptions (G5), exact-artifact consistency and traceability QA (G6), legal validity or signer eligibility — and it is no G7, the actual human review, adoption, signature and sending outside the application. (Terminology corrected 2026-09-27, R14-AUD-008: this line first named "human adoption of the text" as G6; personal adoption is G7.)
@@ -28,17 +38,18 @@ Persistent rules (they stay in force; `CLAUDE.md` carries them):
 |---|---|
 | R13 closeout, merge and branch (steps 1–8) | **DONE** — R13 = PASS recorded (`85d0aed`); P4F merged to `main` by PR #9 (merge commit `5aa9248`); post-merge `main` CI green; branch created from `5aa9248`; checkpoint `b71a2e0` (`P4F_NOTICE_CANDIDATE.md` §28–§29; §2) |
 | P4G implementation (step 9) | **IMPLEMENTED** on `feature/p4g-technical-validation` — code head `608800e` (§3) |
-| P4G home-PC automated tests | **PASS** — `yarn test` 1515 in 48 files and `yarn test:db` 520 in 14 files on the code head `608800e`; P4G: 36 rule-engine and 3 WriteExecutor unit tests, 11 web, 26 DB (§26). R14 remediation: `yarn test` 1532 in 49 files, `yarn test:db` 526 in 14 files on `31df6d7` (§35.6). Astra-audit remediation: `yarn test` 1559 in 52 files, `yarn test:db` 534 in 14 files on `2117fba` (§36.7). Remaining-blocker remediation: `yarn test` 1575 in 52 files, `yarn test:db` 544 in 14 files on `51c5f44` (§37.7). R14-AUD-013 remediation: `yarn test` 1580 in 52 files, `yarn test:db` 548 in 14 files on `be8d74b` (§38.8) |
+| P4G home-PC automated tests | **PASS** — `yarn test` 1515 in 48 files and `yarn test:db` 520 in 14 files on the code head `608800e`; P4G: 36 rule-engine and 3 WriteExecutor unit tests, 11 web, 26 DB (§26). R14 remediation: `yarn test` 1532 in 49 files, `yarn test:db` 526 in 14 files on `31df6d7` (§35.6). Astra-audit remediation: `yarn test` 1559 in 52 files, `yarn test:db` 534 in 14 files on `2117fba` (§36.7). Remaining-blocker remediation: `yarn test` 1575 in 52 files, `yarn test:db` 544 in 14 files on `51c5f44` (§37.7). R14-AUD-013 remediation: `yarn test` 1580 in 52 files, `yarn test:db` 548 in 14 files on `be8d74b` (§38.8). R14 final closeout: `yarn test` 1580 in 52 files, unchanged (§39.8) |
 | Consistency / transaction tests | **PASS** — capture in one REPEATABLE READ snapshot, the ruleset outside any lock, one short SERIALIZABLE commit with the rechecks: a change committed after the capture is 412 with nothing written, a dependency write that never locks the case waits for the commit, an audit failure rolls back the run, its issues and the idempotency record (DB tests; negative controls NC-P4G-18, -19, -20) (§6) |
 | Browser verification (Playwright MCP, `tb_notice_test`) | **PASS** 32/32 — two sandbox sessions; one finding (F1) fixed in `3b56a41` and re-verified; limitations L1–L4 (§24). R14 read-back **PASS** 17/17 — one finding (the 390 px dependency table) fixed in `a5c22aa` and re-verified (§35.8). Astra-audit remediation **PASS** 14/14, no finding (§36.9). Remaining-blocker remediation **PASS** 18/18, no finding (§37.9). R14-AUD-013 remediation **PASS** 18/18, no finding (§38.10) |
 | Negative controls | **PASS** 33/33 in the final run on `608800e` — all 22 control kinds of mission §43 plus 11 further; 60 responsible commands, each failing on an AssertionError (§25). R14 remediation **PASS** 24/24 on `31df6d7` — the 11 mandatory kinds plus 13 further; 32 commands, each failing on an AssertionError (§35.9). Astra-audit remediation **PASS** 18/18 on `2117fba` — the 9 mandatory kinds of mission §40 plus 9 further; 28 commands, each failing on an AssertionError (§36.10). Remaining-blocker remediation **PASS** 14/14 on the code of `51c5f44` — the 10 mandatory controls plus 4 further; 27 commands, each failing on an AssertionError (§37.10). R14-AUD-013 remediation **PASS** 15/15 on `be8d74b` — the 7 mission controls (NC-013-A…G, C in three variants) plus 6 further; 31 commands, each failing on an AssertionError (§38.11) |
 | Full regression (mission §48) | **PASS** — 21/21 steps exit 0 on the code head `608800e` (§26). R14 remediation 21/21 on `31df6d7` (§35.10). Astra-audit remediation 21/21 on `2117fba` (§36.11). Remaining-blocker remediation 21/21 on `51c5f44` (§37.11). R14-AUD-013 remediation 21/21 on `be8d74b`, and each code commit on its own (§38.12) |
-| Exact final branch CI | **PASS** for the code head `608800e` — push run 36233916154, both jobs success; the R14 submission head `6fc5605` — push run 36234677791 success. R14 remediation code head `31df6d7` — push run 36248642530, both jobs success (§35.10); the run of the remediation's documentation head is reported with the R14-final report. Astra-audit remediation code head `2117fba` — push run 36290145394, both jobs success (§36.11); its documentation head `fdcda2b` — push run 36291505391, both jobs success. Remaining-blocker remediation code head `51c5f44` — push run 36325665818, both jobs success (§37.11); its documentation head `e0a521a` — push run 36326570907, both jobs success (§38.1). R14-AUD-013 remediation code head `be8d74b` — push run 36375405502, both jobs success (§38.12); its documentation head's run is reported with the remediation report |
-| Schema / migration | **No change** (§28; the R14 remediation made none either, §35.11, nor the Astra-audit remediations, §36.12, §37.12, §38.13) |
-| Wire contract | **No change in P4G** — TB-SCHEMA-API-v1.2.0 (§29). The R14 remediation adds the additive release **TB-SCHEMA-API-v1.3.0** (one read, one envelope schema; ADR-0006 **PROPOSED**, §35.3). The Astra-audit remediations changed no wire contract: the v1.3.0 amendment digest is unchanged (§36.12, §37.12, §38.13) |
-| R14 review | **PASS_WITH_ONE_CONTRACT_REMEDIATION** (operator, 2026-09-26) — V1–V12 and `ENVELOPE.REPLY_RECIPIENT` ACCEPTED; V13 **REMEDIATION_IMPLEMENTED_PENDING_R14_FINAL_REVIEW** on `feature/r14-validation-run-readback`, submitted for R14 final (§34, §35). The operator's independent Astra audit of that submission (`4a1618d`) put **R14 = HOLD_FOR_REMEDIATION**; after the Astra-audit remediation, **R14 = HOLD_FOR_REVIEW** (§36); the audit continued at `fdcda2b` found R14-AUD-009 and -010, remediated in §37; the re-audit at `e0a521a` closed them with limits and found R14-AUD-013, remediated in §38 — **R14 = HOLD_FOR_REVIEW**, not PASS |
-| Astra audit findings | R14-AUD-013 **REMEDIATED_PENDING_INDEPENDENT_REVIEW** (§38); R14-AUD-001, -003, -004, -008, -009 and -010 **CLOSED_VERIFIED_WITH_LIMITS** (the continued audit at `fdcda2b` and the re-audit at `e0a521a`; §36–§38); R14-AUD-002 and -007 **OPEN_BACKLOG**; R14-AUD-011 and -012 **NON_BLOCKING_BACKLOG**; R14-AUD-005 and -006 **FUTURE_ASSESSMENT_PREREQUISITE**; `ASTRA_AUDIT = PARTIAL` |
-| P4G status / merge | **MERGED_TO_MAIN_FOR_IMPLEMENTED_SCOPE** — pull request #10, merge commit `c73cbda` (merge commit method; 2026-09-26T12:46:40Z); `main` push CI run 36242994330 success; `P4G_IMPLEMENTATION = VERIFIED_FOR_IMPLEMENTED_SCOPE`. The R14 remediation is **not merged** (§34) |
+| Exact final branch CI | **PASS** for the code head `608800e` — push run 36233916154, both jobs success; the R14 submission head `6fc5605` — push run 36234677791 success. R14 remediation code head `31df6d7` — push run 36248642530, both jobs success (§35.10); the run of the remediation's documentation head is reported with the R14-final report. Astra-audit remediation code head `2117fba` — push run 36290145394, both jobs success (§36.11); its documentation head `fdcda2b` — push run 36291505391, both jobs success. Remaining-blocker remediation code head `51c5f44` — push run 36325665818, both jobs success (§37.11); its documentation head `e0a521a` — push run 36326570907, both jobs success (§38.1). R14-AUD-013 remediation code head `be8d74b` — push run 36375405502, both jobs success (§38.12); its documentation head `c889e63`, the head accepted at R14 final — push run 36378687232, both jobs success (§39.7). The closeout head's run is reported with the merge |
+| Schema / migration | **No change** (§28; the R14 remediation made none either, §35.11, nor the Astra-audit remediations, §36.12, §37.12, §38.13, nor the R14 final closeout, §39) |
+| Wire contract | **No change in P4G** — TB-SCHEMA-API-v1.2.0 (§29). The R14 remediation adds the additive release **TB-SCHEMA-API-v1.3.0** (one read, one envelope schema; ADR-0006 **ACCEPTED** with documented qualification at R14 final — the active wire contract, §35.3, §39). The Astra-audit remediations and the closeout changed no wire contract: the v1.3.0 amendment digest is unchanged (§36.12, §37.12, §38.13, §39.8) |
+| R14 review | **PASS** (operator, 2026-09-28, R14 final; §39). First **PASS_WITH_ONE_CONTRACT_REMEDIATION** (operator, 2026-09-26): V1–V12 and `ENVELOPE.REPLY_RECIPIENT` ACCEPTED; V13 remediated on `feature/r14-validation-run-readback` (§34, §35) and accepted with ADR-0006. The operator's independent Astra audit of that submission (`4a1618d`) put **R14 = HOLD_FOR_REMEDIATION**; after the Astra-audit remediation, **R14 = HOLD_FOR_REVIEW** (§36); the audit continued at `fdcda2b` found R14-AUD-009 and -010, remediated in §37; the re-audit at `e0a521a` closed them with limits and found R14-AUD-013, remediated in §38; the independent review of `c889e63` recommended **R14 = PASS**. A bounded technical acceptance (§39.2) |
+| Astra audit findings | R14-AUD-001, -003, -004, -008, -009, -010 and -013 **CLOSED_VERIFIED_WITH_LIMITS** (the continued audit at `fdcda2b`, the re-audit at `e0a521a` and the final review at `c889e63`; §36–§39); R14-AUD-014 **CLOSED_DOCUMENTATION_ONLY** (§39.4); R14-AUD-002 and -007 **OPEN_BACKLOG**; R14-AUD-011 and -012 **NON_BLOCKING_BACKLOG**; R14-AUD-005 and -006 **FUTURE_ASSESSMENT_PREREQUISITE**; current R14 blockers **NONE**. The final review is an independent, bounded review; no 100 % whole-repository semantic audit is claimed (§39.2) |
+| P4G status / merge | **VERIFIED_COMPLETE** (R14 final, §39). P4G merged to `main` for its implemented scope — pull request #10, merge commit `c73cbda` (merge commit method; 2026-09-26T12:46:40Z); `main` push CI run 36242994330 success (§34). The R14 remediation branch is **READY_FOR_MERGE**, authorized for merge by a normal merge commit; not merged at this record (§39) |
+| CandidateAssessment | **NOT_STARTED**, **HOLD_FOR_PRE_ASSESSMENT_PREREQUISITES** — R14-AUD-005 and -006 first (§39.6) |
 
 ## 1. Operation matrix and design (contract-first)
 
@@ -1263,7 +1274,7 @@ A scratch experiment (never committed; `evidence/r14-astra3-cross-deploy-experim
   - a new test pins `DEPENDENCY_DIGEST_ALGORITHM` as `TB-PRODUCTION-CONTEXT-DIGEST-v2`, outside v2's vocabulary.
 
   Any other new identifier, or a later digest identifier, still fails. Recorded in ADR-0006 §8 (a dated qualification) and ADR-0007 Decision 7.
-- **Effect.** A candidate whose text contains the literal `TB-PRODUCTION-CONTEXT-DIGEST-v2` raises no `MARKER.INTERNAL_IDENTIFIERS` finding; the v1 literal still does. The v2 string appears on no wire, in no prompt text and on no page, only in the hashed preimage.
+- **Effect.** A candidate whose text contains the literal `TB-PRODUCTION-CONTEXT-DIGEST-v2` raises no `MARKER.INTERNAL_IDENTIFIERS` finding; the v1 literal still does. The application does not itself emit `TB-PRODUCTION-CONTEXT-DIGEST-v2` as generated metadata, template text or UI metadata. Captured or operator-supplied free text can nevertheless contain that literal and may flow through context/prompt/candidate text. `TB-TECHNICAL-RULESET-v2` intentionally does not detect that new literal; this is a documented bounded limitation, not evidence that the literal cannot appear. [Corrected 2026-09-28 (R14-AUD-014, documentation only; §39.4): as first recorded the second sentence read "The v2 string appears on no wire, in no prompt text and on no page, only in the hashed preimage."]
 - **Backlog.** A ruleset that detects the new identifier needs a new ruleset version. So does clearer `CONTEXT.PROMPT_DRIFT` wording for a definition-only drift: the recorded message says "the digest's contract or context-schema identifiers differ", and the digest-definition identifier is one of the digest's identifiers.
 
 ### 38.8 Tests and totals
@@ -1287,7 +1298,7 @@ Totals: `yarn test` **1580 / 1580 in 52 files** (1575 before); `yarn test:db` **
 | `453cc2b` | fix(production): the digest definition names the context semantics — `DEPENDENCY_DIGEST_ALGORITHM` = `TB-PRODUCTION-CONTEXT-DIGEST-v2` and the versioning rule at the definition (`context-dependencies.ts`); the test-only oracles (`tests/support/context-digest-oracles.ts`); the v2 golden, the legacy v1 oracle, the one-path scan and the assembly case (`production-context-rules`); the named ruleset exception (`validation-rules`) | (pushed with `be8d74b`) |
 | `b239f96` | test(r14): the cross-deploy prompt, validation and history DB tests and the within-v2 assertions (`p4g-http`), every read's digest is v2 (`p4d-http`), the tightened 412 web test (`p4e`) | (pushed with `be8d74b`) |
 | `be8d74b` | test(smoke): `smoke:p4d` and `smoke:p4g` rebuild the v2 digest with the frozen helper and refuse the v1 digest of the same closure — the code head | push run 36375405502 success |
-| (this record) | docs(r14): ADR-0007 (new, PROPOSED), the ADR-0006 qualification, §38, P4D §31, P4E §31 with their pointers, the evidence `r14-astra3-*` and screenshots, `CLAUDE.md`, `CURRENT_STATE.md` (documentation only) | reported with the remediation report |
+| `c889e63` | docs(r14): ADR-0007 (new, PROPOSED), the ADR-0006 qualification, §38, P4D §31, P4E §31 with their pointers, the evidence `r14-astra3-*` and screenshots, `CLAUDE.md`, `CURRENT_STATE.md` (documentation only) — the head accepted at R14 final | push run 36378687232 success (§39.7) |
 
 Nothing was amended, rebased or force-pushed; no pull request, merge, tag or release. `origin/main` stays `c73cbda`.
 
@@ -1377,7 +1388,7 @@ NC-013-A fails the cross-deploy DB test at its first v2 check (the current diges
   - smokes: `smoke:local` 62, `smoke:auth` 4, `smoke:directory` 14, `smoke:p3a` 24, `smoke:p3b` 36, `smoke:p4a` 50, `smoke:p4b` 64, `smoke:p4c` 62, `smoke:p4d` **88** (87 before; its R14-AUD-013 line is in the log), `smoke:p4e` 84, `smoke:p4f` 90, `smoke:p4g` **146** (133 before; four R14-AUD-013 lines);
   - the P1.1 recovery commands; `yarn dev` clean shutdown 4 / 4.
 
-The documentation head's run is reported with the remediation report.
+The documentation head's run is reported with the remediation report. _(Push run 36378687232 on `c889e63`, success, both jobs: §39.7.)_
 
 ### 38.13 Schema, contract and dependencies
 
@@ -1402,10 +1413,10 @@ The documentation head's run is reported with the remediation report.
    - The static test pins one definition and one path. It cannot detect a future evaluator change that should bump the identifier but does not.
    - A reviewer of any change to what a context derives from identical rows must apply the rule written at the definition, in CLAUDE.md and in ADR-0007.
 4. **The ruleset exception** (§38.7).
-   - `TB-TECHNICAL-RULESET-v2` does not flag the literal `TB-PRODUCTION-CONTEXT-DIGEST-v2` in a candidate's text. The string never reaches a prompt, page or wire, so a draft can only contain it by being typed.
+   - `TB-TECHNICAL-RULESET-v2` does not flag the literal `TB-PRODUCTION-CONTEXT-DIGEST-v2` in a candidate's text. The application does not itself emit it as generated metadata, template text or UI metadata, but captured or operator-supplied free text can contain it and may flow through context, prompt and candidate text. This is a documented bounded limitation, not evidence that the literal cannot appear. [Corrected 2026-09-28 (R14-AUD-014, documentation only; §39.4): as first recorded this read "The string never reaches a prompt, page or wire, so a draft can only contain it by being typed."]
    - `CONTEXT.PROMPT_DRIFT`'s recorded wording covers a definition-only drift as one of "the digest's contract or context-schema identifiers".
    - Both need a new ruleset version if the operator wants them changed.
-5. **ADR-0006 and ADR-0007** stay PROPOSED; their acceptance and TB-SCHEMA-API-v1.3.0's belong to the operator's review.
+5. **ADR-0006 and ADR-0007** stay PROPOSED; their acceptance and TB-SCHEMA-API-v1.3.0's belong to the operator's review. _(Both accepted with documented qualification at R14 final, and TB-SCHEMA-API-v1.3.0 active: §39.)_
 6. **Evidence limitations:**
    - the v1-era prompt snapshots and runs of the DB tests and the browser pass were inserted with the tooling account (the application cannot produce them any more);
    - the cross-deployment reproduction ran the earlier deployments' extracted code in a scratch test that was not committed (§38.3);
@@ -1431,4 +1442,160 @@ The documentation head's run is reported with the remediation report.
 | External action | **NONE** |
 | Database / wire / dependencies | no change |
 
-Recommended next action: **an independent Astra re-audit of the exact new head.**
+Recommended next action: **an independent Astra re-audit of the exact new head.** _(Done: the independent review of `c889e63` recommended R14 = PASS; R14 final = PASS, §39.)_
+
+## 39. R14 final — PASS, acceptance closeout and merge authorization (2026-09-28, home PC)
+
+Mission TB_R14_FINAL_ACCEPTANCE_CLOSEOUT_AND_MERGE (operator, 2026-09-28), on `feature/r14-validation-run-readback`. This section records the operator's R14 final decision and the closeout before the pull request.
+- **Primary source:** the operator's final decision. It relays the recommendation of the independent Astra review of the exact head `c889e63d868b524909882e5e4c0a61620ee86c20`.
+- This repository holds no copy of that review; its outcome is recorded here as the operator stated it.
+- Sections 1–38 keep the state at their time (for example "R14 = HOLD_FOR_REVIEW" and "ADR-0006 and ADR-0007 PROPOSED" in §38.15).
+
+### 39.1 Result (operator)
+
+| Item | Recorded value |
+|---|---|
+| **R14** | **PASS** (R14 final, 2026-09-28) — first PASS_WITH_ONE_CONTRACT_REMEDIATION (2026-09-26, §34), then held for the Astra-audit remediations (§36–§38) |
+| **P4G** | **VERIFIED_COMPLETE** — `validateCandidate`, `listValidationRuns`, `listValidationIssues`, `getValidationRun` and the technical-validation section of the candidate page; the remediation branch **READY_FOR_MERGE** |
+| V13 | remediation **IMPLEMENTED AND VERIFIED** (§35) and **accepted** with ADR-0006 |
+| Current R14 blockers | **NONE** |
+| R14-AUD-013 | **CLOSED_VERIFIED_WITH_LIMITS** |
+| R14-AUD-001, -003, -004, -008, -009, -010 | **CLOSED_VERIFIED_WITH_LIMITS** (unchanged) |
+| R14-AUD-014 | **CLOSED_DOCUMENTATION_ONLY** — the documentation qualification of §39.4; not a runtime remediation |
+| **ADR-0006** | **ACCEPTED WITH DOCUMENTED QUALIFICATION** — it accepts only the additive historical ValidationRun read `GET /validation-runs/{id}` and the TB-SCHEMA-API-v1.3.0 wire release; it does not define the production-context digest semantics, which ADR-0007 governs |
+| **ADR-0007** | **ACCEPTED WITH DOCUMENTED QUALIFICATION** — `TB-PRODUCTION-CONTEXT-DIGEST-v2`, with Decision 7 worded as corrected for R14-AUD-014 |
+| **TB-SCHEMA-API-v1.3.0** | **ACTIVE / ACCEPTED** — the accepted v1.2.0 + `docs/contracts/TB-SCHEMA-API-v1.3.0/amendment.json` (sha256 `6b74c09aba024dcf8cb2e0a0c6e374bbce17b45298d2aec83cc2e3ab166a1630`, measured byte-identical, §39.8) |
+| `TB-PRODUCTION-CONTEXT-DIGEST-v2` | **ACTIVE** |
+| `TB-TECHNICAL-RULESET-v2` | **ACTIVE** (unchanged; runs recorded as v1 stay exactly as recorded) |
+| `PFC-YT-EMAIL-v1.1` | **UNCHANGED** |
+| CandidateAssessment | **NOT_STARTED**, **HOLD_FOR_PRE_ASSESSMENT_PREREQUISITES** — R14-AUD-005 and -006 are FUTURE_ASSESSMENT_PREREQUISITE (§39.6) |
+| Real-case operational use | **NOT authorized** by this engineering acceptance |
+| G7 | human-controlled and outside the application |
+| Merge | **AUTHORIZED** — pull request `feature/r14-validation-run-readback` → `main`, normal GitHub merge commit (no squash, rebase, force-push or bypass of a failed check; the branch kept), after the exact closeout head and the pull request checks are green |
+| External action | **NONE**; real case data **0** |
+
+### 39.2 What this acceptance is
+
+**BOUNDED TECHNICAL ACCEPTANCE.** R14 = PASS accepts the engineering scope of P4G, its read-back remediation and the Astra-audit remediations, as verified in §24–§38. It is not:
+
+- whole-repository unconditional assurance;
+- legal approval;
+- real-case authorization;
+- a G1–G6 substantive assessment;
+- G7, the actual authorized human review, adoption, signature and sending, outside the application;
+- permission to send.
+
+**Astra's coverage, preserved as recorded.**
+- The operator's decision describes the final review at `c889e63` as an independent, bounded review.
+- The last coverage figures recorded in this repository are those of the continued audit at `fdcda2b` (§37): runtime API, Prisma schema and contracts 100 %; the web source except CSS 100 %; critical tests 65.47 %; the whole critical denominator 70.85 %; `ASTRA_AUDIT = PARTIAL`.
+- The operator's decision gives no new figure for `c889e63`, and none is extended to it here.
+- This record claims no 100 % whole-repository semantic audit. Every finding closed with limits keeps its limits.
+
+### 39.3 Active engineering identifiers after R14
+
+| Kind | Identifier |
+|---|---|
+| Wire contract | `TB-SCHEMA-API-v1.3.0` |
+| Frozen reference | `TB-SCHEMA-API-v1.0.0` |
+| Production form contract | `PFC-YT-EMAIL-v1.1` |
+| Production context digest | `TB-PRODUCTION-CONTEXT-DIGEST-v2` |
+| Prompt template | `TB-PROMPT-TEMPLATE-v1` |
+| Technical ruleset | `TB-TECHNICAL-RULESET-v2` |
+
+Also unchanged:
+- `TB-CANDIDATE-ARTIFACT-v1`, the candidate artifact hash, accepted at R13;
+- `AppMeta.schemaRelease` = `TB-SCHEMA-API-v1.0.0`, as recorded.
+
+Each identifier names an engineering definition only. None is a legal approval, a policy certification, a G1–G6 review, readiness or READY_FOR_SIGNER.
+
+### 39.4 R14-AUD-014 — the documentation qualification (CLOSED_DOCUMENTATION_ONLY)
+
+- **Finding (as the operator relays it).** Two records overstated where the literal `TB-PRODUCTION-CONTEXT-DIGEST-v2` can appear, implying it cannot appear in a prompt, on the wire or on a page:
+  - ADR-0007 Decision 7 and §38.7: it "appears on no wire, in no prompt text and on no page, only inside the hashed preimage";
+  - §38.14 item 4: it "never reaches a prompt, page or wire, so a draft can only contain it by being typed".
+- **Corrected wording** (the operator's required semantics): "The application does not itself emit `TB-PRODUCTION-CONTEXT-DIGEST-v2` as generated metadata, template text or UI metadata. Captured or operator-supplied free text can nevertheless contain that literal and may flow through context/prompt/candidate text. `TB-TECHNICAL-RULESET-v2` intentionally does not detect that new literal; this is a documented bounded limitation, not evidence that the literal cannot appear."
+- **Checked against the source before the correction.**
+  - `DEPENDENCY_DIGEST_ALGORITHM` is used once, in the preimage of `dependencyDigest` (`context-dependencies.ts`).
+  - No response field, prompt template line or page names it; `apps/web/src` has no occurrence.
+  - Recorded free text is carried on the wire, frozen into contexts and prompts, and shown on pages exactly as recorded, so it can contain any literal. Examples: a captured message's body, a candidate's subject and body.
+- **Corrected in:**
+  - ADR-0007 Decision 7, with its acceptance;
+  - §38.7 "Effect";
+  - §38.14 item 4;
+  - the explanatory comment of the unit test that pins the exception (`tests/api/validation-rules.test.ts`, "the one named exception …") — a comment only; its name, assertions and result are unchanged.
+
+  Each correction keeps what was first recorded.
+- **Not changed:**
+  - `TB-TECHNICAL-RULESET-v2`: `technical-ruleset.ts` is not in the diff, and there is no `TB-TECHNICAL-RULESET-v3`;
+  - every rule and assertion;
+  - the application code.
+
+  A ruleset that detects the literal stays backlog (ADR-0007 Decision 7).
+
+### 39.5 Finding dispositions after R14
+
+| Finding | Disposition |
+|---|---|
+| R14-AUD-001, -003, -004, -008, -009, -010, -013 | **CLOSED_VERIFIED_WITH_LIMITS** |
+| R14-AUD-014 | **CLOSED_DOCUMENTATION_ONLY** (§39.4) |
+| R14-AUD-002 (a candidate replay after supersession returns the current lifecycle overlay), -007 (the validation-history UI stops after about 1,000 runs) | **OPEN_BACKLOG** — not implemented here |
+| R14-AUD-011 (the Revise Source page drops the seconds and milliseconds), -012 (the Owner's legal-subject picker keeps a hidden earlier selection) | **NON_BLOCKING_BACKLOG** — not implemented here |
+| R14-AUD-005 (a future plan-source freshness policy), -006 (a future AssessmentSource read-back) | **FUTURE_ASSESSMENT_PREREQUISITE** — not implemented here; they block CandidateAssessment |
+
+### 39.6 CandidateAssessment — hard hold
+
+- CandidateAssessment is **NOT_STARTED** and **HOLD_FOR_PRE_ASSESSMENT_PREREQUISITES**.
+- `captureCandidateAssessment` and `listCandidateAssessments` stay unrouted. The API routes 134 business operations, and neither is one of them.
+- Not implemented: an AssessmentSource read-back, an assessment UI, readiness, READY_FOR_SIGNER, the unsigned export.
+- The next engineering mission after this merge addresses R14-AUD-005 and R14-AUD-006 only. Recommended: TB_PRE_ASSESSMENT_AUD005_AUD006_ARCHITECTURE — not started; it needs its own approval.
+- CandidateAssessment is not ready to implement until both are resolved.
+
+### 39.7 Heads
+
+| Name | Commit |
+|---|---|
+| `R14_ACCEPTED_CODE_HEAD` (the exact head the independent review examined) | `c889e63d868b524909882e5e4c0a61620ee86c20` — the R14-AUD-013 documentation (§38) on the code head `be8d74b`; `git diff be8d74b c889e63` touches only `CLAUDE.md` and `docs/` |
+| Its CI | push run [36378687232](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36378687232), 2026-09-28T04:40:06Z–04:48:40Z, **success**, both jobs; logs read (below) |
+| `R14_CLOSEOUT_HEAD` | the commit that adds this section (documentation, plus the one test comment of §39.4); its CI run, the pull request and the merge are recorded with the merge |
+
+Run 36378687232, logs read:
+- "Non-DB checks (cold install)" (job 108789697897): the reference check and the 27 helper tests, `contracts:check` (3 outputs match), lint "Found 0 warnings and 0 errors.", Prettier clean, `yarn test` 1580 / 52 files, the build, the frozen references and the working tree unchanged.
+- "Database, seed and smoke (MySQL 8.4.11)" (job 108789697674):
+  - `yarn test:db` 548 / 14 files;
+  - the seed twice with the canonical digest `0ee26dc3…b775`; both drift diffs empty;
+  - `smoke:local` 62, `smoke:auth` 4, `smoke:directory` 14, `smoke:p3a` 24, `smoke:p3b` 36, `smoke:p4a` 50, `smoke:p4b` 64, `smoke:p4c` 62, `smoke:p4d` 88, `smoke:p4e` 84, `smoke:p4f` 90, `smoke:p4g` 146;
+  - the P1.1 recovery commands; `yarn dev` clean shutdown 4 / 4; the final reference check.
+
+### 39.8 Closeout checks
+
+Pre-flight (mission §1), after `git fetch origin`:
+- branch `feature/r14-validation-run-readback` at `c889e63…`, equal to its origin, worktree clean;
+- `origin/main` = `c73cbdad1fe5d09813525930b4df9ed9123fd9de`, unchanged since the branch was created; the branch 20 commits ahead and 0 behind;
+- no pull request of the branch in any state;
+- `gh` authenticated as the repository owner's account; `main` has no branch protection and no rulesets; the repository does not delete head branches on merge;
+- run 36378687232 completed with success, both jobs;
+- ADR-0006 and ADR-0007 PROPOSED; R14 not recorded as PASS.
+
+Integrity (measured):
+- `docs/contracts/TB-SCHEMA-API-v1.3.0/amendment.json`: sha256 `6b74c09aba024dcf8cb2e0a0c6e374bbce17b45298d2aec83cc2e3ab166a1630` before and after — byte-identical;
+- unchanged, as ADR-0006 §5 lists them: the v1.2.0 and v1.1.0 records (`b5cae658…c294`, `2f4df697…da85`), their READMEs (`f18e69d0…`, `4856068f…`), ADR-0004 (`1c8061c4…`) and ADR-0005 (`f40a8c81…`);
+- `docs/reference/**` untouched.
+
+The closeout is one commit. It changes:
+- ADR-0006 and ADR-0007: status, acceptance, and Decision 7's qualification;
+- the v1.3.0 README's decision, verification and record-integrity lines;
+- this record: this section, the header, the status table and the §38 pointers and corrections;
+- `CURRENT_STATE.md` and `CLAUDE.md`;
+- the one test comment of §39.4.
+
+No product code, test assertion, contract source, generated artefact, release record, migration, lockfile or `docs/reference/**` changes.
+
+Checks on the complete closeout tree before committing (2026-09-28T08:22:24Z–08:24:00Z; repeated after this paragraph was written, same results):
+- `yarn reference:check` OK (`MANIFEST.sha256` `42c2a419…` matches the pin);
+- `yarn contracts:check` OK (3 generated outputs match the active source);
+- `yarn typecheck` exit 0;
+- `yarn lint` and `oxlint --deny-warnings --format default`: "Found 0 warnings and 0 errors." (331 files) — **0 warnings**;
+- `yarn format:check` clean ("All matched files use Prettier code style!"; one blank line in `CLAUDE.md` was added first, as Prettier's own output for that file showed);
+- `yarn test` **1580 / 1580 in 52 files** — unchanged, including `gate-terminology.test.ts` (3 / 3 on the edited records) and "the one named exception …" with its corrected comment.
+
+`yarn test:db` was not rerun because no code changed (the test file's change is a comment); it runs in CI on the closeout head, with every compiled smoke.

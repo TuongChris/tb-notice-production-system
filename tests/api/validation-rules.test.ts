@@ -1217,8 +1217,11 @@ describe('MARKER.INTERNAL_IDENTIFIERS vocabulary — pinned by TB-TECHNICAL-RULE
 
   it('the one named exception (operator decision, R14-AUD-013, ADR-0007): the digest definition identifier TB-PRODUCTION-CONTEXT-DIGEST-v2 is outside v2’s vocabulary, which stays exactly as pinned with v1 — any other digest identifier fails here and needs a decision', () => {
     // v2's vocabulary is unchanged (TB-TECHNICAL-RULESET-v2 is not re-versioned for R14-AUD-013).
-    // The v2 digest identifier appears on no wire, in no prompt text and in no page: only inside the
-    // hashed preimage. A ruleset that detects it needs a new ruleset version (backlog, ADR-0007).
+    // The application never emits the v2 digest identifier itself (no generated metadata, template
+    // text or UI metadata), but captured or operator-supplied free text can contain the literal and
+    // flow through context, prompt and candidate text. v2 intentionally does not detect it: a
+    // documented bounded limitation (R14-AUD-014), not evidence that the literal cannot appear. A
+    // ruleset that detects it needs a new ruleset version (backlog, ADR-0007).
     expect(DEPENDENCY_DIGEST_ALGORITHM).toBe('TB-PRODUCTION-CONTEXT-DIGEST-v2');
     expect(INTERNAL_IDENTIFIER_STRINGS).not.toContain(DEPENDENCY_DIGEST_ALGORITHM);
     expect(INTERNAL_IDENTIFIER_STRINGS).toContain('TB-PRODUCTION-CONTEXT-DIGEST-v1');

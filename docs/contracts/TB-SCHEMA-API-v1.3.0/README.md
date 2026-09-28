@@ -4,10 +4,10 @@
 |---|---|
 | Release | **TB-SCHEMA-API-v1.3.0** — additive (semantic minor) |
 | Base | **TB-SCHEMA-API-v1.2.0** (`docs/contracts/TB-SCHEMA-API-v1.2.0`, ADR-0005, accepted at R9 final; record sha256 `b5cae658…c294`), which is TB-SCHEMA-API-v1.1.0 plus its amendment, itself the frozen TB-SCHEMA-API-v1.0.0 reference plus its amendment. The frozen pack `docs/reference/database-api-v1/TB_DATABASE_SCHEMA_API_CONTRACT_v1` is never edited. |
-| Decision | `docs/decisions/ADR-0006-tb-schema-api-v1-3-0-validation-run-read.md` — **PROPOSED** (R14 remediation), for the operator's review at gate R14 final |
+| Decision | `docs/decisions/ADR-0006-tb-schema-api-v1-3-0-validation-run-read.md` — **ACCEPTED** with documented qualification (operator, 2026-09-28, review gate R14 final = PASS); this release is the **active** wire contract. The qualification: ADR-0006 accepts only this additive historical ValidationRun read and the wire release; the production-context digest semantics are ADR-0007's |
 | Recorded | 2026-09-26, R14 remediation (mission TB_R14_POST_MERGE_RECONCILE_AND_VALIDATION_RUN_READBACK_REMEDIATION_TO_R14_FINAL) |
 | Record | `amendment.json` (this folder), sha256 `6b74c09aba024dcf8cb2e0a0c6e374bbce17b45298d2aec83cc2e3ab166a1630` |
-| Verification | `docs/verification/p4g/P4G_TECHNICAL_VALIDATION.md` §34 (R14 result and merge reconciliation) and §35 (R14 remediation; evidence `docs/verification/p4g/evidence/r14-*`); §36 (the Astra-audit remediation, the technical ruleset identity included; evidence `r14-astra-*`) |
+| Verification | `docs/verification/p4g/P4G_TECHNICAL_VALIDATION.md` §34 (R14 result and merge reconciliation) and §35 (R14 remediation; evidence `docs/verification/p4g/evidence/r14-*`); §36 (the Astra-audit remediation, the technical ruleset identity included; evidence `r14-astra-*`); §37–§38 (the later Astra-audit remediations); §39 (R14 final acceptance) |
 
 The wire contract of this release is TB-SCHEMA-API-v1.2.0, unchanged, plus exactly the amendment recorded here. The generated artifacts `packages/contracts/schemas/api-schemas.json` and `packages/contracts/openapi/openapi.{json,yaml}` are the release's documents. Their digests are in `amendment.json` (`result.files`).
 
@@ -110,4 +110,4 @@ Stored digests, prompts and runs are never rewritten.
 
 ## Record integrity
 
-`amendment.json` is the release record, written once for this release from the reviewed source change and the accepted v1.2.0 record and proposed with ADR-0006 for R14 final. Its correctness is proven by the composition tests above, not by a generator. It is never edited: its digest is pinned in `tests/contracts/release-v1-3-0.test.ts`. A later wire change is a new release with its own record and ADR.
+`amendment.json` is the release record, written once for this release from the reviewed source change and the accepted v1.2.0 record, proposed with ADR-0006 for R14 final and accepted with it at R14 final (byte-identical at acceptance). Its correctness is proven by the composition tests above, not by a generator. It is never edited: its digest is pinned in `tests/contracts/release-v1-3-0.test.ts`. A later wire change is a new release with its own record and ADR.
