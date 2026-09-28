@@ -4,6 +4,7 @@
 // bounds, the request scope rules, the query parsing of array and required parameters, and the
 // module's source: plain reads only — no write, lock, clock, network or process call. Database
 // behaviour is covered over HTTP in tests/db/p4d-http.test.ts.
+import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -47,6 +48,13 @@ import {
   sourceCitations,
 } from '../../apps/api/src/modules/production/context-sources.js';
 import type { ApplicabilityProblem } from '../../apps/api/src/modules/sources/source-scope.js';
+import {
+  CURRENT_DIGEST_V2,
+  currentV2Digest,
+  digestPreimageText,
+  LEGACY_DIGEST_V1,
+  legacyV1Digest,
+} from '../support/context-digest-oracles.js';
 
 const repoRoot = path.resolve(import.meta.dirname, '../..');
 const FROZEN_HELPER = path.join(
@@ -172,12 +180,12 @@ const DEPENDENCIES: Dependency[] = [
 
 describe('dependencyDigest — the closure and the scope, never a row version or a clock', () => {
   it('is the SHA-256 of the TB canonical JSON of the algorithm, contract, PFC version, scope (priors as a sorted set) and the dependencies without row versions', () => {
-    expect(DEPENDENCY_DIGEST_ALGORITHM).toBe('TB-PRODUCTION-CONTEXT-DIGEST-v1');
+    expect(DEPENDENCY_DIGEST_ALGORITHM).toBe('TB-PRODUCTION-CONTEXT-DIGEST-v2');
     expect(CONTRACT_BASELINE).toBe('TB-SCHEMA-API-v1.3.0');
     expect(PFC_SCHEMA_VERSION).toBe('PFC-YT-EMAIL-v1.1');
     expect(dependencyDigest(scope(), DEPENDENCIES)).toBe(
       tbCanonicalSha256({
-        algorithm: 'TB-PRODUCTION-CONTEXT-DIGEST-v1',
+        algorithm: 'TB-PRODUCTION-CONTEXT-DIGEST-v2',
         contract: 'TB-SCHEMA-API-v1.3.0',
         schemaVersion: 'PFC-YT-EMAIL-v1.1',
         scope: {
@@ -226,6 +234,89 @@ describe('dependencyDigest — the closure and the scope, never a row version or
       ]),
     ];
     expect(new Set([base, ...variants]).size).toBe(variants.length + 1);
+  });
+});
+
+describe('TB-PRODUCTION-CONTEXT-DIGEST-v2 — the digest definition names the context semantics (R14-AUD-013, ADR-0007)', () => {
+  const IDENTIFIERS = { contract: 'TB-SCHEMA-API-v1.3.0', schemaVersion: 'PFC-YT-EMAIL-v1.1' };
+  /** The v2 preimage of scope() and DEPENDENCIES, written out as its TB canonical JSON v1 text. */
+  const V2_PREIMAGE = `{"algorithm":"TB-PRODUCTION-CONTEXT-DIGEST-v2","contract":"TB-SCHEMA-API-v1.3.0","dependencies":[{"entityId":"${CASE}","entityType":"CaseRecord","fingerprint":"${'a'.repeat(64)}"},{"entityId":"${SELECTION}","entityType":"CaseAuthoritySelection","fingerprint":"${'b'.repeat(64)}"}],"schemaVersion":"PFC-YT-EMAIL-v1.1","scope":{"authoritySelectionId":"${SELECTION}","caseId":"${CASE}","generationMode":"PREPARATION","parentBindingId":"${PARENT}","priorBindingIds":["${PRIOR_A}","${PRIOR_B}"],"taskType":"NMI_REPLY"}}`;
+  const V2_GOLDEN = '68c080db4609de5c744a0810c499d3b828c6726f2503c801df7e525900dd5ffc';
+  /** What the accepted TB-PRODUCTION-CONTEXT-DIGEST-v1 implementation computed for the same inputs (e0a521a). */
+  const V1_GOLDEN = 'df75eed4984e595e8b16c1a3e200beb596362086117aad0f7022fdd1609fbc9e';
+  const sha256 = (text: string) => createHash('sha256').update(text, 'utf8').digest('hex');
+
+  it('golden: the written-out v2 preimage hashes to the pinned value and the application computes exactly it — the same scope and dependencies give the same digest whatever the priors’ order or the row versions; no clock', () => {
+    expect(DEPENDENCY_DIGEST_ALGORITHM).toBe(CURRENT_DIGEST_V2);
+    expect(sha256(V2_PREIMAGE)).toBe(V2_GOLDEN);
+    expect(digestPreimageText(CURRENT_DIGEST_V2, IDENTIFIERS, scope(), DEPENDENCIES)).toBe(
+      V2_PREIMAGE,
+    );
+    expect(currentV2Digest(IDENTIFIERS, scope(), DEPENDENCIES)).toBe(V2_GOLDEN);
+    expect(dependencyDigest(scope(), DEPENDENCIES)).toBe(V2_GOLDEN);
+    expect(
+      dependencyDigest(
+        scope({ priorBindingIds: [PRIOR_B, PRIOR_A] }),
+        DEPENDENCIES.map((entry) => ({ ...entry, rowVersion: 42 })),
+      ),
+    ).toBe(V2_GOLDEN);
+  });
+
+  it('the legacy v1 oracle reproduces the accepted v1 digest exactly; the two definitions differ only in the identifier, so the same closure, scope, contract and PFC identifiers give two different digests', () => {
+    const v1Preimage = digestPreimageText(LEGACY_DIGEST_V1, IDENTIFIERS, scope(), DEPENDENCIES);
+    expect(v1Preimage).toBe(
+      V2_PREIMAGE.replace(
+        '"algorithm":"TB-PRODUCTION-CONTEXT-DIGEST-v2"',
+        '"algorithm":"TB-PRODUCTION-CONTEXT-DIGEST-v1"',
+      ),
+    );
+    expect(sha256(v1Preimage)).toBe(V1_GOLDEN);
+    expect(legacyV1Digest(IDENTIFIERS, scope(), DEPENDENCIES)).toBe(V1_GOLDEN);
+    expect(V1_GOLDEN).not.toBe(V2_GOLDEN);
+    expect(dependencyDigest(scope(), DEPENDENCIES)).not.toBe(V1_GOLDEN);
+  });
+
+  it('one implementation path: the application names the digest identifier in exactly one definition, computes the digest in one call (the assembly every read, prompt rebuild and validation uses) and offers no algorithm choice, version parameter or v1 fallback', () => {
+    const appRoot = path.join(repoRoot, 'apps');
+    const roots = [
+      path.join(appRoot, 'api/src'),
+      path.join(appRoot, 'web/src'),
+      path.join(repoRoot, 'packages/contracts/src'),
+    ];
+    const withoutComments = (text: string) =>
+      text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\s)\/\/.*$/gm, '$1');
+    const named: string[] = [];
+    const definitions: string[] = [];
+    const calls: string[] = [];
+    for (const root of roots) {
+      for (const entry of readdirSync(root, { recursive: true, encoding: 'utf8' })) {
+        if (!/\.(ts|tsx)$/.test(entry)) continue;
+        const file = path.relative(repoRoot, path.join(root, entry));
+        const text = withoutComments(readFileSync(path.join(root, entry), 'utf8'));
+        for (const match of text.matchAll(/TB-PRODUCTION-CONTEXT-DIGEST-v\d+/g)) {
+          named.push(`${file}: ${match[0]}`);
+        }
+        if (/export const DEPENDENCY_DIGEST_ALGORITHM\b/.test(text)) definitions.push(file);
+        calls.push(...(text.match(/\bdependencyDigest\(/g) ?? []).map(() => file));
+      }
+    }
+    // The current definition once; the v1 string only as TB-TECHNICAL-RULESET-v2's pinned vocabulary.
+    expect(named.sort()).toEqual([
+      'apps/api/src/modules/production/context-dependencies.ts: TB-PRODUCTION-CONTEXT-DIGEST-v2',
+      'apps/api/src/modules/validation/technical-ruleset.ts: TB-PRODUCTION-CONTEXT-DIGEST-v1',
+    ]);
+    expect(definitions).toEqual(['apps/api/src/modules/production/context-dependencies.ts']);
+    expect(calls.sort()).toEqual([
+      'apps/api/src/modules/production/context-assembly.ts',
+      'apps/api/src/modules/production/context-dependencies.ts',
+    ]);
+    // The digest takes the scope and the closure only: nothing selects a definition.
+    expect(dependencyDigest).toHaveLength(2);
+    const definition = withoutComments(
+      readFileSync(path.join(PRODUCTION_MODULE, 'context-dependencies.ts'), 'utf8'),
+    );
+    expect(definition.match(/algorithm:/g)).toEqual(['algorithm:']);
+    expect(definition).toMatch(/algorithm: DEPENDENCY_DIGEST_ALGORITHM,/);
   });
 });
 
@@ -961,6 +1052,40 @@ describe('dependenciesOf — another owner’s use of ANY listed source is part 
     expect(subject.dependencies).toEqual(clean.dependencies);
     expect(subject.dependencyDigest).toBe(clean.dependencyDigest);
     expect(subject.context.conflicts).not.toEqual(clean.context.conflicts);
+  });
+
+  it('R14-AUD-013: the same rows under a definition that did not evaluate these citations (no conflict) and under the current one (SOURCE_NOT_APPLICABLE) have the same closure and fingerprints — only the digest definition identifier tells the two contexts apart: the v1 digest of this closure is never the current digest', () => {
+    const identifiers = { contract: CONTRACT_BASELINE, schemaVersion: PFC_SCHEMA_VERSION };
+    // What a deployment saw that never evaluated a mandate version's or a whole-mandate event's
+    // source against the case: the same rows, every source clean.
+    const unevaluated = assembleContext(listedRows(), reply()).view;
+    const subject: ApplicabilityProblem = {
+      code: 'SOURCE_SCOPE_UNRESOLVED',
+      reason: 'SCOPED_TO_OTHER_SUBJECT',
+    };
+    const current = assembleContext(
+      listedRows({ [VERSION_SOURCE]: subject, [EVENT_SOURCE]: subject }),
+      reply(),
+    ).view;
+    const entryOf = (sourceId: string) =>
+      `sources[${current.context.sources.findIndex((entry) => entry.sourceId === sourceId)}]`;
+    expect(unevaluated.context.conflicts).toEqual([]);
+    expect(
+      current.context.conflicts
+        .filter((entry) => entry.code === SOURCE_NOT_APPLICABLE)
+        .map((entry) => entry.fieldPath)
+        .sort(),
+    ).toEqual([entryOf(VERSION_SOURCE), entryOf(EVENT_SOURCE)].sort());
+    // Nothing persisted differs: the same revision, closure and fingerprints.
+    expect(current.contextRevision).toBe(unevaluated.contextRevision);
+    expect(current.dependencies).toEqual(unevaluated.dependencies);
+    // Under v1 both contexts had one digest; v2 names the current semantics.
+    const v1 = legacyV1Digest(identifiers, reply(), current.dependencies);
+    expect(legacyV1Digest(identifiers, reply(), unevaluated.dependencies)).toBe(v1);
+    expect(current.dependencyDigest).toBe(
+      currentV2Digest(identifiers, reply(), current.dependencies),
+    );
+    expect(current.dependencyDigest).not.toBe(v1);
   });
 
   it('the fingerprint does not depend on the read order or on how often a source is cited', () => {

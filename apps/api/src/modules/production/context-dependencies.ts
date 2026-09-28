@@ -20,6 +20,17 @@
 // scope, dependencies: [{ entityType, entityId, fingerprint }] }: the complete closure plus the
 // request scope (task, mode, the named selection, parent and prior bindings as a sorted set) and
 // the active contract and PFC identifiers — never merely CaseRecord.rowVersion, never a clock.
+//
+// The algorithm identifier names the semantics of the context, not only this encoding (R14-AUD-013,
+// ADR-0007). A preview's digest authorizes a prompt or a validation only while the same stored
+// inputs would still give the same context, so the identifier changes whenever a deployment can
+// build a materially different context — its conflicts, missing items, closure or the meaning of a
+// record — from identical persisted rows, request scope, contract and PFC identifiers: a new current
+// applicability rule, conflict or gap derivation, closure interpretation or other evaluator change
+// that no fingerprinted row reflects. A refactor with the same output, a UI, CSS, test, logging or
+// performance change does not change it; a wire release is no substitute (the contract is a separate
+// part of the preimage). Stored digests are history: a prompt snapshot or validation run keeps the
+// digest it recorded under its own definition, and nothing here recomputes or upgrades one.
 import { CONTRACT_BASELINE, PFC_SCHEMA_VERSION, type Dependency } from '@tb/contracts';
 import { tbCanonicalSha256 } from '../../infrastructure/integrity/tb-canonical-json.js';
 import { toPinnedCoverageView, toSelectionView } from '../cases/case-views.js';
@@ -44,8 +55,14 @@ import { toSourceView } from '../sources/source-views.js';
 import type { ContextRows } from './context-snapshot.js';
 import type { ContextScope } from './context-scope.js';
 
-/** Identifier of this closure and digest definition (part of the digest). */
-export const DEPENDENCY_DIGEST_ALGORITHM = 'TB-PRODUCTION-CONTEXT-DIGEST-v1';
+/**
+ * Identifier of this closure and digest definition, including the context semantics it stands for
+ * (part of the digest). v1 was the definition accepted with P4D; v2 (R14-AUD-013, ADR-0007) is the
+ * same preimage, encoding and hash under the semantics of R14-AUD-001, -009 and -010: every listed
+ * source's current applicability to the case, which changed what identical rows mean without changing
+ * a fingerprint. The one definition every read and rebuild uses — no caller chooses another.
+ */
+export const DEPENDENCY_DIGEST_ALGORITHM = 'TB-PRODUCTION-CONTEXT-DIGEST-v2';
 
 type Content = Record<string, unknown>;
 

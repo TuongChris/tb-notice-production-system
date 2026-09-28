@@ -1206,7 +1206,6 @@ describe('MARKER.INTERNAL_IDENTIFIERS vocabulary — pinned by TB-TECHNICAL-RULE
       PFC_SCHEMA_VERSION,
       PROMPT_TEMPLATE_VERSION,
       ARTIFACT_ALGORITHM,
-      DEPENDENCY_DIGEST_ALGORITHM,
       TECHNICAL_RULESET_VERSION,
     ]) {
       expect(
@@ -1214,6 +1213,28 @@ describe('MARKER.INTERNAL_IDENTIFIERS vocabulary — pinned by TB-TECHNICAL-RULE
         `${active} is not in the pinned vocabulary of ${TECHNICAL_RULESET_VERSION}: record a new ruleset version with it (never extend this one)`,
       ).toContain(active);
     }
+  });
+
+  it('the one named exception (operator decision, R14-AUD-013, ADR-0007): the digest definition identifier TB-PRODUCTION-CONTEXT-DIGEST-v2 is outside v2’s vocabulary, which stays exactly as pinned with v1 — any other digest identifier fails here and needs a decision', () => {
+    // v2's vocabulary is unchanged (TB-TECHNICAL-RULESET-v2 is not re-versioned for R14-AUD-013).
+    // The v2 digest identifier appears on no wire, in no prompt text and in no page: only inside the
+    // hashed preimage. A ruleset that detects it needs a new ruleset version (backlog, ADR-0007).
+    expect(DEPENDENCY_DIGEST_ALGORITHM).toBe('TB-PRODUCTION-CONTEXT-DIGEST-v2');
+    expect(INTERNAL_IDENTIFIER_STRINGS).not.toContain(DEPENDENCY_DIGEST_ALGORITHM);
+    expect(INTERNAL_IDENTIFIER_STRINGS).toContain('TB-PRODUCTION-CONTEXT-DIGEST-v1');
+    expect(TECHNICAL_RULESET_VERSION).toBe('TB-TECHNICAL-RULESET-v2');
+    // v2 still finds the v1 identifier and, as pinned, not the v2 one.
+    expect(
+      markerFindings(`Ref TB-PRODUCTION-CONTEXT-DIGEST-v1\n${PENDING_SIGNATURE}`).map(
+        (item) => item.details,
+      ),
+    ).toEqual([
+      {
+        occurrences: 1,
+        matches: [{ text: 'TB-PRODUCTION-CONTEXT-DIGEST-v1', line: 1, column: 5 }],
+      },
+    ]);
+    expect(markerFindings(`Ref TB-PRODUCTION-CONTEXT-DIGEST-v2\n${PENDING_SIGNATURE}`)).toEqual([]);
   });
 });
 
