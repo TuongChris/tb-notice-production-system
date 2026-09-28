@@ -38,7 +38,13 @@
 //   to case A, applicable → another owner's DRAFT coverage citing it (a valid write touching
 //   nothing of case A) → case A's context: the same revision, a new digest, SOURCE_NOT_APPLICABLE
 //   (CROSS_OWNER_REFERENCE), no other owner named → a prompt and a validation against the earlier
-//   digest (412 CONTEXT_CHANGED, nothing written) → case A's recorded runs read back unchanged → no
+//   digest (412 CONTEXT_CHANGED, nothing written) → case A's recorded runs read back unchanged →
+//   the digest definition (R14-AUD-013): every digest checked is TB-PRODUCTION-CONTEXT-DIGEST-v2 of
+//   its closure and scope, rebuilt with the frozen helper (the drift above within that one
+//   definition); the current revision with the v1 digest of the unchanged closure — a preview of
+//   the earlier definition — is 412 for a prompt and a validation, the case unchanged; case C: its
+//   v1 digest is 412, its current v2 digest generates a PREPARATION prompt freezing the annex
+//   conflict, read back exactly → no
 //   run update or deletion by id, no assessment, readiness, export, signing or sending route exists
 //   (404) → logout.
 import { spawn, type ChildProcess } from 'node:child_process';
@@ -46,6 +52,7 @@ import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { connect } from 'node:net';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { createConnection } from 'mariadb';
 import { argValue, repoRoot } from '../contracts/paths.ts';
 import { assertLocalTarget } from '../db/allowlist.mjs';
@@ -241,6 +248,15 @@ async function main(): Promise<void> {
   if (!existsSync(entry)) fail('compiled API missing; run yarn build first');
   if (await listening(3000)) fail('port 3000 is already in use');
   const contracts = await import('../../packages/contracts/dist/index.js');
+  // The frozen reference helper (read-only): the independent oracle of the digest definition.
+  const frozen = (await import(
+    pathToFileURL(
+      path.join(
+        repoRoot,
+        'docs/reference/database-api-v1/TB_DATABASE_SCHEMA_API_CONTRACT_v1/contracts/consistency-reference.mjs',
+      ),
+    ).href
+  )) as { canonicalSha256(value: unknown): string };
 
   api = spawn(process.execPath, [entry], { cwd: path.join(repoRoot, 'apps/api'), stdio: 'ignore' });
   api.on('exit', () => {
@@ -502,6 +518,38 @@ async function main(): Promise<void> {
         contracts.GetProductionContextResponseSchema,
       )
     ).data as unknown as ContextView;
+  // The dependency digest rebuilt from its written-out definition (R14-AUD-013, ADR-0007) for an
+  // INITIAL read of `selection`: TB-PRODUCTION-CONTEXT-DIGEST-v2 is the current definition; v1 is
+  // what a deployment of the earlier definition computed for the same closure — the digest a
+  // preview read there carried.
+  type DigestDefinition = 'TB-PRODUCTION-CONTEXT-DIGEST-v1' | 'TB-PRODUCTION-CONTEXT-DIGEST-v2';
+  const digestOf = (
+    algorithm: DigestDefinition,
+    view: ContextView,
+    caseId: string,
+    selection: string,
+    generationMode = 'DRAFTING',
+  ) =>
+    frozen.canonicalSha256({
+      algorithm,
+      contract: 'TB-SCHEMA-API-v1.3.0',
+      schemaVersion: 'PFC-YT-EMAIL-v1.1',
+      scope: {
+        caseId,
+        taskType: 'INITIAL',
+        generationMode,
+        authoritySelectionId: selection,
+        parentBindingId: null,
+        priorBindingIds: [],
+      },
+      dependencies: (
+        view.dependencies as ReadonlyArray<{
+          entityType: string;
+          entityId: string;
+          fingerprint: string;
+        }>
+      ).map(({ entityType, entityId, fingerprint }) => ({ entityType, entityId, fingerprint })),
+    });
   const generate = async (target: { id: string; selection: string }, label: string) => {
     const view = await readContext(target.id, target.selection, label);
     return (
@@ -593,6 +641,17 @@ async function main(): Promise<void> {
     fail('the current digest must be the prompt’s when nothing changed since it was generated');
   }
   pass('the current context of the prompt scope has the prompt’s dependency digest');
+  if (
+    readA.dependencyDigest !==
+      digestOf('TB-PRODUCTION-CONTEXT-DIGEST-v2', readA, caseA.id, caseA.selection) ||
+    digestOf('TB-PRODUCTION-CONTEXT-DIGEST-v1', readA, caseA.id, caseA.selection) ===
+      readA.dependencyDigest
+  ) {
+    fail('the current digest must be TB-PRODUCTION-CONTEXT-DIGEST-v2 of the closure and scope');
+  }
+  pass(
+    'R14-AUD-013: the current digest — the one the prompt was generated against — is TB-PRODUCTION-CONTEXT-DIGEST-v2 of the closure and scope (rebuilt with the frozen helper); the v1 digest of the same closure is another value',
+  );
   const key = `p4g-ci-${randomUUID()}`;
   const passed = await validate(clean, readA.dependencyDigest, 'clean draft', key);
   if (
@@ -1116,6 +1175,19 @@ async function main(): Promise<void> {
   pass(
     'R14-AUD-010: another owner’s later coverage citing case A’s linked source: the same revision, a new digest and SOURCE_NOT_APPLICABLE (CROSS_OWNER_REFERENCE); no other owner named',
   );
+  for (const view of [before0, after0]) {
+    if (
+      view.dependencyDigest !==
+      digestOf('TB-PRODUCTION-CONTEXT-DIGEST-v2', view, caseA.id, caseA.selection)
+    ) {
+      fail(
+        'both digests must be TB-PRODUCTION-CONTEXT-DIGEST-v2: the drift is within one definition',
+      );
+    }
+  }
+  pass(
+    'R14-AUD-013: the digests before and after owner B’s write are both TB-PRODUCTION-CONTEXT-DIGEST-v2 — the owner marker moved the digest within one definition',
+  );
   const staleCounts = await rowCounts();
   const stalePrompt = await call(
     'POST /cases/{caseId}/prompts (the digest read before owner B’s write)',
@@ -1149,6 +1221,74 @@ async function main(): Promise<void> {
     },
   );
   if (staleRun.code !== 'CONTEXT_CHANGED') fail('a validation against a stale digest must be 412');
+  // R14-AUD-013: the current revision with the v1 digest of the current closure — a preview read
+  // under the earlier digest definition — authorizes neither a prompt nor a validation.
+  const caseFields = async (label: string) => {
+    const read = await call(
+      `GET /cases/{caseId} (case A ${label})`,
+      'GET',
+      `/cases/${caseA.id}`,
+      200,
+      contracts.GetCaseResponseSchema,
+    );
+    return [read.data['contextRevision'], read.data['rowVersion']];
+  };
+  const caseBeforeV1 = await caseFields('before the v1-digest requests');
+  const v1Digest = digestOf('TB-PRODUCTION-CONTEXT-DIGEST-v1', after0, caseA.id, caseA.selection);
+  const v1Prompt = await call(
+    'POST /cases/{caseId}/prompts (the current revision with the v1 digest of the current closure)',
+    'POST',
+    `/cases/${caseA.id}/prompts`,
+    412,
+    null,
+    {
+      body: {
+        taskType: 'INITIAL',
+        generationMode: 'DRAFTING',
+        expectedContextRevision: after0.contextRevision,
+        expectedDependencyDigest: v1Digest,
+        authoritySelectionId: caseA.selection,
+        priorBindingIds: [],
+      },
+    },
+  );
+  const v1Run = await call(
+    'POST /candidates/{id}/validation-runs (the v1 digest of the current closure)',
+    'POST',
+    runsPath(clean.id),
+    412,
+    null,
+    {
+      body: {
+        expectedArtifactSha256: clean.artifactSha256,
+        expectedDependencyDigest: v1Digest,
+      },
+    },
+  );
+  for (const refused of [v1Prompt, v1Run]) {
+    if (
+      refused.code !== 'CONTEXT_CHANGED' ||
+      refused.details['field'] !== 'expectedDependencyDigest'
+    ) {
+      fail('a v1 digest must be 412 CONTEXT_CHANGED on expectedDependencyDigest');
+    }
+  }
+  const caseAfterV1 = await caseFields('after the v1-digest requests');
+  const rereadA = await readContext(
+    caseA.id,
+    caseA.selection,
+    'case A after the v1-digest requests',
+  );
+  if (
+    canonical(caseAfterV1) !== canonical(caseBeforeV1) ||
+    caseBeforeV1[0] !== after0.contextRevision ||
+    rereadA.dependencyDigest !== after0.dependencyDigest
+  ) {
+    fail('the v1-digest requests must leave the case and its current digest unchanged');
+  }
+  pass(
+    'R14-AUD-013: the current revision with the v1 digest of the unchanged closure is 412 CONTEXT_CHANGED (expectedDependencyDigest) for a prompt and a validation; the case revision, row version and current digest unchanged',
+  );
   const afterStale = await rowCounts();
   for (const table of COUNTED_TABLES) {
     if (afterStale[table] !== staleCounts[table]) fail(`a refused request wrote ${table}`);
@@ -1170,6 +1310,89 @@ async function main(): Promise<void> {
     if (scopeAfter[table] !== scopeCounts[table]) fail(`${table} changed while checking sources`);
   }
   pass('checking the sources wrote no run, issue, prompt, candidate or assessment');
+
+  // R14-AUD-013 on case C: a preview of its current context under the earlier digest definition
+  // (case C's context lists the R14-AUD-009 annex conflict; under v1 the same rows gave the same
+  // closure) is refused; the current read's v2 digest generates a PREPARATION prompt that freezes the
+  // conflict — a conflict is no drafting gate and is never suppressed.
+  const readC2 = (
+    await call(
+      'GET /cases/{caseId}/production-context (case C, PREPARATION, read again)',
+      'GET',
+      `/cases/${caseC.data.id}/production-context?${new URLSearchParams({
+        taskType: 'INITIAL',
+        generationMode: 'PREPARATION',
+        authoritySelectionId: selectionC.data.id,
+      }).toString()}`,
+      200,
+      contracts.GetProductionContextResponseSchema,
+    )
+  ).data as unknown as ContextView;
+  const digestC = (algorithm: DigestDefinition) =>
+    digestOf(algorithm, readC2, caseC.data.id, selectionC.data.id, 'PREPARATION');
+  if (
+    readC2.dependencyDigest !== readC.dependencyDigest ||
+    readC2.dependencyDigest !== digestC('TB-PRODUCTION-CONTEXT-DIGEST-v2')
+  ) {
+    fail('case C’s current digest must be unchanged and TB-PRODUCTION-CONTEXT-DIGEST-v2');
+  }
+  const promptC = (digest: string) => ({
+    taskType: 'INITIAL',
+    generationMode: 'PREPARATION',
+    expectedContextRevision: readC2.contextRevision,
+    expectedDependencyDigest: digest,
+    authoritySelectionId: selectionC.data.id,
+    priorBindingIds: [],
+  });
+  const beforeC = await rowCounts();
+  const v1C = await call(
+    'POST /cases/{caseId}/prompts (case C, the v1 digest of its current closure)',
+    'POST',
+    `/cases/${caseC.data.id}/prompts`,
+    412,
+    null,
+    { body: promptC(digestC('TB-PRODUCTION-CONTEXT-DIGEST-v1')) },
+  );
+  if (v1C.code !== 'CONTEXT_CHANGED' || v1C.details['field'] !== 'expectedDependencyDigest') {
+    fail('case C: a v1 digest must be 412 CONTEXT_CHANGED on expectedDependencyDigest');
+  }
+  const afterV1C = await rowCounts();
+  for (const table of COUNTED_TABLES) {
+    if (afterV1C[table] !== beforeC[table]) fail(`a refused v1-digest request wrote ${table}`);
+  }
+  const generatedC = (
+    await create(
+      'POST /cases/{caseId}/prompts (case C, the current v2 digest)',
+      `/cases/${caseC.data.id}/prompts`,
+      contracts.GeneratePromptResponseSchema,
+      promptC(readC2.dependencyDigest),
+    )
+  ).data;
+  const frozenConflicts = (generatedC['conflicts'] as Conflict[]).filter(
+    (entry) => entry.code === 'SOURCE_NOT_APPLICABLE',
+  );
+  if (
+    generatedC['dependencyDigest'] !== readC2.dependencyDigest ||
+    generatedC['generationMode'] !== 'PREPARATION' ||
+    frozenConflicts.length !== 1 ||
+    frozenConflicts[0]?.fieldPath !== entryOf(readC2, annex.data.id) ||
+    canonical(generatedC['contextJson']) !== canonical(readC2.context)
+  ) {
+    fail('case C’s prompt must freeze exactly the current v2 read, the annex conflict included');
+  }
+  const promptCRead = await call(
+    'GET /prompts/{id} (case C)',
+    'GET',
+    `/prompts/${generatedC.id}`,
+    200,
+    contracts.GetPromptResponseSchema,
+  );
+  if (canonical(promptCRead.data) !== canonical(generatedC) || promptCRead.etag !== null) {
+    fail('case C’s prompt must read back exactly as generated');
+  }
+  pass(
+    'R14-AUD-013: case C — the v1 digest of its current closure is 412 with nothing written; the current v2 digest generates a PREPARATION prompt that freezes the SOURCE_NOT_APPLICABLE conflict, read back exactly',
+  );
 
   for (const [label, method, suffix] of [
     ['PATCH /validation-runs/{id}', 'PATCH', `/validation-runs/${passed.id}`],
