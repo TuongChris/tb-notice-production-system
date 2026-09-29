@@ -109,14 +109,16 @@ const REASON_TEXT: Readonly<Record<string, string>> = {
   VALIDATION_STALE:
     'No technical validation run is recorded for the current epoch (this artifact, the current dependency digest and the current ruleset).',
   VALIDATION_BLOCKED: 'The counted technical validation run records a blocker.',
-  VALIDATION_ERROR: 'The counted technical validation run could not complete a rule.',
+  VALIDATION_ERROR:
+    'The latest technical validation run of the current epoch could not complete a rule; no earlier run is relied on until a later run completes.',
   TECHNICAL_RUN_CONFLICT:
-    'Technical validation runs of the current epoch record different outcomes; none is counted.',
+    'Completed technical validation runs of the current epoch record different outcomes; none is counted.',
   VALIDATION_REVIEW_REQUIRED:
     'The counted technical validation run records issues a person must review; nothing waives them.',
   PLAN_SOURCE_NOT_IN_CONTEXT:
     'A planned document names a source outside the evaluated context; this is never waived.',
-  VALIDATION_COVERAGE_INCOMPLETE: 'The counted run did not execute every required rule.',
+  VALIDATION_COVERAGE_INCOMPLETE:
+    'The latest technical validation run of the current epoch did not execute every required rule; no earlier run is relied on.',
   CONTEXT_MISSING_ITEMS: 'The current context lists missing items.',
   CONTEXT_CONFLICTS: 'The current context lists recorded conflicts.',
   AUTHORITY_EFFECTIVE_DATE_NOT_REACHED:

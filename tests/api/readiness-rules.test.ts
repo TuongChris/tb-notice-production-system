@@ -34,6 +34,7 @@ import {
   READINESS_REASON_ORDER,
   readinessEpoch,
   reviewTiming,
+  runCompleted,
   signatureSlotValid,
   statusOf,
   storedDispositions,
@@ -498,16 +499,14 @@ describe('the current epoch and the technical baseline (Decisions 1, 4, 5)', () 
     expect([...outcome.codes]).toEqual(['VALIDATION_COVERAGE_INCOMPLETE']);
   });
 
-  it('runs of E that disagree → TECHNICAL_RUN_CONFLICT; none counts; BLOCKED/ERROR among them decide BLOCKED (R-28)', () => {
+  it('completed runs of E that disagree → TECHNICAL_RUN_CONFLICT; none counts, never the latest PASS; a BLOCKED one among them decides BLOCKED (R-28)', () => {
     const pass = run(uuid(0x51), { createdAt: at(-HOUR) });
     const review = run(uuid(0x52), { result: 'REVIEW_REQUIRED', createdAt: at(-2 * HOUR) });
     const blocked = run(uuid(0x53), { result: 'BLOCKED', createdAt: at(-3 * HOUR) });
-    const error = run(uuid(0x54), { result: 'ERROR', createdAt: at(-4 * HOUR) });
     const issues = new Map<string, IssueRecord[]>([
       [pass.id, []],
       [review.id, [issue()]],
       [blocked.id, [issue({ severity: 'BLOCKER' })]],
-      [error.id, [issue({ severity: 'BLOCKER', ruleId: 'ARTIFACT.SHAPE' })]],
     ]);
     const conflict = technicalOutcome([pass, review], issues, EPOCH, RULESET);
     expect(conflict.counted).toBeNull();
@@ -517,10 +516,17 @@ describe('the current epoch and the technical baseline (Decisions 1, 4, 5)', () 
     ]);
     expect(statusOf(conflict.codes)).toBe('REVIEW_REQUIRED');
     const worse = technicalOutcome([pass, blocked], issues, EPOCH, RULESET);
+    expect(worse.counted).toBeNull();
+    expect([...worse.codes].sort()).toEqual(['TECHNICAL_RUN_CONFLICT', 'VALIDATION_BLOCKED']);
     expect(statusOf(worse.codes)).toBe('BLOCKED');
-    const failed = technicalOutcome([pass, error], issues, EPOCH, RULESET);
-    expect([...failed.codes].sort()).toEqual(['TECHNICAL_RUN_CONFLICT', 'VALIDATION_ERROR']);
-    expect(statusOf(failed.codes)).toBe('BLOCKED');
+    const both = technicalOutcome([review, blocked], issues, EPOCH, RULESET);
+    expect(both.counted).toBeNull();
+    expect([...both.codes].sort()).toEqual([
+      'TECHNICAL_RUN_CONFLICT',
+      'VALIDATION_BLOCKED',
+      'VALIDATION_REVIEW_REQUIRED',
+    ]);
+    expect(statusOf(both.codes)).toBe('BLOCKED');
   });
 
   it('compares the material outcome only: a deterministic field or coverage difference conflicts; messages and heuristic issues do not', () => {
@@ -564,6 +570,259 @@ describe('the current epoch and the technical baseline (Decisions 1, 4, 5)', () 
     expect(() => technicalOutcome([run(uuid(0x51))], new Map(), EPOCH, RULESET)).toThrow(
       /not read/,
     );
+  });
+});
+
+describe('same-epoch run recovery (R14-AUD-015): a run that did not complete is a diagnostic, never a permanent poison', () => {
+  const REQUIRED = RULESET.requiredRuleIds;
+  const FAILED_RULE = 'ENVELOPE.SENDER';
+  /** What the engine stores for a rule that failed while running, or was not executed. */
+  const INCOMPLETE = {
+    ...FULL_COVERAGE,
+    executedRuleIds: REQUIRED.filter((id) => id !== FAILED_RULE),
+    notExecutedRuleIds: [FAILED_RULE],
+  };
+  const hoursAgo = (hours: number) => at(-hours * HOUR);
+  const passed = (n: number, hours: number) => run(uuid(n), { createdAt: hoursAgo(hours) });
+  const errored = (n: number, hours: number) =>
+    run(uuid(n), { result: 'ERROR', coverageManifest: INCOMPLETE, createdAt: hoursAgo(hours) });
+  /** A REVIEW_REQUIRED run because a required rule was not executed. */
+  const notExecuted = (n: number, hours: number) =>
+    run(uuid(n), {
+      result: 'REVIEW_REQUIRED',
+      coverageManifest: INCOMPLETE,
+      createdAt: hoursAgo(hours),
+    });
+  const completedAs = (n: number, hours: number, result: RunRecord['result']) =>
+    run(uuid(n), { result, createdAt: hoursAgo(hours) });
+  /** The issues the engine stores for each kind of run above. */
+  const issuesOf = (row: RunRecord): IssueRecord[] => {
+    if (row.result === 'ERROR') {
+      return [issue({ ruleId: FAILED_RULE, severity: 'BLOCKER', fieldPath: null })];
+    }
+    if (row.result === 'BLOCKED') return [issue({ severity: 'BLOCKER' })];
+    if (row.result === 'REVIEW_REQUIRED') {
+      return row.coverageManifest === INCOMPLETE
+        ? [issue({ ruleId: FAILED_RULE, fieldPath: null })]
+        : [issue()];
+    }
+    return [];
+  };
+  const outcomeOf = (runs: RunRecord[]) => {
+    const outcome = technicalOutcome(
+      runs,
+      new Map(runs.map((row) => [row.id, issuesOf(row)])),
+      EPOCH,
+      RULESET,
+    );
+    return {
+      counted: outcome.counted?.id ?? null,
+      codes: [...outcome.codes].sort(),
+      status: statusOf(outcome.codes),
+    };
+  };
+  const ERROR_CODES = ['VALIDATION_COVERAGE_INCOMPLETE', 'VALIDATION_ERROR'];
+
+  it('a completed run is one whose result is not ERROR and whose coverage shows every required rule executed and none not executed', () => {
+    expect(runCompleted(passed(0x51, 1), RULESET)).toBe(true);
+    expect(runCompleted(completedAs(0x52, 1, 'BLOCKED'), RULESET)).toBe(true);
+    expect(runCompleted(completedAs(0x53, 1, 'REVIEW_REQUIRED'), RULESET)).toBe(true);
+    expect(runCompleted(errored(0x54, 1), RULESET)).toBe(false);
+    // An ERROR is never complete, even with a coverage manifest that looks complete.
+    expect(runCompleted(completedAs(0x55, 1, 'ERROR'), RULESET)).toBe(false);
+    expect(runCompleted(notExecuted(0x56, 1), RULESET)).toBe(false);
+    // A (corrupted) TECHNICAL_PASS lacking a required rule is not complete either.
+    expect(
+      runCompleted(
+        run(uuid(0x57), {
+          coverageManifest: { ...FULL_COVERAGE, executedRuleIds: REQUIRED.slice(1) },
+        }),
+        RULESET,
+      ),
+    ).toBe(false);
+  });
+
+  it('ERROR only → BLOCKED: the latest ERROR counts as the diagnostic it is; ERROR runs are never compared with each other', () => {
+    expect(outcomeOf([errored(0x51, 1)])).toEqual({
+      counted: uuid(0x51),
+      codes: ERROR_CODES,
+      status: 'BLOCKED',
+    });
+    const other = run(uuid(0x52), {
+      result: 'ERROR',
+      coverageManifest: { ...INCOMPLETE, notExecutedRuleIds: ['ARTIFACT.SHAPE'] },
+      createdAt: hoursAgo(2),
+    });
+    expect(outcomeOf([errored(0x51, 1), other])).toEqual({
+      counted: uuid(0x51),
+      codes: ERROR_CODES,
+      status: 'BLOCKED',
+    });
+  });
+
+  it('ERROR → a run with a rule not executed → never READY: the latest run counts and is incomplete', () => {
+    expect(outcomeOf([errored(0x51, 3), notExecuted(0x52, 1)])).toEqual({
+      counted: uuid(0x52),
+      codes: ['VALIDATION_COVERAGE_INCOMPLETE', 'VALIDATION_REVIEW_REQUIRED'],
+      status: 'REVIEW_REQUIRED',
+    });
+    const corruptedPass = run(uuid(0x53), {
+      coverageManifest: { ...FULL_COVERAGE, notExecutedRuleIds: [FAILED_RULE] },
+      createdAt: hoursAgo(1),
+    });
+    expect(outcomeOf([errored(0x51, 3), corruptedPass])).toEqual({
+      counted: uuid(0x53),
+      codes: ['VALIDATION_COVERAGE_INCOMPLETE'],
+      status: 'REVIEW_REQUIRED',
+    });
+  });
+
+  it('ERROR → a completed TECHNICAL_PASS → the PASS counts; earlier diagnostics stay history and poison nothing', () => {
+    expect(outcomeOf([errored(0x51, 3), passed(0x52, 1)])).toEqual({
+      counted: uuid(0x52),
+      codes: [],
+      status: 'READY_FOR_SIGNER',
+    });
+    expect(
+      outcomeOf([errored(0x51, 5), notExecuted(0x52, 4), errored(0x53, 3), passed(0x54, 1)]),
+    ).toEqual({ counted: uuid(0x54), codes: [], status: 'READY_FOR_SIGNER' });
+    // A completed run that is not a pass counts the same way after an ERROR.
+    expect(outcomeOf([errored(0x51, 3), completedAs(0x52, 1, 'BLOCKED')])).toEqual({
+      counted: uuid(0x52),
+      codes: ['VALIDATION_BLOCKED'],
+      status: 'BLOCKED',
+    });
+  });
+
+  it('PASS → a newer ERROR or a newer run with a rule not executed → not READY: the newer run counts, no older PASS is relied on', () => {
+    expect(outcomeOf([passed(0x51, 3), errored(0x52, 1)])).toEqual({
+      counted: uuid(0x52),
+      codes: ERROR_CODES,
+      status: 'BLOCKED',
+    });
+    expect(outcomeOf([passed(0x51, 3), notExecuted(0x52, 1)])).toEqual({
+      counted: uuid(0x52),
+      codes: ['VALIDATION_COVERAGE_INCOMPLETE', 'VALIDATION_REVIEW_REQUIRED'],
+      status: 'REVIEW_REQUIRED',
+    });
+    // Several agreeing PASS runs before it change nothing.
+    expect(outcomeOf([passed(0x51, 5), passed(0x52, 3), errored(0x53, 1)]).counted).toBe(
+      uuid(0x53),
+    );
+  });
+
+  it('PASS → ERROR → PASS → the latest completed PASS counts', () => {
+    expect(outcomeOf([passed(0x51, 5), errored(0x52, 3), passed(0x53, 1)])).toEqual({
+      counted: uuid(0x53),
+      codes: [],
+      status: 'READY_FOR_SIGNER',
+    });
+  });
+
+  it('equal createdAt: id DESC decides which run is the latest, whatever the input order', () => {
+    const tie = (errorId: number, passId: number) => [errored(errorId, 1), passed(passId, 1)];
+    for (const runs of [tie(0x5a, 0x59), [...tie(0x5a, 0x59)].reverse()]) {
+      expect(outcomeOf(runs)).toEqual({
+        counted: uuid(0x5a),
+        codes: ERROR_CODES,
+        status: 'BLOCKED',
+      });
+    }
+    for (const runs of [tie(0x59, 0x5a), [...tie(0x59, 0x5a)].reverse()]) {
+      expect(outcomeOf(runs)).toEqual({
+        counted: uuid(0x5a),
+        codes: [],
+        status: 'READY_FOR_SIGNER',
+      });
+    }
+  });
+
+  it('completed runs that disagree stay TECHNICAL_RUN_CONFLICT — never "the latest PASS wins" — and a diagnostic run neither resolves nor hides the conflict', () => {
+    // A newer complete PASS after an older complete BLOCKED or REVIEW_REQUIRED run.
+    expect(outcomeOf([completedAs(0x51, 3, 'BLOCKED'), passed(0x52, 1)])).toEqual({
+      counted: null,
+      codes: ['TECHNICAL_RUN_CONFLICT', 'VALIDATION_BLOCKED'],
+      status: 'BLOCKED',
+    });
+    expect(outcomeOf([completedAs(0x51, 3, 'REVIEW_REQUIRED'), passed(0x52, 1)])).toEqual({
+      counted: null,
+      codes: ['TECHNICAL_RUN_CONFLICT', 'VALIDATION_REVIEW_REQUIRED'],
+      status: 'REVIEW_REQUIRED',
+    });
+    expect(
+      outcomeOf([completedAs(0x51, 3, 'BLOCKED'), completedAs(0x52, 1, 'REVIEW_REQUIRED')]),
+    ).toEqual({
+      counted: null,
+      codes: ['TECHNICAL_RUN_CONFLICT', 'VALIDATION_BLOCKED', 'VALIDATION_REVIEW_REQUIRED'],
+      status: 'BLOCKED',
+    });
+    // An ERROR between them does not make the older complete run history.
+    expect(outcomeOf([completedAs(0x51, 5, 'BLOCKED'), errored(0x52, 3), passed(0x53, 1)])).toEqual(
+      {
+        counted: null,
+        codes: ['TECHNICAL_RUN_CONFLICT', 'VALIDATION_BLOCKED'],
+        status: 'BLOCKED',
+      },
+    );
+    // A newest diagnostic adds its own reasons to the conflict; nothing counts.
+    expect(outcomeOf([completedAs(0x51, 5, 'BLOCKED'), passed(0x52, 3), errored(0x53, 1)])).toEqual(
+      {
+        counted: null,
+        codes: ['TECHNICAL_RUN_CONFLICT', 'VALIDATION_BLOCKED', ...ERROR_CODES].sort(),
+        status: 'BLOCKED',
+      },
+    );
+  });
+
+  it('the whole readiness and the export use the same derivation: ERROR → PASS is READY and exportable with the PASS; PASS → newer ERROR is BLOCKED and refused', () => {
+    const recovered = evaluate(
+      readyInput({
+        runs: [errored(0x51, 3), run(uuid(0x50))],
+        issues: new Map([
+          [uuid(0x51), issuesOf(errored(0x51, 3))],
+          [uuid(0x50), []],
+        ]),
+      }),
+    );
+    expect(recovered).toMatchObject({
+      status: 'READY_FOR_SIGNER',
+      technicalResult: 'TECHNICAL_PASS',
+      validationRunId: uuid(0x50),
+      reasonCodes: [],
+    });
+    const body = {
+      expectedArtifactSha256: ARTIFACT,
+      expectedDependencyDigest: DIGEST,
+      validationRunId: uuid(0x50),
+      format: 'PLAIN_TEXT' as const,
+    };
+    expect(exportRefusal(recovered, body)).toBeNull();
+    // A body naming the ERROR run is refused: it is not the counted run.
+    expect(exportRefusal(recovered, { ...body, validationRunId: uuid(0x51) })?.code).toBe(
+      'VALIDATION_RUN_CHANGED',
+    );
+
+    const poisonedNow = evaluate(
+      readyInput({
+        runs: [run(uuid(0x50)), errored(0x51, 1)],
+        issues: new Map([
+          [uuid(0x51), issuesOf(errored(0x51, 1))],
+          [uuid(0x50), []],
+        ]),
+      }),
+    );
+    expect(poisonedNow).toMatchObject({
+      status: 'BLOCKED',
+      technicalResult: 'ERROR',
+      validationRunId: uuid(0x51),
+      reasonCodes: ['VALIDATION_ERROR', 'VALIDATION_COVERAGE_INCOMPLETE'],
+    });
+    const refusal = exportRefusal(poisonedNow, body);
+    expect([refusal?.status, refusal?.code, refusal?.details]).toEqual([
+      409,
+      'CANDIDATE_NOT_READY',
+      { status: 'BLOCKED', reasonCodes: ['VALIDATION_ERROR', 'VALIDATION_COVERAGE_INCOMPLETE'] },
+    ]);
   });
 });
 

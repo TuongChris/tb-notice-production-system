@@ -1410,23 +1410,38 @@ describe('P4I getCandidateReadiness — derived from the current captured record
     expect(later.evaluatedAt).toBe(iso(t.clock.ms));
   });
 
-  it('R-28: runs of the same epoch that disagree never yield the convenient PASS — TECHNICAL_RUN_CONFLICT, no counted run, BLOCKED by the ERROR among them', async () => {
-    const p = await promptWorld();
-    const candidate = await importCandidate(p.caseId, draft(p.prompt));
-    validationObserver.failRule = 'ENVELOPE.SENDER';
-    const errored = await validate(candidate, p.prompt);
-    validationObserver.failRule = null;
+  it('R-28: completed runs of the same epoch that disagree never yield the convenient PASS — TECHNICAL_RUN_CONFLICT, no counted run, even when the PASS is the latest (synthetic corruption of a stored run)', async () => {
+    const r = await readyWorld();
     t.clock.advance(1000);
-    const passed = await validate(candidate, p.prompt);
-    expect([errored.run.result, passed.run.result]).toEqual(['ERROR', 'TECHNICAL_PASS']);
-    expect(passed.run.dependencyDigest).toBe(errored.run.dependencyDigest);
-    await passAll(candidate, passed.view, p.caseSource.data.id);
-    expect(await readiness(candidate.id)).toMatchObject({
+    const newer = await validate(r.candidate, r.prompt);
+    expect([r.run.result, newer.run.result]).toEqual(['TECHNICAL_PASS', 'TECHNICAL_PASS']);
+    expect(newer.run.dependencyDigest).toBe(r.run.dependencyDigest);
+    expect((await readiness(r.candidate.id)).validationRunId).toBe(newer.run.id);
+    // The older run, complete, as if it had recorded another outcome of the same epoch.
+    await prisma.$executeRaw`UPDATE validation_runs SET result = 'BLOCKED' WHERE id = ${r.run.id}`;
+    const blocked = await readiness(r.candidate.id);
+    expect(blocked).toMatchObject({
       status: 'BLOCKED',
       technicalResult: null,
       validationRunId: null,
-      reasonCodes: ['VALIDATION_ERROR', 'TECHNICAL_RUN_CONFLICT'],
+      reasonCodes: ['VALIDATION_BLOCKED', 'TECHNICAL_RUN_CONFLICT'],
     });
+    await prisma.$executeRaw`UPDATE validation_runs SET result = 'REVIEW_REQUIRED' WHERE id = ${r.run.id}`;
+    const review = await readiness(r.candidate.id);
+    expect(review).toMatchObject({
+      status: 'REVIEW_REQUIRED',
+      technicalResult: null,
+      validationRunId: null,
+      reasonCodes: ['TECHNICAL_RUN_CONFLICT', 'VALIDATION_REVIEW_REQUIRED'],
+    });
+    expect(gateStatuses(review)).toEqual(ALL_PASS);
+    // A further completed PASS does not outvote the disagreeing run.
+    t.clock.advance(1000);
+    await validate(r.candidate, r.prompt);
+    expect((await readiness(r.candidate.id)).reasonCodes).toEqual([
+      'TECHNICAL_RUN_CONFLICT',
+      'VALIDATION_REVIEW_REQUIRED',
+    ]);
   });
 
   it('context: an archived case is BLOCKED (CASE_ARCHIVED); a reply whose named parent binding was corrected has no readable scope — 409 BINDING_ALREADY_SUPERSEDED, no readiness derived', async () => {
@@ -1773,6 +1788,178 @@ describe('P4I exportUnsignedCandidate — the unsigned text handoff, only while 
     });
     expect(outcome(refused)).toEqual([412, 'CONTEXT_CHANGED']);
     expect(refused.text).not.toContain('SYNTHETIC notice text');
+  });
+});
+
+describe('R14-AUD-015 — a run that did not complete is a diagnostic: the latest run of the epoch decides, an earlier ERROR poisons nothing', () => {
+  const FAILED_RULE = 'ENVELOPE.SENDER';
+  async function erroredRun(candidate: NoticeCandidate, prompt: PromptSnapshot) {
+    validationObserver.failRule = FAILED_RULE;
+    try {
+      const recorded = await validate(candidate, prompt);
+      expect(recorded.run.result).toBe('ERROR');
+      expect(recorded.run.coverageManifest.notExecutedRuleIds).toEqual([FAILED_RULE]);
+      return recorded;
+    } finally {
+      validationObserver.failRule = null;
+    }
+  }
+  const ERROR_READINESS = {
+    status: 'BLOCKED',
+    technicalResult: 'ERROR',
+    reasonCodes: ['VALIDATION_ERROR', 'VALIDATION_COVERAGE_INCOMPLETE'],
+  };
+  const getRun = async (id: string) => {
+    const result = await client.get('getValidationRun', `/validation-runs/${id}`);
+    expect(result.status, result.text).toBe(200);
+    return dataOf<ValidationRun>(result);
+  };
+  const listRuns = async (candidateId: string) => {
+    const result = await client.get(
+      'listValidationRuns',
+      `/candidates/${candidateId}/validation-runs`,
+    );
+    expect(result.status, result.text).toBe(200);
+    return dataOf<{ items: ValidationRun[] }>(result).items;
+  };
+  /** A stored run and its issues exactly as recorded. */
+  const storedRun = async (id: string) => ({
+    run: await prisma.validationRun.findUniqueOrThrow({ where: { id } }),
+    issues: await prisma.validationIssue.findMany({ where: { runId: id }, orderBy: { id: 'asc' } }),
+  });
+
+  it('ERROR → a completed TECHNICAL_PASS of the same epoch → READY_FOR_SIGNER and exported with the PASS; the ERROR run stays readable, byte-identical history', async () => {
+    const p = await promptWorld();
+    const candidate = await importCandidate(p.caseId, draft(p.prompt));
+    const errored = await erroredRun(candidate, p.prompt);
+    await passAll(candidate, errored.view, p.caseSource.data.id);
+    // While the ERROR run is the latest, it is what counts.
+    expect(await readiness(candidate.id)).toMatchObject({
+      ...ERROR_READINESS,
+      validationRunId: errored.run.id,
+    });
+    const history = await storedRun(errored.run.id);
+    t.clock.advance(1000);
+    const passed = await validate(candidate, p.prompt);
+    expect(passed.run.result).toBe('TECHNICAL_PASS');
+    expect(passed.run.dependencyDigest).toBe(errored.run.dependencyDigest);
+    const current = await readiness(candidate.id);
+    expect(current).toMatchObject({
+      status: 'READY_FOR_SIGNER',
+      technicalResult: 'TECHNICAL_PASS',
+      validationRunId: passed.run.id,
+      reasonCodes: [],
+    });
+    expect(gateStatuses(current)).toEqual(ALL_PASS);
+    const handed = await exportUnsigned(candidate.id, exportBody(current));
+    expect(handed.readiness).toMatchObject({
+      status: 'READY_FOR_SIGNER',
+      validationRunId: passed.run.id,
+    });
+    // A request naming the ERROR run is not the counted run.
+    const named = await exportPost(
+      candidate.id,
+      exportBody(current, { validationRunId: errored.run.id }),
+    );
+    expect(outcome(named)).toEqual([412, 'VALIDATION_RUN_CHANGED']);
+    // Both runs stay listed and readable exactly as recorded; nothing about the ERROR run changed.
+    expect((await listRuns(candidate.id)).map((row) => [row.id, row.result])).toEqual([
+      [passed.run.id, 'TECHNICAL_PASS'],
+      [errored.run.id, 'ERROR'],
+    ]);
+    expect(await getRun(errored.run.id)).toEqual(errored.run);
+    expect(await storedRun(errored.run.id)).toEqual(history);
+  });
+
+  it('PASS → a newer ERROR → BLOCKED: the ERROR counts, no older PASS is relied on — a fresh export is refused and a replay of an earlier export releases nothing; PASS → ERROR → PASS recovers, and the earlier request then names a run that no longer counts (412)', async () => {
+    const r = await readyWorld();
+    const first = await readiness(r.candidate.id);
+    expect(first).toMatchObject({ status: 'READY_FOR_SIGNER', validationRunId: r.run.id });
+    const key = newKey();
+    await exportUnsigned(r.candidate.id, exportBody(first), key);
+    t.clock.advance(1000);
+    const errored = await erroredRun(r.candidate, r.prompt);
+    expect(errored.run.dependencyDigest).toBe(r.run.dependencyDigest);
+    const blocked = await readiness(r.candidate.id);
+    expect(blocked).toMatchObject({ ...ERROR_READINESS, validationRunId: errored.run.id });
+    expect(gateStatuses(blocked)).toEqual(ALL_PASS);
+
+    const fresh = await exportPost(r.candidate.id, exportBody(first));
+    expect(outcome(fresh)).toEqual([409, 'CANDIDATE_NOT_READY']);
+    expect(detailsOf(fresh)).toEqual({
+      status: 'BLOCKED',
+      reasonCodes: ['VALIDATION_ERROR', 'VALIDATION_COVERAGE_INCOMPLETE'],
+    });
+    const before = { ...(await suiteDump()), auth_sessions: [] };
+    const replay = await exportPost(r.candidate.id, exportBody(first), key);
+    expect(outcome(replay)).toEqual([409, 'CANDIDATE_NOT_READY']);
+    expect(detailsOf(replay)).toEqual(detailsOf(fresh));
+    for (const text of ['SYNTHETIC notice text', 'SYNTHETIC notice subject']) {
+      expect(replay.text).not.toContain(text);
+    }
+    expect({ ...(await suiteDump()), auth_sessions: [] }).toEqual(before);
+
+    t.clock.advance(1000);
+    const again = await validate(r.candidate, r.prompt);
+    const recovered = await readiness(r.candidate.id);
+    expect(recovered).toMatchObject({
+      status: 'READY_FOR_SIGNER',
+      technicalResult: 'TECHNICAL_PASS',
+      validationRunId: again.run.id,
+      reasonCodes: [],
+    });
+    const stale = await exportPost(r.candidate.id, exportBody(first), key);
+    expect(outcome(stale)).toEqual([412, 'VALIDATION_RUN_CHANGED']);
+    const handed = await exportUnsigned(r.candidate.id, exportBody(recovered));
+    expect(handed.readiness.validationRunId).toBe(again.run.id);
+    expect((await auditActions()).filter((action) => action === 'EXPORT_UNSIGNED')).toHaveLength(2);
+  });
+
+  it('a newer run with a required rule not executed is never READY, whatever came before it (synthetic corruption of a stored PASS); a later completed run recovers', async () => {
+    const r = await readyWorld();
+    t.clock.advance(1000);
+    const newer = await validate(r.candidate, r.prompt);
+    const coverage = newer.run.coverageManifest;
+    await prisma.$executeRaw`UPDATE validation_runs SET coverage_manifest = ${JSON.stringify({
+      ...coverage,
+      executedRuleIds: coverage.executedRuleIds.filter((id) => id !== FAILED_RULE),
+      notExecutedRuleIds: [FAILED_RULE],
+    })} WHERE id = ${newer.run.id}`;
+    const incomplete = await readiness(r.candidate.id);
+    expect(incomplete).toMatchObject({
+      status: 'REVIEW_REQUIRED',
+      technicalResult: 'TECHNICAL_PASS',
+      validationRunId: newer.run.id,
+      reasonCodes: ['VALIDATION_COVERAGE_INCOMPLETE'],
+    });
+    const refused = await exportPost(r.candidate.id, exportBody(incomplete));
+    expect(outcome(refused)).toEqual([409, 'CANDIDATE_NOT_READY']);
+    t.clock.advance(1000);
+    const completed = await validate(r.candidate, r.prompt);
+    expect(await readiness(r.candidate.id)).toMatchObject({
+      status: 'READY_FOR_SIGNER',
+      validationRunId: completed.run.id,
+    });
+  });
+
+  it('runs recorded at the same instant: the higher id is the latest (createdAt DESC, id DESC) — the run the history lists first is the one that counts', async () => {
+    const p = await promptWorld();
+    const candidate = await importCandidate(p.caseId, draft(p.prompt));
+    const errored = await erroredRun(candidate, p.prompt);
+    // The test clock has not moved: both runs are recorded at the same instant.
+    const passed = await validate(candidate, p.prompt);
+    expect(passed.run.createdAt).toBe(errored.run.createdAt);
+    await passAll(candidate, passed.view, p.caseSource.data.id);
+    const [listedFirst] = await listRuns(candidate.id);
+    const latest = [errored.run, passed.run].sort((a, b) => (a.id < b.id ? 1 : -1))[0];
+    expect(listedFirst?.id).toBe(latest?.id);
+    const current = await readiness(candidate.id);
+    expect(current.validationRunId).toBe(latest?.id);
+    expect(current).toMatchObject(
+      latest?.id === errored.run.id
+        ? ERROR_READINESS
+        : { status: 'READY_FOR_SIGNER', technicalResult: 'TECHNICAL_PASS', reasonCodes: [] },
+    );
   });
 });
 
