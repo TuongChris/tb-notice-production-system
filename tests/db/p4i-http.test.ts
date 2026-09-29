@@ -907,6 +907,51 @@ async function readyWorld(options: WorldOptions = {}) {
   return { ...p, candidate, run, view, gates };
 }
 
+/**
+ * A reply that can be READY_FOR_SIGNER: an NMI captured as full text and bound as the parent, a
+ * prior transmission captured from a raw source of this subject and bound as sent, and an NMI_REPLY
+ * DRAFTING prompt naming both; a clean candidate of it, its TECHNICAL_PASS run and five confirmed
+ * PASS reviews G1–G5 of that epoch. G6 — and its ask dispositions — is left to the test.
+ */
+async function readyReplyWorld(label = 'A') {
+  const p = await promptWorld({ label });
+  const agencyId = p.w.agency.data.id;
+  const nmiMessage = await capture(agencyId, {
+    subject: 'SYNTHETIC we need more information',
+    bodyText: 'SYNTHETIC Question 1: please provide the licence. Question 2: who owns the work?',
+    fromAddress: 'synthetic-platform-review@example.invalid',
+    replyToAddress: 'synthetic-reply-here@example.invalid',
+  });
+  const nmi = await bind(p.caseId, { correspondenceId: nmiMessage.id, eventType: 'NMI' });
+  const rawSource = await createSource({
+    agencyId,
+    title: `SYNTHETIC ${label} raw message file`,
+    scopeBindings: { legalSubjectIds: [p.w.subject.data.id] },
+  });
+  const sentMessage = await capture(agencyId, {
+    direction: 'OUTBOUND',
+    subject: 'SYNTHETIC copyright notice as sent (raw)',
+    captureMode: 'RAW_SOURCE',
+    rawSourceId: rawSource.id,
+  });
+  const sent = await bind(p.caseId, {
+    correspondenceId: sentMessage.id,
+    eventType: 'INITIAL_AS_SENT',
+    reportedItemId: p.item.data.id,
+  });
+  const replyPrompt = await generate(p.caseId, {
+    taskType: 'NMI_REPLY',
+    authoritySelectionId: p.selection.id,
+    parentBindingId: nmi.id,
+    priorBindingIds: [sent.id],
+  });
+  const candidate = await importCandidate(p.caseId, draft(replyPrompt));
+  const { run, view } = await validate(candidate, replyPrompt);
+  expect(run.result).toBe('TECHNICAL_PASS');
+  const gates = await passAll(candidate, view, p.caseSource.data.id, { G6: null });
+  return { ...p, nmiMessage, nmi, sent, replyPrompt, candidate, run, view, gates };
+}
+
 const gateStatuses = (current: Readiness) =>
   Object.fromEntries(current.gates.map((gate) => [gate.gate, gate.status]));
 const ALL_PASS = Object.fromEntries(GATES.map((gate) => [gate, 'PASS']));
@@ -1728,6 +1773,253 @@ describe('P4I exportUnsignedCandidate — the unsigned text handoff, only while 
     });
     expect(outcome(refused)).toEqual([412, 'CONTEXT_CHANGED']);
     expect(refused.text).not.toContain('SYNTHETIC notice text');
+  });
+});
+
+describe('R14-AUD-016 — an NMI ask the G6 review records as unresolved holds G6: never READY, never exported', () => {
+  type ReplyWorld = Awaited<ReturnType<typeof readyReplyWorld>>;
+  /** One ask disposition of the reply's parent (answered and supported unless overridden). */
+  const ask = (r: ReplyWorld, fields: Record<string, unknown> = {}) => ({
+    askId: 'Q1',
+    questionText: 'SYNTHETIC Question 1: please provide the licence.',
+    parentBindingId: r.nmi.id,
+    disposition: 'ANSWERED_SUPPORTED',
+    answerLocator: 'SYNTHETIC second paragraph of the reply',
+    sourceIds: [r.linked.id],
+    ...fields,
+  });
+  const secondAsk = (r: ReplyWorld, fields: Record<string, unknown> = {}) =>
+    ask(r, { askId: 'Q2', questionText: 'SYNTHETIC Question 2: who owns the work?', ...fields });
+  /** A confirmed G6 PASS of the reply's epoch with `askDispositions` (a successor of `previous`). */
+  const g6Pass = (r: ReplyWorld, askDispositions: unknown[], previous?: string) =>
+    assess(
+      r.candidate.id,
+      pass(r.candidate, r.view, 'G6', r.caseSource.data.id, {
+        askDispositions,
+        ...(previous === undefined ? {} : { supersedesAssessmentId: previous }),
+      }),
+    );
+
+  it('REQUIRES_DOCUMENT, MISSING_FACT and LEGAL_REVIEW_REQUIRED — alone or beside answered asks — hold G6 with their reason: REVIEW_REQUIRED, five PASS gates never compensate, a fresh export is refused and releases nothing', async () => {
+    const r = await readyReplyWorld();
+    const cases: Array<[string, unknown[], string]> = [
+      [
+        'REQUIRES_DOCUMENT',
+        [ask(r, { disposition: 'REQUIRES_DOCUMENT' })],
+        'G6_ASK_REQUIRES_DOCUMENT',
+      ],
+      [
+        'MISSING_FACT',
+        [ask(r, { disposition: 'MISSING_FACT', sourceIds: [] })],
+        'G6_ASK_MISSING_FACT',
+      ],
+      [
+        'LEGAL_REVIEW_REQUIRED',
+        [ask(r, { disposition: 'LEGAL_REVIEW_REQUIRED' })],
+        'G6_ASK_LEGAL_REVIEW_REQUIRED',
+      ],
+      [
+        'ANSWERED_SUPPORTED + REQUIRES_DOCUMENT',
+        [ask(r), secondAsk(r, { disposition: 'REQUIRES_DOCUMENT' })],
+        'G6_ASK_REQUIRES_DOCUMENT',
+      ],
+      [
+        'ANSWERED_WITH_LIMITATION + MISSING_FACT',
+        [
+          ask(r, {
+            disposition: 'ANSWERED_WITH_LIMITATION',
+            unresolvedRemainder: 'SYNTHETIC the licence copy covers the first work only',
+          }),
+          secondAsk(r, { disposition: 'MISSING_FACT', sourceIds: [] }),
+        ],
+        'G6_ASK_MISSING_FACT',
+      ],
+    ];
+    let previous: string | undefined;
+    for (const [label, askDispositions, cause] of cases) {
+      const g6 = await g6Pass(r, askDispositions, previous);
+      previous = g6.id;
+      // The capture stores the truthful record exactly: recording is not counting.
+      expect(g6.result, label).toBe('PASS');
+      expect(g6.askDispositions, label).toEqual(askDispositions);
+      const current = await readiness(r.candidate.id);
+      expect(current.gates[5], label).toEqual({
+        gate: 'G6',
+        status: 'HOLD',
+        assessmentId: g6.id,
+        reasonCodes: ['GATE_HOLD', cause],
+      });
+      expect([current.status, current.reasonCodes], label).toEqual([
+        'REVIEW_REQUIRED',
+        ['G6_HOLD', cause],
+      ]);
+      expect(gateStatuses(current), label).toEqual({ ...ALL_PASS, G6: 'HOLD' });
+      expect([current.technicalResult, current.validationRunId], label).toEqual([
+        'TECHNICAL_PASS',
+        r.run.id,
+      ]);
+      const refused = await exportPost(r.candidate.id, exportBody(current));
+      expect(outcome(refused), label).toEqual([409, 'CANDIDATE_NOT_READY']);
+      expect(detailsOf(refused), label).toEqual({
+        status: 'REVIEW_REQUIRED',
+        reasonCodes: ['G6_HOLD', cause],
+      });
+      expect(refused.text).not.toContain('SYNTHETIC notice text');
+    }
+    expect(await auditActions()).not.toContain('EXPORT_UNSIGNED');
+  });
+
+  it('positive controls: ANSWERED_SUPPORTED, a genuinely limited answer (its remainder is never keyword-read) and a sourced NOT_APPLICABLE_WITH_REASON each count — READY_FOR_SIGNER when everything else passes', async () => {
+    const r = await readyReplyWorld();
+    const variants: Array<[string, unknown[]]> = [
+      ['ANSWERED_SUPPORTED', [ask(r)]],
+      [
+        'ANSWERED_WITH_LIMITATION',
+        [
+          ask(r, {
+            disposition: 'ANSWERED_WITH_LIMITATION',
+            unresolvedRemainder:
+              'SYNTHETIC the licence copy names the first work only; no document, fact or legal review is outstanding for this ask',
+          }),
+        ],
+      ],
+      [
+        'NOT_APPLICABLE_WITH_REASON',
+        [ask(r, { disposition: 'NOT_APPLICABLE_WITH_REASON', answerLocator: 'SYNTHETIC reason' })],
+      ],
+      [
+        'all three',
+        [
+          ask(r),
+          secondAsk(r, { disposition: 'ANSWERED_WITH_LIMITATION' }),
+          ask(r, { askId: 'Q3', disposition: 'NOT_APPLICABLE_WITH_REASON' }),
+        ],
+      ],
+    ];
+    let previous: string | undefined;
+    for (const [label, askDispositions] of variants) {
+      const g6 = await g6Pass(r, askDispositions, previous);
+      previous = g6.id;
+      const current = await readiness(r.candidate.id);
+      expect([current.status, current.reasonCodes], label).toEqual(['READY_FOR_SIGNER', []]);
+      expect(current.gates[5], label).toEqual({
+        gate: 'G6',
+        status: 'PASS',
+        assessmentId: g6.id,
+        reasonCodes: [],
+      });
+    }
+  });
+
+  it('negative controls: no disposition holds G6; another parent (422 ASK_PARENT_MISMATCH), an ask twice (422 VALIDATION_FAILED) or a source outside the case (422) are refused at capture; a stored foreign, duplicate or unknown disposition never counts (BLOCKED)', async () => {
+    const r = await readyReplyWorld();
+    const none = await g6Pass(r, []);
+    expect((await readiness(r.candidate.id)).gates[5]?.reasonCodes).toEqual([
+      'GATE_HOLD',
+      'G6_ASK_DISPOSITIONS_MISSING',
+    ]);
+    const q = await readyReplyWorld('Q');
+    const before = await countRows(prisma, 'candidate_assessments');
+    const refusals: Array<[unknown[], number, string]> = [
+      [[ask(r, { parentBindingId: r.sent.id })], 422, 'ASK_PARENT_MISMATCH'],
+      [
+        [ask(r), ask(r, { questionText: 'SYNTHETIC the same ask again' })],
+        422,
+        'VALIDATION_FAILED',
+      ],
+      [[ask(r, { sourceIds: [q.linked.id] })], 422, 'CROSS_AGENCY_REFERENCE'],
+    ];
+    for (const [askDispositions, status, errorCode] of refusals) {
+      const refused = await capturePost(
+        r.candidate.id,
+        pass(r.candidate, r.view, 'G6', r.caseSource.data.id, {
+          askDispositions,
+          supersedesAssessmentId: none.id,
+        }),
+      );
+      expect(outcome(refused), errorCode).toEqual([status, errorCode]);
+    }
+    expect(await countRows(prisma, 'candidate_assessments')).toBe(before);
+    // A stored record the capture never accepts (synthetic corruption) is never counted.
+    const answered = await g6Pass(r, [ask(r)], none.id);
+    expect((await readiness(r.candidate.id)).status).toBe('READY_FOR_SIGNER');
+    for (const corrupt of [
+      [ask(r, { parentBindingId: r.sent.id })],
+      [ask(r), ask(r)],
+      [ask(r, { disposition: 'ANSWERED' })],
+    ]) {
+      await prisma.$executeRaw`UPDATE candidate_assessments SET ask_dispositions = ${JSON.stringify(
+        corrupt,
+      )} WHERE id = ${answered.id}`;
+      const current = await readiness(r.candidate.id);
+      expect([current.status, current.gates[5]?.reasonCodes], JSON.stringify(corrupt)).toEqual([
+        'BLOCKED',
+        ['GATE_BLOCKED', 'ASSESSMENT_INTEGRITY_FAILED'],
+      ]);
+    }
+  });
+
+  it('successor recovery: a stored G6 PASS recording REQUIRES_DOCUMENT stays unchanged and readable; only an explicit, sourced successor that records every ask resolved becomes the one head — and only then is the candidate READY', async () => {
+    const r = await readyReplyWorld();
+    const held = await g6Pass(r, [ask(r), secondAsk(r, { disposition: 'REQUIRES_DOCUMENT' })]);
+    expect((await readiness(r.candidate.id)).reasonCodes).toEqual([
+      'G6_HOLD',
+      'G6_ASK_REQUIRES_DOCUMENT',
+    ]);
+    const heldRow = await prisma.candidateAssessment.findUniqueOrThrow({ where: { id: held.id } });
+    const resolved = await g6Pass(
+      r,
+      [ask(r), secondAsk(r, { disposition: 'ANSWERED_SUPPORTED', sourceIds: [r.linked.id] })],
+      held.id,
+    );
+    const current = await readiness(r.candidate.id);
+    expect(current.status).toBe('READY_FOR_SIGNER');
+    expect(current.gates[5]).toEqual({
+      gate: 'G6',
+      status: 'PASS',
+      assessmentId: resolved.id,
+      reasonCodes: [],
+    });
+    // The earlier review is history: byte-identical and readable as recorded.
+    expect(await prisma.candidateAssessment.findUniqueOrThrow({ where: { id: held.id } })).toEqual(
+      heldRow,
+    );
+    const listed = await client.get(
+      'listCandidateAssessments',
+      `/candidates/${r.candidate.id}/assessments?limit=100`,
+    );
+    expect(listed.status, listed.text).toBe(200);
+    const { items } = dataOf<{ items: CandidateAssessment[] }>(listed);
+    expect(items.find((item) => item.id === held.id)).toEqual(held);
+  });
+
+  it('export replay: an export recorded while G6 was resolved releases nothing once a G6 successor records REQUIRES_DOCUMENT or MISSING_FACT — no text, no new audit event, no business change', async () => {
+    const r = await readyReplyWorld();
+    const answered = await g6Pass(r, [ask(r)]);
+    const current = await readiness(r.candidate.id);
+    expect(current.status).toBe('READY_FOR_SIGNER');
+    const key = newKey();
+    const first = await exportUnsigned(r.candidate.id, exportBody(current), key);
+    let previous = answered.id;
+    for (const [disposition, cause] of [
+      ['REQUIRES_DOCUMENT', 'G6_ASK_REQUIRES_DOCUMENT'],
+      ['MISSING_FACT', 'G6_ASK_MISSING_FACT'],
+    ] as const) {
+      previous = (await g6Pass(r, [ask(r, { disposition, sourceIds: [] })], previous)).id;
+      const before = { ...(await suiteDump()), auth_sessions: [] };
+      const replay = await exportPost(r.candidate.id, exportBody(current), key);
+      expect(outcome(replay), disposition).toEqual([409, 'CANDIDATE_NOT_READY']);
+      expect(detailsOf(replay), disposition).toEqual({
+        status: 'REVIEW_REQUIRED',
+        reasonCodes: ['G6_HOLD', cause],
+      });
+      for (const text of ['SYNTHETIC notice text', 'SYNTHETIC notice subject', first.bodySha256]) {
+        expect(replay.text).not.toContain(text);
+      }
+      expect(replay.text).not.toContain('synthetic-reply-here@example.invalid');
+      expect({ ...(await suiteDump()), auth_sessions: [] }).toEqual(before);
+    }
+    expect((await auditActions()).filter((action) => action === 'EXPORT_UNSIGNED')).toHaveLength(1);
   });
 });
 

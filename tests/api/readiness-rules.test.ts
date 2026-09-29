@@ -19,6 +19,7 @@ import { GATES, type Gate } from '../../apps/api/src/modules/assessments/assessm
 import { candidateArtifactSha256 } from '../../apps/api/src/modules/candidates/candidate-artifact.js';
 import {
   artifactIntact,
+  ASK_DISPOSITION_CAUSE,
   askSourceIds,
   countableHeads,
   coverageComplete,
@@ -276,6 +277,8 @@ describe('reason codes: stable identifiers in a pinned order, no record content'
       'G1_REVIEW_TIME_UNKNOWN',
       'TEMPORAL_BOUNDARY_AMBIGUOUS',
       'G6_ASK_DISPOSITIONS_MISSING',
+      'G6_ASK_REQUIRES_DOCUMENT',
+      'G6_ASK_MISSING_FACT',
       'G6_ASK_LEGAL_REVIEW_REQUIRED',
       'G6_ASK_SOURCE_NOT_APPLICABLE',
     ]);
@@ -298,9 +301,22 @@ describe('reason codes: stable identifiers in a pinned order, no record content'
       'G1_REVIEW_TIME_UNKNOWN',
       'TEMPORAL_BOUNDARY_AMBIGUOUS',
       'G6_ASK_DISPOSITIONS_MISSING',
+      'G6_ASK_REQUIRES_DOCUMENT',
+      'G6_ASK_MISSING_FACT',
       'G6_ASK_LEGAL_REVIEW_REQUIRED',
       'G6_ASK_SOURCE_NOT_APPLICABLE',
     ]);
+  });
+
+  it('every reason code the server reports has its own neutral copy on the candidate page (readiness.tsx REASON_TEXT; a gate status code is worded from its gate)', () => {
+    const page = readFileSync(path.join(repoRoot, 'apps/web/src/app/cases/readiness.tsx'), 'utf8');
+    const block = /const REASON_TEXT[^=]*=\s*\{([\s\S]*?)\n\};/.exec(page)?.[1] ?? '';
+    const worded = new Set([...block.matchAll(/^ {2}([A-Z0-9_]+):/gm)].map((match) => match[1]));
+    expect(worded.size).toBeGreaterThan(20);
+    for (const code of [...READINESS_REASON_ORDER, ...GATE_REASON_ORDER]) {
+      if (/^G[1-6]_(BLOCKED|CONFLICT|MISSING|HOLD|UNASSESSED)$/.test(code)) continue;
+      expect(worded.has(code), code).toBe(true);
+    }
   });
 
   it('includes the mission minimum set (gate-qualified at the readiness level, GATE_* per gate)', () => {
@@ -907,21 +923,19 @@ describe('gates (Decisions 6–8): exact heads, never the latest PASS, no compen
     expect(reply('G6', [disposition()]).status).toBe('PASS');
   });
 
-  it('G6 of a reply: at least one disposition, none LEGAL_REVIEW_REQUIRED, every cited source applying now (else HOLD)', () => {
-    const reply = (askDispositions: unknown) => {
+  describe('G6 of a reply (R14-AUD-016): the recorded disposition of each ask is its explicit status', () => {
+    const replyInput = (askDispositions: unknown) => {
       const base = withGate('G6', { askDispositions });
-      return gateOf(
-        readyInput({
-          ...base,
-          context: { ...base.context, taskType: 'NMI_REPLY', parentBindingId: PARENT },
-          askSourceApplies: new Map([
-            [SOURCE_A, true],
-            [SOURCE_B, false],
-          ]),
-        }),
-        'G6',
-      );
+      return readyInput({
+        ...base,
+        context: { ...base.context, taskType: 'NMI_REPLY', parentBindingId: PARENT },
+        askSourceApplies: new Map([
+          [SOURCE_A, true],
+          [SOURCE_B, false],
+        ]),
+      });
     };
+    const reply = (askDispositions: unknown) => gateOf(replyInput(askDispositions), 'G6');
     const disposition = (overrides: Record<string, unknown> = {}) => ({
       askId: 'ask-1',
       questionText: 'SYNTHETIC question',
@@ -930,26 +944,162 @@ describe('gates (Decisions 6–8): exact heads, never the latest PASS, no compen
       sourceIds: [],
       ...overrides,
     });
-    expect(reply(null).reasonCodes).toEqual(['GATE_HOLD', 'G6_ASK_DISPOSITIONS_MISSING']);
-    expect(reply([]).reasonCodes).toEqual(['GATE_HOLD', 'G6_ASK_DISPOSITIONS_MISSING']);
-    expect(reply([disposition({ disposition: 'LEGAL_REVIEW_REQUIRED' })]).reasonCodes).toEqual([
-      'GATE_HOLD',
-      'G6_ASK_LEGAL_REVIEW_REQUIRED',
-    ]);
-    expect(reply([disposition({ sourceIds: [SOURCE_B] })]).reasonCodes).toEqual([
-      'GATE_HOLD',
-      'G6_ASK_SOURCE_NOT_APPLICABLE',
-    ]);
-    expect(reply([disposition({ sourceIds: [uuid(0x99)] })]).reasonCodes).toEqual([
-      'GATE_HOLD',
-      'G6_ASK_SOURCE_NOT_APPLICABLE',
-    ]);
-    expect(
-      reply([
-        disposition({ disposition: 'MISSING_FACT' }),
-        disposition({ askId: 'ask-2', disposition: 'NOT_APPLICABLE_WITH_REASON' }),
-      ]).status,
-    ).toBe('PASS');
+    const second = (overrides: Record<string, unknown> = {}) =>
+      disposition({ askId: 'ask-2', questionText: 'SYNTHETIC second question', ...overrides });
+    const held = (...causes: string[]) => ['GATE_HOLD', ...causes];
+
+    it('classifies every contracted disposition explicitly: three resolved, three unresolved', () => {
+      expect(ASK_DISPOSITION_CAUSE).toEqual({
+        ANSWERED_SUPPORTED: null,
+        ANSWERED_WITH_LIMITATION: null,
+        NOT_APPLICABLE_WITH_REASON: null,
+        REQUIRES_DOCUMENT: 'G6_ASK_REQUIRES_DOCUMENT',
+        MISSING_FACT: 'G6_ASK_MISSING_FACT',
+        LEGAL_REVIEW_REQUIRED: 'G6_ASK_LEGAL_REVIEW_REQUIRED',
+      });
+    });
+
+    it('REQUIRES_DOCUMENT, MISSING_FACT and LEGAL_REVIEW_REQUIRED each hold G6 with their own reason', () => {
+      expect(reply([disposition({ disposition: 'REQUIRES_DOCUMENT' })]).reasonCodes).toEqual(
+        held('G6_ASK_REQUIRES_DOCUMENT'),
+      );
+      expect(reply([disposition({ disposition: 'MISSING_FACT' })]).reasonCodes).toEqual(
+        held('G6_ASK_MISSING_FACT'),
+      );
+      expect(reply([disposition({ disposition: 'LEGAL_REVIEW_REQUIRED' })]).reasonCodes).toEqual(
+        held('G6_ASK_LEGAL_REVIEW_REQUIRED'),
+      );
+      expect(
+        reply([
+          disposition({ disposition: 'LEGAL_REVIEW_REQUIRED' }),
+          second({ disposition: 'MISSING_FACT' }),
+          disposition({ askId: 'ask-3', disposition: 'REQUIRES_DOCUMENT' }),
+        ]).reasonCodes,
+      ).toEqual(
+        held('G6_ASK_REQUIRES_DOCUMENT', 'G6_ASK_MISSING_FACT', 'G6_ASK_LEGAL_REVIEW_REQUIRED'),
+      );
+    });
+
+    it('a mixed list stays HOLD: answered asks never compensate for an unresolved one', () => {
+      expect(
+        reply([disposition(), second({ disposition: 'REQUIRES_DOCUMENT' })]).reasonCodes,
+      ).toEqual(held('G6_ASK_REQUIRES_DOCUMENT'));
+      expect(
+        reply([
+          disposition({ disposition: 'ANSWERED_WITH_LIMITATION' }),
+          second({ disposition: 'MISSING_FACT' }),
+        ]).reasonCodes,
+      ).toEqual(held('G6_ASK_MISSING_FACT'));
+      expect(
+        reply([
+          disposition({ disposition: 'NOT_APPLICABLE_WITH_REASON' }),
+          second({ disposition: 'MISSING_FACT' }),
+        ]).status,
+      ).toBe('HOLD');
+    });
+
+    it('positive controls: ANSWERED_SUPPORTED, ANSWERED_WITH_LIMITATION and NOT_APPLICABLE_WITH_REASON may count — alone or together', () => {
+      for (const kind of [
+        'ANSWERED_SUPPORTED',
+        'ANSWERED_WITH_LIMITATION',
+        'NOT_APPLICABLE_WITH_REASON',
+      ]) {
+        expect(reply([disposition({ disposition: kind, sourceIds: [SOURCE_A] })]), kind).toEqual({
+          gate: 'G6',
+          status: 'PASS',
+          assessmentId: assessmentId('G6'),
+          reasonCodes: [],
+        });
+      }
+      expect(
+        reply([
+          disposition(),
+          second({ disposition: 'ANSWERED_WITH_LIMITATION' }),
+          disposition({ askId: 'ask-3', disposition: 'NOT_APPLICABLE_WITH_REASON' }),
+        ]).status,
+      ).toBe('PASS');
+    });
+
+    it('no text is read: an unresolved remainder, answer locator or question naming a document, a fact or legal review never changes a resolved disposition (no keyword rule)', () => {
+      const words =
+        'SYNTHETIC requires document; missing fact; legal review required; not answered';
+      expect(
+        reply([
+          disposition({
+            disposition: 'ANSWERED_WITH_LIMITATION',
+            questionText: words,
+            answerLocator: words,
+            unresolvedRemainder: words,
+          }),
+        ]).status,
+      ).toBe('PASS');
+      // …and an empty remainder never resolves an unresolved status.
+      expect(
+        reply([disposition({ disposition: 'MISSING_FACT', unresolvedRemainder: '' })]).status,
+      ).toBe('HOLD');
+    });
+
+    it('negative controls: no disposition holds G6; a source that does not apply now holds it; another parent, an ask twice, an unknown or malformed disposition never count (BLOCKED)', () => {
+      expect(reply(null).reasonCodes).toEqual(held('G6_ASK_DISPOSITIONS_MISSING'));
+      expect(reply([]).reasonCodes).toEqual(held('G6_ASK_DISPOSITIONS_MISSING'));
+      expect(reply([disposition({ sourceIds: [SOURCE_B] })]).reasonCodes).toEqual(
+        held('G6_ASK_SOURCE_NOT_APPLICABLE'),
+      );
+      expect(reply([disposition({ sourceIds: [uuid(0x99)] })]).reasonCodes).toEqual(
+        held('G6_ASK_SOURCE_NOT_APPLICABLE'),
+      );
+      const integrity = ['GATE_BLOCKED', 'ASSESSMENT_INTEGRITY_FAILED'];
+      expect(reply([disposition({ parentBindingId: OTHER_BINDING })]).reasonCodes).toEqual(
+        integrity,
+      );
+      expect(reply([disposition(), disposition({ questionText: 'again' })]).reasonCodes).toEqual(
+        integrity,
+      );
+      for (const malformed of [
+        disposition({ disposition: 'ANSWERED' }),
+        disposition({ disposition: 'answered_supported' }),
+        disposition({ disposition: null }),
+        disposition({ askId: undefined }),
+        disposition({ askId: 7 }),
+        disposition({ sourceIds: 'x' }),
+      ]) {
+        expect(reply([malformed]).reasonCodes, JSON.stringify(malformed)).toEqual(integrity);
+      }
+    });
+
+    it('the readiness: five PASS gates and a G6 PASS with an unresolved ask → REVIEW_REQUIRED with the reason; the export is refused (409 CANDIDATE_NOT_READY); a resolved successor makes it READY', () => {
+      const unresolved = replyInput([disposition(), second({ disposition: 'REQUIRES_DOCUMENT' })]);
+      const readiness = evaluate(unresolved);
+      expect([readiness.status, readiness.reasonCodes]).toEqual([
+        'REVIEW_REQUIRED',
+        ['G6_HOLD', 'G6_ASK_REQUIRES_DOCUMENT'],
+      ]);
+      const refusal = exportRefusal(readiness, {
+        expectedArtifactSha256: ARTIFACT,
+        expectedDependencyDigest: DIGEST,
+        validationRunId: uuid(0x50),
+        format: 'PLAIN_TEXT',
+      });
+      expect([refusal?.status, refusal?.code, refusal?.details]).toEqual([
+        409,
+        'CANDIDATE_NOT_READY',
+        { status: 'REVIEW_REQUIRED', reasonCodes: ['G6_HOLD', 'G6_ASK_REQUIRES_DOCUMENT'] },
+      ]);
+      // An explicit successor of the same epoch that records the ask as answered is the one head.
+      const predecessor = unresolved.assessments.find((row) => row.gate === 'G6');
+      const successor = assessment('G6', {
+        id: assessmentId('G6', 1),
+        supersedesAssessmentId: predecessor?.id ?? null,
+        askDispositions: [disposition(), second({ disposition: 'ANSWERED_SUPPORTED' })],
+      });
+      const resolved = readyInput({
+        ...unresolved,
+        assessments: [...unresolved.assessments, successor],
+        supports: new Map([...unresolved.supports, [successor.id, [support()]]]),
+      });
+      expect(evaluate(resolved).status).toBe('READY_FOR_SIGNER');
+      expect(evaluate(resolved).gates[5]?.assessmentId).toBe(successor.id);
+    });
   });
 
   it('G1: a review overtaken by a captured boundary is UNASSESSED (stale); ambiguous or unplaceable is HOLD; integrity wins', () => {
@@ -1006,11 +1156,17 @@ describe('gates (Decisions 6–8): exact heads, never the latest PASS, no compen
         assessment('G6', {
           askDispositions: [
             {
+              askId: 'ask-1',
               parentBindingId: PARENT,
               disposition: 'ANSWERED_SUPPORTED',
               sourceIds: [SOURCE_B, SOURCE_A],
             },
-            { parentBindingId: PARENT, disposition: 'ANSWERED_SUPPORTED', sourceIds: [SOURCE_A] },
+            {
+              askId: 'ask-2',
+              parentBindingId: PARENT,
+              disposition: 'ANSWERED_SUPPORTED',
+              sourceIds: [SOURCE_A],
+            },
           ],
         }),
       ),

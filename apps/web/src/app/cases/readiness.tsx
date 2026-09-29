@@ -136,6 +136,10 @@ const REASON_TEXT: Readonly<Record<string, string>> = {
   TEMPORAL_BOUNDARY_AMBIGUOUS:
     'A date-only authority boundary falls too close to the review or to this evaluation to tell which came first.',
   G6_ASK_DISPOSITIONS_MISSING: 'The G6 review of a reply records no ask dispositions.',
+  G6_ASK_REQUIRES_DOCUMENT:
+    'An ask disposition records that a requested document is still needed: the ask is unresolved.',
+  G6_ASK_MISSING_FACT:
+    'An ask disposition records that a material fact is still missing: the ask is unresolved.',
   G6_ASK_LEGAL_REVIEW_REQUIRED: 'An ask disposition records that legal review is required.',
   G6_ASK_SOURCE_NOT_APPLICABLE:
     'An ask disposition cites a source that does not apply to the case scope now.',

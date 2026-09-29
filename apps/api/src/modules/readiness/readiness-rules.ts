@@ -17,15 +17,16 @@
 //   gates      per gate the heads of the candidate's supersession chains whose epoch is exactly E:
 //              none → UNASSESSED, several → CONFLICT (never the latest or a convenient PASS), one →
 //              its result; a PASS counts only when scope-confirmed, attributable, with intact
-//              supports, answered NMI asks (G6) and a G1 review not overtaken by a captured
-//              temporal boundary. Six PASS gates are needed: nothing compensates for one.
+//              supports, resolved NMI asks (G6: no disposition recorded as REQUIRES_DOCUMENT,
+//              MISSING_FACT or LEGAL_REVIEW_REQUIRED, R14-AUD-016) and a G1 review not overtaken by
+//              a captured temporal boundary. Six PASS gates are needed: nothing compensates for one.
 //   time       only captured boundaries of the selected authority stale the G1 review; time alone
 //              never does (no age rule). A date is the interval in which it is that date somewhere
 //              on earth (UTC−12:00 … UTC+14:00); no midnight or timezone is invented.
 //   status     the strongest tier present (ADR-0011 Decision 3); READY_FOR_SIGNER exactly when no
 //              reason code is present. Reason codes are stable identifiers in a pinned order and
 //              never carry record content.
-import type { ExportUnsigned, GateSummary, Readiness } from '@tb/contracts';
+import type { AskDisposition, ExportUnsigned, GateSummary, Readiness } from '@tb/contracts';
 import { apiErrors, type ApiError } from '../../infrastructure/http/api-error.js';
 import {
   exactTextSha256,
@@ -73,6 +74,8 @@ const GATE_CAUSES = [
   'G1_REVIEW_TIME_UNKNOWN',
   'TEMPORAL_BOUNDARY_AMBIGUOUS',
   'G6_ASK_DISPOSITIONS_MISSING',
+  'G6_ASK_REQUIRES_DOCUMENT',
+  'G6_ASK_MISSING_FACT',
   'G6_ASK_LEGAL_REVIEW_REQUIRED',
   'G6_ASK_SOURCE_NOT_APPLICABLE',
 ] as const;
@@ -556,14 +559,41 @@ export function g1TemporalCauses(
 
 // ---- gates -------------------------------------------------------------------------------------------
 
+type Disposition = AskDisposition['disposition'];
+
+/**
+ * Each contracted ask disposition, classified (R14-AUD-016): null when the recorded status leaves
+ * the ask resolved for a counted G6 PASS, otherwise the cause that holds G6. The disposition is the
+ * explicit recorded status of the ask; no text — the question, answer locator, unresolved
+ * remainder, limitations or rationale — is read or interpreted. A limited answer or a reasoned
+ * non-applicability is the reviewer's attributable conclusion; a document or fact still needed and
+ * an outstanding legal review are, by their own recorded status, not resolved.
+ */
+export const ASK_DISPOSITION_CAUSE: Readonly<Record<Disposition, string | null>> = {
+  ANSWERED_SUPPORTED: null,
+  ANSWERED_WITH_LIMITATION: null,
+  NOT_APPLICABLE_WITH_REASON: null,
+  REQUIRES_DOCUMENT: 'G6_ASK_REQUIRES_DOCUMENT',
+  MISSING_FACT: 'G6_ASK_MISSING_FACT',
+  LEGAL_REVIEW_REQUIRED: 'G6_ASK_LEGAL_REVIEW_REQUIRED',
+};
+
+const isDisposition = (value: unknown): value is Disposition =>
+  typeof value === 'string' && Object.hasOwn(ASK_DISPOSITION_CAUSE, value);
+
 /** A stored ask disposition (the fields readiness reads). */
 interface StoredDisposition {
+  readonly askId: string;
   readonly parentBindingId: string;
-  readonly disposition: string;
+  readonly disposition: Disposition;
   readonly sourceIds: readonly string[];
 }
 
-/** The stored ask dispositions: [] for none, null when the stored value is not in its stored form. */
+/**
+ * The stored ask dispositions: [] for none, null when the stored value is not in its stored form —
+ * an entry without its ask id, parent binding or source list, or with a disposition outside the
+ * contracted six (never classified, so never counted).
+ */
 export function storedDispositions(value: unknown): StoredDisposition[] | null {
   if (value === null || value === undefined) return [];
   if (!Array.isArray(value)) return null;
@@ -571,21 +601,30 @@ export function storedDispositions(value: unknown): StoredDisposition[] | null {
   for (const entry of value) {
     const item = record(entry);
     const sourceIds = texts(item?.['sourceIds']);
+    const disposition = item?.['disposition'];
     if (
       item === null ||
+      typeof item['askId'] !== 'string' ||
       typeof item['parentBindingId'] !== 'string' ||
-      typeof item['disposition'] !== 'string' ||
+      !isDisposition(disposition) ||
       sourceIds === null
     ) {
       return null;
     }
     dispositions.push({
+      askId: item['askId'],
       parentBindingId: item['parentBindingId'],
-      disposition: item['disposition'],
+      disposition,
       sourceIds,
     });
   }
   return dispositions;
+}
+
+/** Whether an ask of a parent message is recorded twice (capture refuses it; storage never has it). */
+function askRecordedTwice(dispositions: readonly StoredDisposition[]): boolean {
+  const asks = new Set(dispositions.map((entry) => `${entry.parentBindingId}\u0000${entry.askId}`));
+  return asks.size !== dispositions.length;
 }
 
 /** A PASS head that may count: the one current head of its gate, PASS and scope-confirmed. */
@@ -663,8 +702,9 @@ function supportsIntact(
  * One gate (ADR-0011 Decisions 6–9): the heads of its chains at exactly E. None → UNASSESSED (with
  * ASSESSMENT_STALE when the gate has assessments of other epochs); several → CONFLICT; one → its
  * result, a PASS counting only when scope-confirmed, attributable (visible performer, rationale and
- * scope text; a provenance that does not contradict it), with intact supports, answered NMI asks
- * (G6) and a fresh G1 review. Among several causes: BLOCKED > UNASSESSED (a stale G1 review) > HOLD.
+ * scope text; a provenance that does not contradict it), with intact supports, resolved NMI asks
+ * (G6, ASK_DISPOSITION_CAUSE) and a fresh G1 review. Among several causes: BLOCKED > UNASSESSED (a
+ * stale G1 review) > HOLD.
  */
 export function evaluateGate(
   gate: Gate,
@@ -698,7 +738,8 @@ export function evaluateGate(
   if (
     dispositions === null ||
     (context.taskType === 'INITIAL' && dispositions.length > 0) ||
-    dispositions.some((disposition) => disposition.parentBindingId !== context.parentBindingId)
+    dispositions.some((disposition) => disposition.parentBindingId !== context.parentBindingId) ||
+    askRecordedTwice(dispositions)
   ) {
     causes.add('ASSESSMENT_INTEGRITY_FAILED');
   }
@@ -709,9 +750,13 @@ export function evaluateGate(
     causes.add('ASSESSMENT_PROVENANCE_UNSUPPORTED');
   }
   if (gate === 'G6' && context.taskType === 'NMI_REPLY' && dispositions !== null) {
+    // The system records no structured list of the parent's asks: the reviewer's dispositions are
+    // the record. None at all holds G6; a disposition whose recorded status is unresolved holds it
+    // with that status's cause (R14-AUD-016) — five PASS gates never compensate.
     if (dispositions.length === 0) causes.add('G6_ASK_DISPOSITIONS_MISSING');
-    if (dispositions.some((disposition) => disposition.disposition === 'LEGAL_REVIEW_REQUIRED')) {
-      causes.add('G6_ASK_LEGAL_REVIEW_REQUIRED');
+    for (const { disposition } of dispositions) {
+      const cause = ASK_DISPOSITION_CAUSE[disposition];
+      if (cause !== null) causes.add(cause);
     }
     if (
       dispositions.some((disposition) =>
