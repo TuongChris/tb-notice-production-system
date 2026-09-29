@@ -266,3 +266,12 @@ Nothing was amended, rebased, rewritten or force-pushed, and no tag or release w
 | Database / dependencies | **No change** — `20260923103912_initial_schema` is still the only migration; lockfile unchanged |
 | Readiness / unsigned export | Unrouted on `main` at `19a7cb2` (404); implemented next by mission TB_P4I_READINESS_AND_UNSIGNED_EXPORT_FAST_TRACK on `feature/p4i-readiness-unsigned-export` (`docs/verification/p4i/`) |
 | External action | **NONE**; real case data **0** |
+
+## 24. Later cross-reference — P4I (2026-09-29)
+
+Recorded by mission TB_P4I_READINESS_AND_UNSIGNED_EXPORT_FAST_TRACK (`docs/verification/p4i/P4I_READINESS_UNSIGNED_EXPORT.md`); §1–§23 are unchanged.
+
+- Readiness and the unsigned export, unrouted at P4H, are routed by P4I under ADR-0011. Readiness evaluates the recorded assessments at the current epoch (per gate the heads of its chains, never the latest PASS) and changes none of them; an assessment still decides nothing by being recorded.
+- The P4H backlog item on CaseFact `meta.affectedResources` (102 entries for 100 supports) is remediated there (§9: the affected roots only — the CaseFact and the CaseRecord).
+- The `.table-frame` observation is closed where the readiness and assessment tables are touched: the assessment section's two table scrollers are focusable named regions. Other pages' scrollers are unchanged.
+- W-2, W-3, O-1 and O-3 stay backlog; D-6 (no waiver) stays deferred and READY_FOR_SIGNER never waives a technical issue.

@@ -2,6 +2,8 @@
 
 Status: **PROPOSED — pending the independent Astra review of the pre-assessment architecture** (recommended mission TB_ASTRA_PRE_ASSESSMENT_AUD005_AUD006_ARCHITECTURE_REVIEW). Architecture and specification only.
 
+> **Later status (recorded 2026-09-29 by mission TB_P4I_READINESS_AND_UNSIGNED_EXPORT_FAST_TRACK; the text below is unchanged).** ADR-0008 and ADR-0009 were accepted for implementation by the operator (**ACCEPTED_BY_OPERATOR · INDEPENDENT_REVIEW_DEFERRED**) and implemented by P4H, merged into `main` by pull request #12 (`19a7cb2`; `docs/verification/p4h/`). The readiness this record describes as a later phase (§6, Appendix B) is implemented by P4I under ADR-0011 (`docs/verification/p4i/`): derived on every read from the current captured records and never stored; where this design and ADR-0011 differ, ADR-0011 governs. Nothing here is independently verified: the independent review is deferred by the operator until the final whole-system audit.
+
 | | |
 |---|---|
 | Mission | TB_PRE_ASSESSMENT_AUD005_AUD006_ARCHITECTURE (operator, 2026-09-28) |

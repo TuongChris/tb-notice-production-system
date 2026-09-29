@@ -1,0 +1,114 @@
+P4I own code review before the pull request (mission TB_P4I_READINESS_AND_UNSIGNED_EXPORT_FAST_TRACK, §63),
+home PC, 2026-09-29
+==================================================================================================================
+This is Claude's own review of its own implementation — not an independent review or audit. The independent review
+stays DEFERRED BY OPERATOR until the final whole-system audit.
+
+Scope: the P4I diff 19a7cb2..c6d2173 (then c6d2173..045684a for its own fix) outside docs/:
+- apps/api: modules/readiness/* (rules, inputs, service, views, controller, module, observer), the WriteExecutor's
+  guardedReplay, the new error builders, app.module, the two helpers exported from technical-ruleset.ts (visibility
+  only; the ruleset is unchanged), the P4B CaseFact affectedResources change;
+- apps/web: cases/readiness.tsx, the candidate page hook-up, the API client, the error copy, the CSS, the assessment
+  table regions;
+- scripts/local: smoke:p4i, the earlier smokes' and smoke:local's probe changes, ui-sandbox; the CI step;
+- the tests only as far as they pin the reviewed behaviour.
+
+Method:
+- The web page, the smokes, the CI step, the P4B change and the error builders: reviewed directly.
+- The API readiness rules, loader, service and guardedReplay: an adversarial read-only review pass (a subagent
+  instructed with ADR-0011 as the authority, told to confirm each finding against the ADR and the unit tests, to change
+  no file and to run no database command), whose every reported item I then verified myself against the code, the ADR,
+  the mission text, INVARIANTS §2 and PFC §6 before classifying it below.
+- The browser pass (§60) served as a UI review as well; its finding is listed here too.
+
+Findings
+--------
+UI-P4I-01  MEDIUM  FIXED c6d2173
+  apps/web/src/app/cases/readiness.tsx — after a refused handoff (412 CONTEXT_CHANGED / ARTIFACT_CHANGED /
+  VALIDATION_RUN_CHANGED or 409 CANDIDATE_NOT_READY) the earlier evaluation stayed on screen as "Current readiness:
+  Ready for authorized human signer review" with its "Current dependency digest", only annotated as changed, although
+  the server had just refused because it was no longer current (the P4G rule: an earlier digest is never shown as
+  current). Fix: the evaluation is replaced by a neutral note; only a new evaluation is offered. Web tests assert that
+  no status, digest or READY wording remains (negative control: the old rendering fails both refusal tests on that
+  assertion; restored byte-identically). Re-verified in the browser (sandbox run 2, screenshot p4i-07).
+
+REV-P4I-01  LOW  FIXED 045684a
+  apps/api/src/modules/readiness/readiness-rules.ts `visible` — a PASS counts only with a performer label, rationale
+  and scope text that show something (ADR-0011 Decision 7, "visible text"); the check was /\S/u, which treats U+200B
+  zero-width space, U+2060 word joiner, U+200E, U+00AD soft hyphen, U+FEFF, U+180E, control characters and Hangul
+  fillers as visible. Scenario: a scope-confirmed PASS whose three texts are only U+200B is accepted by capture (the
+  contract requires minLength 1 and capture refuses only NUL) and counted, so READY_FOR_SIGNER could be derived with no
+  visible attribution. Fix: visible = at least one code point that is not White_Space, a control character (Cc) or a
+  Default_Ignorable_Code_Point; such a review is HOLD ASSESSMENT_RECORD_INCOMPLETE (it stays recorded; capture is
+  unchanged). Unit test: invisible-only and mixed values (negative control: the old rule fails it on its own
+  AssertionError; restored byte-identically). Bounded limitation: a character Unicode classes as a graphic symbol but
+  that renders blank in common fonts (e.g. U+2800 BRAILLE PATTERN BLANK) still counts as visible.
+
+REV-P4I-02  LOW  BACKLOG (shared with P4H capture; not changed)
+  apps/api/src/modules/readiness/readiness.service.ts (the export) — under SERIALIZABLE the first read of the candidate
+  (to find its case) is implicitly share-locked before the case row's FOR UPDATE; supersedeCandidate locks case then
+  candidate. The two can deadlock; InnoDB detects it and the WriteExecutor retries (at most 3 attempts, then 409
+  RETRYABLE_TRANSACTION_CONFLICT). Correctness holds (nothing half-written, no stale export). P4H's capture uses the same
+  pattern (assessments.service.ts). Reasoned from the code; not reproduced.
+
+OBS-P4I-01  LIMITATION (documented; follows ADR-0011 Decision 4; not changed)
+  readiness-rules.ts (run selection) — runs of the current epoch that disagree are TECHNICAL_RUN_CONFLICT and none
+  counts. An ERROR run (a rule failed while running) and a later TECHNICAL_PASS run of the same epoch therefore disagree,
+  and the epoch stays BLOCKED until it changes (a new candidate revision, or any change of the recorded context). ADR-0011
+  lists the analogous gate-CONFLICT limitation; this one is recorded here and in the P4I record's limitations. An ERROR
+  run arises only when a rule throws while running.
+
+OBS-P4I-02  QUESTION FOR THE FINAL INDEPENDENT AUDIT (not changed; no domain decision taken here)
+  readiness-rules.ts (G6 on an NMI reply) — a counted G6 PASS accepts ask dispositions REQUIRES_DOCUMENT ("a requested
+  record still needed") and MISSING_FACT ("missing owner-controlled fact"); only LEGAL_REVIEW_REQUIRED holds it. This
+  follows mission §21 (every material ask of the exact parent binding has a recorded disposition), ADR-0011 Decision 8
+  and INVARIANTS §2 step 7 (G6 addresses all material NMI asks through a sourced disposition), and PFC §6 lists all six
+  values as supported dispositions. PFC §6 also says "Longer prose and removal of inconvenient wording do not cure an
+  outstanding material document/fact requirement", which could be read as requiring such a PASS to be held as well.
+  Whether a reply with an outstanding document/fact requirement may be ready for authorized human signer review is a
+  domain decision for the operator / the final audit; the implementation keeps the accepted ADR's rule.
+
+Checked and found consistent with ADR-0011 (both passes; not exhaustive proof)
+- Epoch derived by the server from exactly the prompt's scope (validationScope → readContextRows → assembleContext,
+  the P4G/P4H path); all four values must match; only this candidate's runs and assessments are read; a corrected named
+  binding gives GET 409 and export 412 with no digest invented.
+- Runs: none → VALIDATION_MISSING; none of the epoch → VALIDATION_STALE; runs of the epoch compared on result,
+  coverage and the multiset of deterministic issues (heuristic issues left out); a PASS counts only with every required
+  rule executed and none not executed; BLOCKER and REVIEW_REQUIRED issues always named; PLAN_SOURCE_NOT_IN_CONTEXT
+  never waived.
+- Gates: chain heads at exactly the epoch; several → CONFLICT without an id; superseded heads and other candidates'
+  assessments never count; RECORDED_NOT_ADOPTED PASS → HOLD SCOPE_NOT_CONFIRMED; supports 1–100, of this case, LINKED
+  now, applying per the current context; provenance MISSING/CONFLICT → HOLD; malformed dispositions or dispositions on
+  an INITIAL candidate or of another parent → BLOCKED; corrupt supersession chains → 500.
+- Time: a date is [(D−1)T10:00Z, (D+1)T12:00Z); an instant stales only when assessedAt < e ≤ now; a null or future
+  assessedAt → G1_REVIEW_TIME_UNKNOWN once a boundary is possibly reached; every DATE/DATETIME authority column of the
+  schema is covered; a corrected event is replaced by its correction; no age rule.
+- Status tiers match the ADR table; no code falls outside the pinned orders or appears twice; READY_FOR_SIGNER exactly
+  when the list is empty.
+- Export: refusal order artifact → digest → not ready → run; an archived case reads as BLOCKED CASE_ARCHIVED (the
+  case fingerprint includes the archived flag, so the digest moves too); one EXPORT_UNSIGNED audit event with subject
+  and body only as lengths; the idempotency record keeps {meta, kept: {readiness, exportedAt}} — no subject, envelope
+  or body.
+- Replay: re-evaluates in a REPEATABLE READ snapshot against the original request (the stored request digest pins
+  the same artifact, digest and run); writes nothing; a refused replay leaves the completed record untouched.
+- WriteExecutor: the guardedReplay branch runs only when that option is set; other operations' replay and storage
+  paths and the request digest are unchanged; the export declares no precondition target (no If-Match).
+- Stored JSON: a malformed envelope or plan → ARTIFACT_INTEGRITY_FAILED; malformed dispositions → BLOCKED; a
+  malformed coverage manifest → VALIDATION_COVERAGE_INCOMPLETE.
+- No stored readiness (no table, column or cache; per-request maps only); no network, mail or Drive call; the web page
+  uses no browser storage and imports only types from @tb/contracts (no Zod runtime marker in any built chunk).
+- Web: nothing read before "Evaluate current readiness"; "Prepare unsigned handoff" only while the shown evaluation is
+  READY_FOR_SIGNER and never while a request is pending; a generic failure keeps the same intent key (a lost reply
+  replays into one export); every server reason code has neutral copy (18 readiness-level, 5 gate-status and 12 gate
+  cause codes, plus the G<n>_<STATUS> pattern); focus moves to each outcome.
+- Smokes: the readiness/export probes of the earlier smokes and smoke:local became session/Origin checks or were
+  removed; sign/send probes stay 404; the per-smoke check counts reconcile with the removed and added probes.
+- P4B: one record() serves both CaseFact create and revise; affectedResources = [CaseRecord, CaseFact]; nothing
+  consumed the removed FactSource entries.
+
+Result: no unresolved BLOCKER or HIGH finding. One MEDIUM (UI-P4I-01) and one LOW (REV-P4I-01) fixed and verified;
+one LOW (REV-P4I-02) backlog; OBS-P4I-01 a documented limitation; OBS-P4I-02 an open question for the final
+independent audit.
+
+Not run or not reviewed by the subagent pass: yarn test:db and the smokes (excluded by instruction; they ran in the
+sweep and in CI); live concurrency (REV-P4I-02 reasoned only).
