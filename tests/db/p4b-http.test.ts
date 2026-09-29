@@ -36,6 +36,7 @@ import {
   GetCaseFactResponseSchema,
   OperationErrorSchema,
   operations,
+  ResponseMetaSchema,
 } from '../../packages/contracts/src/index.js';
 import {
   ALLOWED_ORIGIN,
@@ -1959,8 +1960,9 @@ describe('CASE FACTS — explicit, attributed, case-specific assertions; revisio
           supportedAssertion: `SYNTHETIC assertion supported by ${row.supportRole}`,
         })),
     );
-    const affected = affectedOf(result);
-    expect(affected.filter((row) => row['type'] === 'FactSource')).toHaveLength(3);
+    // The response names the affected roots only — the case and the fact (API_CONTRACT_v1 §6);
+    // the three FactSource rows are read back with getCaseFactSources.
+    expect(affectedOf(result).map((row) => row['type'])).toEqual(['CaseRecord', 'CaseFact']);
     // The wire fact carries no support list — getCaseFactSources (TB-SCHEMA-API-v1.2.0) reads the
     // supports — so it keeps exactly the contracted fields.
     expect(Object.keys(fact).sort()).toEqual(
@@ -2464,12 +2466,12 @@ describe('FACT SOURCES READ-BACK (TB-SCHEMA-API-v1.2.0, R9) — the exact suppor
       ],
     });
     const one = immutable<CaseFact>(oneResult, 201);
-    const [createdSupport] = affectedOf(oneResult).filter((row) => row['type'] === 'FactSource');
+    const [createdSupport] = await prisma.factSource.findMany({ where: { factId: one.id } });
     expect(await getSupports(w.case.data.id, one.id)).toEqual({
       factId: one.id,
       sources: [
         {
-          id: createdSupport?.['id'],
+          id: createdSupport?.id,
           factId: one.id,
           caseSourceId: linked.data.id,
           supportRole: 'SYNTHETIC_PRIMARY',
@@ -2530,6 +2532,66 @@ describe('FACT SOURCES READ-BACK (TB-SCHEMA-API-v1.2.0, R9) — the exact suppor
     expect(ids).toEqual([...ids].sort());
     for (let attempt = 0; attempt < 3; attempt += 1) {
       expect(await getSupports(w.case.data.id, many.id)).toEqual(view);
+    }
+  });
+
+  it('P4I bounded remediation: a create or revision with 0, 98, 99 or 100 supports names only the affected roots (the case and the fact) in meta — every response within the contracted 100 affected resources, nothing cut off — and every support is recorded and read back', async () => {
+    const { w, linked } = await intakeWorld();
+    const supports = (count: number, label: string) =>
+      Array.from({ length: count }, (_, index) => ({
+        caseSourceId: linked.data.id,
+        supportRole: `SYNTHETIC_${label}_ROLE_${String(index).padStart(3, '0')}`,
+        supportedAssertion: `SYNTHETIC ${label} assertion ${index}`,
+      }));
+    const createResponse = operations.find(
+      (operation) => operation.operationId === 'createCaseFact',
+    );
+    const reviseResponse = operations.find(
+      (operation) => operation.operationId === 'reviseCaseFact',
+    );
+    const conforms = (result: HttpResult, operation: (typeof operations)[number] | undefined) => {
+      if (!operation || !('schema' in operation.success)) throw new Error('no success schema');
+      const parsed = operation.success.schema.safeParse(result.json);
+      expect(parsed.success, JSON.stringify(parsed.error?.issues)).toBe(true);
+      expect(ResponseMetaSchema.safeParse((result.json as { meta: unknown }).meta).success).toBe(
+        true,
+      );
+    };
+    for (const count of [0, 98, 99, 100]) {
+      const result = await postFact(w.case.data.id, (await getCase(w.case.data.id)).etag, {
+        provenance: 'OPERATOR_REPORTED',
+        sources: supports(count, `C${count}`),
+      });
+      const fact = immutable<CaseFact>(result, 201);
+      conforms(result, createResponse);
+      expect(affectedOf(result), String(count)).toEqual([
+        {
+          type: 'CaseRecord',
+          id: w.case.data.id,
+          rowVersion: (await getCase(w.case.data.id)).data.rowVersion,
+        },
+        { type: 'CaseFact', id: fact.id, rowVersion: null },
+      ]);
+      expect((await getSupports(w.case.data.id, fact.id)).sources, String(count)).toHaveLength(
+        count,
+      );
+      expect(await prisma.factSource.count({ where: { factId: fact.id } })).toBe(count);
+      if (count !== 100) continue;
+      const revision = await postRevision(
+        w.case.data.id,
+        fact.id,
+        (await getCase(w.case.data.id)).etag,
+        { provenance: 'OPERATOR_REPORTED', sources: supports(100, 'R100') },
+      );
+      const revised = immutable<CaseFact>(revision, 201);
+      conforms(revision, reviseResponse);
+      expect(affectedOf(revision).map((row) => [row['type'], row['id']])).toEqual([
+        ['CaseRecord', w.case.data.id],
+        ['CaseFact', revised.id],
+      ]);
+      expect((await getSupports(w.case.data.id, revised.id)).sources).toHaveLength(100);
+      // The earlier revision keeps its own 100 rows.
+      expect((await getSupports(w.case.data.id, fact.id)).sources).toHaveLength(100);
     }
   });
 
@@ -3651,18 +3713,17 @@ describe('SECURITY / CONTRACT', () => {
     expect(await intakeDump()).toEqual(before);
   });
 
-  it('production writes, readiness, unsigned export, signing and sending stay unrouted; P4B creates no later-phase record', async () => {
+  it('production writes, signing and sending stay unrouted; P4B creates no later-phase record', async () => {
     const { w } = await intakeWorld();
     const id = w.case.data.id;
     // Correspondence is routed since P4C (tests/db/p4c-http.test.ts); P4B still records none. The
     // production context is a GET-only read since P4D (tests/db/p4d-http.test.ts), prompts are
     // routed since P4E (tests/db/p4e-http.test.ts), candidates since P4F
-    // (tests/db/p4f-http.test.ts), technical validation since P4G (tests/db/p4g-http.test.ts) and
-    // candidate assessments since P4H (tests/db/p4h-http.test.ts).
+    // (tests/db/p4f-http.test.ts), technical validation since P4G (tests/db/p4g-http.test.ts),
+    // candidate assessments since P4H (tests/db/p4h-http.test.ts) and a candidate's readiness and
+    // unsigned export since P4I (tests/db/p4i-http.test.ts).
     const paths: Array<['GET' | 'POST' | 'PATCH' | 'DELETE', string]> = [
       ['POST', `/cases/${id}/production-context`],
-      ['POST', `/candidates/${randomUUID()}/unsigned-exports`],
-      ['GET', `/candidates/${randomUUID()}/readiness`],
       ['POST', `/cases/${id}/readiness`],
       ['POST', `/cases/${id}/sign`],
       ['POST', `/cases/${id}/send`],

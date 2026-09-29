@@ -60,6 +60,7 @@
     "smoke:p4f": "node scripts/local/p4f-smoke.ts",
     "smoke:p4g": "node scripts/local/p4g-smoke.ts",
     "smoke:p4h": "node scripts/local/p4h-smoke.ts",
+    "smoke:p4i": "node scripts/local/p4i-smoke.ts",
     "ui:sandbox": "node scripts/local/ui-sandbox.ts"
   },
   "devDependencies": {

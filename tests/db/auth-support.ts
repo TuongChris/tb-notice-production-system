@@ -54,6 +54,11 @@ import {
   NO_ASSESSMENT_WRITE_OBSERVER,
   type AssessmentWriteObserver,
 } from '../../apps/api/src/modules/assessments/assessment-write-observer.js';
+import {
+  NO_READINESS_OBSERVER,
+  READINESS_OBSERVER,
+  type ReadinessObserver,
+} from '../../apps/api/src/modules/readiness/readiness-observer.js';
 import { AuditWriter } from '../../apps/api/src/infrastructure/write/audit-writer.js';
 import { driverConfig, loadRootEnv, resolveTarget } from '../../scripts/db/lib/targets.mjs';
 
@@ -181,6 +186,8 @@ export async function startTestApp(
     validationObserver?: ValidationObserver;
     /** Called inside the assessment capture transaction (P4H consistency tests); a no-op otherwise. */
     assessmentObserver?: AssessmentWriteObserver;
+    /** Called inside the unsigned export transaction (P4I consistency tests); a no-op otherwise. */
+    readinessObserver?: ReadinessObserver;
   } = {},
 ): Promise<TestApp> {
   const clock = overrides.clock ?? new TestClock();
@@ -207,6 +214,8 @@ export async function startTestApp(
     .useValue(overrides.validationObserver ?? NO_VALIDATION_OBSERVER)
     .overrideProvider(ASSESSMENT_WRITE_OBSERVER)
     .useValue(overrides.assessmentObserver ?? NO_ASSESSMENT_WRITE_OBSERVER)
+    .overrideProvider(READINESS_OBSERVER)
+    .useValue(overrides.readinessObserver ?? NO_READINESS_OBSERVER)
     .compile();
   const app = moduleRef.createNestApplication<NestExpressApplication>({
     bodyParser: false,

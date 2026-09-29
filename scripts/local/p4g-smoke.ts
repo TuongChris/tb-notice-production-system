@@ -45,8 +45,8 @@
 //   the earlier definition — is 412 for a prompt and a validation, the case unchanged; case C: its
 //   v1 digest is 412, its current v2 digest generates a PREPARATION prompt freezing the annex
 //   conflict, read back exactly → no
-//   run update or deletion by id, no assessment, readiness, export, signing or sending route exists
-//   (404) → logout.
+//   run update or deletion by id, signing or sending route exists (404; assessments are routed
+//   since P4H and readiness and the unsigned export since P4I, with their own smokes) → logout.
 import { spawn, type ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
@@ -1397,9 +1397,8 @@ async function main(): Promise<void> {
   for (const [label, method, suffix] of [
     ['PATCH /validation-runs/{id}', 'PATCH', `/validation-runs/${passed.id}`],
     ['DELETE /validation-runs/{id}', 'DELETE', `/validation-runs/${passed.id}`],
-    // Candidate assessments are routed since P4H (smoke:p4h); P4G records none.
-    ['GET /candidates/{id}/readiness', 'GET', `/candidates/${clean.id}/readiness`],
-    ['POST /candidates/{id}/unsigned-exports', 'POST', `/candidates/${clean.id}/unsigned-exports`],
+    // Candidate assessments are routed since P4H (smoke:p4h) and readiness and the unsigned export
+    // since P4I (smoke:p4i); P4G records none of them.
     ['POST /candidates/{id}/sign', 'POST', `/candidates/${clean.id}/sign`],
     ['POST /candidates/{id}/send', 'POST', `/candidates/${clean.id}/send`],
   ] as const) {

@@ -1,0 +1,178 @@
+P4I negative controls — mission TB_P4I_READINESS_AND_UNSIGNED_EXPORT_FAST_TRACK, §56, home PC, 2026-09-29 (UTC)
+======================================================================================================================
+Method: each control applies a deliberate mutation to the implementation of the working tree equal to the code head
+a1fb97e, runs the tests that must catch it and restores every mutated file byte-identically (SHA-256 compared before and
+after; `git status` clean of the mutated files after each run). A control PASSES when every named test run fails on
+the test's own assertion (an AssertionError of the test, not a helper TypeError, a query error or a backstop). DB runs
+use the guarded runner on tb_notice_test (synthetic data only); unit runs use vitest.config.ts. A scratchpad runner
+(not committed) applied the mutations as exact, once-only text replacements.
+
+Reruns (recorded, not hidden):
+- NC-P4I-05: the first unit filter '-t are never READY (no compensation)' matched no test (vitest reads -t as a regular
+  expression, so the parentheses were a group); its DB test had caught it. Rerun with '-t are never READY': caught.
+- NC-P4I-13: the first DB run failed inside prisma.auditEvent.findFirstOrThrow (a query error, not an assertion). The
+  test was strengthened to assert the exact audit actions of the candidate — [CANDIDATE_IMPORTED, EXPORT_UNSIGNED] —
+  before reading the event (tests/db/p4i-http.test.ts, committed with this record). Rerun: caught by that assertion.
+- NC-P4I-01: first run mutated evaluateGate only, so the loader read no supports for the chosen head and the DB test
+  failed on a BLOCKED status. Refined to choose the same head in countableHeads (a faithful "latest PASS"); rerun: the
+  DB test fails with READY_FOR_SIGNER instead of REVIEW_REQUIRED.
+
+NC-P4I-01 — the latest PASS among conflicting heads counts (no CONFLICT)
+  mutation: readiness-rules.ts: evaluateGate takes the latest PASS among several current heads instead of CONFLICT, and countableHeads chooses the same head (its supports are read)
+  [unit] tests/api/readiness-rules.test.ts -t two current heads
+    exit 1; 1 failed | 56 skipped (57)
+    FAIL tests/api/readiness-rules.test.ts > gates (Decisions 6–8): exact heads, never the latest PASS, no compensation > two current heads → CONFLICT without an id — never the latest or the PASS (R-15)
+    AssertionError: expected { gate: 'G4', status: 'PASS', …(2) } to deeply equal { Object (gate, status, ...) }
+  [db] tests/db/p4i-http.test.ts -t R-15
+    exit 1; 1 failed | 31 skipped (32)
+    FAIL tests/db/p4i-http.test.ts > P4I getCandidateReadiness — derived from the current captured records, never stored > R-15 / R-16 / R-18: two current heads of one gate → CONFLICT, never the latest PASS (a…
+    AssertionError: expected 'READY_FOR_SIGNER' to be 'REVIEW_REQUIRED' // Object.is equality
+  restored byte-identically: yes (apps/api/src/modules/readiness/readiness-rules.ts sha256 881f8891c31ddcc919e0021f2cb7b4b71ae228d79c4b34e49f189fcd907c60d8)
+  result: CAUGHT
+
+NC-P4I-02 — assessments of a stale epoch count (heads of any epoch)
+  mutation: readiness-rules.ts: evaluateGate and countableHeads take the heads of every chain of the gate, whatever their epoch (no sameEpoch filter)
+  [unit] tests/api/readiness-rules.test.ts -t assessments of other epochs only
+    exit 1; 1 failed | 56 skipped (57)
+    FAIL tests/api/readiness-rules.test.ts > gates (Decisions 6–8): exact heads, never the latest PASS, no compensation > never assessed → UNASSESSED; assessments of other epochs only → UNASSESSED with ASSESSM…
+    AssertionError: expected { gate: 'G1', status: 'PASS', …(2) } to deeply equal { gate: 'G1', …(3) }
+  [db] tests/db/p4i-http.test.ts -t R-17
+    exit 1; 1 failed | 31 skipped (32)
+    FAIL tests/db/p4i-http.test.ts > P4I getCandidateReadiness — derived from the current captured records, never stored > R-17: a G1 review of an earlier epoch with G2–G6 of the current epoch → STALE_REVALIDA…
+    AssertionError: expected 'REVIEW_REQUIRED' to be 'STALE_REVALIDATION_REQUIRED' // Object.is equality
+  restored byte-identically: yes (apps/api/src/modules/readiness/readiness-rules.ts sha256 881f8891c31ddcc919e0021f2cb7b4b71ae228d79c4b34e49f189fcd907c60d8)
+  result: CAUGHT
+
+NC-P4I-03 — a REVIEW_REQUIRED run counts like a TECHNICAL_PASS
+  mutation: readiness-rules.ts: a REVIEW_REQUIRED run maps to no code, and stored REVIEW_REQUIRED issues add none
+  [unit] tests/api/readiness-rules.test.ts -t maps the counted result
+    exit 1; 1 failed | 56 skipped (57)
+    FAIL tests/api/readiness-rules.test.ts > the current epoch and the technical baseline (Decisions 1, 4, 5) > maps the counted result: BLOCKED → VALIDATION_BLOCKED, ERROR → VALIDATION_ERROR, REVIEW_REQUIRED …
+    AssertionError: expected [] to deeply equal [ 'VALIDATION_REVIEW_REQUIRED' ]
+  [db] tests/db/p4i-http.test.ts -t R-05 / R-06 / R-07
+    exit 1; 1 failed | 31 skipped (32)
+    FAIL tests/db/p4i-http.test.ts > P4I getCandidateReadiness — derived from the current captured records, never stored > R-05 / R-06 / R-07: a BLOCKED run → BLOCKED; an ERROR run → BLOCKED with VALIDATION_ER…
+    AssertionError: expected { …(12) } to match object { status: 'REVIEW_REQUIRED', …(3) }
+  restored byte-identically: yes (apps/api/src/modules/readiness/readiness-rules.ts sha256 881f8891c31ddcc919e0021f2cb7b4b71ae228d79c4b34e49f189fcd907c60d8)
+  result: CAUGHT
+
+NC-P4I-04 — notExecutedRuleIds are ignored
+  mutation: readiness-rules.ts: coverageComplete ignores notExecutedRuleIds
+  [unit] tests/api/readiness-rules.test.ts -t every required rule executed and none not executed
+    exit 1; 1 failed | 56 skipped (57)
+    FAIL tests/api/readiness-rules.test.ts > the current epoch and the technical baseline (Decisions 1, 4, 5) > a TECHNICAL_PASS counts only with every required rule executed and none not executed
+    AssertionError: expected true to be false // Object.is equality
+  [db] tests/db/p4i-http.test.ts -t R-08
+    exit 1; 1 failed | 31 skipped (32)
+    FAIL tests/db/p4i-http.test.ts > P4I getCandidateReadiness — derived from the current captured records, never stored > R-08: a TECHNICAL_PASS whose stored coverage lists a rule not executed, or lacks a req…
+    AssertionError: expected [] to deeply equal [ 'VALIDATION_COVERAGE_INCOMPLETE' ]
+  restored byte-identically: yes (apps/api/src/modules/readiness/readiness-rules.ts sha256 881f8891c31ddcc919e0021f2cb7b4b71ae228d79c4b34e49f189fcd907c60d8)
+  result: CAUGHT
+
+NC-P4I-05 — five of six gates suffice (one non-PASS gate is not reported)
+  mutation: readiness-rules.ts: a single non-PASS gate is not reported (five of six suffice)
+  [unit] tests/api/readiness-rules.test.ts -t are never READY
+    exit 1; 1 failed | 56 skipped (57)
+    FAIL tests/api/readiness-rules.test.ts > readiness (the R matrix in pure form) > R-10…R-14: five PASS gates and one HOLD / BLOCKED / MISSING / CONFLICT / UNASSESSED are never READY (no compensation)
+    AssertionError: expected { …(12) } to match object { status: 'REVIEW_REQUIRED', …(1) }
+  [db] tests/db/p4i-http.test.ts -t R-10
+    exit 1; 1 failed | 31 skipped (32)
+    FAIL tests/db/p4i-http.test.ts > P4I getCandidateReadiness — derived from the current captured records, never stored > R-10…R-14: five PASS gates and one HOLD, BLOCKED, MISSING, CONFLICT or UNASSESSED are …
+    AssertionError: G2: expected [ 'READY_FOR_SIGNER', [] ] to deeply equal [ 'REVIEW_REQUIRED', [ 'G2_HOLD' ] ]
+  restored byte-identically: yes (apps/api/src/modules/readiness/readiness-rules.ts sha256 881f8891c31ddcc919e0021f2cb7b4b71ae228d79c4b34e49f189fcd907c60d8)
+  result: CAUGHT
+
+NC-P4I-06 — a null assessedAt is replaced by createdAt (the recording time)
+  mutation: readiness-inputs.ts reads createdAt; readiness-rules.ts uses it when assessedAt is null
+  [db] tests/db/p4i-http.test.ts -t temporal negative controls
+    exit 1; 1 failed | 31 skipped (32)
+    FAIL tests/db/p4i-http.test.ts > P4I getCandidateReadiness — derived from the current captured records, never stored > temporal negative controls: a missing G1 review time is never replaced by the recordin…
+    AssertionError: expected { …(12) } to match object { status: 'REVIEW_REQUIRED', …(1) }
+  restored byte-identically: yes (apps/api/src/modules/readiness/readiness-inputs.ts sha256 c0fb539efe6ed50dcc9a3b5e67e965bb34440ab5947491efb6f7809d4a6179d1; apps/api/src/modules/readiness/readiness-rules.ts sha256 881f8891c31ddcc919e0021f2cb7b4b71ae228d79c4b34e49f189fcd907c60d8)
+  result: CAUGHT
+
+NC-P4I-07 — temporal boundary crossings are ignored
+  mutation: readiness-rules.ts: the G1 check sees no temporal boundary
+  [unit] tests/api/readiness-rules.test.ts -t a timestamp boundary after the G1 review stales readiness
+    exit 1; 1 failed | 56 skipped (57)
+    FAIL tests/api/readiness-rules.test.ts > readiness (the R matrix in pure form) > R-23 / R-24: a timestamp boundary after the G1 review stales readiness with an unchanged digest; a review after it counts
+    AssertionError: expected 'READY_FOR_SIGNER' to be 'STALE_REVALIDATION_REQUIRED' // Object.is equality
+  [db] tests/db/p4i-http.test.ts -t R-23
+    exit 1; 1 failed | 31 skipped (32)
+    FAIL tests/db/p4i-http.test.ts > P4I getCandidateReadiness — derived from the current captured records, never stored > R-23 / R-24: a G1 review before a timestamp boundary that is reached later is stale — …
+    AssertionError: expected 'READY_FOR_SIGNER' to be 'STALE_REVALIDATION_REQUIRED' // Object.is equality
+  restored byte-identically: yes (apps/api/src/modules/readiness/readiness-rules.ts sha256 881f8891c31ddcc919e0021f2cb7b4b71ae228d79c4b34e49f189fcd907c60d8)
+  result: CAUGHT
+
+NC-P4I-08 — the signature-slot check is removed
+  mutation: readiness-rules.ts: the SIGNATURE_SLOT_INVALID check is removed
+  [unit] tests/api/readiness-rules.test.ts -t an invalid slot or a PREPARATION prompt is BLOCKED
+    exit 1; 1 failed | 56 skipped (57)
+    FAIL tests/api/readiness-rules.test.ts > readiness (the R matrix in pure form) > R-21 / R-22: an invalid slot or a PREPARATION prompt is BLOCKED whatever the rest
+    AssertionError: expected [ 'ARTIFACT_INTEGRITY_FAILED' ] to deeply equal [ 'ARTIFACT_INTEGRITY_FAILED', …(1) ]
+  [db] tests/db/p4i-http.test.ts -t R-21
+    exit 1; 1 failed | 31 skipped (32)
+    FAIL tests/db/p4i-http.test.ts > P4I getCandidateReadiness — derived from the current captured records, never stored > R-21 / R-22: a body without exactly one pending slot and a PREPARATION prompt’s candid…
+    AssertionError: expected [ 'VALIDATION_BLOCKED' ] to deeply equal [ 'SIGNATURE_SLOT_INVALID', …(1) ]
+  restored byte-identically: yes (apps/api/src/modules/readiness/readiness-rules.ts sha256 881f8891c31ddcc919e0021f2cb7b4b71ae228d79c4b34e49f189fcd907c60d8)
+  result: CAUGHT
+
+NC-P4I-09 — readiness is cached per candidate (a later read returns the first result)
+  mutation: readiness.service.ts: getCandidateReadiness caches the first result per candidate
+  [db] tests/db/p4i-http.test.ts -t R-03 / R-04 / R-20
+    exit 1; 1 failed | 31 skipped (32)
+    FAIL tests/db/p4i-http.test.ts > P4I getCandidateReadiness — derived from the current captured records, never stored > R-03 / R-04 / R-20: no run → UNVALIDATED; a context change moves the digest: the run a…
+    AssertionError: expected 'UNVALIDATED' to be 'READY_FOR_SIGNER' // Object.is equality
+  restored byte-identically: yes (apps/api/src/modules/readiness/readiness.service.ts sha256 d9243e211cfae8d637902f0377bef835e58825790ee9695eb296ad88c1144964)
+  result: CAUGHT
+
+NC-P4I-10 — the export does not act on the current readiness (no refusal)
+  mutation: readiness.service.ts: the export ignores the refusal of the readiness it evaluated
+  [db] tests/db/p4i-http.test.ts -t E-01…E-04
+    exit 1; 1 failed | 31 skipped (32)
+    FAIL tests/db/p4i-http.test.ts > P4I exportUnsignedCandidate — the unsigned text handoff, only while READY_FOR_SIGNER > E-01…E-04: not READY is 409 CANDIDATE_NOT_READY with the status and reasons; another …
+    AssertionError: ARTIFACT_CHANGED: expected [ 200, '(no error: HTTP 200)' ] to deeply equal [ 412, 'ARTIFACT_CHANGED' ]
+  restored byte-identically: yes (apps/api/src/modules/readiness/readiness.service.ts sha256 d9243e211cfae8d637902f0377bef835e58825790ee9695eb296ad88c1144964)
+  result: CAUGHT
+
+NC-P4I-11 — a replay releases the old export without rechecking the current readiness
+  mutation: readiness.service.ts: a replay releases the historical response without re-evaluating
+  [db] tests/db/p4i-http.test.ts -t §42 / E-16 / E-18
+    exit 1; 1 failed | 31 skipped (32)
+    FAIL tests/db/p4i-http.test.ts > P4I exportUnsignedCandidate — the unsigned text handoff, only while READY_FOR_SIGNER > §42 / E-16 / E-18: an old export never releases its body once the candidate is no lon…
+    AssertionError: expected [ 200, '(no error: HTTP 200)' ] to deeply equal [ 412, 'CONTEXT_CHANGED' ]
+  restored byte-identically: yes (apps/api/src/modules/readiness/readiness.service.ts sha256 d9243e211cfae8d637902f0377bef835e58825790ee9695eb296ad88c1144964)
+  result: CAUGHT
+
+NC-P4I-12 — the export reports sendPerformed true
+  mutation: readiness-views.ts: sendPerformed true
+  [db] tests/db/p4i-http.test.ts -t E-05…E-13
+    exit 1; 1 failed | 31 skipped (32)
+    FAIL tests/db/p4i-http.test.ts > P4I exportUnsignedCandidate — the unsigned text handoff, only while READY_FOR_SIGNER > E-05…E-13: exactly the stored subject, envelope and body (CRLF, trailing space, NFD k…
+    AssertionError: expected { …(10) } to deeply equal { …(10) }
+  restored byte-identically: yes (apps/api/src/modules/readiness/readiness-views.ts sha256 6e3b6f660669347dadbab37f73b01d7b6181e5a452fe38af10fc593e3d623dcb)
+  result: CAUGHT
+
+NC-P4I-13 — the export audit action is NOTICE_SENT instead of EXPORT_UNSIGNED
+  mutation: readiness.service.ts: the export's audit action is NOTICE_SENT instead of EXPORT_UNSIGNED
+  [unit] tests/api/readiness-rules.test.ts -t writes nothing but the export audit event
+    exit 1; 1 failed | 56 skipped (57)
+    FAIL tests/api/readiness-rules.test.ts > the readiness module: no network, clock, randomness or write > writes nothing but the export audit event EXPORT_UNSIGNED: no create, update or delete; no signed, se…
+    AssertionError: readiness.service.ts: expected '\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\…' not to match /'SIGNED'|'SENT'|'AS_SENT'|'SUBMITTED'…/
+  [db] tests/db/p4i-http.test.ts -t E-05…E-13
+    exit 1; 1 failed | 31 skipped (32)
+    FAIL tests/db/p4i-http.test.ts > P4I exportUnsignedCandidate — the unsigned text handoff, only while READY_FOR_SIGNER > E-05…E-13: exactly the stored subject, envelope and body (CRLF, trailing space, NFD k…
+    AssertionError: expected [ 'CANDIDATE_IMPORTED', 'NOTICE_SENT' ] to deeply equal [ 'CANDIDATE_IMPORTED', …(1) ]
+  restored byte-identically: yes (apps/api/src/modules/readiness/readiness.service.ts sha256 d9243e211cfae8d637902f0377bef835e58825790ee9695eb296ad88c1144964)
+  result: CAUGHT
+
+NC-P4I-14 — a CaseFact write names every FactSource child in meta.affectedResources
+  mutation: case-facts.service.ts: meta.affectedResources names every FactSource child again
+  [db] tests/db/p4b-http.test.ts -t P4I bounded remediation
+    exit 1; 1 failed | 39 skipped (40)
+    FAIL tests/db/p4b-http.test.ts > FACT SOURCES READ-BACK (TB-SCHEMA-API-v1.2.0, R9) — the exact supports recorded for one fact revision > P4I bounded remediation: a create or revision with 0, 98, 99 or 100 …
+    AssertionError: 98: expected [ { type: 'CaseRecord', …(2) }, …(99) ] to deeply equal [ { type: 'CaseRecord', …(2) }, …(1) ]
+  restored byte-identically: yes (apps/api/src/modules/cases/case-facts.service.ts sha256 54eb1e7562b943a3e89da0f82614beb7213085016b45a45e2093ce82382f9624)
+  result: CAUGHT
+
+Summary: 14/14 controls caught on the tests' own assertions and restored byte-identically.

@@ -12,6 +12,8 @@ P4H routes **three** operations and adds the G1–G6 review section of the candi
 
 It activates TB-SCHEMA-API-v1.4.0 and records new technical validation runs under **`TB-TECHNICAL-RULESET-v3`** (ADR-0010). No migration, no schema change.
 
+**Merged (2026-09-29):** pull request #12, merge commit `19a7cb2` (parents `20367b9` and the closeout head `6a7fae7`; its tree is identical to `6a7fae7`); `main` push CI run 36514894511 success, both jobs, logs read. `P4H = IMPLEMENTED_SELF_VERIFIED, MERGED_TO_MAIN` (§23). The independent review stays deferred; nothing here is independently verified. The statuses in §1–§22 are those of their time.
+
 Persistent rules (they stay in force; `CLAUDE.md` carries them):
 
 - **An assessment is one attributable G1–G6 review record, not a decision about readiness.** A CandidateAssessment records one review of one gate — G1 authority/standing, G2 work-specific rights, G3 reported-material identification, G4 evidence/audiovisual comparison, G5 permission/copyright exceptions, G6 exact candidate artifact consistency, traceability and whole-artifact QA — of one exact candidate artifact at one evaluation epoch, as the operator records it, with the linked sources it rests on. Recording is not counting: it is never readiness, READY_FOR_SIGNER, G7 (the actual human review, adoption, signature and sending outside the application), a signature, legal approval or permission to send.
@@ -36,7 +38,8 @@ Persistent rules (they stay in force; `CLAUDE.md` carries them):
 | Negative controls | **PASS** 13/13 (NC-P4H-01…13), restored byte-identically (§13) |
 | `smoke:p4h` | **PASS (151 checks)** in branch CI (§14, §18) |
 | Full regression (mission §55) | **PASS** — 21/21 steps exit 0 on the code head `1eff3f3` (§16) |
-| Branch CI | **PASS** — push run 36511717843 on `1eff3f3`, both jobs success, logs read (§18) |
+| Branch CI | **PASS** — push run 36511717843 on `1eff3f3`, both jobs success, logs read (§18). The closeout head `6a7fae7` — push run 36513211881 and pull_request run 36513959839; the post-merge `main` `19a7cb2` — push run 36514894511; all success, both jobs, logs read (§23) |
+| Merge | **MERGED_TO_MAIN** — pull request #12, merge commit `19a7cb2` (merge commit method; 2026-09-29T02:56:10Z); `main` push CI run 36514894511 success, both jobs (`MAIN_POST_P4H_CI = PASS`, §23) |
 | Schema / migration | **No change** (§19) |
 | R14-AUD-005 | **IMPLEMENTED_SELF_VERIFIED · INDEPENDENT_REVIEW_DEFERRED** |
 | R14-AUD-006 | **IMPLEMENTED_SELF_VERIFIED · INDEPENDENT_REVIEW_DEFERRED** |
@@ -228,3 +231,47 @@ The machine lost power during this mission, after the implementation and before 
 ## 22. Status (maximum claim of this mission)
 
 See the status table. After a successful merge and post-main CI the maximum status is `P4H = IMPLEMENTED_SELF_VERIFIED, MERGED_TO_MAIN`, TB-SCHEMA-API-v1.4.0 and TB-TECHNICAL-RULESET-v3 ACTIVE; the merge and post-main CI are reported with the mission's final report and reconciled by the next mission, as for earlier closeouts. `GET /candidates/{id}/readiness` and `POST /candidates/{id}/unsigned-exports` stay unrouted (404). Next mission (not started): **TB_P4I_READINESS_ARCHITECTURE_AND_IMPLEMENTATION_FAST_TRACK**.
+
+## 23. P4H closeout — merge reconciliation (2026-09-29, home PC)
+
+Mission TB_P4I_READINESS_AND_UNSIGNED_EXPORT_FAST_TRACK (operator, 2026-09-29), first task, recorded on `feature/p4i-readiness-unsigned-export` after the merge. This is reconciliation only: nothing P4H implemented or the operator accepted changes, and the independent review stays deferred. Sections 1–22 keep the state at their time (for example "reported with the mission's final report" in §18 and §22).
+
+### 23.1 Merge reconciliation (verified with `git` and authenticated `gh`, not assumed)
+
+| Item | Observed value |
+|---|---|
+| `P4H_CODE_HEAD` | `1eff3f3dd653589e1201bd0bf4f0ee9925d2b3ea` (§17, §18) |
+| `P4H_CLOSEOUT_HEAD` | `6a7fae733dcce7f417f22661f50304052bbd589e` — "docs(p4h): record P4H candidate assessments (self-verified; independent review deferred)" (documentation only). Push run [36513211881](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36513211881), 2026-09-29T02:34:07Z–02:42:33Z, success: "Non-DB checks (cold install)" (job 109229698493) and "Database, seed and smoke (MySQL 8.4.11)" (job 109229698673). Logs read: `contracts:check` "3 generated outputs match the active source"; lint "Found 0 warnings and 0 errors."; Prettier clean; `yarn test` 1636 / 55 files; `yarn test:db` 580 / 15 files; the replay "No pending migrations to apply."; both drift diffs "-- This is an empty migration."; `smoke:local` 67, `smoke:auth` 4, `smoke:directory` 14, `smoke:p3a` 24, `smoke:p3b` 36, `smoke:p4a` 50, `smoke:p4b` 64, `smoke:p4c` 62, `smoke:p4d` 86, `smoke:p4e` 82, `smoke:p4f` 89, `smoke:p4g` 145, `smoke:p4h` 151; `yarn dev` shutdown "PASS (4/4 scenarios)"; no error annotation in either job |
+| Pull request | [#12](https://github.com/TuongChris/tb-notice-production-system/pull/12) `feature/p4h-candidate-assessment` → `main`, "P4H: Candidate assessment capture and historical support read-back", opened 2026-09-29T02:43:52Z. `headRefOid` = `6a7fae7` (9 commits). pull_request run [36513959839](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36513959839), 2026-09-29T02:43:55Z–02:55:00Z, success: "Non-DB checks (cold install)" (job 109232025136) and "Database, seed and smoke (MySQL 8.4.11)" (job 109232024963), with the same results as the push run (`yarn test` 1636 / 55, `yarn test:db` 580 / 15, every compiled smoke with the same totals, lint 0 warnings) |
+| `P4H_MERGE_METHOD` | **merge commit** — not squash, not rebase, no bypass of checks, branch not deleted. `19a7cb2` has two parents, `20367b9` (previous `main`) and `6a7fae7`. Message "Merge pull request #12 from TuongChris/feature/p4h-candidate-assessment", committed by GitHub, merged 2026-09-29T02:56:10Z by the repository owner's authenticated account |
+| `P4H_MERGED_MAIN_HEAD` | `19a7cb2ee2ce4e88d89e9dedfa286eecdac39b0e` |
+| Ancestry / content | `git merge-base --is-ancestor 6a7fae7 origin/main` → exit 0, and likewise for `1eff3f3`. The previous `main` `20367b9` is an ancestor of `6a7fae7` (the branch started at `5afd2ec`, which descends from it), so the merge introduced nothing else: the trees of `19a7cb2` and `6a7fae7` are identical (`455f0ef7f8b496ee0c18e80edd0ca8f12896c839`; `git diff 6a7fae7 19a7cb2` empty), and `git log 6a7fae7..origin/main` lists only the merge commit |
+| `MAIN_POST_P4H_CI` | **PASS** — push run [36514894511](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36514894511) on `19a7cb2`, 2026-09-29T02:56:13Z–03:17:11Z: "Non-DB checks (cold install)" (job 109234880555) and "Database, seed and smoke (MySQL 8.4.11)" (job 109234880295) both success. Logs read, not only the status: `reference:check` OK (`MANIFEST.sha256` `42c2a419…` matches the pin); the 27 helper tests (27 pass, 0 fail); `contracts:check` OK (3 generated outputs match the active source); lint "Found 0 warnings and 0 errors."; Prettier clean; `yarn test` 1636 / 55 files; the build; `db:verify test --expect-empty` (foreign keys 125/125, CHECK constraints 30/30, domain rows 0); `yarn test:db` 580 / 15 files; the replay's second deploy "No pending migrations to apply."; the seed's canonical digest `0ee26dc3…b775` each time; both drift diffs "-- This is an empty migration."; `smoke:local` 67, `smoke:auth` 4, `smoke:directory` 14, `smoke:p3a` 24, `smoke:p3b` 36, `smoke:p4a` 50, `smoke:p4b` 64, `smoke:p4c` 62, `smoke:p4d` 86, `smoke:p4e` 82, `smoke:p4f` 89, `smoke:p4g` 145, `smoke:p4h` 151; the P1.1 recovery commands; `yarn dev` shutdown "PASS (4/4 scenarios)"; the final reference and working-tree checks; no error annotation in either job. The run took about 21 minutes (the two branch runs about 8 and 11): its `yarn test:db` step took about 16.5 minutes (02:57:42Z–03:14:12Z) against about 5.5 and 7 in the branch runs, with the same 580 passing tests |
+
+### 23.2 History preserved
+
+Nothing was amended, rebased, rewritten or force-pushed, and no tag or release was created. `feature/p4h-candidate-assessment` stays at `6a7fae7` (local and origin); every earlier phase branch is unchanged. The operator's safety stash (`stash@{0}`, §20) is kept, untouched. The local `main` was fast-forwarded to `19a7cb2` (no commit made on it), and `feature/p4i-readiness-unsigned-export` was created from exactly that commit.
+
+### 23.3 Status
+
+| Scope | Status |
+|---|---|
+| P4H_STATUS | **IMPLEMENTED_SELF_VERIFIED, MERGED_TO_MAIN** — self-verified engineering implementation; the independent Astra review stays **DEFERRED BY OPERATOR** (to the final whole-system audit); nothing is independently verified |
+| P4H_MERGE | **MERGED_TO_MAIN** — pull request #12, merge commit `19a7cb2` (method: merge commit, merged 2026-09-29T02:56:10Z) |
+| `MAIN_POST_P4H_CI` | **PASS** — `main` push CI run 36514894511, both jobs success, logs read |
+| Active contract | **TB-SCHEMA-API-v1.4.0** on `main` (ADR-0009 ACCEPTED_BY_OPERATOR · INDEPENDENT_REVIEW_DEFERRED; 291 schemas, 145 operations, 100 paths; frozen historical reference TB-SCHEMA-API-v1.0.0; PFC wire id `PFC-YT-EMAIL-v1.1`) |
+| Active engineering identifiers | `TB-PRODUCTION-CONTEXT-DIGEST-v2`, `TB-TECHNICAL-RULESET-v3` (ADR-0010), `TB-PROMPT-TEMPLATE-v1`, `TB-CANDIDATE-ARTIFACT-v1` |
+| R14-AUD-005 / -006 | **IMPLEMENTED_SELF_VERIFIED · INDEPENDENT_REVIEW_DEFERRED** |
+| CandidateAssessment | **IMPLEMENTED_FOR_CAPTURE_AND_HISTORY** |
+| Database / dependencies | **No change** — `20260923103912_initial_schema` is still the only migration; lockfile unchanged |
+| Readiness / unsigned export | Unrouted on `main` at `19a7cb2` (404); implemented next by mission TB_P4I_READINESS_AND_UNSIGNED_EXPORT_FAST_TRACK on `feature/p4i-readiness-unsigned-export` (`docs/verification/p4i/`) |
+| External action | **NONE**; real case data **0** |
+
+## 24. Later cross-reference — P4I (2026-09-29)
+
+Recorded by mission TB_P4I_READINESS_AND_UNSIGNED_EXPORT_FAST_TRACK (`docs/verification/p4i/P4I_READINESS_UNSIGNED_EXPORT.md`); §1–§23 are unchanged.
+
+- Readiness and the unsigned export, unrouted at P4H, are routed by P4I under ADR-0011. Readiness evaluates the recorded assessments at the current epoch (per gate the heads of its chains, never the latest PASS) and changes none of them; an assessment still decides nothing by being recorded.
+- The P4H backlog item on CaseFact `meta.affectedResources` (102 entries for 100 supports) is remediated there (§9: the affected roots only — the CaseFact and the CaseRecord).
+- The `.table-frame` observation is closed where the readiness and assessment tables are touched: the assessment section's two table scrollers are focusable named regions. Other pages' scrollers are unchanged.
+- W-2, W-3, O-1 and O-3 stay backlog; D-6 (no waiver) stays deferred and READY_FOR_SIGNER never waives a technical issue.

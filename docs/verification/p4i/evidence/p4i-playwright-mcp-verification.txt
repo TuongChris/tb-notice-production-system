@@ -1,0 +1,167 @@
+P4I readiness and unsigned export — Playwright MCP browser verification (mission
+TB_P4I_READINESS_AND_UNSIGNED_EXPORT_FAST_TRACK, §60), home PC, 2026-09-29 06:14–06:29 UTC
+====================================================================================================================
+
+Target and isolation
+- `yarn ui:sandbox --password-file <scratchpad file outside the repository>` ran the COMPILED API on the disposable
+  `tb_notice_test` schema plus the built web app (`vite preview`) on http://localhost:5173 (proxying /api). Two runs:
+  - run 1 (06:05–06:26 UTC) built from the committed head 22fbd19 (the working tree differed only by the untracked
+    docs/verification/p4i/ drafts): web chunks `index-BzDFnS5i.js` 332.70 kB, `candidates-B4yJCsbC.js` 100.87 kB
+    (the candidate, validation, assessment and readiness pages; `@tb/contracts` imported for types only),
+    `index-CLlS2Rit.css` 21.36 kB;
+  - run 2 (06:27–06:28 UTC) built from c6d2173 (the fix of finding UI-P4I-01 below): `index-Cjix4t4n.js` 332.70 kB,
+    `candidates-CkOgHgvK.js` 100.88 kB, the same CSS.
+  - No Zod runtime marker (ZodError, _zod, $ZodType, z.object) in any served chunk.
+- The sandbox ran under the R14-AUD-004 ownership guard: each start verified the empty schema itself (its cleanup was
+  armed only then); each stop printed "sandbox rows deleted; tb_notice_test is empty again". Afterwards
+  `yarn db:verify test --expect-empty` PASS (domain rows total 0); ports 3000 and 5173 free.
+- The synthetic sandbox user was p2-ui-sandbox@example.invalid. Its generated password was typed into the isolated
+  browser's login form only, and the password file was deleted after the session. No password, cookie or CSRF token
+  is recorded here (the scripted requests below read the CSRF token from the session inside the page and return only
+  statuses and selected response fields).
+- Browser: the Playwright MCP isolated headless Chromium profile (no personal profile, no real login session),
+  1280×900 unless noted.
+- Never `tb_notice_dev`, never the operator's `yarn dev`, never real case, owner, authority, review or draft data;
+  every address is @example.invalid. No AI provider, mailbox, Drive or platform was contacted: every request of the
+  browser went to http://localhost:5173/ (a filter for any other origin returned nothing).
+
+Prerequisites (a scratchpad script, not committed; seeded through the compiled API with the sandbox user, one "world"
+per seed)
+- Agency "SYNTHETIC Agency P4I-B" with its canonical-record source; owner "SYNTHETIC Brand P4I-X" linked to
+  "SYNTHETIC Subject P4I-A LLC" (route R); signer "SYNTHETIC Signer P4I Person"; a mandate whose version 1
+  (SIGNED_APPEARING, primary source = the agency record) has one coverage of R recording the signer, then FROZEN.
+- Case "SYNTHETIC Case P4I-A" bound to R; a selection of that coverage (INITIAL, intended From
+  synthetic-p4i-sender@example.invalid); one reported item, one work, one mapping (basis: a mapping-basis source) and
+  one LINKED licence source (role SYNTHETIC_LICENCE).
+- The production context read (INITIAL, DRAFTING, the selection) → one DRAFTING prompt (version 1) → one candidate:
+  subject "SYNTHETIC notice subject P4I — café", To synthetic-p4i-platform@example.invalid, Reply-To
+  synthetic-p4i-reply@example.invalid, no prepared documents, body with two trailing spaces before a CRLF, an NFC and
+  an NFD "café", an emoji and the pending slot once:
+  artifact 033188df27adf463c8a2c46940e96a6147d298b3c794cb146918b264885296cd,
+  body SHA-256 d15339f70e159ec0b91414238c6b650d5e1cdb045d447366c9a037b6a431ac1b (the same content in every world).
+- One technical validation run at the context's digest (TECHNICAL_PASS, TB-TECHNICAL-RULESET-v3) and six PASS
+  assessments G1–G6 at that exact epoch: HUMAN "SYNTHETIC Reviewer P4I G<n>", OPERATOR_REPORTED,
+  SCOPE_CONFIRMED_FOR_CANDIDATE, rationale and scope text, `assessedAt` = the capture instant, the licence link cited.
+- "mutate" = one CURRENTNESS_RECORDED authority event (OPERATOR_REPORTED, the agency record cited) on the world's
+  pinned mandate: a recorded input of the context changes, so the dependency digest moves.
+- World 1 (run 1): case 4643a1c8-d3c4-45c8-a5ae-cd82cd6beb2b, candidate ee5b6d75-01bf-432e-999b-b110169fa39c,
+  prompt a2d3a1a9-42d7-4500-a952-4a2c23d7f1d0, run 25750a84-addf-420e-be08-35c0ac01e4a3, digest
+  D1 = ad3a4ab2b84f0c156b14ab6d9e79e229731182897cba6c9f971e4c5cc230d5dc, heads G1 d553b56b-…, G2 2589149f-…,
+  G3 af871178-…, G4 bf435d9e-…, G5 82935b8d-…, G6 22bbe554-…; mandate ace6f177-62e8-4f69-9bc0-36201376ecdf.
+- World 2 (run 1): case c5a30600-8400-402e-85df-8860e9db10ed, candidate 258729f5-c5f6-4c80-b8fa-78b962209359,
+  run 3938d371-f62c-48df-8058-10f16d9b4b05, digest D2 = d8e23d61cbbf26903373a769179c20fc01b8afc97b17defb496325662be1367f.
+- World 3 (run 2): case b87b4d0b-35c0-4dac-aab5-61680370b117, candidate 692aa59d-e0be-4224-b8fb-acde9720e84b,
+  run 6b497bd6-1ce3-495b-9044-b98e8dab1bfb, digest D3 = 6fec12f45146c71ee788b6ff92c0acf8864105b26b092eb3875d86b9b7a4d7cd.
+
+Scenarios and results (the 15 checks of §60 plus supplementary checks; screenshots in evidence/screenshots/p4i-*.png)
+ 1. DRAFTING candidate — PASS (world 1). The candidate page names its prompt "Initial notice · prompt version 1
+    (Drafting)"; "Signature state HUMAN_PENDING"; "This is an unsigned draft artifact. It is not approved, signed,
+    ready, or sent."
+ 2. Current TECHNICAL_PASS v3 run — PASS. The run history lists "TECHNICAL PASS · Sep 29, 2026, 1:15 PM ·
+    TB-TECHNICAL-RULESET-v3 · 0 blockers, 0 review required, 0 warnings".
+ 3. G1–G6 exact current PASS — PASS. The G1–G6 review record lists six PASS reviews (G6 … G1, newest first), every one
+    at dependency digest D1.
+    - On page load no readiness request was sent (the page's API requests: session, health, case, candidate, runs,
+      assessments, prompt); the section showed "Not evaluated yet. Readiness is read from the server only when you
+      ask; this page infers nothing.", the three permanent qualifiers verbatim and one action, "Evaluate current
+      readiness".
+ 4. READY_FOR_SIGNER shown — PASS. [01] "Evaluate current readiness" → one GET /candidates/ee5b6d75-…/readiness (200);
+    focus on the outcome; heading "Current readiness: Ready for authorized human signer review"; Derived status
+    READY_FOR_SIGNER; the artifact SHA-256, "Current dependency digest" D1, TB-TECHNICAL-RULESET-v3, the evaluation
+    instant, Signature state HUMAN_PENDING, External action PROHIBITED; "Technical validation" apart (qualifier
+    "Technical checks only. …", counted run result TECHNICAL PASS, counted run 25750a84-…) from the six gate summaries
+    ("G1 — authority and standing: PASS — a current confirmed review counts for this epoch", "Counted review: d553b56b-…",
+    …); no reason list; neutral treatment (no success colour or approval badge).
+ 5. Human/G7 qualifier — PASS. Beside the READY status: "This candidate remains unsigned and unsent. An authorized
+    human must review, adopt, sign and send outside this application." and "Human review/adoption/signature/send are
+    still required outside the application."; the qualifiers "Derived from current captured records.", "Not G7, not a
+    signature, and not a send action.", "Source changes not captured by this system cannot be detected here." The
+    only new action: "Prepare unsigned handoff", with its meaning below it.
+ 6. Unsigned handoff succeeds — PASS. [02] "Prepare unsigned handoff" → one POST /candidates/ee5b6d75-…/unsigned-exports
+    (200); focus on the handoff outcome "Unsigned handoff prepared" with the stamps UNSIGNED and NOT SENT and the
+    boundary "Unsigned handoff text, exactly as stored. Nothing was signed, adopted or sent, and nothing is recorded
+    as sent: …"; From, To, Reply-To, "Reply thread (parent binding) None", Signature state HUMAN_PENDING, the prepared
+    instant, the subject and body as plain text, both hashes, and "Readiness evaluated for this handoff" (status,
+    digest D1, ruleset, counted run, the six counted reviews, evaluated instant). The prepare action disappears; the
+    section offers "Evaluate current readiness" and "Copy body text" only.
+ 7. Body keeps the pending slot — PASS. The body is a `<pre>` (tabindex 0, aria-label "Unsigned body"); the SHA-256 of
+    its displayed text computed in the page equals the stored body SHA-256 d15339f7…1ac1b (byte-exact: CRLF, trailing
+    spaces, NFD, emoji kept); the slot "[PENDING AUTHORIZED SIGNER — FULL LEGAL NAME REQUIRED]" occurs exactly once.
+ 8. sendPerformed false — PASS. "Send performed: No — nothing was sent"; the scripted export (S1 below) returned
+    `sendPerformed: false`, `signatureState: HUMAN_PENDING`, `meta.affectedResources: []`, `Cache-Control: no-store`.
+ 9. Mutate context — PASS. After S1, "mutate" recorded event 23b568c3-6742-42f1-8c37-ee2e3e46bb22 on world 1's mandate.
+10. Readiness stale/non-ready — PASS. [03] "Evaluate current readiness" → "Current readiness: Stale: revalidation
+    required" (STALE_REVALIDATION_REQUIRED), "Current dependency digest"
+    11c1fef14d3b5770dd61a30fca73df05249dbcdd345b6a7686371d2acbc6b9c2, counted run "None counted"; reasons
+    VALIDATION_STALE, G1_UNASSESSED … G6_UNASSESSED, ASSESSMENT_STALE, each with its neutral copy; every gate
+    UNASSESSED with GATE_UNASSESSED and ASSESSMENT_STALE; the handoff shown before was cleared and no prepare action is
+    offered.
+11. Old export replay cannot release the body — PASS (scripted in the page, S1's key and request). The same
+    Idempotency-Key with the same body → 412 CONTEXT_CHANGED {field: expectedDependencyDigest}; the response is
+    `{error}` only — it contains neither the body, the slot, the subject nor a recipient address. A fresh key with the
+    old expectations → the same 412. GET readiness at that moment: STALE_REVALIDATION_REQUIRED, digest 11c1fef1….
+12. History remains — PASS. After a reload: the candidate still HUMAN_PENDING with artifact 033188df…96cd, its
+    TECHNICAL PASS run still listed, the six PASS reviews still listed at digest D1 (nothing deleted, re-pointed or
+    relabelled); the readiness section back to "Not evaluated yet" (nothing remembered).
+13. No Sign/Send/G7 action — PASS. The page's controls: Skip to content, Sign out (the application session), the
+    navigation, the case and candidate links, "Read the current context" ×2, "Open run", "Show recorded supports" ×6,
+    "Evaluate current readiness", "Supersede this draft artifact", "Import a revision of this candidate", "Back to
+    the candidates of this case" — no sign, send, adopt, approve, submit, retract, email or G7 action; READY_FOR_SIGNER
+    appears nowhere until an evaluation derives it.
+14. 390 px — PASS. At 390×844: the stale evaluation of world 1 [04] and the prepared handoff of world 2 [05] —
+    `scrollWidth` = `clientWidth` = 390 (no horizontal page scroll), no element of the section beyond the viewport, no
+    internal scroller needed; reason codes, hashes, addresses and the body wrap in place.
+15. Keyboard/focus — PASS (world 2). Focus placed (by page script) on the last control before the section, the sixth
+    "Show recorded supports"; from there keys only:
+    - Tab → "Evaluate current readiness" (:focus-visible, 2 px solid outline) → Enter → focus on the readiness outcome
+      (READY_FOR_SIGNER);
+    - Tab → "Evaluate current readiness" → Tab → "Prepare unsigned handoff" (:focus-visible) → Enter → focus on the
+      handoff outcome ("Unsigned handoff prepared");
+    - Tab → the body `<pre>` "Unsigned body" (:focus-visible) → Tab → "Copy body text" (:focus-visible). The copy was
+      not activated: it would write to this computer's clipboard (covered by tests/web/p4i.test.tsx).
+
+Supplementary checks
+S1. Same-key export while READY (world 1, scripted in the page after step 8): POST with Idempotency-Key
+    p4i-browser-step11-replay-key-0001 and exactly D1, the artifact and run 25750a84-… → 200 READY_FOR_SIGNER, slot
+    once, exportedAt 2026-09-29T06:19:27.799Z; the same key again → 200 with the same exportedAt (the historical
+    response, released only after the server evaluated READY again for the same artifact, digest and run).
+S2. Refused handoff in the page (world 2): evaluated READY, then "mutate" (event 4a0c0438-b26f-4beb-9e98-b9b5a9454b49),
+    then "Prepare unsigned handoff" without a new evaluation → POST 412; the page showed exactly "Context changed.
+    Evaluate the current readiness before preparing the handoff again." and "No unsigned handoff was prepared."
+    (role alert, focus on the handoff outcome), no retry, only "Evaluate current readiness" offered. [06]
+    - FINDING UI-P4I-01 (MEDIUM; own review; FIXED): the outdated evaluation stayed on screen as "Current readiness:
+      Ready for authorized human signer review" with its "Current dependency digest" D2, only annotated "Changed since
+      this evaluation: …" — after the server had refused because that evaluation was no longer current (the P4G rule:
+      an earlier digest is never shown as current). Fix c6d2173: after a refused handoff the evaluation is replaced by
+      "The earlier evaluation is no longer current, so it is not shown. Evaluate the current readiness again."; the
+      web tests assert that no status, digest or READY wording remains (negative control: the old rendering fails both
+      refusal tests on that assertion; file restored byte-identically).
+    - Re-verified in run 2 (world 3): READY → "mutate" (event 855e2ed7-1610-452f-a40b-df432a25ff95) → "Prepare
+      unsigned handoff" → 412; the section shows the neutral note, the exact refusal and "Evaluate current readiness"
+      only — no "Current readiness", READY label or digest D3. [07] A new evaluation → STALE_REVALIDATION_REQUIRED with
+      digest 03432c6d091d55ddebd73de7c80cd3811619694c3b13f4a782cbbe387b2a9006, note and refusal cleared, focus on the
+      outcome.
+S3. What the exports wrote (read-only queries on tb_notice_test with the tooling account, before run 1 stopped):
+    exactly 3 audit events EXPORT_UNSIGNED — two for world 1 (the page's handoff, S1's first request), one for world 2
+    (the keyboard handoff) — each on its NoticeCandidate with `sendPerformed` false, `externalAction` PROHIBITED,
+    `signatureState` HUMAN_PENDING; exactly 3 idempotency records of exportUnsignedCandidate, all COMPLETED. The
+    replay and the four refusals wrote nothing. No table named like export, readiness, signature or send exists; no
+    audit action names a signature, send, adoption or G7 (the only matches of such a pattern are the directory events
+    SIGNER_CREATED and COVERAGE_SIGNER_CREATED of the seeded Signer record).
+S4. Console: only the expected errors — the 401 of GET /auth/session before each login and the deliberate 412s of
+    unsigned-exports; no warning.
+
+Cleanup
+- Both sandbox runs stopped with SIGINT (TaskStop); each printed "sandbox rows deleted; tb_notice_test is empty
+  again". `yarn db:verify test --expect-empty` → PASS, domain rows total 0; ports 3000/5173 free; the password file
+  deleted; the browser closed. The repository's working tree held only this evidence (screenshots saved under
+  evidence/screenshots/).
+
+Screenshots
+  p4i-01-ready-for-signer.png              step 4–5, world 1, READY_FOR_SIGNER with its qualifiers
+  p4i-02-unsigned-handoff.png              steps 6–8, the handoff (UNSIGNED, NOT SENT, exact body, hashes)
+  p4i-03-stale-after-context-change.png    step 10, STALE_REVALIDATION_REQUIRED after the context change
+  p4i-04-stale-390px.png                   step 14, the stale evaluation at 390 px
+  p4i-05-handoff-390px.png                 step 14, the handoff at 390 px (world 2)
+  p4i-06-handoff-refused-context-changed.png  S2 before the fix (finding UI-P4I-01)
+  p4i-07-handoff-refused-after-fix.png     S2 after the fix c6d2173 (world 3)

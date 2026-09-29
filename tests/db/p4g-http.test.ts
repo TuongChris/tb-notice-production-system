@@ -3051,7 +3051,7 @@ describe('P4G boundaries — no outbound call, no later phase, no mutation of a 
     ).toEqual([]);
   });
 
-  it('no run is updated or deleted by id (its read is getValidationRun), and readiness, unsigned export, signing and sending stay unrouted; P4G writes no later-phase record', async () => {
+  it('no run is updated or deleted by id (its read is getValidationRun), and signing and sending stay unrouted; P4G writes no later-phase record', async () => {
     const p = await validationWorld();
     const { run } = await validate(p.candidate, p.prompt);
     const before = await suiteDump();
@@ -3063,9 +3063,8 @@ describe('P4G boundaries — no outbound call, no later phase, no mutation of a 
       ['POST', `/validation-runs/${run.id}/issues`],
       ['PATCH', `/candidates/${p.candidate.id}/validation-runs`],
       ['DELETE', `/candidates/${p.candidate.id}/validation-runs`],
-      // Candidate assessments are routed since P4H (tests/db/p4h-http.test.ts); P4G records none.
-      ['GET', `/candidates/${p.candidate.id}/readiness`],
-      ['POST', `/candidates/${p.candidate.id}/unsigned-exports`],
+      // Candidate assessments are routed since P4H (tests/db/p4h-http.test.ts) and readiness and
+      // the unsigned export since P4I (tests/db/p4i-http.test.ts); P4G records none of them.
       ['POST', `/candidates/${p.candidate.id}/approve`],
       ['POST', `/candidates/${p.candidate.id}/sign`],
       ['POST', `/candidates/${p.candidate.id}/send`],

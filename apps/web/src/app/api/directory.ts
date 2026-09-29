@@ -23,7 +23,10 @@
 // assessments (P4H): one recorded G1–G6 review of one exact candidate artifact at one evaluation
 // epoch, immutable (no ETag); its support rows are read back exactly as stored with
 // getCandidateAssessmentSources (TB-SCHEMA-API-v1.4.0, ADR-0009). An assessment is never readiness,
-// READY_FOR_SIGNER, G7, a signature or permission to send.
+// READY_FOR_SIGNER, G7, a signature or permission to send. Readiness (P4I, ADR-0011): derived by the
+// server from the current captured records on every read and never stored; READY_FOR_SIGNER means
+// only "ready for authorized human signer review". The unsigned export hands over the stored text of
+// a candidate that is ready now: it signs, adopts, sends and records as sent nothing.
 import type {
   Agency,
   ArchiveRequest,
@@ -66,6 +69,7 @@ import type {
   CreateSigner,
   CreateSource,
   CreateUseMapping,
+  ExportUnsigned,
   GeneratePrompt,
   LegalSubject,
   LinkCaseSource,
@@ -92,6 +96,7 @@ import type {
   PatchUseMapping,
   PromptSnapshot,
   PromptSnapshotSummary,
+  Readiness,
   RecordStateRequest,
   ReportedItem,
   ReviseCandidate,
@@ -103,6 +108,7 @@ import type {
   SignerStateRequest,
   SourceReference,
   SourceReferenceSummary,
+  UnsignedExport,
   UseMapping,
   ValidateCandidate,
   ValidationIssue,
@@ -817,6 +823,29 @@ export function createCasesApi(api: ApiClient) {
             await api.request<CandidateAssessmentSourcesView>(
               'GET',
               `/api/v1/candidates/${candidateId}/assessments/${id}/sources`,
+            )
+          ).data,
+      },
+      /**
+       * Readiness (P4I): derived now from the current captured records — never stored, never G7, a
+       * signature or permission to send — and the unsigned handoff of a candidate that is ready now.
+       */
+      readiness: {
+        /** The current readiness (getCandidateReadiness): a read that writes nothing. No ETag. */
+        get: async (candidateId: string) =>
+          (await api.request<Readiness>('GET', `/api/v1/candidates/${candidateId}/readiness`)).data,
+        /**
+         * The unsigned handoff (exportUnsignedCandidate; no If-Match is contracted): the artifact,
+         * digest and run of the readiness read are the precondition, and the server evaluates the
+         * readiness again. A 412 means one of them changed; a 409 that the candidate is not ready
+         * now. Nothing is signed, sent or recorded as sent.
+         */
+        exportUnsigned: async (candidateId: string, body: ExportUnsigned, auth: WriteAuth) =>
+          (
+            await api.request<UnsignedExport>(
+              'POST',
+              `/api/v1/candidates/${candidateId}/unsigned-exports`,
+              { body, ...writeHeaders(auth) },
             )
           ).data,
       },

@@ -343,6 +343,92 @@ describe('WriteExecutor', () => {
     expect(reply).toMatchObject({ status: 200, replayed: false });
   });
 
+  describe('guardedReplay (exportUnsignedCandidate; ADR-0011 Decision 17)', () => {
+    const CANDIDATE = '0b7c3f58-2f5e-4a51-9d0e-5c1f0f4f6a21';
+    const exportCommand = (requestId = 'request-1'): WriteCommand => ({
+      operationId: 'exportUnsignedCandidate',
+      pathParams: { candidateId: CANDIDATE },
+      body: { format: 'PLAIN_TEXT' },
+      requester: requester({ requestId, ifMatch: undefined }),
+    });
+    const released = { candidateId: CANDIDATE, bodyText: 'SYNTHETIC body', kept: 'K' };
+    async function exportWork(context: WriteContext): Promise<WriteOutcome> {
+      await context.audit({
+        action: 'EXPORT_UNSIGNED',
+        entityType: 'NoticeCandidate',
+        entityId: CANDIDATE,
+      });
+      return {
+        status: 200,
+        resource: { type: 'NoticeCandidate', id: CANDIDATE },
+        data: released,
+        affected: [],
+      };
+    }
+
+    it('keeps only what `keep` selects (never the released content) and sends no ETag', async () => {
+      const { db, executor } = setup();
+      const reply = await executor.execute(exportCommand(), exportWork, {
+        guardedReplay: {
+          keep: (data) => ({ kept: (data as typeof released).kept }),
+          release: async () => released,
+        },
+      });
+      expect(reply).toEqual({
+        status: 200,
+        body: { data: released, meta: { requestId: 'request-1', affectedResources: [] } },
+        replayed: false,
+      });
+      expect(db.rows[0]?.responseJson).toEqual({
+        meta: { requestId: 'request-1', affectedResources: [] },
+        kept: { kept: 'K' },
+      });
+      expect(JSON.stringify(db.rows[0]?.responseJson)).not.toContain('SYNTHETIC body');
+    });
+
+    it('every replay rechecks through `release` (with the kept values and the instant) outside any write; a refusal releases nothing and stays repeatable', async () => {
+      const { db, audit, executor } = setup();
+      const calls: Array<{ kept: unknown; now: Date }> = [];
+      let ready = true;
+      const refusal = new ApiError(409, 'CANDIDATE_NOT_READY', 'not ready', { status: 'BLOCKED' });
+      const options = {
+        guardedReplay: {
+          keep: () => ({ kept: 'K' }),
+          release: async (kept: unknown, now: Date) => {
+            calls.push({ kept, now });
+            if (!ready) throw refusal;
+            return released;
+          },
+        },
+      };
+      await executor.execute(exportCommand(), exportWork, options);
+      const replay = await executor.execute(exportCommand('request-2'), exportWork, options);
+      expect(replay).toEqual({
+        status: 200,
+        body: { data: released, meta: { requestId: 'request-2', affectedResources: [] } },
+        replayed: true,
+      });
+      ready = false;
+      expect(
+        await rejection(executor.execute(exportCommand('request-3'), exportWork, options)),
+      ).toBe(refusal);
+      ready = true;
+      const again = await executor.execute(exportCommand('request-4'), exportWork, options);
+      expect(again.replayed).toBe(true);
+      expect(calls).toEqual([
+        { kept: { kept: 'K' }, now: NOW },
+        { kept: { kept: 'K' }, now: NOW },
+        { kept: { kept: 'K' }, now: NOW },
+      ]);
+      // Only the original request ran a transaction and wrote an audit event; the record stays.
+      expect(db.transactions).toBe(1);
+      expect(audit.entries).toHaveLength(1);
+      expect(db.rows).toEqual([
+        expect.objectContaining({ state: 'COMPLETED', responseStatus: 200 }),
+      ]);
+    });
+  });
+
   it('refuses operations that are not idempotent writes in the contract', async () => {
     const { executor } = setup();
     await expect(

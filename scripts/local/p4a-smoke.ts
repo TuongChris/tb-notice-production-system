@@ -647,10 +647,11 @@ async function main(): Promise<void> {
     fail('no case record may upgrade a source provenance');
   }
   pass('the source provenance is unchanged by link, canonical binding and selection');
+  // Readiness and the unsigned export are routed since P4I (smoke:p4i); nothing is ever sent.
   await call(
-    'POST /candidates/{id}/unsigned-exports (later phase, not routed)',
+    'POST /candidates/{id}/send (not routed; nothing is sent)',
     'POST',
-    `/candidates/${randomUUID()}/unsigned-exports`,
+    `/candidates/${randomUUID()}/send`,
     404,
     null,
     { body: {} },

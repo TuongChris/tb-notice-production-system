@@ -18,8 +18,8 @@
 //   expected refusals: another case's item and fact supports through this case (404), a mapping
 //   with another case's work (422 CROSS_CASE_REFERENCE), a non-video address (422
 //   REPORTED_URL_UNSUPPORTED), a stale ETag (412), a revision of the old head (409
-//   REVISION_NOT_HEAD) → no readiness, G1–G7 or production route or field exists (404 / no such
-//   keys) → logout. Nothing here is an infringement, ownership, permission or
+//   REVISION_NOT_HEAD) → no case readiness, G1–G7, sending or production route or field exists
+//   (404 / no such keys) → logout. Nothing here is an infringement, ownership, permission or
 //   exception finding, readiness, a notice, a signature or an external action.
 import { spawn, type ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
@@ -673,17 +673,14 @@ async function main(): Promise<void> {
   );
   if (oldHead.code !== 'REVISION_NOT_HEAD') fail('only the head of a fact chain can be revised');
 
-  // No readiness, G1–G7, export or production write route exists (correspondence is routed since
-  // P4C and has its own smoke, smoke:p4c; the GET-only production context since P4D, smoke:p4d;
-  // prompts since P4E, smoke:p4e; candidate assessments since P4H, smoke:p4h).
+  // No case readiness, G1–G7, sending or production write route exists (correspondence is routed
+  // since P4C and has its own smoke, smoke:p4c; the GET-only production context since P4D,
+  // smoke:p4d; prompts since P4E, smoke:p4e; candidate assessments since P4H, smoke:p4h; a
+  // candidate's readiness and unsigned export since P4I, smoke:p4i).
   for (const [label, method, suffix] of [
     ['GET /cases/{caseId}/readiness', 'GET', `/cases/${caseId}/readiness`],
     ['POST /cases/{caseId}/production-context', 'POST', `/cases/${caseId}/production-context`],
-    [
-      'POST /candidates/{id}/unsigned-exports',
-      'POST',
-      `/candidates/${randomUUID()}/unsigned-exports`,
-    ],
+    ['POST /candidates/{id}/send', 'POST', `/candidates/${randomUUID()}/send`],
     ['POST /cases/{caseId}/g1', 'POST', `/cases/${caseId}/g1`],
   ] as const) {
     const refused = await call(

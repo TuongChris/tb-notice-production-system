@@ -2052,7 +2052,7 @@ describe('UNTRUSTED CONTENT, NO OUTBOUND CALL, LATER PHASES', () => {
     ).toEqual([]);
   });
 
-  it('readiness, unsigned export, signing, sending and any candidate update or delete stay unrouted; P4F creates no later-phase record', async () => {
+  it('signing, sending and any candidate update or delete stay unrouted; P4F creates no later-phase record', async () => {
     const p = await promptWorld();
     const c = await importCandidate(p.caseId, draft(p.prompt));
     const before = await suiteDump();
@@ -2065,10 +2065,10 @@ describe('UNTRUSTED CONTENT, NO OUTBOUND CALL, LATER PHASES', () => {
       ['POST', `/candidates/${c.id}/sign`],
       ['POST', `/candidates/${c.id}/send`],
       ['POST', `/candidates/${c.id}/retract`],
-      // Technical validation is routed since P4G (tests/db/p4g-http.test.ts) and candidate
-      // assessments since P4H (tests/db/p4h-http.test.ts); P4F records neither.
-      ['GET', `/candidates/${c.id}/readiness`],
-      ['POST', `/candidates/${c.id}/unsigned-exports`],
+      // Technical validation is routed since P4G (tests/db/p4g-http.test.ts), candidate
+      // assessments since P4H (tests/db/p4h-http.test.ts) and readiness and the unsigned export
+      // since P4I (tests/db/p4i-http.test.ts); P4F records none of them.
+      ['POST', `/candidates/${c.id}/adopt`],
       ['POST', `/cases/${p.caseId}/send`],
     ];
     for (const [method, target] of paths) {

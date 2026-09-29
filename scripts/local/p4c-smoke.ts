@@ -20,7 +20,7 @@
 //   expected refusals: an OUTCOME without an item (422 OUTCOME_ITEM_REQUIRED), agency B's message
 //   in A's case (422 CROSS_AGENCY_REFERENCE), another case's item (422 CROSS_CASE_REFERENCE), a
 //   stale case ETag (412), RAW_SOURCE without a raw source (422 CAPTURE_POSTURE_UNSUPPORTED) → no
-//   send, reply, update, delete, readiness or production route exists (404) and no response
+//   send, reply, update, delete, case readiness or production route exists (404) and no response
 //   carries a transmission-verdict or readiness key → logout. Nothing here sends anything, contacts
 //   anyone, computes readiness or takes an external action.
 import { spawn, type ChildProcess } from 'node:child_process';
@@ -566,9 +566,9 @@ async function main(): Promise<void> {
   }
   pass('refusals wrote nothing: the case moved only with the five recorded bindings');
 
-  // Nothing sends, edits, deletes, exports or computes readiness (the production context is a
-  // GET-only read since P4D, with its own smoke:p4d; candidate assessments are routed since P4H,
-  // smoke:p4h) -------------------------------------------------------------------------------------
+  // Nothing sends, edits or deletes (the production context is a GET-only read since P4D, with its
+  // own smoke:p4d; candidate assessments are routed since P4H, smoke:p4h; a candidate's readiness
+  // and unsigned export since P4I, smoke:p4i) ------------------------------------------------------
   for (const [label, method, suffix] of [
     ['POST /correspondence/{id}/send', 'POST', `/correspondence/${outbound.data.id}/send`],
     ['POST /correspondence/{id}/reply', 'POST', `/correspondence/${nmi.data.id}/reply`],
@@ -576,11 +576,7 @@ async function main(): Promise<void> {
     ['DELETE /correspondence/{id}', 'DELETE', `/correspondence/${nmi.data.id}`],
     ['GET /cases/{caseId}/readiness', 'GET', `/cases/${caseId}/readiness`],
     ['POST /cases/{caseId}/production-context', 'POST', `/cases/${caseId}/production-context`],
-    [
-      'POST /candidates/{id}/unsigned-exports',
-      'POST',
-      `/candidates/${randomUUID()}/unsigned-exports`,
-    ],
+    ['POST /candidates/{id}/send', 'POST', `/candidates/${randomUUID()}/send`],
   ] as const) {
     const refused = await call(
       `${label} (not routed)`,

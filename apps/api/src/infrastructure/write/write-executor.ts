@@ -24,6 +24,12 @@
 // long-lived lock, then rechecks … in a short transaction") runs once for a new claim — never for
 // a replay — after the claim and before the transaction, outside it: its result reaches `work`
 // (every attempt uses the same value), and its failure releases the claim like any other.
+// `guardedReplay` (exportUnsignedCandidate, INVARIANTS §5 "Unsigned export and replay re-evaluate
+// readiness"; API_CONTRACT §7; ADR-0011 Decision 17) is for a write whose response releases content
+// only while a present-day condition holds: the idempotency record keeps the response status, the
+// meta and what `keep` selects of the data — never the released content — and every replay calls
+// `release`, which re-evaluates the present state and either rebuilds the historical response data
+// or throws the present refusal, so a replay releases nothing once the condition is gone.
 import { setTimeout as delay } from 'node:timers/promises';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { AffectedResource } from '@tb/contracts';
@@ -62,6 +68,22 @@ export interface WriteOptions<P = undefined> {
    * failure releases the claim.
    */
   readonly prepare?: (now: Date) => Promise<P>;
+  /**
+   * For a write whose response releases content only while a present-day condition holds (see
+   * above): what the idempotency record keeps, and how a replay rechecks before releasing.
+   */
+  readonly guardedReplay?: GuardedReplay;
+}
+
+/** The recheck of a replay (WriteOptions.guardedReplay). */
+export interface GuardedReplay {
+  /** What the idempotency record keeps of the response data (never the released content). */
+  keep(data: object): Prisma.InputJsonObject;
+  /**
+   * The historical response data rebuilt from what was kept, after re-evaluating the present
+   * state at `now`; throws the present refusal instead (nothing is released then).
+   */
+  release(kept: Prisma.JsonValue | undefined, now: Date): Promise<object>;
 }
 
 /** Who sent the write and the conditional headers they sent (from the authenticated request). */
@@ -115,8 +137,8 @@ export interface WriteOutcome {
   readonly status: 200 | 201 | 204;
   /** The resource the response describes (and whose ETag it carries). */
   readonly resource: { readonly type: string; readonly id: string };
-  /** Response `data`; absent for 204. */
-  readonly data?: WireEntity;
+  /** Response `data` (an entity, or a response object such as an unsigned export); absent for 204. */
+  readonly data?: object;
   readonly affected: readonly AffectedResource[];
 }
 
@@ -171,6 +193,9 @@ export class WriteExecutor {
       now,
     );
     if (claim.kind === 'replay') {
+      if (options.guardedReplay !== undefined) {
+        return replayGuarded(claim, requester.requestId, options.guardedReplay, now);
+      }
       return options.replayRecord === undefined
         ? replay(claim, requester.requestId)
         : replayStoredRecord(claim, requester.requestId, options.replayRecord);
@@ -229,25 +254,17 @@ export class WriteExecutor {
                 };
           await this.idempotency.complete(tx, claim.recordId, {
             status: outcome.status,
-            body:
-              body === undefined
-                ? null
-                : toJsonObject(options.replayRecord === undefined ? body : { meta: body.meta }),
+            body: body === undefined ? null : storedBody(body, outcome.data, options),
             resourceType: outcome.resource.type,
             resourceId: outcome.resource.id,
           });
+          const rowVersion = rowVersionOf(outcome.data);
           return {
             status: outcome.status,
             ...(body === undefined ? {} : { body }),
-            ...(outcome.data?.rowVersion === undefined
+            ...(rowVersion === undefined
               ? {}
-              : {
-                  etag: entityEtag(
-                    outcome.resource.type,
-                    outcome.resource.id,
-                    outcome.data.rowVersion,
-                  ),
-                }),
+              : { etag: entityEtag(outcome.resource.type, outcome.resource.id, rowVersion) }),
             replayed: false,
           };
         }, transactionOptions);
@@ -318,6 +335,50 @@ async function replayStoredRecord(
     body: { data, meta: { requestId, affectedResources } },
     replayed: true,
   };
+}
+
+/**
+ * A replay that releases content only after rechecking the present state (WriteOptions
+ * .guardedReplay): its stored status and meta, and the data `release` rebuilds — or the present
+ * refusal `release` throws, with nothing of the historical response released.
+ */
+async function replayGuarded(
+  claim: Extract<Claim, { kind: 'replay' }>,
+  requestId: string,
+  guard: GuardedReplay,
+  now: Date,
+): Promise<WriteReply> {
+  const stored = claim.body as {
+    meta?: { affectedResources?: unknown };
+    kept?: Prisma.JsonValue;
+  } | null;
+  const data = await guard.release(stored?.kept, now);
+  const affectedResources = Array.isArray(stored?.meta?.affectedResources)
+    ? (stored.meta.affectedResources as AffectedResource[])
+    : [];
+  return {
+    status: claim.status,
+    body: { data, meta: { requestId, affectedResources } },
+    replayed: true,
+  };
+}
+
+/** What the idempotency record keeps of a response (see WriteOptions). */
+function storedBody(
+  body: ResponseBody,
+  data: object | undefined,
+  options: WriteOptions<unknown>,
+): Prisma.InputJsonObject {
+  if (options.guardedReplay !== undefined && data !== undefined) {
+    return toJsonObject({ meta: body.meta, kept: options.guardedReplay.keep(data) });
+  }
+  return toJsonObject(options.replayRecord === undefined ? body : { meta: body.meta });
+}
+
+/** The row version of a response entity (mutable records carry one; other responses none). */
+function rowVersionOf(data: object | undefined): number | undefined {
+  const value = (data as { rowVersion?: unknown } | undefined)?.rowVersion;
+  return typeof value === 'number' ? value : undefined;
 }
 
 function toJsonObject(body: object): Prisma.InputJsonObject {

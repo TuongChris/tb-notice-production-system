@@ -2660,7 +2660,7 @@ describe('SECURITY / VALIDATION / CONTRACT', () => {
     expect(await countRows(prisma, 'source_references')).toBe(0);
   });
 
-  it('exposes exactly the P1 routes plus the 76 directory, source, route and authority operations, the 40 case operations, the 5 correspondence operations, the production-context read, the 3 prompt operations, the 5 candidate operations, the 4 validation operations and the 3 assessment operations', async () => {
+  it('exposes exactly the P1 routes plus the 76 directory, source, route and authority operations, the 40 case operations, the 5 correspondence operations, the production-context read, the 3 prompt operations, the 5 candidate operations, the 4 validation operations, the 3 assessment operations and the readiness read and unsigned export', async () => {
     const express = t.app.getHttpAdapter().getInstance() as {
       router: { stack: Array<{ route?: { path: string; methods: Record<string, boolean> } }> };
     };
@@ -2685,8 +2685,9 @@ describe('SECURITY / VALIDATION / CONTRACT', () => {
     // listValidationRuns, listValidationIssues), plus the read-back getValidationRun of
     // TB-SCHEMA-API-v1.3.0 (ADR-0006, R14); P4H: the 2 Assessment-tagged operations of v1.0.0
     // (captureCandidateAssessment, listCandidateAssessments), plus the read-back
-    // getCandidateAssessmentSources of TB-SCHEMA-API-v1.4.0 (ADR-0009). No readiness or export
-    // operation is routed (getCandidateReadiness and exportUnsignedCandidate stay contracted only).
+    // getCandidateAssessmentSources of TB-SCHEMA-API-v1.4.0 (ADR-0009); P4I: the readiness read
+    // getCandidateReadiness and the unsigned export exportUnsignedCandidate of v1.0.0 (ADR-0011) —
+    // 139 business operations; no signing, sending or G7 operation exists.
     const directory = operations
       .filter((operation) =>
         /^\/(agencies|owners|legal-subjects|signers|owner-subjects|sources|routes|mandates|mandate-versions|coverages|coverage-signers)(\/|$)/.test(
@@ -2816,14 +2817,18 @@ describe('SECURITY / VALIDATION / CONTRACT', () => {
       'GET /api/v1/candidates/:candidateId/assessments',
       'GET /api/v1/candidates/:candidateId/assessments/:id/sources',
     ]);
-    // Readiness and the unsigned export are contracted, never routed in P4H.
-    for (const later of ['getCandidateReadiness', 'exportUnsignedCandidate']) {
-      const operation = operations.find((entry) => entry.operationId === later);
-      expect(operation, later).toBeDefined();
-      expect(routes, later).not.toContain(
-        `${operation?.method.toUpperCase()} /api/v1${operation?.path.replace(/\{([A-Za-z]+)\}/g, ':$1')}`,
+    const readiness = operations
+      .filter((operation) =>
+        ['getCandidateReadiness', 'exportUnsignedCandidate'].includes(operation.operationId),
+      )
+      .map(
+        (operation) =>
+          `${operation.method.toUpperCase()} /api/v1${operation.path.replace(/\{([A-Za-z]+)\}/g, ':$1')}`,
       );
-    }
+    expect(readiness).toEqual([
+      'GET /api/v1/candidates/:candidateId/readiness',
+      'POST /api/v1/candidates/:candidateId/unsigned-exports',
+    ]);
     expect(routes).toEqual(
       [
         'GET /api/v1/auth/session',
@@ -2836,8 +2841,10 @@ describe('SECURITY / VALIDATION / CONTRACT', () => {
         ...production,
         ...validation,
         ...assessments,
+        ...readiness,
       ].sort(),
     );
+    expect(routes).toHaveLength(4 + 139);
   });
 
   it('an application User is not a Signer: directory writes never create or change users or sessions', async () => {

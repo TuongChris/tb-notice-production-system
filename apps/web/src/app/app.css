@@ -1673,3 +1673,79 @@ code.hash {
   max-height: 36rem;
   overflow: auto;
 }
+
+/* Readiness (P4I). A derived, current evaluation — never a verdict or an approval: no status gets
+   the success treatment. The status sits in a ruled box in neutral ink (ready for authorized human
+   signer review is still unsigned and unsent) and in the caution or danger ink otherwise. Reason
+   codes and ids wrap at any width, so nothing is lost off-screen on a narrow screen; the gates are a
+   list, not a table. The unsigned handoff carries its UNSIGNED and NOT SENT labels as neutral
+   stamps, and its body keeps the bounded, focusable frame of the candidate body. */
+.readiness-qualifiers {
+  margin: 0.5rem 0;
+  padding-left: 1.1rem;
+  color: var(--ink-2);
+}
+
+.readiness-result {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--rule-strong);
+  border-left-width: 4px;
+  background: var(--sheet);
+}
+
+.readiness-result h3 {
+  margin-top: 0;
+}
+
+.readiness-ready_for_signer,
+.readiness-superseded {
+  border-left-color: var(--ink-3);
+}
+
+.readiness-review_required,
+.readiness-unvalidated,
+.readiness-stale_revalidation_required {
+  border-left-color: var(--caution);
+}
+
+.readiness-blocked {
+  border-left-color: var(--danger);
+}
+
+.readiness-reasons,
+.readiness-gates {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.readiness-reasons code,
+.readiness-gates code,
+.handoff code {
+  overflow-wrap: anywhere;
+}
+
+.readiness-gates > li {
+  padding: 0.4rem 0;
+  border-top: 1px solid var(--rule);
+}
+
+.readiness-gates p {
+  margin: 0.15rem 0;
+}
+
+.handoff {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--rule-strong);
+  background: var(--sheet);
+}
+
+.handoff h3 {
+  margin-top: 0;
+}
+
+.stamp-unsigned,
+.stamp-not-sent {
+  color: var(--ink-2);
+}
