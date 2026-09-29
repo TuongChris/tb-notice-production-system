@@ -32,9 +32,9 @@
 //   unknown case) → case B lists nothing of case A → each accepted import or revision wrote one
 //   candidate and one audit event, the supersession one audit event, refusals and replays nothing;
 //   no correspondence, binding, prompt, validation, assessment or readiness record was written (row
-//   counts read through the runtime account) → no assessment, readiness, export, candidate update
-//   or delete route exists (404; technical validation is routed since P4G, with its own smoke:p4g)
-//   → logout.
+//   counts read through the runtime account) → no candidate update, delete or sending route exists
+//   (404; technical validation is routed since P4G, assessments since P4H and readiness and the
+//   unsigned export since P4I, with their own smokes) → logout.
 import { spawn, type ChildProcess } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
@@ -1014,10 +1014,9 @@ async function main(): Promise<void> {
   for (const [label, method, suffix] of [
     ['PATCH /candidates/{id}', 'PATCH', `/candidates/${v2.id}`],
     ['DELETE /candidates/{id}', 'DELETE', `/candidates/${v2.id}`],
-    // Technical validation is routed since P4G (smoke:p4g) and candidate assessments since P4H
-    // (smoke:p4h); P4F records neither.
-    ['GET /candidates/{id}/readiness', 'GET', `/candidates/${v2.id}/readiness`],
-    ['POST /candidates/{id}/unsigned-exports', 'POST', `/candidates/${v2.id}/unsigned-exports`],
+    // Technical validation is routed since P4G (smoke:p4g), candidate assessments since P4H
+    // (smoke:p4h) and readiness and the unsigned export since P4I (smoke:p4i); P4F records none.
+    ['POST /candidates/{id}/send', 'POST', `/candidates/${v2.id}/send`],
   ] as const) {
     const refused = await call(
       `${label} (not routed)`,

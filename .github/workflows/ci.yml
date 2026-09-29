@@ -80,12 +80,12 @@
 # two pending slots (BLOCKED, deterministic), attachment wording without a planned file
 # (REVIEW_REQUIRED, heuristic), another artifact (412 ARTIFACT_CHANGED), an authority event and the
 # earlier digest (412 CONTEXT_CHANGED), a new read (drift since the prompt is review required), a
-# second case's run from its own context only, the rows written and that no run update, assessment,
-# readiness, export, signing or sending route exists, leaving synthetic records in the disposable CI
-# tb_notice_dev only (it refuses to run outside CI). A technical validation is not a G1-G6 review,
+# second case's run from its own context only, the rows written and that no run update, signing or
+# sending route exists (assessments are routed since P4H, readiness and the export since P4I),
+# leaving synthetic records in the disposable CI tb_notice_dev only (it refuses to run outside CI). A technical validation is not a G1-G6 review,
 # approval or readiness; nothing is signed, exported or sent, and no AI provider is called.
-# P4H: smoke:local also checks that the compiled assessment operations are session-protected and
-# that readiness and the unsigned export stay unrouted; smoke:p4h builds the same kind of synthetic
+# P4H: smoke:local also checks that the compiled assessment operations are session-protected;
+# smoke:p4h builds the same kind of synthetic
 # case, validates a clean candidate and captures a G1 PASS at exactly its epoch (the candidate, its
 # stored artifact, the current digest under TB-SCHEMA-API-v1.4.0 and TB-TECHNICAL-RULESET-v3),
 # replays the same key, checks the refusals (another artifact 412, the earlier digest 412, another
@@ -93,9 +93,23 @@
 # a PASS citing a source that no longer applies), records a truthful HOLD citing that source and a
 # successor across epochs (a fork refused), reads the support rows back unchanged after the link is
 # paused, assesses a superseded candidate as history, and checks the rows written and that no
-# assessment update, readiness, export, signing or sending route exists, leaving synthetic records
-# in the disposable CI tb_notice_dev only (it refuses to run outside CI). An assessment records one
-# G1-G6 review; it is not G7, a signature, adoption, readiness or permission to send.
+# assessment update, signing or sending route exists, leaving synthetic records in the disposable CI
+# tb_notice_dev only (it refuses to run outside CI). An assessment records one G1-G6 review; it is
+# not G7, a signature, adoption, readiness or permission to send.
+# P4I: smoke:local also checks that the compiled readiness read and unsigned export are
+# session-protected (the export also needs Origin) and that no signing or sending route exists;
+# smoke:p4i builds the same kind of synthetic case and derives readiness at each step: UNVALIDATED
+# without a run, REVIEW_REQUIRED with six gates unassessed and with five (no compensation),
+# READY_FOR_SIGNER with a TECHNICAL_PASS run and six confirmed PASS heads (the server's epoch,
+# HUMAN_PENDING, external action PROHIBITED; reads write nothing), the export refusals (another
+# artifact, digest or run: 412, nothing written), the unsigned export (the stored text exactly, both
+# hashes, sendPerformed false; one EXPORT_UNSIGNED audit event and one idempotency record), its
+# replay, a gate conflict (409 CANDIDATE_NOT_READY; the old key releases nothing), BLOCKED and
+# REVIEW_REQUIRED runs, a revocation (STALE with a new digest; the old key 412), a timestamp boundary
+# passing after the export (STALE with the same digest; the old key 409) and that no signing,
+# adoption, sending or G7 route exists, leaving synthetic records in the disposable CI tb_notice_dev
+# only (it refuses to run outside CI). READY_FOR_SIGNER is derived and pre-signature: ready for
+# authorized human signer review only — never G7, a signature, adoption or permission to send.
 name: CI
 
 on:
@@ -254,6 +268,8 @@ jobs:
         run: yarn smoke:p4g --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"
       - name: P4H compiled candidate assessment → exact epoch → replay → stale 412 → run required → supports (foreign, inapplicable PASS refused, truthful HOLD) → supersession → support read-back (yarn smoke:p4h, synthetic; a G1-G6 review record only, nothing ready, signed or sent)
         run: yarn smoke:p4h --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"
+      - name: P4I compiled readiness → UNVALIDATED → REVIEW_REQUIRED → READY_FOR_SIGNER → unsigned export → replay → conflict, revocation and temporal refusals (yarn smoke:p4i, synthetic; derived readiness only, nothing signed or sent)
+        run: yarn smoke:p4i --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"
       - name: P1.1 recovery commands (synthetic account; P0 actor untouched)
         run: |
           E=p1-ci-admin@example.invalid

@@ -374,10 +374,11 @@ async function main(): Promise<void> {
   if ((byLink.data as unknown as { items: Array<{ id: string }> }).items[0]?.id !== route.data.id) {
     fail('the route of the link is not listed');
   }
+  // Readiness and the unsigned export are routed since P4I (smoke:p4i); nothing is ever sent.
   await call(
-    'POST /candidates/{id}/unsigned-exports (later phase, not routed)',
+    'POST /candidates/{id}/send (not routed; nothing is sent)',
     'POST',
-    `/candidates/${randomUUID()}/unsigned-exports`,
+    `/candidates/${randomUUID()}/send`,
     404,
     null,
     {

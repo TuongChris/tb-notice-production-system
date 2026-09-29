@@ -16,10 +16,10 @@
 //     (P3A), representation-authority (P3B), case (P4A), case intake (P4B) and correspondence (P4C)
 //     collection, the read-backs of TB-SCHEMA-API-v1.1.0, v1.2.0, v1.3.0 and v1.4.0, the
 //     production-context read (P4D), the prompt operations (P4E), the candidate operations (P4F),
-//     the technical validation operations (P4G) and the candidate assessment operations (P4H) are
-//     routed and session-protected (no cookie → 401, also through the web proxy), unsafe writes
-//     without Origin → 403 before any handler, canonical bindings and freezes are session-protected,
-//     and later case phases (readiness and unsigned export onward) are not routed (404).
+//     the technical validation operations (P4G), the candidate assessment operations (P4H) and the
+//     readiness read and unsigned export (P4I) are routed and session-protected (no cookie → 401,
+//     also through the web proxy), unsafe writes without Origin → 403 before any handler, canonical
+//     bindings and freezes are session-protected, and no signing or sending route exists (404).
 //  7. Terminate both processes (SIGTERM, bounded wait, SIGKILL fallback) and verify ports 3000 and
 //     5173 are released. Any failure exits non-zero.
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
@@ -635,17 +635,46 @@ async function checkBusinessBoundary(): Promise<void> {
       401,
       'SESSION_REQUIRED',
     ],
-    // Readiness, the unsigned export and every later case record are later phases: not routed.
+    // P4I: the readiness read and the unsigned export are behind the same guard (session, Origin).
     [
-      'GET /candidates/{id}/readiness (later phase, not routed)',
+      'GET /candidates/{id}/readiness without a session',
       `${api}/candidates/${id}/readiness`,
       {},
+      401,
+      'SESSION_REQUIRED',
+    ],
+    [
+      'GET /candidates/{id}/readiness through the web proxy without a session',
+      `http://localhost:${WEB_PORT}/api/v1/candidates/${id}/readiness`,
+      {},
+      401,
+      'SESSION_REQUIRED',
+    ],
+    [
+      'POST /candidates/{id}/unsigned-exports without a session',
+      `${api}/candidates/${id}/unsigned-exports`,
+      { method: 'POST', headers: { ...json, Origin: origin }, body: '{}' },
+      401,
+      'SESSION_REQUIRED',
+    ],
+    [
+      'POST /candidates/{id}/unsigned-exports without Origin',
+      `${api}/candidates/${id}/unsigned-exports`,
+      { method: 'POST', headers: json, body: '{}' },
+      403,
+      'ORIGIN_REJECTED',
+    ],
+    // No signing or sending exists: G7 stays human and outside the application.
+    [
+      'POST /candidates/{id}/sign (never routed)',
+      `${api}/candidates/${id}/sign`,
+      { method: 'POST', headers: { ...json, Origin: origin }, body: '{}' },
       404,
       'NOT_FOUND',
     ],
     [
-      'POST /candidates/{id}/unsigned-exports (later phase, not routed)',
-      `${api}/candidates/${id}/unsigned-exports`,
+      'POST /candidates/{id}/send (never routed)',
+      `${api}/candidates/${id}/send`,
       { method: 'POST', headers: { ...json, Origin: origin }, body: '{}' },
       404,
       'NOT_FOUND',

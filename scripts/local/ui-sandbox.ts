@@ -1,8 +1,8 @@
 // yarn ui:sandbox --password-file <path> — a disposable local UI sandbox for manual or browser-
 // automation checks of the Directory, Sources, Routes, representation-authority, Case, case
 // intake, Correspondence, Production context, Prompt and Candidate pages with the candidates'
-// technical validation and G1–G6 review records (P2, P3A, P3B, P4A, P4B, P4C, P4D, P4E, P4F, P4G,
-// P4H) WITHOUT touching tb_notice_dev.
+// technical validation, G1–G6 review records, readiness and unsigned handoff (P2, P3A, P3B, P4A,
+// P4B, P4C, P4D, P4E, P4F, P4G, P4H, P4I) WITHOUT touching tb_notice_dev.
 //
 //  1. Guards: the target is the allowlisted disposable tb_notice_test schema (tooling account,
 //     loopback port 3307, never tb_notice_dev); every table the sandbox can write must be empty
@@ -20,8 +20,9 @@
 // No external request is made (captured correspondence is only recorded; nothing is sent; the
 // production context is a read that writes nothing; prompts and candidates are stored text — no AI
 // provider is called, nothing is signed or sent; a validation run is a technical result only, and
-// a candidate assessment records one G1–G6 review — nothing is approved, made ready, adopted,
-// signed or sent). The account is a synthetic sandbox login, not a Signer.
+// a candidate assessment records one G1–G6 review, and readiness is derived on each read — the
+// unsigned handoff returns stored text only; nothing is approved, adopted, signed or sent). The
+// account is a synthetic sandbox login, not a Signer.
 import 'reflect-metadata';
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { randomBytes } from 'node:crypto';

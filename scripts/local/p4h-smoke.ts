@@ -37,8 +37,8 @@
 //   another candidate's assessment, an unknown assessment and an unknown candidate are 404 → the
 //   first run read back unchanged → every accepted capture wrote one assessment, its support rows,
 //   one audit event and one idempotency record; refusals, replays and reads nothing (row counts read
-//   through the runtime account) → no assessment read by id, update or deletion, readiness, unsigned
-//   export, signing or sending route exists (404) → logout.
+//   through the runtime account) → no assessment read by id, update or deletion, signing or sending
+//   route exists (404; readiness and the unsigned export are routed since P4I, smoke:p4i) → logout.
 import { spawn, type ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
@@ -1191,12 +1191,7 @@ async function main(): Promise<void> {
     ['PATCH /candidates/{id}/assessments/{id}', 'PATCH', firstRoute],
     ['DELETE /candidates/{id}/assessments/{id}', 'DELETE', firstRoute],
     ['POST /candidates/{id}/assessments/{id}/sources', 'POST', `${firstRoute}/sources`],
-    ['GET /candidates/{id}/readiness', 'GET', `/candidates/${candidateA.id}/readiness`],
-    [
-      'POST /candidates/{id}/unsigned-exports',
-      'POST',
-      `/candidates/${candidateA.id}/unsigned-exports`,
-    ],
+    // Readiness and the unsigned export are routed since P4I (smoke:p4i).
     ['POST /candidates/{id}/sign', 'POST', `/candidates/${candidateA.id}/sign`],
     ['POST /candidates/{id}/send', 'POST', `/candidates/${candidateA.id}/send`],
   ] as const) {
