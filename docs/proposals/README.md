@@ -13,4 +13,4 @@ A proposal becomes active only through its own approved mission: an accepted ADR
 
 | Proposal | Status | Decision |
 |---|---|---|
-| `TB-SCHEMA-API-v1.4.0-assessment-support-readback.md` | **PROPOSED FUTURE DELTA ONLY — NOT ACTIVE** | ADR-0009 (PROPOSED) |
+| `TB-SCHEMA-API-v1.4.0-assessment-support-readback.md` | **ACTIVATED** (2026-09-28, P4H) — the release record is `docs/contracts/TB-SCHEMA-API-v1.4.0/`; the proposal text is kept as the historical design | ADR-0009 (ACCEPTED_BY_OPERATOR · INDEPENDENT_REVIEW_DEFERRED) |

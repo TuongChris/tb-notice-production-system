@@ -161,3 +161,14 @@ The design record's Appendix C lists them:
 - whether CandidateAssessment implementation may begin.
 
 Not implementation.
+
+## 11. After this mission — operator fast-track acceptance and P4H (2026-09-28/29)
+
+The statuses in §1–§10 are those of this mission. What followed:
+
+- **Branch CI of this mission's final head.** `5afd2ec` — push run 36425099649, both jobs success (status read with `gh` by the P4H mission; reported here as §8 said it would be).
+- **The recommended independent review did not take place.** The operator chose a fast track (mission TB_P4H_CANDIDATE_ASSESSMENT_FAST_TRACK_IMPLEMENTATION): the architecture at `5afd2ec` was accepted for implementation and the independent Astra review was **deferred by the operator**. Nothing of this architecture is independently verified.
+- **Decisions.** ADR-0008 and ADR-0009 **ACCEPTED_BY_OPERATOR · INDEPENDENT_REVIEW_DEFERRED**; the open decisions D-1…D-6 (§9) are resolved in ADR-0008 "Operator acceptance". Warning W-1 (the v1.4.0 activation and the technical ruleset) is decided by **ADR-0010** (`TB-TECHNICAL-RULESET-v3`, ACCEPTED_BY_OPERATOR · INDEPENDENT_REVIEW_DEFERRED). W-2 and W-3 stay open for the readiness phase; O-2 (`q` semantics) is designed and O-4/O-5 are implemented as service checks by P4H; O-1 and O-3 stay backlog.
+- **Contract.** TB-SCHEMA-API-v1.4.0 is **activated** exactly as proposed (`docs/contracts/TB-SCHEMA-API-v1.4.0/`, amendment sha256 `fb6b14a9…5c85`; 291 schemas, 145 operations, 100 paths); the proposal file is kept as the historical design text.
+- **Findings.** R14-AUD-005 and R14-AUD-006 **IMPLEMENTED_SELF_VERIFIED · INDEPENDENT_REVIEW_DEFERRED**; CandidateAssessment **IMPLEMENTED_FOR_CAPTURE_AND_HISTORY** (`docs/verification/p4h/P4H_CANDIDATE_ASSESSMENT.md`). No migration or schema change was needed (the storage conclusion of the design record held).
+- Readiness, READY_FOR_SIGNER and the unsigned export stay **NOT_STARTED**; G7 stays human and outside the application.

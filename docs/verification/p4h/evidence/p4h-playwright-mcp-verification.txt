@@ -1,0 +1,157 @@
+P4H candidate assessment — Playwright MCP browser verification (mission TB_P4H_CANDIDATE_ASSESSMENT_FAST_TRACK_IMPLEMENTATION,
+§53), home PC, 2026-09-29 01:38–01:52 UTC
+====================================================================================================================
+
+Target and isolation
+- `yarn ui:sandbox --password-file <scratchpad file outside the repository>` ran the COMPILED API on the disposable
+  `tb_notice_test` schema plus the built web app (`vite preview`) on http://localhost:5173 (proxying /api).
+  - It was built from the working tree of this mission (5afd2ec plus the uncommitted P4H change, resumed after the
+    power loss); the committed build is compared with it in the sweep record (p4h-first-pc-sweep.txt).
+  - Web chunks served: `index-DDDFP4Ut.js` 332.15 kB, `candidates-BOmCwjJ5.js` 82.15 kB (the candidate, validation
+    and assessment pages; `@tb/contracts` imported for types only), `index-QvP54PA0.css` 20.42 kB.
+- The sandbox ran under the R14-AUD-004 ownership guard, whose teardown now covers the two P4H tables
+  (`candidate_assessments`, `assessment_sources`, the successor pointer cleared first).
+  - The start verified the empty schema itself (its cleanup was armed only then).
+  - On SIGINT: "sandbox rows deleted; tb_notice_test is empty again". Afterwards `yarn db:verify test --expect-empty`
+    PASS (domain rows total 0; only `_prisma_migrations` holds a row); ports 3000 and 5173 free.
+- The synthetic sandbox user was p2-ui-sandbox@example.invalid. Its generated password was typed into the isolated
+  browser's login form only, and the password file was deleted after the session. No password, cookie or CSRF token
+  is recorded here.
+- Browser: the Playwright MCP isolated headless Chromium profile (HeadlessChrome 154; no personal profile, no real
+  login session), 1280×720 unless noted.
+- Never `tb_notice_dev`, never the operator's `yarn dev`, never real case, owner, authority, review or draft data;
+  every address is @example.invalid. No AI provider, mailbox, Drive or platform was contacted.
+
+Prerequisites (a scratchpad script, not committed; seeded through the compiled API with the sandbox user)
+- Agency "SYNTHETIC Agency P4H-B" with its canonical-record source; owner "SYNTHETIC Brand P4H-X" linked to
+  "SYNTHETIC Subject P4H-A LLC" (route R); a signer; a mandate whose frozen version 1 has one coverage of R recording
+  the signer.
+- Case "SYNTHETIC Case P4H-A" (959926c3-4539-4cd8-b475-677241ba9f08) bound to R, with a selection of that coverage,
+  a reported item, a work, a mapping and two linked sources: the licence record (link 8c40563d-1c29-4fe8-8101-a93f7f5603dd,
+  source revision 63417a3a-…, role SYNTHETIC_LICENCE) and the second record (link d4b6c131-2f33-4944-8058-77133b40d89c,
+  source revision aa6727ef-…, role SYNTHETIC_SECOND).
+- One DRAFTING prompt (INITIAL) and two candidates imported from it:
+  - current 7dcf7b0e-7142-4def-9725-ed7781fc21bc, artifact 067a05a28f24c902ad4074390be1a64d6aac5a058a02184aef2cb6565cc9cb89;
+  - historical 99c2a754-3f5f-4ac5-af91-7814f65cdc08, artifact ec83e9e8ac2110c73692a0a77730db287311f3d0112c91eda589818ebceffb03,
+    superseded after its validation.
+- Each was validated once at the context read (revision 7, digest D7 =
+  365159c177a88d43d578fd21a45560ab076237e8aca810a53c8114379803a1c4): runs e466450e-… and 8f1fdbdf-…, both
+  TECHNICAL_PASS under TB-TECHNICAL-RULESET-v3.
+
+Scenarios and results (the 15 checks of §53 plus 3 supplementary; all PASS; screenshots in
+evidence/screenshots/p4h-*.png)
+ 1. Fresh current candidate with TECHNICAL_PASS — PASS. [01]
+    - The run history lists TECHNICAL PASS · TB-TECHNICAL-RULESET-v3 · dependency digest evaluated D7.
+    - The "G1–G6 review record" section before a read: the artifact SHA-256, ruleset TB-TECHNICAL-RULESET-v3,
+      "Current dependency digest: Not read yet", no form.
+    - "Read the current context" → focus on the outcome "Current context read: revision 7, 0 missing, 0 recorded
+      conflicts. A review is recorded against exactly this read."; digest D7; "Technical validation run of this epoch:
+      TECHNICAL PASS · recorded Sep 29, 2026, 8:39 AM".
+    - Every select starts on its placeholder ("Choose a gate", "Choose a result", "Choose a scope state", "Choose who
+      performed the review", "Choose the provenance"): no default PASS. Both LINKED links offered, unchecked.
+ 2. Capture G1 PASS — PASS (by keyboard).
+    - HUMAN "SYNTHETIC Reviewer P4H", DOCUMENT_REVIEWED, scope not confirmed (RECORDED_NOT_ADOPTED), rationale and
+      scope typed, the licence link cited with "SYNTHETIC: the licence record names the agency.".
+    - "Record assessment" focused and activated with Enter: one POST /candidates/7dcf7b0e-…/assessments → 201, then
+      the list read again (GET 200).
+    - Focus on "Assessment recorded: G1 — authority and standing — recorded result PASS"; the record shows the artifact
+      SHA-256 reviewed, "Dependency digest of the epoch" D7, "Technical ruleset of the epoch" v3, "Assessed at: Not
+      recorded" (the recording time is never used instead), Supersedes None; id bc291058-465f-4d36-b777-1f4d8f07584f.
+    - The form reset: every select back on its placeholder, no support checked.
+ 3. Capture G2 HOLD — PASS. [02]
+    - HUMAN, OPERATOR_REPORTED, RECORDED_NOT_ADOPTED, citing the second link with "SYNTHETIC: the second record names
+      the work but not the rights holder.". Supersedes offered only "None — a new review of this gate" (no G2 yet).
+    - POST 201, id 3593ed66-8c0f-4548-a1cb-43df45a6fe22; focus on its "Assessment recorded" heading; the history,
+      newest first: G2 HOLD, G1 PASS. No alert.
+11. Superseded candidate historical capture — PASS (run before the pause, while D7 was current). [03] [04]
+    - The page says "This candidate is superseded. A review recorded here is historical and cannot count toward
+      current readiness.".
+    - The read gives revision 7, D7 and this candidate's own TECHNICAL_PASS run.
+    - G3 MISSING by DOCUMENTED_EXTERNAL_REVIEW "SYNTHETIC external review memo P4H-H", provenance MISSING, assessedAt
+      2026-09-28T09:30:00Z (shown as Sep 28, 2026, 4:30 PM, the browser's UTC+7), limitations, citing the licence link
+      → 201, id 459febc9-eae8-4a2c-aac2-23da2c7eef0b, artifact reviewed ec83e9e8….
+    - Its history lists only this review (neither G1 nor G2 of the other candidate).
+ 4. Reload — PASS. `location.reload()` (navigation type "reload") of the current candidate.
+ 5. Both assessment rows remain — PASS. The history (GET …/assessments?limit=100, 200) lists G2 HOLD and G1 PASS with
+    their stored ids and D7; nothing is remembered client-side (no "Assessment recorded" block and no form before a new
+    read).
+ 6. Open supports — PASS. "Show recorded supports" on each row (aria-expanded false → true, "Hide recorded supports").
+ 7. Exact support mappings load from the server — PASS. [05]
+    - Each panel issued its own GET /candidates/7dcf7b0e-…/assessments/{id}/sources → 200, Cache-Control no-store, no
+      ETag.
+    - G1's body: {assessmentId bc291058-…, sources [{id 0800909c-c0b4-49f4-8658-c998857000d8, assessmentId bc291058-…,
+      caseSourceId 8c40563d-…, supportedConclusion "SYNTHETIC: the licence record names the agency.", createdAt
+      2026-09-29T01:40:31.403Z, createdById …}]} — exactly the one stored row. G2's: the second link with its text.
+    - The table "Support rows recorded with this review, exactly as stored" and, apart from it, "Present CaseSource
+      state — not the state recorded by the historical assessment.": "<link>: Linked — source revision …".
+ 8. Pause a CaseSource — PASS. Case page → Linked sources → the licence link's "Change link state" → Paused with a
+    reason → "Link state changed to Paused.".
+ 9. The historical assessment support stays unchanged — PASS. [06]
+    - The G1 row is unchanged (PASS, the same artifact, D7, v3, Supersedes None).
+    - Its supports read again from the server: `data` byte-identical to the pre-pause read (only meta.requestId
+      differs).
+10. The current state displays separately — PASS. The present-state block now reads "8c40563d-…: Paused — source
+    revision 63417a3a-…", outside the stored-rows table.
+12. Keyboard/focus — PASS.
+    - Enter on the section's "Read the current context" moves focus to the outcome (tabindex -1). After the pause the
+      read shows revision 8, digest 0fb08baf8022ae7c283c86e5aaa73548d246253c7f2cacd88344d6594c42caeb, "Technical
+      validation run of this epoch: None recorded" and "No technical validation run of this candidate is recorded
+      against this read. Run the technical validation first (it need not pass), then read the current context
+      again."; "Record assessment" is disabled (the `disabled` convention of the validation and candidate forms). [07]
+    - Tab order from the outcome: gate → result → scope state → performed by → performer → provenance → assessed at →
+      rationale → scope → limitations → supersedes → the one LINKED support (the paused licence link is no longer
+      offered) → (the disabled submit is skipped) → the history's focusable rationale and scope text → "Show recorded
+      supports".
+    - Enter on "Show recorded supports" expands the panel and keeps focus on the toggle; Space ticks a support
+      checkbox and reveals "What this source supports (required)" (ticked back afterwards). G1 was submitted with
+      Enter (item 2).
+13. 390×844 — PASS. The current and the superseded candidate pages: document scrollWidth 390 = the viewport; no
+    element of the G1–G6 section extends past the viewport outside its own `.table-frame`; each opened support table
+    scrolls inside its frame (530 px content in 286 px). [07] [08]
+14. No overflow / material accessibility issue — PASS (DOM inspection, as in earlier passes).
+    - The section is a region named "G1–G6 review record"; all 15 of its controls are labelled ("(required)" in the
+      accessible name, as in every form); no duplicate id; no heading level skipped (h2 section, h3 history, h4 each
+      review).
+    - The only dangling aria-controls on the page is P4G's collapsed "Open run" toggle (aria-expanded false); the
+      assessment toggles name their panel the same way while collapsed.
+    - Observation (LOW, app-wide, unchanged by P4H): the `.table-frame` scrollers carry no tabindex. In this Chromium,
+      Tab reaches the frame itself and ArrowRight scrolls it (scrollLeft 120 of 244) with a visible 2 px outline; a
+      browser without keyboard-focusable scroll containers would need a tabindex on the frame. The pattern of every
+      table since P2, earlier passes recorded it "as designed"; backlog.
+15. No readiness/sign/send action — PASS.
+    - The current candidate page's actions: Read the current context, Open run, Record assessment, Show/Hide recorded
+      supports, Supersede this draft artifact (P4F), Import a revision of this candidate (P4F), and navigation. The
+      superseded one: the same without Supersede (and no form before a read).
+    - No ready, sign, send, export, approve, adopt, submit, retract, attach or verify action; the page text contains no
+      READY_FOR_SIGNER, READY TO SIGN, APPROVED, ELIGIBLE, G1 PASS or G7 PASS.
+16. Isolation and later phases (fetch from the page with the session) — PASS.
+    - The superseded candidate's review read through the current candidate's path → 404 NOT_FOUND; through its own →
+      200.
+    - GET /candidates/{id}/assessments/{assessmentId} (no such route) → 404; GET /candidates/{id}/readiness → 404;
+      GET /candidates/{id}/unsigned-exports → 404.
+    - After Sign out: GET …/assessments 401 and GET /auth/session 401.
+17. Rows written by the session — PASS (read-only count before the stop): candidate_assessments 3 and
+    assessment_sources 3 (one support each: G1, G2, G3); validation_runs 2, notice_candidates 2, prompt_snapshots 1 —
+    nothing else from any attempt.
+18. Sandbox safety — PASS. The empty start was verified by the sandbox; SIGINT deleted every sandbox row;
+    `db:verify test --expect-empty` PASS; ports free; the password file is deleted.
+
+Screenshots (synthetic data only)
+- p4h-01-capture-form-g1-pass.png — the epoch read and the G1 PASS form before submission.
+- p4h-02-g1-pass-g2-hold-recorded.png — the history after both captures.
+- p4h-03-superseded-candidate-historical-notice.png — the superseded candidate's section with its epoch.
+- p4h-04-superseded-candidate-g3-missing-recorded.png — its historical G3 MISSING review.
+- p4h-05-supports-read-back-after-reload.png — both rows after the reload with their supports read back.
+- p4h-06-after-pause-stored-rows-unchanged-present-state-separate.png — G1 after the pause: stored row unchanged,
+  present state Paused apart from it.
+- p4h-07-390-epoch-run-required-after-pause.png — 390 px: the new epoch without a run of it.
+- p4h-08-390-history-supports.png — 390 px: a review with its supports (the table scrolled in its frame).
+
+Console (errors only, whole session)
+- Resource responses only, no script error or warning: the pre-login 401 of GET /auth/session, the four deliberate
+  404s of item 16 and the two deliberate post-logout 401s.
+
+Limitations
+- The 412 refusals (stale artifact or context), the D-3 PASS refusal with an inapplicable support and the lost-reply
+  replay are exercised by tests/web/p4h.test.tsx, tests/db/p4h-http.test.ts and smoke:p4h, not repeated here.
+- This is a self-verified browser pass; no independent reviewer took part (INDEPENDENT_REVIEW = DEFERRED).

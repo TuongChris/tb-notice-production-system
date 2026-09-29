@@ -1,0 +1,79 @@
+P4H candidate assessment — negative controls NC-P4H-01…13 (mission TB_P4H_CANDIDATE_ASSESSMENT_FAST_TRACK_IMPLEMENTATION,
+§54), home PC, 2026-09-29 01:36–01:38 UTC
+====================================================================================================================
+Method (a scratchpad harness, never committed):
+- Each control mutates exactly one protection. Every mutation is an exact anchor that must occur exactly once in its
+  file (the harness refuses otherwise); a control changes two anchors when the protection spans them (NC-P4H-04,
+  NC-P4H-13).
+- The control runs the responsible test and requires it to FAIL on its own assertion (an AssertionError at the named
+  test), not on a helper TypeError, a timeout or an unrelated backstop.
+- It then restores every changed file and checks its SHA-256 against the original (byte-identical). The four files'
+  SHA-256 were checked again afterwards against the values taken before the first control — all OK:
+    6cc99418fa153bad811552a373b1bf6ef6b97cd1d903ac2a7a4db1ddbfc4ea1c  apps/api/src/modules/assessments/assessments.service.ts
+    e6360cd021537b6a440765b5b9fae0e3c3b3bf9ef8d134093ff0fec02fad7eaa  apps/api/src/modules/assessments/assessment-rules.ts
+    5c0a6cd35761aed9e8edff0132e5e2a21ee794db2eb6787c034b618f613ca6cd  apps/api/src/modules/validation/technical-ruleset.ts
+    5e95e3c20af4f56515cf948a64777dbd21038b9ace90f6dbe12c29e8dbddf770  packages/contracts/src/api/operations.ts
+- DB controls run the guarded `scripts/db/run-db-tests.mjs tests/db/p4h-http.test.ts -t <title>` on `tb_notice_test`
+  (the other 31 tests of the file are skipped by the filter); unit controls run Vitest on the named file.
+
+Tree under test: the working tree of this mission (5afd2ec plus the uncommitted P4H change), after the full
+`yarn test:db` run (15 files, 580 tests, exit 0) had passed on the same tree. Its `git diff --stat` before the first
+control equals the one at the commits except `scripts/local/ui-sandbox.ts`, whose later change is comments only. The
+DB suites leave `tb_notice_test` empty.
+
+Unmutated baseline: the same four commands pass on the unmutated tree (the full `yarn test` and `yarn test:db` runs of
+the tree, recorded in p4h-first-pc-sweep.txt).
+
+Controls (mission §54 → mutation → the failing assertion; all 13 CAUGHT by an AssertionError, all 13 RESTORED)
+  NC-P4H-01  remove the artifact check
+             assessments.service.ts · `if (candidate.artifactSha256 !== body.expectedArtifactSha256) throw …` removed
+             → "AUD-005-I capture binding …": expected [201] to deeply equal [412, 'ARTIFACT_CHANGED']
+               (tests/db/p4h-http.test.ts:1176)
+  NC-P4H-02  remove the digest check
+             assessments.service.ts · `if (view.dependencyDigest !== body.expectedDependencyDigest) throw …` removed
+             → the same test: expected [201] to deeply equal [412, 'CONTEXT_CHANGED'] (:1183)
+  NC-P4H-03  allow an arbitrary ruleset
+             assessments.service.ts · `rulesetProblem(TECHNICAL_RULESET_VERSION, TECHNICAL_RULESET_VERSION)` (the
+             request's rulesetVersion ignored)
+             → the same test: "TB-TECHNICAL-RULESET-v1: expected [201] to deeply equal [422, 'RULESET_NOT_CURRENT']"
+               (:1191)
+  NC-P4H-04  skip the ValidationRun existence check
+             assessments.service.ts · `if (run === null && OPERATION === 'NC-P4H-04')` and `run?.id ?? null`
+             → the same test: expected [201] to deeply equal [422, 'VALIDATION_RUN_REQUIRED'] (:1207)
+  NC-P4H-05  allow a foreign CaseSource
+             assessments.service.ts · `if (link.caseId !== caseId) throw apiErrors.crossCaseReference(…)` removed
+             → "AUD-006-F case isolation …": expected [201] to deeply equal [422, 'CROSS_CASE_REFERENCE'] (:2251)
+  NC-P4H-06  allow a PASS with an inapplicable source
+             assessment-rules.ts · the applicability predicate `result === 'PASS'` → `result !== result`
+             → "D-3: a PASS rests only on sources that apply now …": expected [201] to deeply equal
+               [422, 'CROSS_OWNER_REFERENCE'] (:1347)
+  NC-P4H-07  reject a non-PASS inapplicable source
+             assessment-rules.ts · the same predicate → `result === result` (every result needs applicable sources)
+             → the same test: the truthful HOLD refused, 422 CROSS_OWNER_REFERENCE {field sources.0.caseSourceId}:
+               expected 422 to be 201 (:1368)
+  NC-P4H-08  allow AI_ASSISTED + DOCUMENT_REVIEWED
+             assessment-rules.ts · the D-4 refusal made unreachable
+             → "request rules …": expected [201] to deeply equal [422, 'REVIEW_UNSUPPORTED'] (:1122)
+  NC-P4H-09  inherit the predecessor supports
+             assessments.service.ts · a successor copies its predecessor's support rows it does not cite itself
+             → "D-2 supersession …": the successor's rows expected [1 row] but got 2 (:1475)
+  NC-P4H-10  rebuild the historical supports from the present link state
+             assessments.service.ts · the read-back filtered to links that are LINKED now
+             → "AUD-006-C/D: a link later PAUSED, then UNLINKED — the stored rows are unchanged …": the read-back
+               after the pause differs from the stored rows (:2051)
+  NC-P4H-11  omit the v1.4.0 read operation
+             packages/contracts/src/api/operations.ts · the `getCandidateAssessmentSources` entry removed
+             → tests/contracts/release-v1-4-0.test.ts: 4 failed — "OpenAPI document" (:141, the rendered release
+               differs), "the committed artifacts … have its digests", "all 141 frozen, 142 v1.1.0, 143 v1.2.0 and
+               144 v1.3.0 operations are identical …; the only new one is getCandidateAssessmentSources" (length 144,
+               not 145), "GET under the candidate and the assessment, session only, …"
+  NC-P4H-12  label new runs v2 instead of v3
+             technical-ruleset.ts · `TECHNICAL_RULESET_VERSION = 'TB-TECHNICAL-RULESET-v2'`
+             → tests/api/validation-ruleset-identity.test.ts: expected 'TB-TECHNICAL-RULESET-v2' to be
+               'TB-TECHNICAL-RULESET-v3' (:78)
+  NC-P4H-13  derive the v3 marker vocabulary from CONTRACT_BASELINE
+             technical-ruleset.ts · `CONTRACT_BASELINE` imported from @tb/contracts in place of the pinned
+             'TB-SCHEMA-API-v1.4.0' literal of INTERNAL_IDENTIFIER_STRINGS
+             → the same file: the vocabulary differs from the pinned list (:79)
+
+Result: 13/13 CAUGHT (each by its own AssertionError at the responsible test), 13/13 RESTORED byte-identically.

@@ -1,6 +1,8 @@
 # PROPOSAL — TB-SCHEMA-API-v1.4.0: additive read of the AssessmentSource rows of one candidate assessment
 
-> **PROPOSED FUTURE DELTA ONLY — NOT ACTIVE.** This is not a release record and not an amendment.
+> **ACTIVATED — 2026-09-28, mission TB_P4H_CANDIDATE_ASSESSMENT_FAST_TRACK_IMPLEMENTATION (ADR-0009 ACCEPTED_BY_OPERATOR · INDEPENDENT_REVIEW_DEFERRED).** This proposal is kept unchanged below as the historical design text. It is still not a release record: the release is `docs/contracts/TB-SCHEMA-API-v1.4.0/` (`amendment.json` sha256 `fb6b14a9781980f06ab7d1e41952feb478ee37f4df9df54f09d2fe941ff15c85`, exactly this delta), `CONTRACT_BASELINE` is `TB-SCHEMA-API-v1.4.0` (291 schemas, 145 operations, 100 paths), and the read is routed by P4H (`docs/verification/p4h/P4H_CANDIDATE_ASSESSMENT.md`).
+>
+> As written when proposed (2026-09-28, no longer current): **PROPOSED FUTURE DELTA ONLY — NOT ACTIVE.** This is not a release record and not an amendment.
 >
 > - `CONTRACT_BASELINE` stays `TB-SCHEMA-API-v1.3.0`.
 > - No `packages/contracts/**` file, generated artifact, `docs/contracts/TB-SCHEMA-API-v1.4.0/`, `amendment.json`, parity test or route exists for it.
