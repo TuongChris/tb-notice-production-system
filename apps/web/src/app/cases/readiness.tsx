@@ -57,9 +57,9 @@ export const NOTHING_PREPARED = 'No unsigned handoff was prepared.';
 /** A binding the prompt named was corrected since: the scope has no readiness (409). */
 export const SCOPE_UNAVAILABLE =
   'A binding this candidate’s prompt snapshot named has been corrected by a later binding, so its scope cannot be evaluated any more and no readiness is derived. The correction is never used in its place: a new prompt snapshot and candidate are needed.';
-/** The evaluation shown after a refused handoff: it is no longer the current one. */
+/** Shown in place of the evaluation after a refused handoff: it is no longer the current one. */
 export const EVALUATION_OUTDATED =
-  'Changed since this evaluation: evaluate the current readiness again.';
+  'The earlier evaluation is no longer current, so it is not shown. Evaluate the current readiness again.';
 const NOT_EVALUATED =
   'Not evaluated yet. Readiness is read from the server only when you ask; this page infers nothing.';
 
@@ -247,7 +247,8 @@ export function CandidateReadiness({ candidate }: { candidate: NoticeCandidate }
   }
 
   const readiness = evaluation.status === 'ready' ? evaluation.readiness : null;
-  // After a refused handoff the evaluation shown is no longer the current one.
+  // After a refused handoff the evaluation is no longer the current one: it is not shown any more
+  // (never as current), and only a new evaluation is offered.
   const outdated = handoff.status === 'changed' || handoff.status === 'not-ready';
   const canPrepare =
     readiness !== null &&
@@ -291,7 +292,12 @@ export function CandidateReadiness({ candidate }: { candidate: NoticeCandidate }
               )}
             </div>
           )}
-          {readiness !== null && <ReadinessView readiness={readiness} outdated={outdated} />}
+          {readiness !== null && !outdated && <ReadinessView readiness={readiness} />}
+          {readiness !== null && outdated && (
+            <p className="absent" data-testid="readiness-outdated">
+              {EVALUATION_OUTDATED}
+            </p>
+          )}
         </div>
         <div className="form-actions">
           <button
@@ -359,7 +365,7 @@ export function CandidateReadiness({ candidate }: { candidate: NoticeCandidate }
 }
 
 /** One evaluation exactly as the server returned it: the status, the technical result, the gates. */
-function ReadinessView({ readiness, outdated }: { readiness: Readiness; outdated: boolean }) {
+function ReadinessView({ readiness }: { readiness: Readiness }) {
   const ready = readiness.status === 'READY_FOR_SIGNER';
   return (
     <div
@@ -370,11 +376,6 @@ function ReadinessView({ readiness, outdated }: { readiness: Readiness; outdated
         Current readiness:{' '}
         <span data-testid="readiness-status-label">{STATUS_LABEL[readiness.status]}</span>
       </h3>
-      {outdated && (
-        <p className="notice notice-quiet" data-testid="readiness-outdated">
-          {EVALUATION_OUTDATED}
-        </p>
-      )}
       {ready ? (
         <div data-testid="readiness-ready-qualifier">
           <p className="context-boundary" role="note">

@@ -9,9 +9,10 @@
 // shown is READY_FOR_SIGNER, requested with exactly its artifact, digest and run, and shown exactly
 // (subject, envelope, body with CRLF, trailing spaces and Unicode as inert plain text, both hashes,
 // the readiness evaluated, the instant, UNSIGNED and NOT SENT); a 412 or 409 shown exactly, never
-// retried, the evaluation marked outdated and only a new evaluation offered; a lost reply replayed
-// with the same Idempotency-Key into one export; keyboard focus; the assessment tables' scrollers
-// focusable; and that no sign, send, approve or G7 wording or action appears. All data is synthetic.
+// retried, the outdated evaluation no longer shown (never as current) and only a new evaluation
+// offered; a lost reply replayed with the same Idempotency-Key into one export; keyboard focus; the
+// assessment tables' scrollers focusable; and that no sign, send, approve or G7 wording or action
+// appears. All data is synthetic.
 import { describe, expect, it } from 'vitest';
 import type { GateSummary, Readiness } from '../../packages/contracts/src/index.js';
 import {
@@ -252,6 +253,16 @@ function expectNoClaimsOrActions(w: World) {
   }
 }
 
+/** After a refused handoff the earlier evaluation is gone — never shown as current, not merely annotated. */
+function expectOutdatedNotShown() {
+  expect(text('[data-testid="readiness-outdated"]')).toBe(EVALUATION_OUTDATED);
+  expect(q('[data-testid="readiness-result"]')).toBeNull();
+  expect(q('[data-testid="readiness-status-label"]')).toBeNull();
+  expect(q('[data-testid="readiness-digest"]')).toBeNull();
+  expect(section().textContent).not.toContain('Current readiness');
+  expect(section().textContent).not.toContain(READY_LABEL);
+}
+
 describe('P4I readiness section', () => {
   it('nothing is read until asked: the section shows its boundary and the three permanent qualifiers verbatim, one evaluation action, no handoff action, and sends no readiness request', async () => {
     const w = await setup();
@@ -458,7 +469,7 @@ describe('P4I readiness section', () => {
     expect(exportsOf(w)).toHaveLength(1);
   });
 
-  it('a changed context (412) is shown exactly, never retried: nothing prepared, the evaluation marked outdated, only a new evaluation offered — which then shows the current state', async () => {
+  it('a changed context (412) is shown exactly, never retried: nothing prepared, the outdated evaluation no longer shown, only a new evaluation offered — which then shows the current state', async () => {
     const w = await setup();
     derive(w, readinessOf(w));
     await openCandidate(w);
@@ -481,7 +492,7 @@ describe('P4I readiness section', () => {
       'Context changed. Evaluate the current readiness before preparing the handoff again.',
     );
     expect(document.activeElement).toBe(q('[data-testid="handoff-outcome"]'));
-    expect(text('[data-testid="readiness-outdated"]')).toBe(EVALUATION_OUTDATED);
+    expectOutdatedNotShown();
     expect(q('[data-testid="handoff"]')).toBeNull();
     expect(q('[data-testid="handoff-prepare"]')).toBeNull();
     expect(actions()).toEqual([EVALUATE_LABEL]);
@@ -526,7 +537,7 @@ describe('P4I readiness section', () => {
       'GATE_HEADS_UNRECONCILED',
     ]);
     expect(notReady.textContent).toContain(NOTHING_PREPARED);
-    expect(text('[data-testid="readiness-outdated"]')).toBe(EVALUATION_OUTDATED);
+    expectOutdatedNotShown();
     expect(q('[data-testid="handoff-prepare"]')).toBeNull();
     // Another counted run (412 VALIDATION_RUN_CHANGED).
     derive(w, readinessOf(w));
