@@ -613,4 +613,46 @@ export const apiErrors = {
       'The referenced assessment already has a successor; an assessment history does not fork. Supersede the latest assessment of its chain instead.',
       successorId === null ? {} : { successorId },
     ),
+
+  // Readiness and the unsigned export (P4I; ADR-0011): the frozen stable codes CANDIDATE_NOT_READY
+  // (409), ARTIFACT_CHANGED and CONTEXT_CHANGED (412); BINDING_ALREADY_SUPERSEDED (409) is reused.
+  // VALIDATION_RUN_CHANGED (412) is an operation-specific code in the free-string `code` field with
+  // the contracted status (R6). Nothing in these refusals is signed, sent or released.
+  /** A binding the prompt named was corrected since: the candidate's scope has no readiness. */
+  readinessScopeUnavailable: (field: string, successorId: string) =>
+    new ApiError(
+      409,
+      'BINDING_ALREADY_SUPERSEDED',
+      "A binding the candidate's prompt snapshot named has been corrected by a later binding of this case, so the candidate's scope cannot be evaluated any more and no readiness is derived. The correction is never used in its place: a new prompt snapshot and candidate are needed.",
+      { field, successorId },
+    ),
+  /** The export re-evaluated readiness and it is not READY_FOR_SIGNER now. */
+  candidateNotReady: (status: string, reasonCodes: readonly string[]) =>
+    new ApiError(
+      409,
+      'CANDIDATE_NOT_READY',
+      'The candidate is not ready for authorized human signer review under the current captured records. Nothing was exported, signed or sent.',
+      { status, reasonCodes: [...reasonCodes] },
+    ),
+  exportArtifactChanged: () =>
+    new ApiError(
+      412,
+      'ARTIFACT_CHANGED',
+      'The expected artifact SHA-256 is not the stored artifact of this candidate. Evaluate the readiness again; nothing was exported.',
+      { field: 'expectedArtifactSha256' },
+    ),
+  exportContextChanged: () =>
+    new ApiError(
+      412,
+      'CONTEXT_CHANGED',
+      'The recorded context changed after the readiness was read. Evaluate the readiness again before preparing the unsigned handoff; nothing was exported.',
+      { field: 'expectedDependencyDigest' },
+    ),
+  validationRunChanged: () =>
+    new ApiError(
+      412,
+      'VALIDATION_RUN_CHANGED',
+      'The named validation run is not the run the current readiness counts. Evaluate the readiness again; nothing was exported.',
+      { field: 'validationRunId' },
+    ),
 } as const;

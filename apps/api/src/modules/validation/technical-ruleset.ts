@@ -190,7 +190,7 @@ const textOrNull = (value: unknown): value is string | null =>
   value === null || typeof value === 'string';
 
 /** The stored envelope in its stored form (every contracted key, text or null), else null. */
-function storedEnvelopeOf(value: unknown): StoredEnvelope | null {
+export function storedEnvelopeOf(value: unknown): StoredEnvelope | null {
   const envelope = record(value);
   if (envelope === null) return null;
   const { from, to, replyTo, parentBindingId } = envelope;
@@ -200,7 +200,7 @@ function storedEnvelopeOf(value: unknown): StoredEnvelope | null {
 }
 
 /** The stored document plan in its stored form (every contracted key of every entry), else null. */
-function storedPlansOf(value: unknown): StoredDocumentPlan[] | null {
+export function storedPlansOf(value: unknown): StoredDocumentPlan[] | null {
   if (!Array.isArray(value)) return null;
   const plans: StoredDocumentPlan[] = [];
   for (const entry of value) {

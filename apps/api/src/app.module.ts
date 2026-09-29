@@ -10,6 +10,7 @@ import { CorrespondenceModule } from './modules/correspondence/correspondence.mo
 import { DirectoryModule } from './modules/directory/directory.module.js';
 import { ProductionModule } from './modules/production/production.module.js';
 import { PromptsModule } from './modules/prompts/prompts.module.js';
+import { ReadinessModule } from './modules/readiness/readiness.module.js';
 import { RepresentationModule } from './modules/representation/representation.module.js';
 import { SourcesModule } from './modules/sources/sources.module.js';
 import { ValidationModule } from './modules/validation/validation.module.js';
@@ -29,7 +30,9 @@ import { HealthModule } from './modules/health/health.module.js';
 // context of its prompt's scope (technical checks only; no G1–G6 review, approval or readiness).
 // P4H: candidate assessments — one attributable G1–G6 review of one exact candidate artifact at one
 // evaluation epoch, and the read-back of its stored support rows (a record only; nothing counts
-// toward readiness here). No readiness, export, signing or sending endpoints.
+// toward readiness there). P4I: readiness — READY_FOR_SIGNER derived from the current captured
+// records on every read (never stored; ready for authorized human signer review only) — and the
+// unsigned text handoff of a candidate that is ready now. No signing, sending or G7 endpoints.
 @Module({
   imports: [
     DatabaseModule,
@@ -45,6 +48,7 @@ import { HealthModule } from './modules/health/health.module.js';
     CandidatesModule,
     ValidationModule,
     AssessmentsModule,
+    ReadinessModule,
   ],
   providers: [{ provide: APP_FILTER, useClass: ApiExceptionFilter }],
 })
