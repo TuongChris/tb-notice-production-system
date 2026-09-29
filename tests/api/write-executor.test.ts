@@ -386,16 +386,16 @@ describe('WriteExecutor', () => {
       expect(JSON.stringify(db.rows[0]?.responseJson)).not.toContain('SYNTHETIC body');
     });
 
-    it('every replay rechecks through `release` (with the kept values and the instant) outside any write; a refusal releases nothing and stays repeatable', async () => {
+    it('every replay rechecks through `release` (with the kept values only — never the request’s instant, R14-AUD-020) outside any write; a refusal releases nothing and stays repeatable', async () => {
       const { db, audit, executor } = setup();
-      const calls: Array<{ kept: unknown; now: Date }> = [];
+      const calls: unknown[][] = [];
       let ready = true;
       const refusal = new ApiError(409, 'CANDIDATE_NOT_READY', 'not ready', { status: 'BLOCKED' });
       const options = {
         guardedReplay: {
           keep: () => ({ kept: 'K' }),
-          release: async (kept: unknown, now: Date) => {
-            calls.push({ kept, now });
+          release: async (...args: unknown[]) => {
+            calls.push(args);
             if (!ready) throw refusal;
             return released;
           },
@@ -415,11 +415,9 @@ describe('WriteExecutor', () => {
       ready = true;
       const again = await executor.execute(exportCommand('request-4'), exportWork, options);
       expect(again.replayed).toBe(true);
-      expect(calls).toEqual([
-        { kept: { kept: 'K' }, now: NOW },
-        { kept: { kept: 'K' }, now: NOW },
-        { kept: { kept: 'K' }, now: NOW },
-      ]);
+      // The executor's instant precedes the claim and the replay lookup: the guard never gets it
+      // and samples its own evaluation instant after its reads.
+      expect(calls).toEqual([[{ kept: 'K' }], [{ kept: 'K' }], [{ kept: 'K' }]]);
       // Only the original request ran a transaction and wrote an audit event; the record stays.
       expect(db.transactions).toBe(1);
       expect(audit.entries).toHaveLength(1);

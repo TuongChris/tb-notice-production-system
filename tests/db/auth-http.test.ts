@@ -830,11 +830,12 @@ describe('SECURITY', () => {
     // operations, R9 the fact-source read-back of TB-SCHEMA-API-v1.2.0, P4C the correspondence
     // capture and case-binding operations, P4D the read-only production context, P4E the prompt
     // operations, P4F the candidate operations, P4G the technical validation operations, R14 the
-    // validation-run read-back of TB-SCHEMA-API-v1.3.0 and P4H the candidate assessment operations
-    // with the support read-back of TB-SCHEMA-API-v1.4.0 (exact inventory: directory-http.test.ts);
-    // nothing else (a candidate has no send route: see below).
+    // validation-run read-back of TB-SCHEMA-API-v1.3.0, P4H the candidate assessment operations
+    // with the support read-back of TB-SCHEMA-API-v1.4.0, P4I the readiness read and unsigned
+    // export and R14-AUD-018 the contracted audit history read (exact inventory:
+    // directory-http.test.ts); nothing else (a candidate has no send route: see below).
     const directory =
-      /^[A-Z]+ \/api\/v1\/(agencies|owners|legal-subjects|signers|owner-subjects|sources|routes|mandates|mandate-versions|coverages|coverage-signers|cases|case-sources|correspondence|prompts|candidates|validation-runs)(\/|$)/;
+      /^[A-Z]+ \/api\/v1\/(agencies|owners|legal-subjects|signers|owner-subjects|sources|routes|mandates|mandate-versions|coverages|coverage-signers|cases|case-sources|correspondence|prompts|candidates|validation-runs|audit-events)(\/|$)/;
     expect(routes.filter((route) => !directory.test(route))).toEqual([
       'GET /api/v1/auth/session',
       'GET /api/v1/health',

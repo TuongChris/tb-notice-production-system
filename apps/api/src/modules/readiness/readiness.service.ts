@@ -25,12 +25,14 @@
 //                and body exactly, HUMAN_PENDING, sendPerformed false, the readiness evaluated and
 //                the instant.
 //              The case row is locked, never changed; no export table, row or copy exists. A replay
-//              of the same key re-evaluates the current readiness in a consistent snapshot and
-//              applies the same refusals to the original request; only while it is still
-//              READY_FOR_SIGNER with the same artifact, digest and run does it return the
-//              historical response, rebuilt from the immutable candidate with the kept readiness
-//              and instant (the idempotency record keeps no subject, envelope or body). Otherwise it
-//              returns the present refusal and releases nothing; a replay writes nothing.
+//              of the same key re-evaluates the current readiness in a consistent snapshot, at an
+//              instant sampled after that snapshot's reads (R14-AUD-020: never the request's
+//              instant from before the claim and the replay lookup), and applies the same refusals
+//              to the original request; only while it is still READY_FOR_SIGNER with the same
+//              artifact, digest and run does it return the historical response, rebuilt from the
+//              immutable candidate with the kept readiness and instant (the idempotency record
+//              keeps no subject, envelope or body). Otherwise it returns the present refusal and
+//              releases nothing; a replay writes nothing.
 // Nothing is signed, adopted, sent, submitted, fetched or contacted: no AI provider, network, mail,
 // platform or Drive access exists here. Lock order: CaseRecord → NoticeCandidate.
 import { Inject, Injectable } from '@nestjs/common';
@@ -114,7 +116,7 @@ export class ReadinessService {
         isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
         guardedReplay: {
           keep: (data) => keptOf(data as UnsignedExport),
-          release: (kept, now) => this.release(candidateId, body, kept, now),
+          release: (kept) => this.release(candidateId, body, kept),
         },
       },
     );
@@ -181,23 +183,30 @@ export class ReadinessService {
   }
 
   /**
-   * A replay of a completed export: the current readiness in one snapshot, the same refusals
-   * against the original request, then the historical response rebuilt from the immutable
-   * candidate and the kept readiness and instant — or the present refusal, releasing nothing.
+   * A replay of a completed export: the current readiness in one snapshot, evaluated at the
+   * current instant, the same refusals against the original request, then the historical response
+   * rebuilt from the immutable candidate and the kept readiness and instant — or the present
+   * refusal, releasing nothing.
    */
   private async release(
     candidateId: string,
     body: ExportUnsigned,
     kept: unknown,
-    now: Date,
   ): Promise<UnsignedExport> {
     const historical = keptExport(kept);
+    await this.observer.beforeReplayRead(candidateId);
     return this.prisma.$transaction(async (tx) => {
       const candidate = await tx.noticeCandidate.findUnique({ where: { id: candidateId } });
       // A candidate is never deleted: a completed export's candidate always exists.
       if (candidate === null) throw apiErrors.internal();
       const input = await scopedInput(tx, candidate, () => apiErrors.exportContextChanged());
-      const refusal = exportRefusal(evaluateReadiness(input, now).readiness, body);
+      await this.observer.afterReplayInput(candidateId);
+      // R14-AUD-020: the evaluation instant is sampled after the reads it judges, right before the
+      // evaluation (as GET and a new export do) — never the request's instant, which precedes the
+      // claim, the replay lookup and these reads. The current readiness is only the guard: the
+      // response below stays the historical one.
+      const evaluatedAt = this.clock.now();
+      const refusal = exportRefusal(evaluateReadiness(input, evaluatedAt).readiness, body);
       if (refusal) throw refusal;
       const recorded = historical.readiness;
       if (

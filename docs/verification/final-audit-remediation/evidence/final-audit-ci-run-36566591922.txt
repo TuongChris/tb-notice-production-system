@@ -1,0 +1,350 @@
+# GitHub Actions run 36566591922 (workflow CI, push) — branch feature/final-audit-remediation-aud015-aud020, the code head 2df10c8.
+# commit 2df10c85ae4189c1ecd81748f0a41fb2fef47e4a. Created 2026-09-29T12:12:29Z, completed 2026-09-29T12:25:15Z. Status: completed; conclusion: success.
+# Jobs: "Non-DB checks (cold install)" success (12:12:32Z–12:15:17Z); "Database, seed and smoke (MySQL 8.4.11)" success (12:12:33Z–12:25:14Z)
+# https://github.com/TuongChris/tb-notice-production-system/actions/runs/36566591922
+# Verified with `gh run view`. Evidence lines extracted from the job logs (`gh api …/actions/jobs/<id>/logs`; step
+# echoes, environment blocks, ANSI codes and timestamps removed; grouped by job and step). Synthetic CI data only; the
+# smokes write only into the disposable CI tb_notice_dev. No Drive write, mail, deployment or other external action.
+# Individual check lines of the other smokes are left out; their "(N checks)" totals are kept, and every check line of
+# smoke:p4i is listed, as are smoke:local's P4I and audit-read boundary checks. A step with no kept line succeeded without such output
+# (the last step of the database job runs `git diff --exit-code` and the porcelain check: the working tree stayed clean).
+
+Non-DB checks (cold install)
+  [corepack enable]
+    node v24.21.0, yarn 4.18.0, git version 2.55.0
+  [yarn install --immutable]
+    ➤ YN0000: · Done with warnings in 8s 83ms
+  [yarn reference:check]
+    [reference:check] pinned identity (REFERENCE_BASELINE.json): 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c matches
+    [reference:check] OK — frozen references intact.
+  [yarn reference:helper-tests]
+    [reference:helper-tests] frozen helper tests: pass 27, fail 0; exit 0
+  [yarn contracts:check]
+    [contracts:check] OK — 3 generated outputs match the active source.
+  [yarn typecheck]
+    (no evidence line; the step succeeded)
+  [yarn lint]
+    Found 0 warnings and 0 errors.
+  [yarn format:check]
+    All matched files use Prettier code style!
+  [yarn test]
+    Test Files  57 passed (57)
+    Tests  1736 passed (1736)
+  [yarn build]
+    dist/assets/candidates-CfeM0aQT.js           110.67 kB │ gzip:  27.21 kB
+    dist/assets/index-De_NPGJ5.js                332.70 kB │ gzip: 103.20 kB
+    ✓ built in 234ms
+  [yarn reference:check]
+    [reference:check] pinned identity (REFERENCE_BASELINE.json): 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c matches
+    [reference:check] OK — frozen references intact.
+
+Database, seed and smoke (MySQL 8.4.11)
+  [corepack enable]
+    node v24.21.0, yarn 4.18.0, Docker version 28.0.4, build b8034c0, Docker Compose version v2.38.2
+  [yarn install --immutable]
+    ➤ YN0000: · Done with warnings in 7s 764ms
+  [yarn env:init]
+    (no evidence line; the step succeeded)
+  [yarn db:up]
+    (no evidence line; the step succeeded)
+  [yarn db:migrate:deploy test]
+    [verify] tables 33/33 (InnoDB 33, utf8mb4_0900_bin 33); columns 541/541 (character columns with binary collation 391)
+    [verify] foreign keys 125/125 RESTRICT/RESTRICT (composite 27); CHECK constraints 30/30 semantically matching and ENFORCED=YES
+    [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+    [verify] domain rows total: 0
+    [verify] PASS: metadata matches the reviewed inventory.
+  [yarn test:db]
+    [guard] test:db target: tb_migrate@127.0.0.1:3307/tb_notice_test
+    Test Files  16 passed (16)
+    Tests  635 passed (635)
+  [yarn db:migrate:deploy replay]
+    No pending migrations to apply.
+    [verify] tables 33/33 (InnoDB 33, utf8mb4_0900_bin 33); columns 541/541 (character columns with binary collation 391)
+    [verify] foreign keys 125/125 RESTRICT/RESTRICT (composite 27); CHECK constraints 30/30 semantically matching and ENFORCED=YES
+    [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+    [verify] domain rows total: 0
+    [verify] PASS: metadata matches the reviewed inventory.
+  [yarn db:migrate:deploy dev]
+    [verify] tables 33/33 (InnoDB 33, utf8mb4_0900_bin 33); columns 541/541 (character columns with binary collation 391)
+    [verify] foreign keys 125/125 RESTRICT/RESTRICT (composite 27); CHECK constraints 30/30 semantically matching and ENFORCED=YES
+    [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+    [verify] domain rows total: 0
+    [verify] PASS: metadata matches the reviewed inventory.
+  [yarn db:seed | tee seed-1.log]
+    [db:seed] synthetic actor 00000000-0000-4000-8000-00000000a0c7: inserted
+    [db:seed] rows=1 enabled=0 password_hash=!P0-SYNTHETIC-DISABLED-ACTOR-NO-CREDENTIAL
+    [db:seed] canonical digest 0ee26dc3ee5f3a1030fb78a6cadaf4dabef1f5a296b58163248584e1e0bfb775 (identical on every PC)
+    [db:seed] synthetic actor 00000000-0000-4000-8000-00000000a0c7: unchanged (already canonical)
+    [db:seed] rows=1 enabled=0 password_hash=!P0-SYNTHETIC-DISABLED-ACTOR-NO-CREDENTIAL
+    [db:seed] canonical digest 0ee26dc3ee5f3a1030fb78a6cadaf4dabef1f5a296b58163248584e1e0bfb775 (identical on every PC)
+    [verify] tables 33/33 (InnoDB 33, utf8mb4_0900_bin 33); columns 541/541 (character columns with binary collation 391)
+    [verify] foreign keys 125/125 RESTRICT/RESTRICT (composite 27); CHECK constraints 30/30 semantically matching and ENFORCED=YES
+    [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+    [verify] domain rows total: 1
+    [verify] PASS: metadata matches the reviewed inventory.
+  [yarn db:drift:diff-migrations]
+    -- This is an empty migration.
+    -- This is an empty migration.
+  [yarn smoke:local]
+    dist/assets/candidates-CfeM0aQT.js           110.67 kB │ gzip:  27.21 kB
+    dist/assets/index-De_NPGJ5.js                332.70 kB │ gzip: 103.20 kB
+    ✓ built in 243ms
+    [smoke] PASS business boundary: GET /candidates/{id}/readiness without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /candidates/{id}/readiness through the web proxy without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /candidates/{id}/unsigned-exports without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /candidates/{id}/unsigned-exports without Origin → 403 ORIGIN_REJECTED, no-store
+    [smoke] PASS business boundary: GET /audit-events without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: GET /audit-events through the web proxy without a session → 401 SESSION_REQUIRED, no-store
+    [smoke] PASS business boundary: POST /candidates/{id}/sign (never routed) → 404 NOT_FOUND, no-store
+    [smoke] PASS business boundary: POST /candidates/{id}/send (never routed) → 404 NOT_FOUND, no-store
+    [smoke] PASS (73 checks)
+  [yarn smoke:auth --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"]
+    [smoke:auth] PASS (4 checks)
+  [yarn smoke:directory --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"]
+    [smoke:directory] PASS (14 checks)
+  [yarn smoke:p3a --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"]
+    [smoke:p3a] PASS (24 checks)
+  [yarn smoke:p3b --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"]
+    [smoke:p3b] PASS (36 checks)
+  [yarn smoke:p4a --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"]
+    [smoke:p4a] PASS (50 checks)
+  [yarn smoke:p4b --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"]
+    [smoke:p4b] PASS (64 checks)
+  [yarn smoke:p4c --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"]
+    [smoke:p4c] PASS (62 checks)
+  [yarn smoke:p4d --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"]
+    [smoke:p4d] PASS (85 checks)
+  [yarn smoke:p4e --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"]
+    [smoke:p4e] PASS (81 checks)
+  [yarn smoke:p4f --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"]
+    [smoke:p4f] PASS (88 checks)
+  [yarn smoke:p4g --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"]
+    [smoke:p4g] PASS (143 checks)
+  [yarn smoke:p4h --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"]
+    [smoke:p4h] PASS (149 checks)
+  [yarn smoke:p4i --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"]
+    [smoke:p4i] PASS GET /candidates/{id}/readiness without a session → 401 SESSION_REQUIRED
+    [smoke:p4i] PASS POST /candidates/{id}/unsigned-exports without a session → 401 SESSION_REQUIRED
+    [smoke:p4i] PASS POST /candidates/{id}/unsigned-exports without Origin → 403 ORIGIN_REJECTED
+    [smoke:p4i] PASS login → 200 with a session cookie and CSRF token
+    [smoke:p4i] PASS POST /agencies → 201
+    [smoke:p4i] PASS POST /sources → 201
+    [smoke:p4i] PASS POST /owners → 201
+    [smoke:p4i] PASS POST /legal-subjects → 201
+    [smoke:p4i] PASS GET /owners/d3ee3b29-42fb-415b-857b-282d958e0b25 → 200
+    [smoke:p4i] PASS POST /owners/{id}/subjects → 201
+    [smoke:p4i] PASS POST /routes → 201
+    [smoke:p4i] PASS POST /signers → 201
+    [smoke:p4i] PASS POST /mandates (mandate 1) → 201
+    [smoke:p4i] PASS GET /mandates/de53a74e-406a-487e-b887-06b285ec2c66 → 200
+    [smoke:p4i] PASS POST /mandates/{id}/versions (mandate 1) → 201
+    [smoke:p4i] PASS POST /sources → 201
+    [smoke:p4i] PASS GET /mandate-versions/3c7d81c6-5b9c-4741-9380-9c58905d8daa → 200
+    [smoke:p4i] PASS POST /mandate-versions/{id}/coverages (mandate 1) → 201
+    [smoke:p4i] PASS GET /coverages/cc759aeb-07b7-46c0-97a7-b1e9ce743984 → 200
+    [smoke:p4i] PASS POST /coverages/{id}/signers (mandate 1) → 201
+    [smoke:p4i] PASS GET /mandate-versions/3c7d81c6-5b9c-4741-9380-9c58905d8daa → 200
+    [smoke:p4i] PASS POST /mandate-versions/{id}/freeze (mandate 1) → 200
+    [smoke:p4i] PASS POST /sources → 201
+    [smoke:p4i] PASS POST /cases → 201
+    [smoke:p4i] PASS GET /cases/6e155629-48d1-44f6-bded-b2a1fe5d10e5 → 200
+    [smoke:p4i] PASS POST /cases/{caseId}/authority-selections → 201
+    [smoke:p4i] PASS GET /cases/6e155629-48d1-44f6-bded-b2a1fe5d10e5 → 200
+    [smoke:p4i] PASS POST /cases/{caseId}/reported-items → 201
+    [smoke:p4i] PASS GET /cases/6e155629-48d1-44f6-bded-b2a1fe5d10e5 → 200
+    [smoke:p4i] PASS POST /cases/{caseId}/works → 201
+    [smoke:p4i] PASS GET /cases/6e155629-48d1-44f6-bded-b2a1fe5d10e5 → 200
+    [smoke:p4i] PASS POST /cases/{caseId}/mappings → 201
+    [smoke:p4i] PASS POST /sources → 201
+    [smoke:p4i] PASS GET /cases/6e155629-48d1-44f6-bded-b2a1fe5d10e5 → 200
+    [smoke:p4i] PASS POST /cases/{caseId}/sources (case A) → 201
+    [smoke:p4i] PASS GET /cases/{caseId}/production-context (case A INITIAL + DRAFTING) → 200
+    [smoke:p4i] PASS POST /cases/{caseId}/prompts (case A INITIAL + DRAFTING) → 201
+    [smoke:p4i] PASS POST /cases/{caseId}/candidates (case A clean) → 201
+    [smoke:p4i] PASS GET /candidates/{id}/readiness (no run) → 200
+    [smoke:p4i] PASS a candidate without a run: UNVALIDATED VALIDATION_MISSING, G1_UNASSESSED, G2_UNASSESSED, G3_UNASSESSED, G4_UNASSESSED, G5_UNASSESSED, G6_UNASSESSED
+    [smoke:p4i] PASS GET /cases/{caseId}/production-context (case A clean) → 200
+    [smoke:p4i] PASS POST /candidates/{id}/validation-runs (case A clean) → 201
+    [smoke:p4i] PASS GET /candidates/{id}/readiness (run, no review) → 200
+    [smoke:p4i] PASS a TECHNICAL_PASS with six gates never assessed: REVIEW_REQUIRED G1_UNASSESSED, G2_UNASSESSED, G3_UNASSESSED, G4_UNASSESSED, G5_UNASSESSED, G6_UNASSESSED
+    [smoke:p4i] PASS POST /candidates/{id}/assessments (G1 PASS) → 201
+    [smoke:p4i] PASS POST /candidates/{id}/assessments (G2 PASS) → 201
+    [smoke:p4i] PASS POST /candidates/{id}/assessments (G3 PASS) → 201
+    [smoke:p4i] PASS POST /candidates/{id}/assessments (G4 PASS) → 201
+    [smoke:p4i] PASS POST /candidates/{id}/assessments (G5 PASS) → 201
+    [smoke:p4i] PASS GET /candidates/{id}/readiness (five PASS gates) → 200
+    [smoke:p4i] PASS five PASS gates and one never assessed (nothing compensates): REVIEW_REQUIRED G6_UNASSESSED
+    [smoke:p4i] PASS POST /candidates/{id}/assessments (G6 PASS) → 201
+    [smoke:p4i] PASS GET /candidates/{id}/readiness (six PASS gates) → 200
+    [smoke:p4i] PASS a full TECHNICAL_PASS and six confirmed PASS heads: READY_FOR_SIGNER (no reason)
+    [smoke:p4i] PASS READY_FOR_SIGNER reports the current epoch, the counted run and the six PASS heads
+    [smoke:p4i] PASS GET /candidates/{id}/readiness (again) → 200
+    [smoke:p4i] PASS readiness reads wrote nothing (row counts unchanged)
+    [smoke:p4i] PASS POST /candidates/{id}/unsigned-exports (another artifact) → 412
+    [smoke:p4i] PASS POST /candidates/{id}/unsigned-exports (another digest) → 412
+    [smoke:p4i] PASS POST /candidates/{id}/unsigned-exports (another run) → 412
+    [smoke:p4i] PASS refused exports released and wrote nothing
+    [smoke:p4i] PASS POST /candidates/{id}/unsigned-exports (READY) → 200
+    [smoke:p4i] PASS GET /candidates/{id} → 200
+    [smoke:p4i] PASS the export hands over the stored subject, envelope and body exactly (CRLF, trailing space, é), both hashes, HUMAN_PENDING, sendPerformed false and the readiness evaluated
+    [smoke:p4i] PASS the export wrote one EXPORT_UNSIGNED audit event and one idempotency record, nothing else
+    [smoke:p4i] PASS POST /candidates/{id}/unsigned-exports (the same key and body) → 200
+    [smoke:p4i] PASS the replay returned the historical response and wrote nothing
+    [smoke:p4i] PASS POST /candidates/{id}/unsigned-exports (the same key, another body) → 409
+    [smoke:p4i] PASS GET /validation-runs/{id} (run 1) → 200
+    [smoke:p4i] PASS GET /candidates/{id}/readiness (before the ERROR run) → 200
+    [smoke:p4i] PASS case A before its newest run: READY_FOR_SIGNER (no reason)
+    [smoke:p4i] PASS GET /candidates/{id}/readiness (the newest run is ERROR) → 200
+    [smoke:p4i] PASS the newest run of the epoch is ERROR: it counts, and no older PASS is relied on: BLOCKED VALIDATION_ERROR, VALIDATION_COVERAGE_INCOMPLETE
+    [smoke:p4i] PASS POST /candidates/{id}/unsigned-exports (the newest run is ERROR) → 409
+    [smoke:p4i] PASS POST /candidates/{id}/unsigned-exports (the first key while the newest run is ERROR) → 409
+    [smoke:p4i] PASS a newest ERROR run: the export and the first key refused (409), nothing released or written
+    [smoke:p4i] PASS GET /cases/{caseId}/production-context (case A after the ERROR run) → 200
+    [smoke:p4i] PASS POST /candidates/{id}/validation-runs (case A after the ERROR run) → 201
+    [smoke:p4i] PASS GET /candidates/{id}/readiness (a later completed PASS) → 200
+    [smoke:p4i] PASS ERROR → a later completed TECHNICAL_PASS of the same epoch: the ERROR poisons nothing: READY_FOR_SIGNER (no reason)
+    [smoke:p4i] PASS POST /candidates/{id}/unsigned-exports (the first key names run 1) → 412
+    [smoke:p4i] PASS after the recovery the first key names a run that no longer counts (412), nothing released
+    [smoke:p4i] PASS POST /candidates/{id}/assessments (G3 PASS) → 201
+    [smoke:p4i] PASS GET /candidates/{id}/readiness (two G3 heads) → 200
+    [smoke:p4i] PASS two current G3 heads (never the latest PASS): REVIEW_REQUIRED G3_CONFLICT, GATE_HEADS_UNRECONCILED
+    [smoke:p4i] PASS POST /candidates/{id}/unsigned-exports (gate conflict) → 409
+    [smoke:p4i] PASS POST /candidates/{id}/unsigned-exports (the first key after the conflict) → 409
+    [smoke:p4i] PASS the first export key no longer releases anything (409, the present refusal)
+    [smoke:p4i] PASS POST /cases/{caseId}/candidates (case A placeholder) → 201
+    [smoke:p4i] PASS GET /cases/{caseId}/production-context (case A placeholder) → 200
+    [smoke:p4i] PASS POST /candidates/{id}/validation-runs (case A placeholder) → 201
+    [smoke:p4i] PASS GET /candidates/{id}/readiness (a BLOCKED run) → 200
+    [smoke:p4i] PASS a BLOCKED run of the current epoch → BLOCKED (VALIDATION_BLOCKED)
+    [smoke:p4i] PASS POST /cases/{caseId}/candidates (case A wording) → 201
+    [smoke:p4i] PASS GET /cases/{caseId}/production-context (case A wording) → 200
+    [smoke:p4i] PASS POST /candidates/{id}/validation-runs (case A wording) → 201
+    [smoke:p4i] PASS GET /candidates/{id}/readiness (a REVIEW_REQUIRED run) → 200
+    [smoke:p4i] PASS a REVIEW_REQUIRED run of the current epoch → REVIEW_REQUIRED (no waiver)
+    [smoke:p4i] PASS POST /cases → 201
+    [smoke:p4i] PASS GET /cases/062d32ca-168e-444c-846c-4d5ccbe699ba → 200
+    [smoke:p4i] PASS POST /cases/{caseId}/authority-selections → 201
+    [smoke:p4i] PASS GET /cases/062d32ca-168e-444c-846c-4d5ccbe699ba → 200
+    [smoke:p4i] PASS POST /cases/{caseId}/reported-items → 201
+    [smoke:p4i] PASS GET /cases/062d32ca-168e-444c-846c-4d5ccbe699ba → 200
+    [smoke:p4i] PASS POST /cases/{caseId}/works → 201
+    [smoke:p4i] PASS GET /cases/062d32ca-168e-444c-846c-4d5ccbe699ba → 200
+    [smoke:p4i] PASS POST /cases/{caseId}/mappings → 201
+    [smoke:p4i] PASS POST /sources → 201
+    [smoke:p4i] PASS GET /cases/062d32ca-168e-444c-846c-4d5ccbe699ba → 200
+    [smoke:p4i] PASS POST /cases/{caseId}/sources (case R) → 201
+    [smoke:p4i] PASS POST /correspondence (NMI) → 201
+    [smoke:p4i] PASS GET /cases/062d32ca-168e-444c-846c-4d5ccbe699ba → 200
+    [smoke:p4i] PASS POST /cases/{caseId}/correspondence-bindings (NMI) → 201
+    [smoke:p4i] PASS POST /sources → 201
+    [smoke:p4i] PASS POST /correspondence (notice as sent (raw)) → 201
+    [smoke:p4i] PASS GET /cases/062d32ca-168e-444c-846c-4d5ccbe699ba → 200
+    [smoke:p4i] PASS POST /cases/{caseId}/correspondence-bindings (INITIAL_AS_SENT) → 201
+    [smoke:p4i] PASS GET /cases/{caseId}/production-context (case R NMI_REPLY + DRAFTING) → 200
+    [smoke:p4i] PASS POST /cases/{caseId}/prompts (case R NMI_REPLY) → 201
+    [smoke:p4i] PASS POST /cases/{caseId}/candidates (case R reply) → 201
+    [smoke:p4i] PASS GET /cases/{caseId}/production-context (case R before its run) → 200
+    [smoke:p4i] PASS POST /candidates/{id}/validation-runs (case R reply) → 201
+    [smoke:p4i] PASS POST /candidates/{id}/assessments (G1 PASS) → 201
+    [smoke:p4i] PASS POST /candidates/{id}/assessments (G2 PASS) → 201
+    [smoke:p4i] PASS POST /candidates/{id}/assessments (G3 PASS) → 201
+    [smoke:p4i] PASS POST /candidates/{id}/assessments (G4 PASS) → 201
+    [smoke:p4i] PASS POST /candidates/{id}/assessments (G5 PASS) → 201
+    [smoke:p4i] PASS POST /candidates/{id}/assessments (G6 PASS) → 201
+    [smoke:p4i] PASS GET /candidates/{id}/readiness (case R: the ask requires a document) → 200
+    [smoke:p4i] PASS a G6 PASS recording an NMI ask as REQUIRES_DOCUMENT holds G6 (five PASS gates never compensate): REVIEW_REQUIRED G6_HOLD, G6_ASK_REQUIRES_DOCUMENT
+    [smoke:p4i] PASS POST /candidates/{id}/unsigned-exports (case R, an unresolved ask) → 409
+    [smoke:p4i] PASS POST /candidates/{id}/assessments (G6 PASS) → 201
+    [smoke:p4i] PASS GET /candidates/{id}/readiness (case R: the ask answered) → 200
+    [smoke:p4i] PASS a sourced G6 successor recording the ask answered: READY_FOR_SIGNER: READY_FOR_SIGNER (no reason)
+    [smoke:p4i] PASS POST /candidates/{id}/unsigned-exports (case R READY) → 200
+    [smoke:p4i] PASS the reply is exported unsigned and unsent once its ask is recorded resolved
+    [smoke:p4i] PASS GET /mandates/de53a74e-406a-487e-b887-06b285ec2c66 → 200
+    [smoke:p4i] PASS POST /mandates/{id}/events (REVOCATION of mandate 1) → 201
+    [smoke:p4i] PASS GET /candidates/{id}/readiness (after the revocation) → 200
+    [smoke:p4i] PASS a REVOCATION event → STALE_REVALIDATION_REQUIRED with a new digest (VALIDATION_STALE)
+    [smoke:p4i] PASS POST /candidates/{id}/unsigned-exports (the first key after the revocation) → 412
+    [smoke:p4i] PASS POST /mandates (mandate 2) → 201
+    [smoke:p4i] PASS GET /mandates/b693abe3-7a0f-4170-b237-0d61f1ebe084 → 200
+    [smoke:p4i] PASS POST /mandates/{id}/versions (mandate 2) → 201
+    [smoke:p4i] PASS POST /sources → 201
+    [smoke:p4i] PASS GET /mandate-versions/356290cc-5f87-49aa-87e8-bd6878c79c94 → 200
+    [smoke:p4i] PASS POST /mandate-versions/{id}/coverages (mandate 2) → 201
+    [smoke:p4i] PASS GET /coverages/b42d08d8-a001-4562-bdf8-e31a9a48e28f → 200
+    [smoke:p4i] PASS POST /coverages/{id}/signers (mandate 2) → 201
+    [smoke:p4i] PASS GET /mandate-versions/356290cc-5f87-49aa-87e8-bd6878c79c94 → 200
+    [smoke:p4i] PASS POST /mandate-versions/{id}/freeze (mandate 2) → 200
+    [smoke:p4i] PASS POST /cases → 201
+    [smoke:p4i] PASS GET /cases/d990b879-10cf-44a5-b551-5288dc06a796 → 200
+    [smoke:p4i] PASS POST /cases/{caseId}/authority-selections → 201
+    [smoke:p4i] PASS GET /cases/d990b879-10cf-44a5-b551-5288dc06a796 → 200
+    [smoke:p4i] PASS POST /cases/{caseId}/reported-items → 201
+    [smoke:p4i] PASS GET /cases/d990b879-10cf-44a5-b551-5288dc06a796 → 200
+    [smoke:p4i] PASS POST /cases/{caseId}/works → 201
+    [smoke:p4i] PASS GET /cases/d990b879-10cf-44a5-b551-5288dc06a796 → 200
+    [smoke:p4i] PASS POST /cases/{caseId}/mappings → 201
+    [smoke:p4i] PASS POST /sources → 201
+    [smoke:p4i] PASS GET /cases/d990b879-10cf-44a5-b551-5288dc06a796 → 200
+    [smoke:p4i] PASS POST /cases/{caseId}/sources (case T) → 201
+    [smoke:p4i] PASS GET /mandates/b693abe3-7a0f-4170-b237-0d61f1ebe084 → 200
+    [smoke:p4i] PASS POST /mandates/{id}/events (a boundary seconds ahead) → 201
+    [smoke:p4i] PASS GET /cases/{caseId}/production-context (case T INITIAL + DRAFTING) → 200
+    [smoke:p4i] PASS POST /cases/{caseId}/prompts (case T INITIAL + DRAFTING) → 201
+    [smoke:p4i] PASS POST /cases/{caseId}/candidates (case T clean) → 201
+    [smoke:p4i] PASS GET /cases/{caseId}/production-context (case T clean) → 200
+    [smoke:p4i] PASS POST /candidates/{id}/validation-runs (case T clean) → 201
+    [smoke:p4i] PASS POST /candidates/{id}/assessments (G1 PASS) → 201
+    [smoke:p4i] PASS POST /candidates/{id}/assessments (G2 PASS) → 201
+    [smoke:p4i] PASS POST /candidates/{id}/assessments (G3 PASS) → 201
+    [smoke:p4i] PASS POST /candidates/{id}/assessments (G4 PASS) → 201
+    [smoke:p4i] PASS POST /candidates/{id}/assessments (G5 PASS) → 201
+    [smoke:p4i] PASS POST /candidates/{id}/assessments (G6 PASS) → 201
+    [smoke:p4i] PASS GET /candidates/{id}/readiness (case T before the boundary) → 200
+    [smoke:p4i] PASS case T before its authority event takes effect: READY_FOR_SIGNER (no reason)
+    [smoke:p4i] PASS POST /candidates/{id}/unsigned-exports (case T READY) → 200
+    [smoke:p4i] PASS GET /candidates/{id}/readiness (case T after the boundary) → 200
+    [smoke:p4i] PASS the G1 review predates a boundary that has now passed (the same digest): STALE_REVALIDATION_REQUIRED G1_UNASSESSED, G1_TEMPORAL_REVIEW_STALE
+    [smoke:p4i] PASS POST /candidates/{id}/unsigned-exports (case T key after the boundary) → 409
+    [smoke:p4i] PASS case T’s export key no longer releases anything once the boundary passed (judged now)
+    [smoke:p4i] PASS GET /audit-events without a session → 401 SESSION_REQUIRED
+    [smoke:p4i] PASS GET /audit-events (the exports of case A) → 200
+    [smoke:p4i] PASS case A’s EXPORT_UNSIGNED event is recoverable exactly, its body only as a length
+    [smoke:p4i] PASS GET /audit-events (the captured reviews) → 200
+    [smoke:p4i] PASS the CANDIDATE_ASSESSMENT_CAPTURED events are recoverable, their texts only as lengths
+    [smoke:p4i] PASS GET /audit-events (one event) → 200
+    [smoke:p4i] PASS GET /audit-events (a cursor of another filter set) → 400
+    [smoke:p4i] PASS the audit reads wrote nothing (no audit event about reading, no idempotency record)
+    [smoke:p4i] PASS POST /candidates/{id}/sign (not routed) → 404
+    [smoke:p4i] PASS POST /candidates/{id}/adopt (not routed) → 404
+    [smoke:p4i] PASS POST /candidates/{id}/send (not routed) → 404
+    [smoke:p4i] PASS POST /candidates/{id}/submit (not routed) → 404
+    [smoke:p4i] PASS POST /candidates/{id}/signature (not routed) → 404
+    [smoke:p4i] PASS POST /candidates/{id}/as-sent (not routed) → 404
+    [smoke:p4i] PASS POST /cases/{caseId}/send (not routed) → 404
+    [smoke:p4i] PASS POST /audit-events (not routed) → 404
+    [smoke:p4i] PASS DELETE /audit-events (not routed) → 404
+    [smoke:p4i] PASS POST /candidates/{id}/readiness (not routed) → 404
+    [smoke:p4i] PASS GET /candidates/{id}/unsigned-exports (not routed) → 404
+    [smoke:p4i] PASS POST /cases/{caseId}/g7 (not routed) → 404
+    [smoke:p4i] PASS no signing, adoption, sending, submission, AS_SENT, export listing, audit write or G7 route exists; no export recorded a transmission
+    [smoke:p4i] PASS logout → 204
+    [smoke:p4i] PASS (205 checks)
+  [E=p1-ci-admin@example.invalid]
+    [admin:disable] disabled application user a703ad47-5844-4630-97d1-690095a7665d (p1-ci-admin@example.invalid); session epoch 2 → 3; 0 active session(s) revoked. The user row is kept.
+    [smoke:auth] PASS (1 checks)
+    [admin:disable] application user a703ad47-5844-4630-97d1-690095a7665d (p1-ci-admin@example.invalid) is already disabled; nothing changed.
+    [admin:enable] enabled application user a703ad47-5844-4630-97d1-690095a7665d (p1-ci-admin@example.invalid); session epoch 3 → 4 (sessions from before stay unusable); 0 active session(s) revoked.
+    [smoke:auth] PASS (4 checks)
+    [admin:password] password replaced for application user a703ad47-5844-4630-97d1-690095a7665d (p1-ci-admin@example.invalid); session epoch 4 → 5; 0 active session(s) revoked.
+    [smoke:auth] PASS (1 checks)
+    [smoke:auth] PASS (4 checks)
+    [db:seed] synthetic actor 00000000-0000-4000-8000-00000000a0c7: unchanged (already canonical)
+    [db:seed] rows=1 enabled=0 password_hash=!P0-SYNTHETIC-DISABLED-ACTOR-NO-CREDENTIAL
+    [db:seed] canonical digest 0ee26dc3ee5f3a1030fb78a6cadaf4dabef1f5a296b58163248584e1e0bfb775 (identical on every PC)
+  [yarn dev:verify-shutdown]
+    [verify-dev] PASS (4/4 scenarios)
+  [yarn reference:check]
+    [reference:check] pinned identity (REFERENCE_BASELINE.json): 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c matches
+    [reference:check] OK — frozen references intact.
+
+Lines containing "] FAIL" in both job logs: 0.

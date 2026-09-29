@@ -1,0 +1,198 @@
+Final-audit remediation — negative controls (mission TB_FINAL_CLOSEOUT_SCOPED_REMEDIATION_AUD015_TO_AUD020, §52)
+home PC, 2026-09-29; all controls re-run in one batch at the code head 742e9cc
+======================================================================================================================
+
+Method (negative-control method of the earlier phases): for each control the target file(s) are copied and their
+SHA-256 recorded; one exact-once text mutation is applied (a replacement that matches more or less than once aborts);
+the responsible tests run (API unit: tests/api/readiness-rules.test.ts; DB: node scripts/db/run-db-tests.mjs
+tests/db/p4i-http.test.ts -t <filter> on tb_notice_test; web: tests/web/p4h.test.tsx or p4i.test.tsx); the file(s)
+are restored from the copy and `sha256sum -c` must pass, or the batch stops. A control passes when the mutation
+makes the responsible tests fail on their own assertions (AssertionError), not on a helper error. The mutations
+never reached a commit; the working tree was clean (apart from the untracked evidence folder) after the batch.
+
+NC-FINAL-020-A — CAUGHT; restored byte-identically: yes
+  purpose: §52 "use release callback's earlier now" → boundary replay tests fail
+  mutation: the replay evaluates at the WriteExecutor's request instant (the GuardedReplay release callback gets `now` back and `evaluatedAt = now`) (apps/api/src/infrastructure/write/write-executor.ts, apps/api/src/modules/readiness/readiness.service.ts; 7 exact-once replacement(s))
+  step 1: DB "R14-AUD-020" → 4 failed | 1 passed | 49 skipped (54)
+  AssertionError lines: 4
+  failing tests:
+    × A / F: the boundary passes after the request’s instant, while the replay waits in its claim and replay lookup — 409 STALE_REVALIDATION_REQUIRED (G1_TEMPORAL_REVIEW_STALE); nothing released or written
+    × B / F: the boundary passes while the replay reads its input — still refused: an instant taken when the replay starts, before its reads, is not the evaluation instant
+    × C: no instant of the request is READY — G2 HOLD before the boundary, G1 stale from it on, a G2 PASS successor only after it; the replay reads the PASS and still refuses (G1 stale at its evaluation)
+    × D / F: a date-only boundary — the replay starts while the date lies ahead everywhere and is judged once the date may have begun somewhere (TEMPORAL_BOUNDARY_AMBIGUOUS) or has ended everywhere (G1 stale)
+
+NC-FINAL-020-B — CAUGHT; restored byte-identically: yes
+  purpose: §52 "refresh time before scopedInput rather than after it" → scopedInput-delay test fails
+  mutation: the instant is sampled inside the snapshot but before `scopedInput` (`sampledEarly`) (apps/api/src/modules/readiness/readiness.service.ts; 2 exact-once replacement(s))
+  step 1: DB "R14-AUD-020" → 2 failed | 3 passed | 49 skipped (54)
+  AssertionError lines: 2
+  failing tests:
+    × B / F: the boundary passes while the replay reads its input — still refused: an instant taken when the replay starts, before its reads, is not the evaluation instant
+    × D / F: a date-only boundary — the replay starts while the date lies ahead everywhere and is judged once the date may have begun somewhere (TEMPORAL_BOUNDARY_AMBIGUOUS) or has ended everywhere (G1 stale)
+
+NC-FINAL-016-A — CAUGHT; restored byte-identically: yes
+  purpose: §52 "remove REQUIRES_DOCUMENT HOLD" → NMI test fails
+  mutation: `ASK_DISPOSITION_CAUSE.REQUIRES_DOCUMENT` = null (apps/api/src/modules/readiness/readiness-rules.ts; 1 exact-once replacement(s))
+  step 1: API unit → 4 failed | 69 passed (73)
+  step 2: DB "R14-AUD-016" → 3 failed | 2 passed | 49 skipped (54)
+  AssertionError lines: 7
+  failing tests:
+    × classifies every contracted disposition explicitly: three resolved, three unresolved
+    × REQUIRES_DOCUMENT, MISSING_FACT and LEGAL_REVIEW_REQUIRED each hold G6 with their own reason
+    × a mixed list stays HOLD: answered asks never compensate for an unresolved one
+    × the readiness: five PASS gates and a G6 PASS with an unresolved ask → REVIEW_REQUIRED with the reason; the export is refused (409 CANDIDATE_NOT_READY); a resolved successor makes it READY
+    × REQUIRES_DOCUMENT, MISSING_FACT and LEGAL_REVIEW_REQUIRED — alone or beside answered asks — hold G6 with their reason: REVIEW_REQUIRED, five PASS gates never compensate, a fresh export is refused and releases nothing
+    × successor recovery: a stored G6 PASS recording REQUIRES_DOCUMENT stays unchanged and readable; only an explicit, sourced successor that records every ask resolved becomes the one head — and only then is the candidate …
+    × export replay: an export recorded while G6 was resolved releases nothing once a G6 successor records REQUIRES_DOCUMENT or MISSING_FACT — no text, no new audit event, no business change
+
+NC-FINAL-016-B — CAUGHT; restored byte-identically: yes
+  purpose: §52 "remove MISSING_FACT HOLD" → NMI test fails
+  mutation: `ASK_DISPOSITION_CAUSE.MISSING_FACT` = null (apps/api/src/modules/readiness/readiness-rules.ts; 1 exact-once replacement(s))
+  step 1: API unit → 4 failed | 69 passed (73)
+  step 2: DB "R14-AUD-016" → 2 failed | 3 passed | 49 skipped (54)
+  AssertionError lines: 6
+  failing tests:
+    × classifies every contracted disposition explicitly: three resolved, three unresolved
+    × REQUIRES_DOCUMENT, MISSING_FACT and LEGAL_REVIEW_REQUIRED each hold G6 with their own reason
+    × a mixed list stays HOLD: answered asks never compensate for an unresolved one
+    × no text is read: an unresolved remainder, answer locator or question naming a document, a fact or legal review never changes a resolved disposition (no keyword rule)
+    × REQUIRES_DOCUMENT, MISSING_FACT and LEGAL_REVIEW_REQUIRED — alone or beside answered asks — hold G6 with their reason: REVIEW_REQUIRED, five PASS gates never compensate, a fresh export is refused and releases nothing
+    × export replay: an export recorded while G6 was resolved releases nothing once a G6 successor records REQUIRES_DOCUMENT or MISSING_FACT — no text, no new audit event, no business change
+
+NC-FINAL-016-C — CAUGHT; restored byte-identically: yes
+  purpose: §52 "allow missing material disposition" → completeness test fails (a G6 PASS of a reply with no disposition)
+  mutation: the `G6_ASK_DISPOSITIONS_MISSING` hold removed (apps/api/src/modules/readiness/readiness-rules.ts; 1 exact-once replacement(s))
+  step 1: API unit → 1 failed | 72 passed (73)
+  step 2: DB "R14-AUD-016" → 1 failed | 4 passed | 49 skipped (54)
+  AssertionError lines: 2
+  failing tests:
+    × negative controls: no disposition holds G6; a source that does not apply now holds it; another parent, an ask twice, an unknown or malformed disposition never count (BLOCKED)
+    × negative controls: no disposition holds G6; another parent (422 ASK_PARENT_MISMATCH), an ask twice (422 VALIDATION_FAILED) or a source outside the case (422) are refused at capture; a stored foreign, duplicate or unkn…
+
+NC-FINAL-016-C2 — CAUGHT; restored byte-identically: yes
+  purpose: §52 NC-FINAL-016-C, second form (an ask recorded twice counts)
+  mutation: the `askRecordedTwice` integrity check removed (apps/api/src/modules/readiness/readiness-rules.ts; 1 exact-once replacement(s))
+  step 1: API unit → 1 failed | 72 passed (73)
+  step 2: DB "R14-AUD-016" → 1 failed | 4 passed | 49 skipped (54)
+  AssertionError lines: 2
+  failing tests:
+    × negative controls: no disposition holds G6; a source that does not apply now holds it; another parent, an ask twice, an unknown or malformed disposition never count (BLOCKED)
+    × negative controls: no disposition holds G6; another parent (422 ASK_PARENT_MISMATCH), an ask twice (422 VALIDATION_FAILED) or a source outside the case (422) are refused at capture; a stored foreign, duplicate or unkn…
+
+NC-FINAL-015-A — CAUGHT; restored byte-identically: yes
+  purpose: §52 "restore old all-run conflict behavior" → ERROR recovery test fails
+  mutation: every run of E compared again (`completed = current`) (apps/api/src/modules/readiness/readiness-rules.ts; 1 exact-once replacement(s))
+  step 1: API unit → 8 failed | 65 passed (73)
+  step 2: DB "R14-AUD-015|R-28" → 4 failed | 1 passed | 49 skipped (54)
+  AssertionError lines: 12
+  failing tests:
+    × ERROR only → BLOCKED: the latest ERROR counts as the diagnostic it is; ERROR runs are never compared with each other
+    × ERROR → a run with a rule not executed → never READY: the latest run counts and is incomplete
+    × ERROR → a completed TECHNICAL_PASS → the PASS counts; earlier diagnostics stay history and poison nothing
+    × PASS → a newer ERROR or a newer run with a rule not executed → not READY: the newer run counts, no older PASS is relied on
+    × PASS → ERROR → PASS → the latest completed PASS counts
+    × equal createdAt: id DESC decides which run is the latest, whatever the input order
+    × completed runs that disagree stay TECHNICAL_RUN_CONFLICT — never "the latest PASS wins" — and a diagnostic run neither resolves nor hides the conflict
+    × the whole readiness and the export use the same derivation: ERROR → PASS is READY and exportable with the PASS; PASS → newer ERROR is BLOCKED and refused
+    × ERROR → a completed TECHNICAL_PASS of the same epoch → READY_FOR_SIGNER and exported with the PASS; the ERROR run stays readable, byte-identical history
+    × PASS → a newer ERROR → BLOCKED: the ERROR counts, no older PASS is relied on — a fresh export is refused and a replay of an earlier export releases nothing; PASS → ERROR → PASS recovers, and the earlier request then n…
+    × a newer run with a required rule not executed is never READY, whatever came before it (synthetic corruption of a stored PASS); a later completed run recovers
+    × runs recorded at the same instant: the higher id is the latest (createdAt DESC, id DESC) — the run the history lists first is the one that counts
+
+NC-FINAL-015-B — CAUGHT; restored byte-identically: yes
+  purpose: §52 "latest PASS wins over complete BLOCKED" → complete conflict test fails
+  mutation: a conflict ignored when the latest run is a TECHNICAL_PASS (apps/api/src/modules/readiness/readiness-rules.ts; 1 exact-once replacement(s))
+  step 1: API unit → 3 failed | 70 passed (73)
+  step 2: DB "R14-AUD-015|R-28" → 1 failed | 4 passed | 49 skipped (54)
+  AssertionError lines: 4
+  failing tests:
+    × completed runs of E that disagree → TECHNICAL_RUN_CONFLICT; none counts, never the latest PASS; a BLOCKED one among them decides BLOCKED (R-28)
+    × compares the material outcome only: a deterministic field or coverage difference conflicts; messages and heuristic issues do not
+    × completed runs that disagree stay TECHNICAL_RUN_CONFLICT — never "the latest PASS wins" — and a diagnostic run neither resolves nor hides the conflict
+    × R-28: completed runs of the same epoch that disagree never yield the convenient PASS — TECHNICAL_RUN_CONFLICT, no counted run, even when the PASS is the latest (synthetic corruption of a stored run)
+
+NC-FINAL-015-C — CAUGHT; restored byte-identically: yes
+  purpose: §52 "ignore newer ERROR after PASS" → newer-ERROR test fails
+  mutation: the latest completed run counts instead of the latest run (apps/api/src/modules/readiness/readiness-rules.ts; 1 exact-once replacement(s))
+  step 1: API unit → 4 failed | 69 passed (73)
+  step 2: DB "R14-AUD-015|R-28" → 2 failed | 3 passed | 49 skipped (54)
+  AssertionError lines: 6
+  failing tests:
+    × PASS → a newer ERROR or a newer run with a rule not executed → not READY: the newer run counts, no older PASS is relied on
+    × equal createdAt: id DESC decides which run is the latest, whatever the input order
+    × completed runs that disagree stay TECHNICAL_RUN_CONFLICT — never "the latest PASS wins" — and a diagnostic run neither resolves nor hides the conflict
+    × the whole readiness and the export use the same derivation: ERROR → PASS is READY and exportable with the PASS; PASS → newer ERROR is BLOCKED and refused
+    × PASS → a newer ERROR → BLOCKED: the ERROR counts, no older PASS is relied on — a fresh export is refused and a replay of an earlier export releases nothing; PASS → ERROR → PASS recovers, and the earlier request then n…
+    × a newer run with a required rule not executed is never READY, whatever came before it (synthetic corruption of a stored PASS); a later completed run recovers
+
+NC-FINAL-017 — CAUGHT; restored byte-identically: yes
+  purpose: §52 "omit askDispositions from UI payload" → NMI UI round-trip test fails
+  mutation: the page never sends `askDispositions` (apps/web/src/app/cases/assessments.tsx; 1 exact-once replacement(s))
+  step 1: web p4h → 5 failed | 25 passed (30)
+  AssertionError lines: 5
+  failing tests:
+    × each ask is sent exactly as entered — its identifier, question, the prompt’s parent binding, the chosen disposition, answer locator, sources and unresolved remainder — and the history shows it as the server stored it,…
+    × every contracted disposition round-trips through the form — sent exactly, shown from the server after a reload — and the readiness the server derives for it is shown as derived: REQUIRES_DOCUMENT, MISSING_FACT and LEG…
+    × client checks: an ask needs its identifier, question and an explicitly chosen disposition, and each identifier once — nothing is sent until then; a removed ask is not sent
+    × sources: a source the context records as not applicable cannot be cited by an ask (disabled, with its note, whatever the result); the server’s own refusal of an ask’s source is shown and focused at that source, and no…
+    × a context changed after the read (412) is shown exactly and never retried; the asks entered stay, and are sent again only by an explicit record after a new read
+
+NC-FINAL-017-FOCUS — CAUGHT; restored byte-identically: yes
+  purpose: supplementary (AUD-017 keyboard): the issue list rebuilt on every render
+  mutation: `issues` without `useMemo` (the summary retakes focus while a field is corrected) (apps/web/src/app/cases/assessments.tsx; 1 exact-once replacement(s))
+  step 1: web p4h → 2 failed | 28 passed (30)
+  AssertionError lines: 2
+  failing tests:
+    × client checks: an ask needs its identifier, question and an explicitly chosen disposition, and each identifier once — nothing is sent until then; a removed ask is not sent
+    × keyboard: a refused submission moves focus to the summary once; typing a correction keeps the focus in the field being corrected
+
+NC-FINAL-018 — CAUGHT; restored byte-identically: yes
+  purpose: §52 "remove listAuditEvents route" → route/API test fails
+  mutation: `AuditModule` removed from `AppModule` (apps/api/src/app.module.ts; 1 exact-once replacement(s))
+  step 1: DB "R14-AUD-018" → 8 failed | 46 skipped (54)
+  AssertionError lines: 8
+  failing tests:
+    × without a session 401 and nothing is returned; an operator reads a contract-valid page, no-store — an empty one for a filter nothing matches
+    × limit 1, the default 25, 25 and 100; a stable keyset walk (createdAt DESC, id DESC; ties by id) returns every stored event once, exactly as stored
+    × filters: entityType, entityId and both together, exactly; q is exactly an event id, request id, action, entity type, entity id or actor — never a text search
+    × a cursor is valid only for its own filter set: another q, entityType or entityId — or another list’s cursor — is 400 INVALID_CURSOR; an unknown parameter or an invalid limit, entityId or q is refused
+    × a real assessment capture and a real unsigned export are recoverable exactly as recorded — CANDIDATE_ASSESSMENT_CAPTURED and EXPORT_UNSIGNED, their texts only as lengths
+    × the whole history of a reply’s life — capture, binding, facts, prompt, candidate, validation, reviews with ask dispositions, export, sign-in — shows no password, session or CSRF token and no private text
+    × reading writes nothing — no audit event about reading, no idempotency record, no row version — and the response is no-store; no other audit route exists
+    × route parity: every contracted operation but getMeta is routed (144 of 145), no route outside the contract exists, and no sign, send, submit, AS_SENT or G7 route
+
+NC-FINAL-019-A — CAUGHT; restored byte-identically: yes
+  purpose: §52 "do not clear readiness after mutation" → web test fails
+  mutation: a new generation no longer drops the evaluation, the handoff or the focus target (apps/web/src/app/cases/readiness.tsx; 1 exact-once replacement(s))
+  step 1: web p4h → 6 failed | 24 passed (30)
+  AssertionError lines: 5; other errors: Error: timed out waiting for the settled page
+  failing tests:
+    × A: READY with a prepared handoff, then the candidate is superseded — the evaluation, the handoff and its copy control are gone at once, nothing is read by itself, and a new evaluation shows SUPERSEDED
+    × B: READY, then a G6 HOLD successor is recorded — the READY evaluation is gone, and a new evaluation shows the review required
+    × C: READY, then a second current review of one gate is recorded (a parallel head) — the READY evaluation is gone, and a new evaluation shows the conflict
+    × D: READY, then a new technical validation run is recorded — the evaluation is gone and a new evaluation is required; it reads the server again
+    × E: a readiness response to a request started before a write on the page arrives after it — it is discarded and never shows READY
+    × F: an unsigned-export response to a request started before a write on the page arrives after it — the handoff is discarded, never shown or copyable
+
+NC-FINAL-019-B — CAUGHT; restored byte-identically: yes
+  purpose: §52 "allow delayed old readiness/export response to restore state" → race test fails
+  mutation: the four generation guards of `evaluate()` and `prepare()` removed (apps/web/src/app/cases/readiness.tsx; 4 exact-once replacement(s))
+  step 1: web p4h → 2 failed | 28 passed (30)
+  AssertionError lines: 2
+  failing tests:
+    × E: a readiness response to a request started before a write on the page arrives after it — it is discarded and never shows READY
+    × F: an unsigned-export response to a request started before a write on the page arrives after it — the handoff is discarded, never shown or copyable
+
+NC-UI-FINAL-01 — CAUGHT; restored byte-identically: yes
+  purpose: browser finding UI-FINAL-01 (the gate-hold copy)
+  mutation: the old `GATE_HOLD` copy "The current review of this gate is recorded as HOLD." (apps/web/src/app/cases/readiness.tsx; 1 exact-once replacement(s))
+  step 1: web p4i → 1 failed | 10 passed (11)
+  AssertionError lines: 1
+  failing tests:
+    × a gate on hold reads truthfully: a recorded PASS the server holds (an unresolved ask, R14-AUD-016) shows HOLD with its cause, and the copy never claims the review is recorded as HOLD
+
+RESULT: 15/15 controls caught by the responsible tests; every mutation restored byte-identically.
+NC-FINAL-019-A: five of its six failing web tests fail on their own assertions; test E (a delayed readiness
+response) fails by the page never settling ("timed out waiting for the settled page": the kept evaluation stays
+loading) — E's own control is NC-FINAL-019-B, which fails it on its assertion. NC-FINAL-018: an unrouted GET
+without a session is 404 (the router answers before the guard), so the 401 test fails too, on its assertion.

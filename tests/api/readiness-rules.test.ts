@@ -19,6 +19,7 @@ import { GATES, type Gate } from '../../apps/api/src/modules/assessments/assessm
 import { candidateArtifactSha256 } from '../../apps/api/src/modules/candidates/candidate-artifact.js';
 import {
   artifactIntact,
+  ASK_DISPOSITION_CAUSE,
   askSourceIds,
   countableHeads,
   coverageComplete,
@@ -33,6 +34,7 @@ import {
   READINESS_REASON_ORDER,
   readinessEpoch,
   reviewTiming,
+  runCompleted,
   signatureSlotValid,
   statusOf,
   storedDispositions,
@@ -276,6 +278,8 @@ describe('reason codes: stable identifiers in a pinned order, no record content'
       'G1_REVIEW_TIME_UNKNOWN',
       'TEMPORAL_BOUNDARY_AMBIGUOUS',
       'G6_ASK_DISPOSITIONS_MISSING',
+      'G6_ASK_REQUIRES_DOCUMENT',
+      'G6_ASK_MISSING_FACT',
       'G6_ASK_LEGAL_REVIEW_REQUIRED',
       'G6_ASK_SOURCE_NOT_APPLICABLE',
     ]);
@@ -298,9 +302,22 @@ describe('reason codes: stable identifiers in a pinned order, no record content'
       'G1_REVIEW_TIME_UNKNOWN',
       'TEMPORAL_BOUNDARY_AMBIGUOUS',
       'G6_ASK_DISPOSITIONS_MISSING',
+      'G6_ASK_REQUIRES_DOCUMENT',
+      'G6_ASK_MISSING_FACT',
       'G6_ASK_LEGAL_REVIEW_REQUIRED',
       'G6_ASK_SOURCE_NOT_APPLICABLE',
     ]);
+  });
+
+  it('every reason code the server reports has its own neutral copy on the candidate page (readiness.tsx REASON_TEXT; a gate status code is worded from its gate)', () => {
+    const page = readFileSync(path.join(repoRoot, 'apps/web/src/app/cases/readiness.tsx'), 'utf8');
+    const block = /const REASON_TEXT[^=]*=\s*\{([\s\S]*?)\n\};/.exec(page)?.[1] ?? '';
+    const worded = new Set([...block.matchAll(/^ {2}([A-Z0-9_]+):/gm)].map((match) => match[1]));
+    expect(worded.size).toBeGreaterThan(20);
+    for (const code of [...READINESS_REASON_ORDER, ...GATE_REASON_ORDER]) {
+      if (/^G[1-6]_(BLOCKED|CONFLICT|MISSING|HOLD|UNASSESSED)$/.test(code)) continue;
+      expect(worded.has(code), code).toBe(true);
+    }
   });
 
   it('includes the mission minimum set (gate-qualified at the readiness level, GATE_* per gate)', () => {
@@ -482,16 +499,14 @@ describe('the current epoch and the technical baseline (Decisions 1, 4, 5)', () 
     expect([...outcome.codes]).toEqual(['VALIDATION_COVERAGE_INCOMPLETE']);
   });
 
-  it('runs of E that disagree → TECHNICAL_RUN_CONFLICT; none counts; BLOCKED/ERROR among them decide BLOCKED (R-28)', () => {
+  it('completed runs of E that disagree → TECHNICAL_RUN_CONFLICT; none counts, never the latest PASS; a BLOCKED one among them decides BLOCKED (R-28)', () => {
     const pass = run(uuid(0x51), { createdAt: at(-HOUR) });
     const review = run(uuid(0x52), { result: 'REVIEW_REQUIRED', createdAt: at(-2 * HOUR) });
     const blocked = run(uuid(0x53), { result: 'BLOCKED', createdAt: at(-3 * HOUR) });
-    const error = run(uuid(0x54), { result: 'ERROR', createdAt: at(-4 * HOUR) });
     const issues = new Map<string, IssueRecord[]>([
       [pass.id, []],
       [review.id, [issue()]],
       [blocked.id, [issue({ severity: 'BLOCKER' })]],
-      [error.id, [issue({ severity: 'BLOCKER', ruleId: 'ARTIFACT.SHAPE' })]],
     ]);
     const conflict = technicalOutcome([pass, review], issues, EPOCH, RULESET);
     expect(conflict.counted).toBeNull();
@@ -501,10 +516,17 @@ describe('the current epoch and the technical baseline (Decisions 1, 4, 5)', () 
     ]);
     expect(statusOf(conflict.codes)).toBe('REVIEW_REQUIRED');
     const worse = technicalOutcome([pass, blocked], issues, EPOCH, RULESET);
+    expect(worse.counted).toBeNull();
+    expect([...worse.codes].sort()).toEqual(['TECHNICAL_RUN_CONFLICT', 'VALIDATION_BLOCKED']);
     expect(statusOf(worse.codes)).toBe('BLOCKED');
-    const failed = technicalOutcome([pass, error], issues, EPOCH, RULESET);
-    expect([...failed.codes].sort()).toEqual(['TECHNICAL_RUN_CONFLICT', 'VALIDATION_ERROR']);
-    expect(statusOf(failed.codes)).toBe('BLOCKED');
+    const both = technicalOutcome([review, blocked], issues, EPOCH, RULESET);
+    expect(both.counted).toBeNull();
+    expect([...both.codes].sort()).toEqual([
+      'TECHNICAL_RUN_CONFLICT',
+      'VALIDATION_BLOCKED',
+      'VALIDATION_REVIEW_REQUIRED',
+    ]);
+    expect(statusOf(both.codes)).toBe('BLOCKED');
   });
 
   it('compares the material outcome only: a deterministic field or coverage difference conflicts; messages and heuristic issues do not', () => {
@@ -548,6 +570,259 @@ describe('the current epoch and the technical baseline (Decisions 1, 4, 5)', () 
     expect(() => technicalOutcome([run(uuid(0x51))], new Map(), EPOCH, RULESET)).toThrow(
       /not read/,
     );
+  });
+});
+
+describe('same-epoch run recovery (R14-AUD-015): a run that did not complete is a diagnostic, never a permanent poison', () => {
+  const REQUIRED = RULESET.requiredRuleIds;
+  const FAILED_RULE = 'ENVELOPE.SENDER';
+  /** What the engine stores for a rule that failed while running, or was not executed. */
+  const INCOMPLETE = {
+    ...FULL_COVERAGE,
+    executedRuleIds: REQUIRED.filter((id) => id !== FAILED_RULE),
+    notExecutedRuleIds: [FAILED_RULE],
+  };
+  const hoursAgo = (hours: number) => at(-hours * HOUR);
+  const passed = (n: number, hours: number) => run(uuid(n), { createdAt: hoursAgo(hours) });
+  const errored = (n: number, hours: number) =>
+    run(uuid(n), { result: 'ERROR', coverageManifest: INCOMPLETE, createdAt: hoursAgo(hours) });
+  /** A REVIEW_REQUIRED run because a required rule was not executed. */
+  const notExecuted = (n: number, hours: number) =>
+    run(uuid(n), {
+      result: 'REVIEW_REQUIRED',
+      coverageManifest: INCOMPLETE,
+      createdAt: hoursAgo(hours),
+    });
+  const completedAs = (n: number, hours: number, result: RunRecord['result']) =>
+    run(uuid(n), { result, createdAt: hoursAgo(hours) });
+  /** The issues the engine stores for each kind of run above. */
+  const issuesOf = (row: RunRecord): IssueRecord[] => {
+    if (row.result === 'ERROR') {
+      return [issue({ ruleId: FAILED_RULE, severity: 'BLOCKER', fieldPath: null })];
+    }
+    if (row.result === 'BLOCKED') return [issue({ severity: 'BLOCKER' })];
+    if (row.result === 'REVIEW_REQUIRED') {
+      return row.coverageManifest === INCOMPLETE
+        ? [issue({ ruleId: FAILED_RULE, fieldPath: null })]
+        : [issue()];
+    }
+    return [];
+  };
+  const outcomeOf = (runs: RunRecord[]) => {
+    const outcome = technicalOutcome(
+      runs,
+      new Map(runs.map((row) => [row.id, issuesOf(row)])),
+      EPOCH,
+      RULESET,
+    );
+    return {
+      counted: outcome.counted?.id ?? null,
+      codes: [...outcome.codes].sort(),
+      status: statusOf(outcome.codes),
+    };
+  };
+  const ERROR_CODES = ['VALIDATION_COVERAGE_INCOMPLETE', 'VALIDATION_ERROR'];
+
+  it('a completed run is one whose result is not ERROR and whose coverage shows every required rule executed and none not executed', () => {
+    expect(runCompleted(passed(0x51, 1), RULESET)).toBe(true);
+    expect(runCompleted(completedAs(0x52, 1, 'BLOCKED'), RULESET)).toBe(true);
+    expect(runCompleted(completedAs(0x53, 1, 'REVIEW_REQUIRED'), RULESET)).toBe(true);
+    expect(runCompleted(errored(0x54, 1), RULESET)).toBe(false);
+    // An ERROR is never complete, even with a coverage manifest that looks complete.
+    expect(runCompleted(completedAs(0x55, 1, 'ERROR'), RULESET)).toBe(false);
+    expect(runCompleted(notExecuted(0x56, 1), RULESET)).toBe(false);
+    // A (corrupted) TECHNICAL_PASS lacking a required rule is not complete either.
+    expect(
+      runCompleted(
+        run(uuid(0x57), {
+          coverageManifest: { ...FULL_COVERAGE, executedRuleIds: REQUIRED.slice(1) },
+        }),
+        RULESET,
+      ),
+    ).toBe(false);
+  });
+
+  it('ERROR only → BLOCKED: the latest ERROR counts as the diagnostic it is; ERROR runs are never compared with each other', () => {
+    expect(outcomeOf([errored(0x51, 1)])).toEqual({
+      counted: uuid(0x51),
+      codes: ERROR_CODES,
+      status: 'BLOCKED',
+    });
+    const other = run(uuid(0x52), {
+      result: 'ERROR',
+      coverageManifest: { ...INCOMPLETE, notExecutedRuleIds: ['ARTIFACT.SHAPE'] },
+      createdAt: hoursAgo(2),
+    });
+    expect(outcomeOf([errored(0x51, 1), other])).toEqual({
+      counted: uuid(0x51),
+      codes: ERROR_CODES,
+      status: 'BLOCKED',
+    });
+  });
+
+  it('ERROR → a run with a rule not executed → never READY: the latest run counts and is incomplete', () => {
+    expect(outcomeOf([errored(0x51, 3), notExecuted(0x52, 1)])).toEqual({
+      counted: uuid(0x52),
+      codes: ['VALIDATION_COVERAGE_INCOMPLETE', 'VALIDATION_REVIEW_REQUIRED'],
+      status: 'REVIEW_REQUIRED',
+    });
+    const corruptedPass = run(uuid(0x53), {
+      coverageManifest: { ...FULL_COVERAGE, notExecutedRuleIds: [FAILED_RULE] },
+      createdAt: hoursAgo(1),
+    });
+    expect(outcomeOf([errored(0x51, 3), corruptedPass])).toEqual({
+      counted: uuid(0x53),
+      codes: ['VALIDATION_COVERAGE_INCOMPLETE'],
+      status: 'REVIEW_REQUIRED',
+    });
+  });
+
+  it('ERROR → a completed TECHNICAL_PASS → the PASS counts; earlier diagnostics stay history and poison nothing', () => {
+    expect(outcomeOf([errored(0x51, 3), passed(0x52, 1)])).toEqual({
+      counted: uuid(0x52),
+      codes: [],
+      status: 'READY_FOR_SIGNER',
+    });
+    expect(
+      outcomeOf([errored(0x51, 5), notExecuted(0x52, 4), errored(0x53, 3), passed(0x54, 1)]),
+    ).toEqual({ counted: uuid(0x54), codes: [], status: 'READY_FOR_SIGNER' });
+    // A completed run that is not a pass counts the same way after an ERROR.
+    expect(outcomeOf([errored(0x51, 3), completedAs(0x52, 1, 'BLOCKED')])).toEqual({
+      counted: uuid(0x52),
+      codes: ['VALIDATION_BLOCKED'],
+      status: 'BLOCKED',
+    });
+  });
+
+  it('PASS → a newer ERROR or a newer run with a rule not executed → not READY: the newer run counts, no older PASS is relied on', () => {
+    expect(outcomeOf([passed(0x51, 3), errored(0x52, 1)])).toEqual({
+      counted: uuid(0x52),
+      codes: ERROR_CODES,
+      status: 'BLOCKED',
+    });
+    expect(outcomeOf([passed(0x51, 3), notExecuted(0x52, 1)])).toEqual({
+      counted: uuid(0x52),
+      codes: ['VALIDATION_COVERAGE_INCOMPLETE', 'VALIDATION_REVIEW_REQUIRED'],
+      status: 'REVIEW_REQUIRED',
+    });
+    // Several agreeing PASS runs before it change nothing.
+    expect(outcomeOf([passed(0x51, 5), passed(0x52, 3), errored(0x53, 1)]).counted).toBe(
+      uuid(0x53),
+    );
+  });
+
+  it('PASS → ERROR → PASS → the latest completed PASS counts', () => {
+    expect(outcomeOf([passed(0x51, 5), errored(0x52, 3), passed(0x53, 1)])).toEqual({
+      counted: uuid(0x53),
+      codes: [],
+      status: 'READY_FOR_SIGNER',
+    });
+  });
+
+  it('equal createdAt: id DESC decides which run is the latest, whatever the input order', () => {
+    const tie = (errorId: number, passId: number) => [errored(errorId, 1), passed(passId, 1)];
+    for (const runs of [tie(0x5a, 0x59), [...tie(0x5a, 0x59)].reverse()]) {
+      expect(outcomeOf(runs)).toEqual({
+        counted: uuid(0x5a),
+        codes: ERROR_CODES,
+        status: 'BLOCKED',
+      });
+    }
+    for (const runs of [tie(0x59, 0x5a), [...tie(0x59, 0x5a)].reverse()]) {
+      expect(outcomeOf(runs)).toEqual({
+        counted: uuid(0x5a),
+        codes: [],
+        status: 'READY_FOR_SIGNER',
+      });
+    }
+  });
+
+  it('completed runs that disagree stay TECHNICAL_RUN_CONFLICT — never "the latest PASS wins" — and a diagnostic run neither resolves nor hides the conflict', () => {
+    // A newer complete PASS after an older complete BLOCKED or REVIEW_REQUIRED run.
+    expect(outcomeOf([completedAs(0x51, 3, 'BLOCKED'), passed(0x52, 1)])).toEqual({
+      counted: null,
+      codes: ['TECHNICAL_RUN_CONFLICT', 'VALIDATION_BLOCKED'],
+      status: 'BLOCKED',
+    });
+    expect(outcomeOf([completedAs(0x51, 3, 'REVIEW_REQUIRED'), passed(0x52, 1)])).toEqual({
+      counted: null,
+      codes: ['TECHNICAL_RUN_CONFLICT', 'VALIDATION_REVIEW_REQUIRED'],
+      status: 'REVIEW_REQUIRED',
+    });
+    expect(
+      outcomeOf([completedAs(0x51, 3, 'BLOCKED'), completedAs(0x52, 1, 'REVIEW_REQUIRED')]),
+    ).toEqual({
+      counted: null,
+      codes: ['TECHNICAL_RUN_CONFLICT', 'VALIDATION_BLOCKED', 'VALIDATION_REVIEW_REQUIRED'],
+      status: 'BLOCKED',
+    });
+    // An ERROR between them does not make the older complete run history.
+    expect(outcomeOf([completedAs(0x51, 5, 'BLOCKED'), errored(0x52, 3), passed(0x53, 1)])).toEqual(
+      {
+        counted: null,
+        codes: ['TECHNICAL_RUN_CONFLICT', 'VALIDATION_BLOCKED'],
+        status: 'BLOCKED',
+      },
+    );
+    // A newest diagnostic adds its own reasons to the conflict; nothing counts.
+    expect(outcomeOf([completedAs(0x51, 5, 'BLOCKED'), passed(0x52, 3), errored(0x53, 1)])).toEqual(
+      {
+        counted: null,
+        codes: ['TECHNICAL_RUN_CONFLICT', 'VALIDATION_BLOCKED', ...ERROR_CODES].sort(),
+        status: 'BLOCKED',
+      },
+    );
+  });
+
+  it('the whole readiness and the export use the same derivation: ERROR → PASS is READY and exportable with the PASS; PASS → newer ERROR is BLOCKED and refused', () => {
+    const recovered = evaluate(
+      readyInput({
+        runs: [errored(0x51, 3), run(uuid(0x50))],
+        issues: new Map([
+          [uuid(0x51), issuesOf(errored(0x51, 3))],
+          [uuid(0x50), []],
+        ]),
+      }),
+    );
+    expect(recovered).toMatchObject({
+      status: 'READY_FOR_SIGNER',
+      technicalResult: 'TECHNICAL_PASS',
+      validationRunId: uuid(0x50),
+      reasonCodes: [],
+    });
+    const body = {
+      expectedArtifactSha256: ARTIFACT,
+      expectedDependencyDigest: DIGEST,
+      validationRunId: uuid(0x50),
+      format: 'PLAIN_TEXT' as const,
+    };
+    expect(exportRefusal(recovered, body)).toBeNull();
+    // A body naming the ERROR run is refused: it is not the counted run.
+    expect(exportRefusal(recovered, { ...body, validationRunId: uuid(0x51) })?.code).toBe(
+      'VALIDATION_RUN_CHANGED',
+    );
+
+    const poisonedNow = evaluate(
+      readyInput({
+        runs: [run(uuid(0x50)), errored(0x51, 1)],
+        issues: new Map([
+          [uuid(0x51), issuesOf(errored(0x51, 1))],
+          [uuid(0x50), []],
+        ]),
+      }),
+    );
+    expect(poisonedNow).toMatchObject({
+      status: 'BLOCKED',
+      technicalResult: 'ERROR',
+      validationRunId: uuid(0x51),
+      reasonCodes: ['VALIDATION_ERROR', 'VALIDATION_COVERAGE_INCOMPLETE'],
+    });
+    const refusal = exportRefusal(poisonedNow, body);
+    expect([refusal?.status, refusal?.code, refusal?.details]).toEqual([
+      409,
+      'CANDIDATE_NOT_READY',
+      { status: 'BLOCKED', reasonCodes: ['VALIDATION_ERROR', 'VALIDATION_COVERAGE_INCOMPLETE'] },
+    ]);
   });
 });
 
@@ -907,21 +1182,19 @@ describe('gates (Decisions 6–8): exact heads, never the latest PASS, no compen
     expect(reply('G6', [disposition()]).status).toBe('PASS');
   });
 
-  it('G6 of a reply: at least one disposition, none LEGAL_REVIEW_REQUIRED, every cited source applying now (else HOLD)', () => {
-    const reply = (askDispositions: unknown) => {
+  describe('G6 of a reply (R14-AUD-016): the recorded disposition of each ask is its explicit status', () => {
+    const replyInput = (askDispositions: unknown) => {
       const base = withGate('G6', { askDispositions });
-      return gateOf(
-        readyInput({
-          ...base,
-          context: { ...base.context, taskType: 'NMI_REPLY', parentBindingId: PARENT },
-          askSourceApplies: new Map([
-            [SOURCE_A, true],
-            [SOURCE_B, false],
-          ]),
-        }),
-        'G6',
-      );
+      return readyInput({
+        ...base,
+        context: { ...base.context, taskType: 'NMI_REPLY', parentBindingId: PARENT },
+        askSourceApplies: new Map([
+          [SOURCE_A, true],
+          [SOURCE_B, false],
+        ]),
+      });
     };
+    const reply = (askDispositions: unknown) => gateOf(replyInput(askDispositions), 'G6');
     const disposition = (overrides: Record<string, unknown> = {}) => ({
       askId: 'ask-1',
       questionText: 'SYNTHETIC question',
@@ -930,26 +1203,162 @@ describe('gates (Decisions 6–8): exact heads, never the latest PASS, no compen
       sourceIds: [],
       ...overrides,
     });
-    expect(reply(null).reasonCodes).toEqual(['GATE_HOLD', 'G6_ASK_DISPOSITIONS_MISSING']);
-    expect(reply([]).reasonCodes).toEqual(['GATE_HOLD', 'G6_ASK_DISPOSITIONS_MISSING']);
-    expect(reply([disposition({ disposition: 'LEGAL_REVIEW_REQUIRED' })]).reasonCodes).toEqual([
-      'GATE_HOLD',
-      'G6_ASK_LEGAL_REVIEW_REQUIRED',
-    ]);
-    expect(reply([disposition({ sourceIds: [SOURCE_B] })]).reasonCodes).toEqual([
-      'GATE_HOLD',
-      'G6_ASK_SOURCE_NOT_APPLICABLE',
-    ]);
-    expect(reply([disposition({ sourceIds: [uuid(0x99)] })]).reasonCodes).toEqual([
-      'GATE_HOLD',
-      'G6_ASK_SOURCE_NOT_APPLICABLE',
-    ]);
-    expect(
-      reply([
-        disposition({ disposition: 'MISSING_FACT' }),
-        disposition({ askId: 'ask-2', disposition: 'NOT_APPLICABLE_WITH_REASON' }),
-      ]).status,
-    ).toBe('PASS');
+    const second = (overrides: Record<string, unknown> = {}) =>
+      disposition({ askId: 'ask-2', questionText: 'SYNTHETIC second question', ...overrides });
+    const held = (...causes: string[]) => ['GATE_HOLD', ...causes];
+
+    it('classifies every contracted disposition explicitly: three resolved, three unresolved', () => {
+      expect(ASK_DISPOSITION_CAUSE).toEqual({
+        ANSWERED_SUPPORTED: null,
+        ANSWERED_WITH_LIMITATION: null,
+        NOT_APPLICABLE_WITH_REASON: null,
+        REQUIRES_DOCUMENT: 'G6_ASK_REQUIRES_DOCUMENT',
+        MISSING_FACT: 'G6_ASK_MISSING_FACT',
+        LEGAL_REVIEW_REQUIRED: 'G6_ASK_LEGAL_REVIEW_REQUIRED',
+      });
+    });
+
+    it('REQUIRES_DOCUMENT, MISSING_FACT and LEGAL_REVIEW_REQUIRED each hold G6 with their own reason', () => {
+      expect(reply([disposition({ disposition: 'REQUIRES_DOCUMENT' })]).reasonCodes).toEqual(
+        held('G6_ASK_REQUIRES_DOCUMENT'),
+      );
+      expect(reply([disposition({ disposition: 'MISSING_FACT' })]).reasonCodes).toEqual(
+        held('G6_ASK_MISSING_FACT'),
+      );
+      expect(reply([disposition({ disposition: 'LEGAL_REVIEW_REQUIRED' })]).reasonCodes).toEqual(
+        held('G6_ASK_LEGAL_REVIEW_REQUIRED'),
+      );
+      expect(
+        reply([
+          disposition({ disposition: 'LEGAL_REVIEW_REQUIRED' }),
+          second({ disposition: 'MISSING_FACT' }),
+          disposition({ askId: 'ask-3', disposition: 'REQUIRES_DOCUMENT' }),
+        ]).reasonCodes,
+      ).toEqual(
+        held('G6_ASK_REQUIRES_DOCUMENT', 'G6_ASK_MISSING_FACT', 'G6_ASK_LEGAL_REVIEW_REQUIRED'),
+      );
+    });
+
+    it('a mixed list stays HOLD: answered asks never compensate for an unresolved one', () => {
+      expect(
+        reply([disposition(), second({ disposition: 'REQUIRES_DOCUMENT' })]).reasonCodes,
+      ).toEqual(held('G6_ASK_REQUIRES_DOCUMENT'));
+      expect(
+        reply([
+          disposition({ disposition: 'ANSWERED_WITH_LIMITATION' }),
+          second({ disposition: 'MISSING_FACT' }),
+        ]).reasonCodes,
+      ).toEqual(held('G6_ASK_MISSING_FACT'));
+      expect(
+        reply([
+          disposition({ disposition: 'NOT_APPLICABLE_WITH_REASON' }),
+          second({ disposition: 'MISSING_FACT' }),
+        ]).status,
+      ).toBe('HOLD');
+    });
+
+    it('positive controls: ANSWERED_SUPPORTED, ANSWERED_WITH_LIMITATION and NOT_APPLICABLE_WITH_REASON may count — alone or together', () => {
+      for (const kind of [
+        'ANSWERED_SUPPORTED',
+        'ANSWERED_WITH_LIMITATION',
+        'NOT_APPLICABLE_WITH_REASON',
+      ]) {
+        expect(reply([disposition({ disposition: kind, sourceIds: [SOURCE_A] })]), kind).toEqual({
+          gate: 'G6',
+          status: 'PASS',
+          assessmentId: assessmentId('G6'),
+          reasonCodes: [],
+        });
+      }
+      expect(
+        reply([
+          disposition(),
+          second({ disposition: 'ANSWERED_WITH_LIMITATION' }),
+          disposition({ askId: 'ask-3', disposition: 'NOT_APPLICABLE_WITH_REASON' }),
+        ]).status,
+      ).toBe('PASS');
+    });
+
+    it('no text is read: an unresolved remainder, answer locator or question naming a document, a fact or legal review never changes a resolved disposition (no keyword rule)', () => {
+      const words =
+        'SYNTHETIC requires document; missing fact; legal review required; not answered';
+      expect(
+        reply([
+          disposition({
+            disposition: 'ANSWERED_WITH_LIMITATION',
+            questionText: words,
+            answerLocator: words,
+            unresolvedRemainder: words,
+          }),
+        ]).status,
+      ).toBe('PASS');
+      // …and an empty remainder never resolves an unresolved status.
+      expect(
+        reply([disposition({ disposition: 'MISSING_FACT', unresolvedRemainder: '' })]).status,
+      ).toBe('HOLD');
+    });
+
+    it('negative controls: no disposition holds G6; a source that does not apply now holds it; another parent, an ask twice, an unknown or malformed disposition never count (BLOCKED)', () => {
+      expect(reply(null).reasonCodes).toEqual(held('G6_ASK_DISPOSITIONS_MISSING'));
+      expect(reply([]).reasonCodes).toEqual(held('G6_ASK_DISPOSITIONS_MISSING'));
+      expect(reply([disposition({ sourceIds: [SOURCE_B] })]).reasonCodes).toEqual(
+        held('G6_ASK_SOURCE_NOT_APPLICABLE'),
+      );
+      expect(reply([disposition({ sourceIds: [uuid(0x99)] })]).reasonCodes).toEqual(
+        held('G6_ASK_SOURCE_NOT_APPLICABLE'),
+      );
+      const integrity = ['GATE_BLOCKED', 'ASSESSMENT_INTEGRITY_FAILED'];
+      expect(reply([disposition({ parentBindingId: OTHER_BINDING })]).reasonCodes).toEqual(
+        integrity,
+      );
+      expect(reply([disposition(), disposition({ questionText: 'again' })]).reasonCodes).toEqual(
+        integrity,
+      );
+      for (const malformed of [
+        disposition({ disposition: 'ANSWERED' }),
+        disposition({ disposition: 'answered_supported' }),
+        disposition({ disposition: null }),
+        disposition({ askId: undefined }),
+        disposition({ askId: 7 }),
+        disposition({ sourceIds: 'x' }),
+      ]) {
+        expect(reply([malformed]).reasonCodes, JSON.stringify(malformed)).toEqual(integrity);
+      }
+    });
+
+    it('the readiness: five PASS gates and a G6 PASS with an unresolved ask → REVIEW_REQUIRED with the reason; the export is refused (409 CANDIDATE_NOT_READY); a resolved successor makes it READY', () => {
+      const unresolved = replyInput([disposition(), second({ disposition: 'REQUIRES_DOCUMENT' })]);
+      const readiness = evaluate(unresolved);
+      expect([readiness.status, readiness.reasonCodes]).toEqual([
+        'REVIEW_REQUIRED',
+        ['G6_HOLD', 'G6_ASK_REQUIRES_DOCUMENT'],
+      ]);
+      const refusal = exportRefusal(readiness, {
+        expectedArtifactSha256: ARTIFACT,
+        expectedDependencyDigest: DIGEST,
+        validationRunId: uuid(0x50),
+        format: 'PLAIN_TEXT',
+      });
+      expect([refusal?.status, refusal?.code, refusal?.details]).toEqual([
+        409,
+        'CANDIDATE_NOT_READY',
+        { status: 'REVIEW_REQUIRED', reasonCodes: ['G6_HOLD', 'G6_ASK_REQUIRES_DOCUMENT'] },
+      ]);
+      // An explicit successor of the same epoch that records the ask as answered is the one head.
+      const predecessor = unresolved.assessments.find((row) => row.gate === 'G6');
+      const successor = assessment('G6', {
+        id: assessmentId('G6', 1),
+        supersedesAssessmentId: predecessor?.id ?? null,
+        askDispositions: [disposition(), second({ disposition: 'ANSWERED_SUPPORTED' })],
+      });
+      const resolved = readyInput({
+        ...unresolved,
+        assessments: [...unresolved.assessments, successor],
+        supports: new Map([...unresolved.supports, [successor.id, [support()]]]),
+      });
+      expect(evaluate(resolved).status).toBe('READY_FOR_SIGNER');
+      expect(evaluate(resolved).gates[5]?.assessmentId).toBe(successor.id);
+    });
   });
 
   it('G1: a review overtaken by a captured boundary is UNASSESSED (stale); ambiguous or unplaceable is HOLD; integrity wins', () => {
@@ -1006,11 +1415,17 @@ describe('gates (Decisions 6–8): exact heads, never the latest PASS, no compen
         assessment('G6', {
           askDispositions: [
             {
+              askId: 'ask-1',
               parentBindingId: PARENT,
               disposition: 'ANSWERED_SUPPORTED',
               sourceIds: [SOURCE_B, SOURCE_A],
             },
-            { parentBindingId: PARENT, disposition: 'ANSWERED_SUPPORTED', sourceIds: [SOURCE_A] },
+            {
+              askId: 'ask-2',
+              parentBindingId: PARENT,
+              disposition: 'ANSWERED_SUPPORTED',
+              sourceIds: [SOURCE_A],
+            },
           ],
         }),
       ),

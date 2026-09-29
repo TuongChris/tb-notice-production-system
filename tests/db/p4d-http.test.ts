@@ -3592,7 +3592,7 @@ describe('SECURITY AND ISOLATION — session-protected, read-only, no network, n
     ).toEqual([]);
   });
 
-  it('no audit, signing or sending route exists; P4D creates no later-phase record', async () => {
+  it('no signing or sending route exists; P4D creates no later-phase record', async () => {
     const p = await productionWorld();
     const id = p.caseId;
     const other = randomUUID();
@@ -3601,10 +3601,10 @@ describe('SECURITY AND ISOLATION — session-protected, read-only, no network, n
     // (tests/db/p4f-http.test.ts), technical validation since P4G (tests/db/p4g-http.test.ts) and
     // candidate assessments since P4H (tests/db/p4h-http.test.ts) and a candidate's readiness and
     // unsigned export since P4I (tests/db/p4i-http.test.ts); P4D still generates, stores,
-    // validates, assesses or exports none of them.
+    // validates, assesses or exports none of them. The contracted audit history read is routed
+    // since R14-AUD-018 (GET /audit-events, tests/db/p4i-http.test.ts).
     const paths: Array<['GET' | 'POST', string]> = [
       ['POST', `/candidates/${other}/sign`],
-      ['GET', '/audit-events'],
       ['POST', `/cases/${id}/send`],
       ['POST', `/cases/${id}/sign`],
       ['POST', `/cases/${id}/g1`],

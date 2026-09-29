@@ -1,0 +1,159 @@
+Final-audit remediation (R14-AUD-015…020) — own code review (mission TB_FINAL_CLOSEOUT_SCOPED_REMEDIATION_AUD015_TO_AUD020,
+§55), home PC, 2026-09-29
+==========================================================================================================================
+This is Claude's own review of its own remediation — NOT an independent review and not independent assurance. The next
+step is the independent Astra re-audit of the exact remediation SHA.
+
+Scope: `git diff abc31fc..2df10c8` (10 commits; 24 files) — apps/api (write-executor.ts, readiness-observer.ts,
+readiness-rules.ts, readiness.service.ts, modules/audit/*, app.module.ts), apps/web (assessments.tsx, candidates.tsx,
+readiness.tsx, validation.tsx, app.css), scripts/local (p4i-smoke.ts, smoke.ts) and the tests.
+
+Method
+- Direct review by the implementer against the mission (§6–§47), ADR-0011, INVARIANTS §2 and PFC §6, during and after
+  each fix; the browser pass (§11 of the record) as a behavioural review of the pages at 390 px with the keyboard.
+- A read-only inventory of every audit writer (94 action strings: 65 business audit sites, 2 auth, 5 admin CLI) by a
+  read-only subagent pass, each claim used here re-checked against the source (modules/directory/changes.ts
+  `REDACTED_FIELDS` / `auditValue`, infrastructure/audit/audit-log.ts `FORBIDDEN_KEY`).
+- An adversarial read-only subagent pass over the whole diff, instructed with the mission's per-finding requirements as
+  the authority (correctness of each fix, versioning, immutability, G7, AUD-018 semantics, weak or stale tests, smoke
+  expectations against the contract); every item it raised was verified against the code before it was classified
+  below.
+- The branch CI run 36563980184 and the local sweep of 742e9cc, which found the stale route inventories (REV-FINAL-01).
+
+Result: NO BLOCKER or HIGH finding. Two MEDIUM findings, both fixed (REV-FINAL-01, UI-FINAL-01); LOW findings fixed
+(UI-FINAL-02) or classified with their reasons (AUD018-RED-01, REV-FINAL-02 … -06); observations recorded.
+
+Findings
+--------
+REV-FINAL-01 — MEDIUM (test / process) — FIXED in 2df10c8
+  The audit read routed in 8b17535 (R14-AUD-018) left two exact route inventories stale: tests/db/auth-http.test.ts and
+  tests/db/directory-http.test.ts still pinned the P4I route set (139 business operations). Commits cc8c8b4 … 8b17535
+  had been verified with targeted tests only (the full `yarn test` passed before 8b17535; the full `yarn test:db` was not
+  re-run after it), so the failure first showed in branch CI run 36563980184 on 742e9cc (2 failed | 633 passed; every
+  later step of the database job, the compiled smokes included, skipped) and in the local sweep of 742e9cc (20/21).
+  Fix: both inventories count GET /audit-events (derived from the contract in directory-http; 4 + 140 routes). Verified
+  with the full pre-commit set (yarn test 1736 in 57 files, yarn test:db 635 in 16 files). Deviation recorded: the
+  CLAUDE.md pre-commit rule asks for `yarn test:db` when DB code changes; it was not run in full for 8b17535.
+
+UI-FINAL-01 — MEDIUM (copy; pre-existing since P4I, made frequent by R14-AUD-016) — FIXED in 64f4016
+  The page's copy of GATE_HOLD read "The current review of this gate is recorded as HOLD." also where the server holds a
+  recorded PASS (an unresolved ask, an unconfirmed scope). Now "This gate is on hold: its current review is recorded as
+  HOLD, or its recorded PASS does not count for the reasons listed with it." Web test; negative control NC-UI-FINAL-01;
+  browser re-check.
+
+UI-FINAL-02 — LOW (layout; from R14-AUD-017's columns) — FIXED in 64f4016
+  At 390 px the history's ask-disposition table squeezed the recorded question to a few characters per line. The
+  free-text cells keep a 14rem minimum and the table scrolls inside its focusable frame. Browser re-check.
+
+AUD018-RED-01 — LOW (pre-existing since P2; classified per mission §39, NOT changed)
+  `fieldAttributions[].scopeText` (≤ 3,000) and `.limitations` (≤ 5,000) of an Agency or LegalSubject are stored raw in
+  AGENCY_CREATED/_UPDATED and LEGAL_SUBJECT_CREATED/_UPDATED: `REDACTED_FIELDS` names scopeText and limitations, but
+  `auditValue` redacts only a top-level string and does not look inside the attribution array. It is directory
+  attribution text — not a password, token, candidate or correspondence body, supported conclusion or rationale — and
+  the contracted directory reads return the same text in full to the same signed-in users, so the audit read adds only
+  its history. The audit read returns rows exactly as stored (no read-time redaction that would pretend storage is
+  clean). A write-side change (redacting nested attribution text in future events) needs its own decision: backlog.
+
+REV-FINAL-02 — LOW (pre-existing; outside the R14-AUD-016 scope, NOT changed)
+  Capture accepts `askDispositions` on any gate (the contract allows them; the page offers them only for G6 of a reply).
+  Readiness classifies disposition statuses only for G6 of an NMI_REPLY (R14-AUD-016); the integrity checks (a stored
+  form, the prompt's parent, no ask twice, none on an INITIAL candidate) apply to every gate. A G1–G5 review recorded
+  through the API with an unresolved disposition therefore still counts for its gate; G6 is unaffected and still needs
+  its own resolved dispositions. Possible hardening (refuse dispositions outside G6 at capture, or classify them on
+  every gate) needs a decision: backlog.
+
+REV-FINAL-03 — LOW (performance; local scale)
+  listAuditEvents without filters, or with q, orders the whole audit_events table by (created_at DESC, id DESC); the only
+  composite index is (entity_type, entity_id, created_at, id), which serves the entity-filtered reads. Adequate for a
+  local single-operator database; an index on (created_at, id) would need a migration (not authorized here): backlog.
+
+OBS-FINAL-01 — observation (documented semantics)
+  A guarded replay reads in one REPEATABLE READ snapshot and samples its evaluation instant right after those reads — the
+  same semantics as the readiness GET. A record committed during the replay's own short read transaction is not seen by
+  it (as with any consistent snapshot); the residual window is that transaction, no longer the claim and replay lookup
+  before it. The first export keeps its SERIALIZABLE transaction under the case lock.
+
+OBS-FINAL-02 — observation (test method)
+  The compiled API has no seam to make a rule fail, so smoke:p4i (CI only, the disposable CI tb_notice_dev) and the DB
+  tests write the ERROR run of R14-AUD-015 as a synthetic stored row of the same epoch through the database; the runtime
+  never writes runs that way.
+  CORRECTION (final acceptance closeout, 2026-09-29; the independent re-audit's observation
+  DOC-OBS-ERROR-FIXTURE-DESCRIPTION; the text above is kept as first written): only smoke:p4i inserts its ERROR run as
+  a synthetic SQL row (insertSyntheticErrorRun). The DB tests produce ERROR runs through the injected VALIDATION_OBSERVER
+  seam (beforeRule throws at a named rule) and the normal POST /candidates/{id}/validation-runs; in the R14-AUD-015 DB
+  tests and R-28 the only direct row changes are the labelled "synthetic corruption" of a stored completed run (the
+  not-executed rule, R-28); other DB tests (e.g. R-08) make their own labelled synthetic-corruption updates. See
+  docs/verification/final-audit/FINAL_ENGINEERING_AUDIT_CLOSEOUT.md §8.
+
+OBS-FINAL-03 — observation (app-wide pattern, not changed)
+  A form field's client-side message stays shown after the field is corrected until the next submission (the forms
+  validate on submit), as elsewhere in the application.
+
+Items of the adversarial pass (it found no BLOCKER, HIGH or MEDIUM; it traced AUD-020, -016, -015, -019 and -018 end to
+end and confirmed them, found no stale expectation left in tests/ or scripts/ after 2df10c8, no version impact, no
+history rewrite and no G7 path). Each item below was verified against the code before it was classified:
+
+REV-FINAL-04 — LOW (policy question for the operator and the re-audit; NOT changed)
+  The three resolved dispositions count without a structural presence check: `[{askId:'Q1', disposition:
+  'ANSWERED_SUPPORTED', sourceIds: []}]` on a G6 PASS of a reply (everything else passing) is READY_FOR_SIGNER; so is an
+  ANSWERED_WITH_LIMITATION with no limitation text and a NOT_APPLICABLE_WITH_REASON with no reason text
+  (readiness-rules.ts ASK_DISPOSITION_CAUSE / evaluateGate; the contract's `sourceIds` has minItems 0 and the
+  AskDisposition schema has no dedicated limitation or reason field — only `answerLocator` and `unresolvedRemainder`).
+  Why not changed: mission §13/§15/§16 ask for the explicit enum plus the current source/scope checks, forbid treating
+  source presence as proof and let the positive controls count; a presence rule would change capture or readiness
+  semantics beyond the finding, and for the limitation and the reason it would first need a decision on which recorded
+  field carries them (the contract defines none). The G6 PASS itself still needs 1–100 LINKED supports whose sources apply
+  now, a visible rationale and scope text; every source a disposition does cite must apply now. The page states each
+  resolved disposition's requirement in its option copy ("answered, with the cited sources supporting the answer",
+  "answered within a limitation the reviewer records", "the ask does not apply, for the reason the reviewer records").
+
+REV-FINAL-05 — LOW (test strength; documented)
+  smoke:p4i's "replay judged at its own instant" check is end-to-end on the compiled API but not discriminating: the
+  replay is sent after the temporal boundary has passed, so the pre-fix code (the executor's instant, itself after the
+  boundary) would refuse it too. The compiled API has no seam to let time pass inside a replay; the discriminating proof
+  is the DB tests A–D (READINESS_OBSERVER beforeReplayRead / afterReplayInput) and NC-FINAL-020-A/B. The record's §14
+  says so.
+
+REV-FINAL-06 — LOW (display only; beyond mission §30's "after any successful mutation"; backlog)
+  The readiness shown is invalidated after a successful write. A write whose outcome the page does not learn (a network
+  error or 5xx after the server committed) leaves the evaluation — or a prepared handoff — on screen until the next
+  evaluation, or until a retry with the same idempotency key replays the success (which invalidates it). The server
+  re-evaluates every export and replay, so nothing stale is released.
+
+REV-FINAL-03 — LOW (performance; local scale; backlog) — also raised by the adversarial pass
+  An unfiltered or q audit page orders the whole audit_events table (the only composite index,
+  (entity_type, entity_id, created_at, id), serves the entity-filtered reads; q ORs six columns). An index on
+  (created_at, id) needs a migration, which this mission does not authorize.
+
+OBS-FINAL-04 — observation for the operator (R14-AUD-018 exposure)
+  The audit read shows every signed-in user the local accounts' email and display name (USER_*_LOCAL_CLI events, P1.1)
+  and sign-in metadata (AUTH_LOGIN_SUCCEEDED: the user id, the session row id — never the token or its digest — and the
+  expiry). This stays within the authenticated operator boundary the contract gives the audit history to (API_CONTRACT_v1:
+  audit is read-only to operators); no tenant ACL exists or is claimed.
+
+OBS-FINAL-05 — observation
+  `entityType=` (empty; the contract allows it: maxLength 100, no minLength) is an exact filter and returns an empty page,
+  while an empty `q` means no filter. Harmless.
+
+OBS-FINAL-06 — observation (documented: MATERIAL_SEMANTIC_AMBIGUITY)
+  Ask completeness is not enforced: a G6 PASS recording only Q1 of a two-ask NMI can count. No structured record of the
+  parent's asks exists; the residual responsibility sits with the attributable G6 reviewer (ADR-0011 Decision 8).
+
+OBS-FINAL-07 — observation (test scope)
+  The AUD-017 round-trip web test proves that the page displays the readiness the server returns (the fake server
+  supplies it); the derivation itself is proven by the DB tests and by the browser pass against the compiled API.
+
+OBS-FINAL-08 — observation (determinism)
+  A run's createdAt is the executor's request instant and run ids are UUIDv4, so a same-millisecond tie is broken by id —
+  arbitrary but deterministic, and the history lists first the run that counts. The AUD-015 DB test for equal createdAt
+  takes its branch from the UUID order and always asserts that equality; the unit test covers both tie directions.
+
+Checked and found in order (no finding)
+- Versioning: technical-ruleset.ts and text-scan.ts byte-identical to abc31fc; no context-module, prompt-template,
+  artifact-hash or contract change; no VERSION_DECISION_REQUIRED.
+- Immutability: no stored row is rewritten or recomputed; the tests compare stored runs, reviews, audit events and
+  idempotency records byte for byte.
+- G7: no sign, send, submit, email, AS_SENT, adoption or Drive path; HUMAN_PENDING, sendPerformed false and PROHIBITED
+  unchanged constants.
+- Case isolation: the audit read is global like every record of the application (no tenant ACL exists); the readiness,
+  assessment and export paths are unchanged in their case scoping.

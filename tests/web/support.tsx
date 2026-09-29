@@ -44,8 +44,10 @@
 // archived case, 412 ARTIFACT_CHANGED unless the expected artifact is the candidate's, 412
 // CONTEXT_CHANGED unless the expected digest is the case's stated context reply for the prompt
 // snapshot's scope, the current ruleset only, a recorded run of exactly that epoch, a supersession
-// of the head of the same candidate's gate only, supports that are LINKED links of this case, and —
-// for a PASS only — the applicability refusal a test states for a source (the fake derives none).
+// of the head of the same candidate's gate only, supports that are LINKED links of this case, ask
+// dispositions of exactly the prompt's parent binding (each ask once), and the applicability
+// refusal a test states for a source — for a PASS's supports and, whatever the result, for the
+// sources an ask disposition cites (the fake derives none).
 // Assessments and their support rows are immutable; the rows are read back per assessment of this
 // candidate only (getCandidateAssessmentSources, TB-SCHEMA-API-v1.4.0). Readiness (P4I) follows the
 // evaluation rules the readiness section relies on: the fake derives nothing — each test states the
@@ -296,6 +298,18 @@ export class FakeDirectory {
    * evaluates the readiness again.
    */
   readonly readinessReplies = new Map<string, () => Response>();
+  /**
+   * Holds getCandidateReadiness replies — each the reply derived when its request arrived — until
+   * `releaseReadinessReads()` (R14-AUD-019: a response that arrives after a write on the page).
+   */
+  holdReadinessReads = false;
+  private readonly heldReadinessReads: Array<() => void> = [];
+  /**
+   * Holds exportUnsignedCandidate replies — the export already recorded when its request arrived —
+   * until `releaseExports()` (R14-AUD-019).
+   */
+  holdExports = false;
+  private readonly heldExports: Array<() => void> = [];
   /** Every unsigned export the fake recorded (its stand-in for the EXPORT_UNSIGNED audit event). */
   readonly unsignedExports: Array<Record<string, unknown> & { key: string; candidateId: string }> =
     [];
@@ -1618,10 +1632,24 @@ export class FakeDirectory {
   // Readiness and the unsigned export (P4I) ------------------------------------------------------
 
   /** getCandidateReadiness: the stated reply of a known candidate (404 for an unknown one). */
-  private readinessRequest(candidateId: string): Response {
+  private readinessRequest(candidateId: string): Response | Promise<Response> {
     if (!this.candidates.some((row) => row.id === candidateId)) return failure(404, 'NOT_FOUND');
     const reply = this.readinessReplies.get(candidateId);
-    return reply ? reply() : failure(500, 'INTERNAL_ERROR');
+    const response = reply ? reply() : failure(500, 'INTERNAL_ERROR');
+    if (!this.holdReadinessReads) return response;
+    return new Promise((resolve) => this.heldReadinessReads.push(() => resolve(response)));
+  }
+
+  /** Answers every held getCandidateReadiness request (and stops holding new ones). */
+  releaseReadinessReads(): void {
+    this.holdReadinessReads = false;
+    for (const release of this.heldReadinessReads.splice(0)) release();
+  }
+
+  /** Answers every held exportUnsignedCandidate request (and stops holding new ones). */
+  releaseExports(): void {
+    this.holdExports = false;
+    for (const release of this.heldExports.splice(0)) release();
   }
 
   /**
@@ -1630,6 +1658,16 @@ export class FakeDirectory {
    * returns the historical response, never the body of an export that is no longer ready.
    */
   private async exportRequest(
+    candidateId: string,
+    headers: Record<string, string>,
+    body: unknown,
+  ): Promise<Response> {
+    const response = await this.exportResponse(candidateId, headers, body);
+    if (!this.holdExports) return response;
+    return new Promise((resolve) => this.heldExports.push(() => resolve(response)));
+  }
+
+  private async exportResponse(
     candidateId: string,
     headers: Record<string, string>,
     body: unknown,
@@ -1889,6 +1927,31 @@ export class FakeDirectory {
         if (inapplicable) {
           return failure(422, inapplicable.code, {
             field: `sources.${index}.caseSourceId`,
+            ...inapplicable.details,
+          });
+        }
+      }
+    }
+    // Each ask disposition answers an ask of exactly the parent the prompt named, and every source
+    // it cites applies to the case, whatever the result.
+    const dispositions = (request['askDispositions'] ?? []) as Array<{
+      parentBindingId: string;
+      sourceIds: string[];
+    }>;
+    for (const [index, disposition] of dispositions.entries()) {
+      if (disposition.parentBindingId !== prompt['parentBindingId']) {
+        return failure(422, 'ASK_PARENT_MISMATCH', {
+          field: `askDispositions.${index}.parentBindingId`,
+          promptParentBindingId: prompt['parentBindingId'] ?? null,
+        });
+      }
+    }
+    for (const [index, disposition] of dispositions.entries()) {
+      for (const [position, sourceId] of disposition.sourceIds.entries()) {
+        const inapplicable = this.inapplicableSources.get(sourceId);
+        if (inapplicable) {
+          return failure(422, inapplicable.code, {
+            field: `askDispositions.${index}.sourceIds.${position}`,
             ...inapplicable.details,
           });
         }
@@ -3306,6 +3369,23 @@ function assessmentRequestProblem(request: Record<string, unknown>): Response | 
       : [];
   });
   if (duplicates.length > 0) return failure(422, 'VALIDATION_FAILED', { issues: duplicates });
+  const asks = new Set<string>();
+  const askAgain = ((request['askDispositions'] ?? []) as Array<Record<string, unknown>>).flatMap(
+    (disposition, index) => {
+      const key = `${String(disposition['parentBindingId'])}\u0000${String(disposition['askId'])}`;
+      const again = asks.has(key);
+      asks.add(key);
+      return again
+        ? [
+            {
+              path: `askDispositions.${index}.askId`,
+              message: 'Each ask of a parent message has one disposition',
+            },
+          ]
+        : [];
+    },
+  );
+  if (askAgain.length > 0) return failure(422, 'VALIDATION_FAILED', { issues: askAgain });
   if (request['performerKind'] === 'AI_ASSISTED' && request['provenance'] === 'DOCUMENT_REVIEWED') {
     return failure(422, 'REVIEW_UNSUPPORTED', {
       field: 'provenance',

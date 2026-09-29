@@ -1641,6 +1641,13 @@ code.hash {
   overflow-wrap: anywhere;
 }
 
+/* The ask dispositions of a recorded G6 review (R14-AUD-017): at 390 px the recorded question,
+   answer locator and remainder keep a readable width; the table scrolls inside its focusable frame
+   instead of breaking the text into a few characters per line. */
+.ask-dispositions .captured-text {
+  min-width: 14rem;
+}
+
 .validation-history {
   margin: 0;
   padding: 0;

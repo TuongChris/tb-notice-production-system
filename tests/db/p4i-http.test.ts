@@ -21,6 +21,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import type { PrismaClient } from '../../apps/api/generated/prisma/client.js';
 import type {
   Agency,
+  AuditEvent,
   AuthorityEvent,
   CandidateAssessment,
   CaseAuthoritySelection,
@@ -51,6 +52,7 @@ import type {
 } from '../../packages/contracts/src/index.js';
 import {
   CONTRACT_BASELINE,
+  ListAuditEventsResponseSchema,
   OperationErrorSchema,
   operations,
 } from '../../packages/contracts/src/index.js';
@@ -59,7 +61,10 @@ import {
   ALLOWED_ORIGIN,
   cookieHeader,
   http,
+  insertUser,
+  login,
   openTestPrisma,
+  sessionTokenFrom,
   startTestApp,
   type HttpResult,
   type TestApp,
@@ -85,11 +90,17 @@ const collected: Recorded[] = [];
 
 type Hook = (caseId: string) => Promise<void>;
 
-/** The export's consistency hooks: each runs once, inside the export transaction. */
+/**
+ * The export's consistency hooks, each run once: inside the export transaction, or inside a guarded
+ * replay (R14-AUD-020: before its first read, after the request's instant, the claim and the replay
+ * lookup; and after its input reads, before its evaluation instant).
+ */
 const readinessObserver = {
   hooks: {
     afterCaseLock: null as Hook | null,
     beforeRecord: null as Hook | null,
+    beforeReplayRead: null as Hook | null,
+    afterReplayInput: null as Hook | null,
   },
   async afterCaseLock(caseId: string): Promise<void> {
     const hook = this.hooks.afterCaseLock;
@@ -100,6 +111,16 @@ const readinessObserver = {
     const hook = this.hooks.beforeRecord;
     this.hooks.beforeRecord = null;
     if (hook) await hook(caseId);
+  },
+  async beforeReplayRead(candidateId: string): Promise<void> {
+    const hook = this.hooks.beforeReplayRead;
+    this.hooks.beforeReplayRead = null;
+    if (hook) await hook(candidateId);
+  },
+  async afterReplayInput(candidateId: string): Promise<void> {
+    const hook = this.hooks.afterReplayInput;
+    this.hooks.afterReplayInput = null;
+    if (hook) await hook(candidateId);
   },
 };
 
@@ -124,6 +145,8 @@ beforeAll(async () => {
 beforeEach(async () => {
   readinessObserver.hooks.afterCaseLock = null;
   readinessObserver.hooks.beforeRecord = null;
+  readinessObserver.hooks.beforeReplayRead = null;
+  readinessObserver.hooks.afterReplayInput = null;
   validationObserver.failRule = null;
   auditWriter.armed = false;
   t = await startTestApp(prisma, { readinessObserver, validationObserver, auditWriter });
@@ -889,6 +912,51 @@ async function readyWorld(options: WorldOptions = {}) {
   return { ...p, candidate, run, view, gates };
 }
 
+/**
+ * A reply that can be READY_FOR_SIGNER: an NMI captured as full text and bound as the parent, a
+ * prior transmission captured from a raw source of this subject and bound as sent, and an NMI_REPLY
+ * DRAFTING prompt naming both; a clean candidate of it, its TECHNICAL_PASS run and five confirmed
+ * PASS reviews G1–G5 of that epoch. G6 — and its ask dispositions — is left to the test.
+ */
+async function readyReplyWorld(label = 'A') {
+  const p = await promptWorld({ label });
+  const agencyId = p.w.agency.data.id;
+  const nmiMessage = await capture(agencyId, {
+    subject: 'SYNTHETIC we need more information',
+    bodyText: 'SYNTHETIC Question 1: please provide the licence. Question 2: who owns the work?',
+    fromAddress: 'synthetic-platform-review@example.invalid',
+    replyToAddress: 'synthetic-reply-here@example.invalid',
+  });
+  const nmi = await bind(p.caseId, { correspondenceId: nmiMessage.id, eventType: 'NMI' });
+  const rawSource = await createSource({
+    agencyId,
+    title: `SYNTHETIC ${label} raw message file`,
+    scopeBindings: { legalSubjectIds: [p.w.subject.data.id] },
+  });
+  const sentMessage = await capture(agencyId, {
+    direction: 'OUTBOUND',
+    subject: 'SYNTHETIC copyright notice as sent (raw)',
+    captureMode: 'RAW_SOURCE',
+    rawSourceId: rawSource.id,
+  });
+  const sent = await bind(p.caseId, {
+    correspondenceId: sentMessage.id,
+    eventType: 'INITIAL_AS_SENT',
+    reportedItemId: p.item.data.id,
+  });
+  const replyPrompt = await generate(p.caseId, {
+    taskType: 'NMI_REPLY',
+    authoritySelectionId: p.selection.id,
+    parentBindingId: nmi.id,
+    priorBindingIds: [sent.id],
+  });
+  const candidate = await importCandidate(p.caseId, draft(replyPrompt));
+  const { run, view } = await validate(candidate, replyPrompt);
+  expect(run.result).toBe('TECHNICAL_PASS');
+  const gates = await passAll(candidate, view, p.caseSource.data.id, { G6: null });
+  return { ...p, nmiMessage, nmi, sent, replyPrompt, candidate, run, view, gates };
+}
+
 const gateStatuses = (current: Readiness) =>
   Object.fromEntries(current.gates.map((gate) => [gate.gate, gate.status]));
 const ALL_PASS = Object.fromEntries(GATES.map((gate) => [gate, 'PASS']));
@@ -1347,23 +1415,38 @@ describe('P4I getCandidateReadiness — derived from the current captured record
     expect(later.evaluatedAt).toBe(iso(t.clock.ms));
   });
 
-  it('R-28: runs of the same epoch that disagree never yield the convenient PASS — TECHNICAL_RUN_CONFLICT, no counted run, BLOCKED by the ERROR among them', async () => {
-    const p = await promptWorld();
-    const candidate = await importCandidate(p.caseId, draft(p.prompt));
-    validationObserver.failRule = 'ENVELOPE.SENDER';
-    const errored = await validate(candidate, p.prompt);
-    validationObserver.failRule = null;
+  it('R-28: completed runs of the same epoch that disagree never yield the convenient PASS — TECHNICAL_RUN_CONFLICT, no counted run, even when the PASS is the latest (synthetic corruption of a stored run)', async () => {
+    const r = await readyWorld();
     t.clock.advance(1000);
-    const passed = await validate(candidate, p.prompt);
-    expect([errored.run.result, passed.run.result]).toEqual(['ERROR', 'TECHNICAL_PASS']);
-    expect(passed.run.dependencyDigest).toBe(errored.run.dependencyDigest);
-    await passAll(candidate, passed.view, p.caseSource.data.id);
-    expect(await readiness(candidate.id)).toMatchObject({
+    const newer = await validate(r.candidate, r.prompt);
+    expect([r.run.result, newer.run.result]).toEqual(['TECHNICAL_PASS', 'TECHNICAL_PASS']);
+    expect(newer.run.dependencyDigest).toBe(r.run.dependencyDigest);
+    expect((await readiness(r.candidate.id)).validationRunId).toBe(newer.run.id);
+    // The older run, complete, as if it had recorded another outcome of the same epoch.
+    await prisma.$executeRaw`UPDATE validation_runs SET result = 'BLOCKED' WHERE id = ${r.run.id}`;
+    const blocked = await readiness(r.candidate.id);
+    expect(blocked).toMatchObject({
       status: 'BLOCKED',
       technicalResult: null,
       validationRunId: null,
-      reasonCodes: ['VALIDATION_ERROR', 'TECHNICAL_RUN_CONFLICT'],
+      reasonCodes: ['VALIDATION_BLOCKED', 'TECHNICAL_RUN_CONFLICT'],
     });
+    await prisma.$executeRaw`UPDATE validation_runs SET result = 'REVIEW_REQUIRED' WHERE id = ${r.run.id}`;
+    const review = await readiness(r.candidate.id);
+    expect(review).toMatchObject({
+      status: 'REVIEW_REQUIRED',
+      technicalResult: null,
+      validationRunId: null,
+      reasonCodes: ['TECHNICAL_RUN_CONFLICT', 'VALIDATION_REVIEW_REQUIRED'],
+    });
+    expect(gateStatuses(review)).toEqual(ALL_PASS);
+    // A further completed PASS does not outvote the disagreeing run.
+    t.clock.advance(1000);
+    await validate(r.candidate, r.prompt);
+    expect((await readiness(r.candidate.id)).reasonCodes).toEqual([
+      'TECHNICAL_RUN_CONFLICT',
+      'VALIDATION_REVIEW_REQUIRED',
+    ]);
   });
 
   it('context: an archived case is BLOCKED (CASE_ARCHIVED); a reply whose named parent binding was corrected has no readable scope — 409 BINDING_ALREADY_SUPERSEDED, no readiness derived', async () => {
@@ -1710,6 +1793,1032 @@ describe('P4I exportUnsignedCandidate — the unsigned text handoff, only while 
     });
     expect(outcome(refused)).toEqual([412, 'CONTEXT_CHANGED']);
     expect(refused.text).not.toContain('SYNTHETIC notice text');
+  });
+});
+
+describe('R14-AUD-015 — a run that did not complete is a diagnostic: the latest run of the epoch decides, an earlier ERROR poisons nothing', () => {
+  const FAILED_RULE = 'ENVELOPE.SENDER';
+  async function erroredRun(candidate: NoticeCandidate, prompt: PromptSnapshot) {
+    validationObserver.failRule = FAILED_RULE;
+    try {
+      const recorded = await validate(candidate, prompt);
+      expect(recorded.run.result).toBe('ERROR');
+      expect(recorded.run.coverageManifest.notExecutedRuleIds).toEqual([FAILED_RULE]);
+      return recorded;
+    } finally {
+      validationObserver.failRule = null;
+    }
+  }
+  const ERROR_READINESS = {
+    status: 'BLOCKED',
+    technicalResult: 'ERROR',
+    reasonCodes: ['VALIDATION_ERROR', 'VALIDATION_COVERAGE_INCOMPLETE'],
+  };
+  const getRun = async (id: string) => {
+    const result = await client.get('getValidationRun', `/validation-runs/${id}`);
+    expect(result.status, result.text).toBe(200);
+    return dataOf<ValidationRun>(result);
+  };
+  const listRuns = async (candidateId: string) => {
+    const result = await client.get(
+      'listValidationRuns',
+      `/candidates/${candidateId}/validation-runs`,
+    );
+    expect(result.status, result.text).toBe(200);
+    return dataOf<{ items: ValidationRun[] }>(result).items;
+  };
+  /** A stored run and its issues exactly as recorded. */
+  const storedRun = async (id: string) => ({
+    run: await prisma.validationRun.findUniqueOrThrow({ where: { id } }),
+    issues: await prisma.validationIssue.findMany({ where: { runId: id }, orderBy: { id: 'asc' } }),
+  });
+
+  it('ERROR → a completed TECHNICAL_PASS of the same epoch → READY_FOR_SIGNER and exported with the PASS; the ERROR run stays readable, byte-identical history', async () => {
+    const p = await promptWorld();
+    const candidate = await importCandidate(p.caseId, draft(p.prompt));
+    const errored = await erroredRun(candidate, p.prompt);
+    await passAll(candidate, errored.view, p.caseSource.data.id);
+    // While the ERROR run is the latest, it is what counts.
+    expect(await readiness(candidate.id)).toMatchObject({
+      ...ERROR_READINESS,
+      validationRunId: errored.run.id,
+    });
+    const history = await storedRun(errored.run.id);
+    t.clock.advance(1000);
+    const passed = await validate(candidate, p.prompt);
+    expect(passed.run.result).toBe('TECHNICAL_PASS');
+    expect(passed.run.dependencyDigest).toBe(errored.run.dependencyDigest);
+    const current = await readiness(candidate.id);
+    expect(current).toMatchObject({
+      status: 'READY_FOR_SIGNER',
+      technicalResult: 'TECHNICAL_PASS',
+      validationRunId: passed.run.id,
+      reasonCodes: [],
+    });
+    expect(gateStatuses(current)).toEqual(ALL_PASS);
+    const handed = await exportUnsigned(candidate.id, exportBody(current));
+    expect(handed.readiness).toMatchObject({
+      status: 'READY_FOR_SIGNER',
+      validationRunId: passed.run.id,
+    });
+    // A request naming the ERROR run is not the counted run.
+    const named = await exportPost(
+      candidate.id,
+      exportBody(current, { validationRunId: errored.run.id }),
+    );
+    expect(outcome(named)).toEqual([412, 'VALIDATION_RUN_CHANGED']);
+    // Both runs stay listed and readable exactly as recorded; nothing about the ERROR run changed.
+    expect((await listRuns(candidate.id)).map((row) => [row.id, row.result])).toEqual([
+      [passed.run.id, 'TECHNICAL_PASS'],
+      [errored.run.id, 'ERROR'],
+    ]);
+    expect(await getRun(errored.run.id)).toEqual(errored.run);
+    expect(await storedRun(errored.run.id)).toEqual(history);
+  });
+
+  it('PASS → a newer ERROR → BLOCKED: the ERROR counts, no older PASS is relied on — a fresh export is refused and a replay of an earlier export releases nothing; PASS → ERROR → PASS recovers, and the earlier request then names a run that no longer counts (412)', async () => {
+    const r = await readyWorld();
+    const first = await readiness(r.candidate.id);
+    expect(first).toMatchObject({ status: 'READY_FOR_SIGNER', validationRunId: r.run.id });
+    const key = newKey();
+    await exportUnsigned(r.candidate.id, exportBody(first), key);
+    t.clock.advance(1000);
+    const errored = await erroredRun(r.candidate, r.prompt);
+    expect(errored.run.dependencyDigest).toBe(r.run.dependencyDigest);
+    const blocked = await readiness(r.candidate.id);
+    expect(blocked).toMatchObject({ ...ERROR_READINESS, validationRunId: errored.run.id });
+    expect(gateStatuses(blocked)).toEqual(ALL_PASS);
+
+    const fresh = await exportPost(r.candidate.id, exportBody(first));
+    expect(outcome(fresh)).toEqual([409, 'CANDIDATE_NOT_READY']);
+    expect(detailsOf(fresh)).toEqual({
+      status: 'BLOCKED',
+      reasonCodes: ['VALIDATION_ERROR', 'VALIDATION_COVERAGE_INCOMPLETE'],
+    });
+    const before = { ...(await suiteDump()), auth_sessions: [] };
+    const replay = await exportPost(r.candidate.id, exportBody(first), key);
+    expect(outcome(replay)).toEqual([409, 'CANDIDATE_NOT_READY']);
+    expect(detailsOf(replay)).toEqual(detailsOf(fresh));
+    for (const text of ['SYNTHETIC notice text', 'SYNTHETIC notice subject']) {
+      expect(replay.text).not.toContain(text);
+    }
+    expect({ ...(await suiteDump()), auth_sessions: [] }).toEqual(before);
+
+    t.clock.advance(1000);
+    const again = await validate(r.candidate, r.prompt);
+    const recovered = await readiness(r.candidate.id);
+    expect(recovered).toMatchObject({
+      status: 'READY_FOR_SIGNER',
+      technicalResult: 'TECHNICAL_PASS',
+      validationRunId: again.run.id,
+      reasonCodes: [],
+    });
+    const stale = await exportPost(r.candidate.id, exportBody(first), key);
+    expect(outcome(stale)).toEqual([412, 'VALIDATION_RUN_CHANGED']);
+    const handed = await exportUnsigned(r.candidate.id, exportBody(recovered));
+    expect(handed.readiness.validationRunId).toBe(again.run.id);
+    expect((await auditActions()).filter((action) => action === 'EXPORT_UNSIGNED')).toHaveLength(2);
+  });
+
+  it('a newer run with a required rule not executed is never READY, whatever came before it (synthetic corruption of a stored PASS); a later completed run recovers', async () => {
+    const r = await readyWorld();
+    t.clock.advance(1000);
+    const newer = await validate(r.candidate, r.prompt);
+    const coverage = newer.run.coverageManifest;
+    await prisma.$executeRaw`UPDATE validation_runs SET coverage_manifest = ${JSON.stringify({
+      ...coverage,
+      executedRuleIds: coverage.executedRuleIds.filter((id) => id !== FAILED_RULE),
+      notExecutedRuleIds: [FAILED_RULE],
+    })} WHERE id = ${newer.run.id}`;
+    const incomplete = await readiness(r.candidate.id);
+    expect(incomplete).toMatchObject({
+      status: 'REVIEW_REQUIRED',
+      technicalResult: 'TECHNICAL_PASS',
+      validationRunId: newer.run.id,
+      reasonCodes: ['VALIDATION_COVERAGE_INCOMPLETE'],
+    });
+    const refused = await exportPost(r.candidate.id, exportBody(incomplete));
+    expect(outcome(refused)).toEqual([409, 'CANDIDATE_NOT_READY']);
+    t.clock.advance(1000);
+    const completed = await validate(r.candidate, r.prompt);
+    expect(await readiness(r.candidate.id)).toMatchObject({
+      status: 'READY_FOR_SIGNER',
+      validationRunId: completed.run.id,
+    });
+  });
+
+  it('runs recorded at the same instant: the higher id is the latest (createdAt DESC, id DESC) — the run the history lists first is the one that counts', async () => {
+    const p = await promptWorld();
+    const candidate = await importCandidate(p.caseId, draft(p.prompt));
+    const errored = await erroredRun(candidate, p.prompt);
+    // The test clock has not moved: both runs are recorded at the same instant.
+    const passed = await validate(candidate, p.prompt);
+    expect(passed.run.createdAt).toBe(errored.run.createdAt);
+    await passAll(candidate, passed.view, p.caseSource.data.id);
+    const [listedFirst] = await listRuns(candidate.id);
+    const latest = [errored.run, passed.run].sort((a, b) => (a.id < b.id ? 1 : -1))[0];
+    expect(listedFirst?.id).toBe(latest?.id);
+    const current = await readiness(candidate.id);
+    expect(current.validationRunId).toBe(latest?.id);
+    expect(current).toMatchObject(
+      latest?.id === errored.run.id
+        ? ERROR_READINESS
+        : { status: 'READY_FOR_SIGNER', technicalResult: 'TECHNICAL_PASS', reasonCodes: [] },
+    );
+  });
+});
+
+type ReplyWorld = Awaited<ReturnType<typeof readyReplyWorld>>;
+/** One ask disposition of the reply's parent (answered and supported unless overridden). */
+const ask = (r: ReplyWorld, fields: Record<string, unknown> = {}) => ({
+  askId: 'Q1',
+  questionText: 'SYNTHETIC Question 1: please provide the licence.',
+  parentBindingId: r.nmi.id,
+  disposition: 'ANSWERED_SUPPORTED',
+  answerLocator: 'SYNTHETIC second paragraph of the reply',
+  sourceIds: [r.linked.id],
+  ...fields,
+});
+const secondAsk = (r: ReplyWorld, fields: Record<string, unknown> = {}) =>
+  ask(r, { askId: 'Q2', questionText: 'SYNTHETIC Question 2: who owns the work?', ...fields });
+/** A confirmed G6 PASS of the reply's epoch with `askDispositions` (a successor of `previous`). */
+const g6Pass = (r: ReplyWorld, askDispositions: unknown[], previous?: string) =>
+  assess(
+    r.candidate.id,
+    pass(r.candidate, r.view, 'G6', r.caseSource.data.id, {
+      askDispositions,
+      ...(previous === undefined ? {} : { supersedesAssessmentId: previous }),
+    }),
+  );
+
+describe('R14-AUD-016 — an NMI ask the G6 review records as unresolved holds G6: never READY, never exported', () => {
+  it('REQUIRES_DOCUMENT, MISSING_FACT and LEGAL_REVIEW_REQUIRED — alone or beside answered asks — hold G6 with their reason: REVIEW_REQUIRED, five PASS gates never compensate, a fresh export is refused and releases nothing', async () => {
+    const r = await readyReplyWorld();
+    const cases: Array<[string, unknown[], string]> = [
+      [
+        'REQUIRES_DOCUMENT',
+        [ask(r, { disposition: 'REQUIRES_DOCUMENT' })],
+        'G6_ASK_REQUIRES_DOCUMENT',
+      ],
+      [
+        'MISSING_FACT',
+        [ask(r, { disposition: 'MISSING_FACT', sourceIds: [] })],
+        'G6_ASK_MISSING_FACT',
+      ],
+      [
+        'LEGAL_REVIEW_REQUIRED',
+        [ask(r, { disposition: 'LEGAL_REVIEW_REQUIRED' })],
+        'G6_ASK_LEGAL_REVIEW_REQUIRED',
+      ],
+      [
+        'ANSWERED_SUPPORTED + REQUIRES_DOCUMENT',
+        [ask(r), secondAsk(r, { disposition: 'REQUIRES_DOCUMENT' })],
+        'G6_ASK_REQUIRES_DOCUMENT',
+      ],
+      [
+        'ANSWERED_WITH_LIMITATION + MISSING_FACT',
+        [
+          ask(r, {
+            disposition: 'ANSWERED_WITH_LIMITATION',
+            unresolvedRemainder: 'SYNTHETIC the licence copy covers the first work only',
+          }),
+          secondAsk(r, { disposition: 'MISSING_FACT', sourceIds: [] }),
+        ],
+        'G6_ASK_MISSING_FACT',
+      ],
+    ];
+    let previous: string | undefined;
+    for (const [label, askDispositions, cause] of cases) {
+      const g6 = await g6Pass(r, askDispositions, previous);
+      previous = g6.id;
+      // The capture stores the truthful record exactly: recording is not counting.
+      expect(g6.result, label).toBe('PASS');
+      expect(g6.askDispositions, label).toEqual(askDispositions);
+      const current = await readiness(r.candidate.id);
+      expect(current.gates[5], label).toEqual({
+        gate: 'G6',
+        status: 'HOLD',
+        assessmentId: g6.id,
+        reasonCodes: ['GATE_HOLD', cause],
+      });
+      expect([current.status, current.reasonCodes], label).toEqual([
+        'REVIEW_REQUIRED',
+        ['G6_HOLD', cause],
+      ]);
+      expect(gateStatuses(current), label).toEqual({ ...ALL_PASS, G6: 'HOLD' });
+      expect([current.technicalResult, current.validationRunId], label).toEqual([
+        'TECHNICAL_PASS',
+        r.run.id,
+      ]);
+      const refused = await exportPost(r.candidate.id, exportBody(current));
+      expect(outcome(refused), label).toEqual([409, 'CANDIDATE_NOT_READY']);
+      expect(detailsOf(refused), label).toEqual({
+        status: 'REVIEW_REQUIRED',
+        reasonCodes: ['G6_HOLD', cause],
+      });
+      expect(refused.text).not.toContain('SYNTHETIC notice text');
+    }
+    expect(await auditActions()).not.toContain('EXPORT_UNSIGNED');
+  });
+
+  it('positive controls: ANSWERED_SUPPORTED, a genuinely limited answer (its remainder is never keyword-read) and a sourced NOT_APPLICABLE_WITH_REASON each count — READY_FOR_SIGNER when everything else passes', async () => {
+    const r = await readyReplyWorld();
+    const variants: Array<[string, unknown[]]> = [
+      ['ANSWERED_SUPPORTED', [ask(r)]],
+      [
+        'ANSWERED_WITH_LIMITATION',
+        [
+          ask(r, {
+            disposition: 'ANSWERED_WITH_LIMITATION',
+            unresolvedRemainder:
+              'SYNTHETIC the licence copy names the first work only; no document, fact or legal review is outstanding for this ask',
+          }),
+        ],
+      ],
+      [
+        'NOT_APPLICABLE_WITH_REASON',
+        [ask(r, { disposition: 'NOT_APPLICABLE_WITH_REASON', answerLocator: 'SYNTHETIC reason' })],
+      ],
+      [
+        'all three',
+        [
+          ask(r),
+          secondAsk(r, { disposition: 'ANSWERED_WITH_LIMITATION' }),
+          ask(r, { askId: 'Q3', disposition: 'NOT_APPLICABLE_WITH_REASON' }),
+        ],
+      ],
+    ];
+    let previous: string | undefined;
+    for (const [label, askDispositions] of variants) {
+      const g6 = await g6Pass(r, askDispositions, previous);
+      previous = g6.id;
+      const current = await readiness(r.candidate.id);
+      expect([current.status, current.reasonCodes], label).toEqual(['READY_FOR_SIGNER', []]);
+      expect(current.gates[5], label).toEqual({
+        gate: 'G6',
+        status: 'PASS',
+        assessmentId: g6.id,
+        reasonCodes: [],
+      });
+    }
+  });
+
+  it('negative controls: no disposition holds G6; another parent (422 ASK_PARENT_MISMATCH), an ask twice (422 VALIDATION_FAILED) or a source outside the case (422) are refused at capture; a stored foreign, duplicate or unknown disposition never counts (BLOCKED)', async () => {
+    const r = await readyReplyWorld();
+    const none = await g6Pass(r, []);
+    expect((await readiness(r.candidate.id)).gates[5]?.reasonCodes).toEqual([
+      'GATE_HOLD',
+      'G6_ASK_DISPOSITIONS_MISSING',
+    ]);
+    const q = await readyReplyWorld('Q');
+    const before = await countRows(prisma, 'candidate_assessments');
+    const refusals: Array<[unknown[], number, string]> = [
+      [[ask(r, { parentBindingId: r.sent.id })], 422, 'ASK_PARENT_MISMATCH'],
+      [
+        [ask(r), ask(r, { questionText: 'SYNTHETIC the same ask again' })],
+        422,
+        'VALIDATION_FAILED',
+      ],
+      [[ask(r, { sourceIds: [q.linked.id] })], 422, 'CROSS_AGENCY_REFERENCE'],
+    ];
+    for (const [askDispositions, status, errorCode] of refusals) {
+      const refused = await capturePost(
+        r.candidate.id,
+        pass(r.candidate, r.view, 'G6', r.caseSource.data.id, {
+          askDispositions,
+          supersedesAssessmentId: none.id,
+        }),
+      );
+      expect(outcome(refused), errorCode).toEqual([status, errorCode]);
+    }
+    expect(await countRows(prisma, 'candidate_assessments')).toBe(before);
+    // A stored record the capture never accepts (synthetic corruption) is never counted.
+    const answered = await g6Pass(r, [ask(r)], none.id);
+    expect((await readiness(r.candidate.id)).status).toBe('READY_FOR_SIGNER');
+    for (const corrupt of [
+      [ask(r, { parentBindingId: r.sent.id })],
+      [ask(r), ask(r)],
+      [ask(r, { disposition: 'ANSWERED' })],
+    ]) {
+      await prisma.$executeRaw`UPDATE candidate_assessments SET ask_dispositions = ${JSON.stringify(
+        corrupt,
+      )} WHERE id = ${answered.id}`;
+      const current = await readiness(r.candidate.id);
+      expect([current.status, current.gates[5]?.reasonCodes], JSON.stringify(corrupt)).toEqual([
+        'BLOCKED',
+        ['GATE_BLOCKED', 'ASSESSMENT_INTEGRITY_FAILED'],
+      ]);
+    }
+  });
+
+  it('successor recovery: a stored G6 PASS recording REQUIRES_DOCUMENT stays unchanged and readable; only an explicit, sourced successor that records every ask resolved becomes the one head — and only then is the candidate READY', async () => {
+    const r = await readyReplyWorld();
+    const held = await g6Pass(r, [ask(r), secondAsk(r, { disposition: 'REQUIRES_DOCUMENT' })]);
+    expect((await readiness(r.candidate.id)).reasonCodes).toEqual([
+      'G6_HOLD',
+      'G6_ASK_REQUIRES_DOCUMENT',
+    ]);
+    const heldRow = await prisma.candidateAssessment.findUniqueOrThrow({ where: { id: held.id } });
+    const resolved = await g6Pass(
+      r,
+      [ask(r), secondAsk(r, { disposition: 'ANSWERED_SUPPORTED', sourceIds: [r.linked.id] })],
+      held.id,
+    );
+    const current = await readiness(r.candidate.id);
+    expect(current.status).toBe('READY_FOR_SIGNER');
+    expect(current.gates[5]).toEqual({
+      gate: 'G6',
+      status: 'PASS',
+      assessmentId: resolved.id,
+      reasonCodes: [],
+    });
+    // The earlier review is history: byte-identical and readable as recorded.
+    expect(await prisma.candidateAssessment.findUniqueOrThrow({ where: { id: held.id } })).toEqual(
+      heldRow,
+    );
+    const listed = await client.get(
+      'listCandidateAssessments',
+      `/candidates/${r.candidate.id}/assessments?limit=100`,
+    );
+    expect(listed.status, listed.text).toBe(200);
+    const { items } = dataOf<{ items: CandidateAssessment[] }>(listed);
+    expect(items.find((item) => item.id === held.id)).toEqual(held);
+  });
+
+  it('export replay: an export recorded while G6 was resolved releases nothing once a G6 successor records REQUIRES_DOCUMENT or MISSING_FACT — no text, no new audit event, no business change', async () => {
+    const r = await readyReplyWorld();
+    const answered = await g6Pass(r, [ask(r)]);
+    const current = await readiness(r.candidate.id);
+    expect(current.status).toBe('READY_FOR_SIGNER');
+    const key = newKey();
+    const first = await exportUnsigned(r.candidate.id, exportBody(current), key);
+    let previous = answered.id;
+    for (const [disposition, cause] of [
+      ['REQUIRES_DOCUMENT', 'G6_ASK_REQUIRES_DOCUMENT'],
+      ['MISSING_FACT', 'G6_ASK_MISSING_FACT'],
+    ] as const) {
+      previous = (await g6Pass(r, [ask(r, { disposition, sourceIds: [] })], previous)).id;
+      const before = { ...(await suiteDump()), auth_sessions: [] };
+      const replay = await exportPost(r.candidate.id, exportBody(current), key);
+      expect(outcome(replay), disposition).toEqual([409, 'CANDIDATE_NOT_READY']);
+      expect(detailsOf(replay), disposition).toEqual({
+        status: 'REVIEW_REQUIRED',
+        reasonCodes: ['G6_HOLD', cause],
+      });
+      for (const text of ['SYNTHETIC notice text', 'SYNTHETIC notice subject', first.bodySha256]) {
+        expect(replay.text).not.toContain(text);
+      }
+      expect(replay.text).not.toContain('synthetic-reply-here@example.invalid');
+      expect({ ...(await suiteDump()), auth_sessions: [] }).toEqual(before);
+    }
+    expect((await auditActions()).filter((action) => action === 'EXPORT_UNSIGNED')).toHaveLength(1);
+  });
+});
+
+describe('R14-AUD-020 — a replay judges the records it reads at an instant sampled after reading them', () => {
+  /**
+   * A READY world whose selected authority records an instant boundary 10 minutes ahead (part of
+   * the prompt's context: time never moves the digest), exported once with `key`.
+   */
+  async function exportedAheadOfBoundary(label = 'A') {
+    const boundary = t.clock.ms + 10 * MINUTE;
+    const r = await readyWorld({
+      label,
+      beforePrompt: async (w, a) => {
+        await recordEvent(a.mandate.data.id, w.source.id, { effectiveAt: iso(boundary) });
+      },
+    });
+    return { ...(await exported(r)), boundary };
+  }
+  /** A READY world whose authority records a date-only boundary `date`, exported once. */
+  async function exportedAheadOfDate(label: string, date: string) {
+    const r = await readyWorld({
+      label,
+      beforePrompt: async (w, a) => {
+        await recordEvent(a.mandate.data.id, w.source.id, { effectiveOn: date });
+      },
+    });
+    return exported(r);
+  }
+  async function exported(r: Awaited<ReturnType<typeof readyWorld>>) {
+    const current = await readiness(r.candidate.id);
+    expect(current.status).toBe('READY_FOR_SIGNER');
+    const key = newKey();
+    const first = await exportUnsigned(r.candidate.id, exportBody(current), key);
+    return { ...r, current, key, first };
+  }
+  type Exported = Awaited<ReturnType<typeof exported>>;
+  /** The test clock moves forward only. */
+  const clockTo = (ms: number) => {
+    expect(ms).toBeGreaterThanOrEqual(t.clock.ms);
+    t.clock.advance(ms - t.clock.ms);
+  };
+  const STALE_G1 = {
+    status: 'STALE_REVALIDATION_REQUIRED',
+    reasonCodes: ['G1_UNASSESSED', 'G1_TEMPORAL_REVIEW_STALE'],
+  };
+  const replayOf = (x: Exported) => exportPost(x.candidate.id, exportBody(x.current), x.key);
+  /** Nothing of the stored draft is in a refusal. */
+  function releasesNothing(refused: HttpResult, x: Exported) {
+    for (const text of ['SYNTHETIC notice text', 'SYNTHETIC notice subject', x.first.bodySha256]) {
+      expect(refused.text).not.toContain(text);
+    }
+  }
+  /** Every suite row but P1's session activity touch (independent of the export, see R-27). */
+  const rowsBesidesSessions = async () => ({ ...(await suiteDump()), auth_sessions: [] });
+  /** F: the replay of `x` is refused with `expected` — nothing released, nothing written. */
+  async function replayRefused(x: Exported, expected: Record<string, unknown>) {
+    const before = await rowsBesidesSessions();
+    const refused = await replayOf(x);
+    expect(outcome(refused)).toEqual([409, 'CANDIDATE_NOT_READY']);
+    expect(detailsOf(refused)).toEqual(expected);
+    releasesNothing(refused, x);
+    // No audit event or idempotency record, and no candidate, assessment or case change: the
+    // completed export stays exactly the history it was.
+    expect(await rowsBesidesSessions()).toEqual(before);
+  }
+
+  it('A / F: the boundary passes after the request’s instant, while the replay waits in its claim and replay lookup — 409 STALE_REVALIDATION_REQUIRED (G1_TEMPORAL_REVIEW_STALE); nothing released or written', async () => {
+    const x = await exportedAheadOfBoundary();
+    // The replay starts 1 ms before the boundary, which passes before the replay's first read.
+    clockTo(x.boundary - 1);
+    let waited = false;
+    readinessObserver.hooks.beforeReplayRead = async () => {
+      clockTo(x.boundary + 1);
+      waited = true;
+    };
+    await replayRefused(x, STALE_G1);
+    expect(waited).toBe(true);
+  });
+
+  it('B / F: the boundary passes while the replay reads its input — still refused: an instant taken when the replay starts, before its reads, is not the evaluation instant', async () => {
+    const x = await exportedAheadOfBoundary();
+    clockTo(x.boundary - 1);
+    let waited = false;
+    readinessObserver.hooks.afterReplayInput = async () => {
+      clockTo(x.boundary + 1);
+      waited = true;
+    };
+    await replayRefused(x, STALE_G1);
+    expect(waited).toBe(true);
+  });
+
+  it('C: no instant of the request is READY — G2 HOLD before the boundary, G1 stale from it on, a G2 PASS successor only after it; the replay reads the PASS and still refuses (G1 stale at its evaluation)', async () => {
+    const x = await exportedAheadOfBoundary();
+    // Before the replay: a supported G2 HOLD successor at the same epoch — no longer READY.
+    const hold = await assess(
+      x.candidate.id,
+      pass(x.candidate, x.view, 'G2', x.caseSource.data.id, {
+        supersedesAssessmentId: x.gates.G2?.id,
+        result: 'HOLD',
+      }),
+    );
+    const observed: Array<[string, Readiness['status'], string[]]> = [];
+    const observe = async (phase: string) => {
+      const now = await readiness(x.candidate.id);
+      observed.push([phase, now.status, now.reasonCodes]);
+    };
+    clockTo(x.boundary - 1);
+    await observe('T0 < e: G2 HOLD');
+    let successor: CandidateAssessment | null = null;
+    readinessObserver.hooks.beforeReplayRead = async () => {
+      clockTo(x.boundary);
+      await observe('e reached: G1 stale, G2 HOLD');
+      clockTo(x.boundary + MINUTE);
+      successor = await assess(
+        x.candidate.id,
+        pass(x.candidate, x.view, 'G2', x.caseSource.data.id, { supersedesAssessmentId: hold.id }),
+      );
+      await observe('T1 > e: a G2 PASS successor committed, G1 stale');
+    };
+    const exportEventsBefore = await prisma.auditEvent.findMany({
+      where: { action: 'EXPORT_UNSIGNED' },
+    });
+    const recordBefore = await prisma.idempotencyRecord.findFirstOrThrow({
+      where: { idempotencyKey: x.key },
+    });
+    const refused = await replayOf(x);
+    expect(outcome(refused)).toEqual([409, 'CANDIDATE_NOT_READY']);
+    // G2_HOLD is gone: the replay's snapshot read the PASS successor; G1 is stale at evaluation.
+    expect(detailsOf(refused)).toEqual(STALE_G1);
+    releasesNothing(refused, x);
+    // The state the replay read (G2 PASS) exists only from T1 > e on, when G1 is stale; before T1 G2
+    // was HOLD. At no instant of the request were both conditions met: never READY.
+    if (successor === null) throw new Error('the concurrent capture did not run');
+    expect(Date.parse((successor as CandidateAssessment).createdAt)).toBeGreaterThan(x.boundary);
+    expect(observed).toEqual([
+      ['T0 < e: G2 HOLD', 'REVIEW_REQUIRED', ['G2_HOLD']],
+      [
+        'e reached: G1 stale, G2 HOLD',
+        'STALE_REVALIDATION_REQUIRED',
+        ['G1_UNASSESSED', 'G2_HOLD', 'G1_TEMPORAL_REVIEW_STALE'],
+      ],
+      [
+        'T1 > e: a G2 PASS successor committed, G1 stale',
+        'STALE_REVALIDATION_REQUIRED',
+        ['G1_UNASSESSED', 'G1_TEMPORAL_REVIEW_STALE'],
+      ],
+    ]);
+    // The replay wrote nothing: the one export's audit event and its completed record stand.
+    expect(await prisma.auditEvent.findMany({ where: { action: 'EXPORT_UNSIGNED' } })).toEqual(
+      exportEventsBefore,
+    );
+    expect(
+      await prisma.idempotencyRecord.findFirstOrThrow({ where: { idempotencyKey: x.key } }),
+    ).toEqual(recordBefore);
+  });
+
+  it('D / F: a date-only boundary — the replay starts while the date lies ahead everywhere and is judged once the date may have begun somewhere (TEMPORAL_BOUNDARY_AMBIGUOUS) or has ended everywhere (G1 stale)', async () => {
+    // 2026-09-24 begins somewhere (UTC+14:00) at 2026-09-23T10:00Z; 2026-09-25 ends everywhere
+    // (UTC−12:00) at 2026-09-26T12:00Z. Start ten minutes before the first, in a fresh session.
+    clockTo(Date.parse('2026-09-23T09:50:00.000Z'));
+    client = new DirectoryClient(t.port, await signIn(t.port, prisma), collected);
+    const ahead = await exportedAheadOfDate('D', '2026-09-24');
+    clockTo(Date.parse('2026-09-23T09:59:59.999Z'));
+    readinessObserver.hooks.afterReplayInput = async () => {
+      clockTo(Date.parse('2026-09-23T10:00:00.000Z'));
+    };
+    await replayRefused(ahead, {
+      status: 'REVIEW_REQUIRED',
+      reasonCodes: ['G1_HOLD', 'TEMPORAL_BOUNDARY_AMBIGUOUS'],
+    });
+
+    const later = await exportedAheadOfDate('E', '2026-09-25');
+    readinessObserver.hooks.beforeReplayRead = async () => {
+      // The session was checked when the request started; the replay itself waits past the date.
+      clockTo(Date.parse('2026-09-26T12:00:00.000Z'));
+    };
+    await replayRefused(later, STALE_G1);
+  });
+
+  it('E: before the boundary, with nothing changed, the replay is allowed — exactly the original subject, envelope, body, readiness and exportedAt; no second audit event, the record unchanged', async () => {
+    const x = await exportedAheadOfBoundary();
+    const auditBefore = await prisma.auditEvent.findMany({
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    });
+    const recordBefore = await prisma.idempotencyRecord.findFirstOrThrow({
+      where: { idempotencyKey: x.key },
+    });
+    clockTo(x.boundary - 3 * MINUTE);
+    readinessObserver.hooks.beforeReplayRead = async () => clockTo(x.boundary - 2 * MINUTE);
+    readinessObserver.hooks.afterReplayInput = async () => clockTo(x.boundary - 1);
+    const replayed = await exportUnsigned(x.candidate.id, exportBody(x.current), x.key);
+    expect(replayed).toEqual(x.first);
+    // The current readiness only guarded the release: the response is the historical one.
+    expect(replayed.exportedAt).not.toBe(iso(t.clock.ms));
+    expect(replayed.readiness.evaluatedAt).toBe(x.first.readiness.evaluatedAt);
+    expect(
+      await prisma.auditEvent.findMany({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] }),
+    ).toEqual(auditBefore);
+    expect(
+      await prisma.idempotencyRecord.findFirstOrThrow({ where: { idempotencyKey: x.key } }),
+    ).toEqual(recordBefore);
+  });
+});
+
+describe('R14-AUD-018 — the contracted audit history read (listAuditEvents, GET /audit-events)', () => {
+  type AuditPage = { items: AuditEvent[]; nextCursor: string | null };
+  const auditPath = (params: Record<string, string | number> = {}) => {
+    const search = new URLSearchParams(
+      Object.entries(params).map(([name, value]): [string, string] => [name, String(value)]),
+    ).toString();
+    return `/audit-events${search === '' ? '' : `?${search}`}`;
+  };
+  /** One page, checked against the contract: 200, no ETag, no-store. */
+  async function auditPage(params: Record<string, string | number> = {}) {
+    const result = await client.get('listAuditEvents', auditPath(params));
+    expect(result.status, result.text).toBe(200);
+    expect(result.headers['etag']).toBeUndefined();
+    expect(result.headers['cache-control']).toBe('no-store');
+    const parsed = ListAuditEventsResponseSchema.safeParse(result.json);
+    expect(parsed.success, JSON.stringify(parsed.error?.issues)).toBe(true);
+    return { page: dataOf<AuditPage>(result), text: result.text };
+  }
+  /** Every page of one filter set, following nextCursor. */
+  async function everyPage(params: Record<string, string | number> = {}, limit = 100) {
+    const items: AuditEvent[] = [];
+    const texts: string[] = [];
+    let cursor: string | null = null;
+    do {
+      const { page, text } = await auditPage({
+        ...params,
+        limit,
+        ...(cursor === null ? {} : { cursor }),
+      });
+      items.push(...page.items);
+      texts.push(text);
+      cursor = page.nextCursor;
+    } while (cursor !== null);
+    return { items, texts };
+  }
+  /** The stored rows, newest first — (createdAt DESC, id DESC) — exactly as the contract shows them. */
+  async function storedEvents(where: Record<string, unknown> = {}): Promise<AuditEvent[]> {
+    const rows = await prisma.auditEvent.findMany({
+      where,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      actorUserId: row.actorUserId,
+      requestId: row.requestId,
+      action: row.action,
+      entityType: row.entityType,
+      entityId: row.entityId,
+      beforeRedacted: row.beforeRedacted as AuditEvent['beforeRedacted'],
+      afterRedacted: row.afterRedacted as AuditEvent['afterRedacted'],
+      reason: row.reason,
+      sourceIds: row.sourceIds as AuditEvent['sourceIds'],
+      createdAt: row.createdAt.toISOString(),
+    }));
+  }
+  const SEEDED_TYPES = ['SYNTHETIC_AUDIT_A', 'SYNTHETIC_AUDIT_B'] as const;
+  /**
+   * Synthetic audit rows of this suite's test schema only (fixtures for paging): created in groups
+   * of three at one instant, so ties are ordered by id; two entity types, eight shared entity ids.
+   */
+  async function seedEvents(count: number) {
+    const base = Date.parse('2026-09-20T08:00:00.000Z');
+    const entityIds = Array.from({ length: 8 }, () => randomUUID());
+    await prisma.auditEvent.createMany({
+      data: Array.from({ length: count }, (_, n) => ({
+        id: randomUUID(),
+        actorUserId: n % 2 === 0 ? client.session.userId : null,
+        requestId: `SYNTHETIC-request-${n}`,
+        action: n % 5 === 0 ? 'SYNTHETIC_AUDIT_RECORDED' : 'SYNTHETIC_AUDIT_NOTED',
+        entityType: SEEDED_TYPES[n % 2] as string,
+        entityId: entityIds[n % 8] as string,
+        afterRedacted: { n },
+        createdAt: new Date(base + Math.floor(n / 3) * 1000),
+      })),
+    });
+    return { entityIds };
+  }
+
+  it('without a session 401 and nothing is returned; an operator reads a contract-valid page, no-store — an empty one for a filter nothing matches', async () => {
+    await seedEvents(3);
+    const anonymous = await http(t.port, 'GET', '/api/v1/audit-events', {
+      headers: { Origin: ALLOWED_ORIGIN },
+    });
+    expect(anonymous.status).toBe(401);
+    expect(anonymous.text).not.toContain('SYNTHETIC-request');
+    expect(anonymous.headers['cache-control']).toBe('no-store');
+    const empty = await auditPage({ entityType: 'SYNTHETIC_NOTHING_MATCHES' });
+    expect(empty.page).toEqual({ items: [], nextCursor: null });
+    const { page } = await auditPage();
+    expect(page.items).toEqual(await storedEvents());
+    expect(page.nextCursor).toBeNull();
+  });
+
+  it('limit 1, the default 25, 25 and 100; a stable keyset walk (createdAt DESC, id DESC; ties by id) returns every stored event once, exactly as stored', async () => {
+    await seedEvents(130);
+    const stored = await storedEvents();
+    expect(stored.length).toBeGreaterThan(130);
+    const one = await auditPage({ limit: 1 });
+    expect(one.page.items).toEqual(stored.slice(0, 1));
+    expect(one.page.nextCursor).not.toBeNull();
+    expect((await auditPage()).page.items).toEqual(stored.slice(0, 25));
+    expect((await auditPage({ limit: 25 })).page.items).toEqual(stored.slice(0, 25));
+    const hundred = await auditPage({ limit: 100 });
+    expect(hundred.page.items).toEqual(stored.slice(0, 100));
+    const next = await auditPage({ limit: 100, cursor: hundred.page.nextCursor as string });
+    expect(next.page.items).toEqual(stored.slice(100));
+    expect(next.page.nextCursor).toBeNull();
+    for (const limit of [1, 7, 25]) {
+      const walked = await everyPage({}, limit);
+      expect(
+        walked.items.map((item) => item.id),
+        `limit ${limit}`,
+      ).toEqual(stored.map((item) => item.id));
+    }
+    // Ties exist, and the id decides their order.
+    const tied = stored.filter((item, index) => stored[index + 1]?.createdAt === item.createdAt);
+    expect(tied.length).toBeGreaterThan(10);
+  });
+
+  it('filters: entityType, entityId and both together, exactly; q is exactly an event id, request id, action, entity type, entity id or actor — never a text search', async () => {
+    const { entityIds } = await seedEvents(40);
+    const target = entityIds[3] as string;
+    const byType = await everyPage({ entityType: 'SYNTHETIC_AUDIT_B' }, 7);
+    expect(byType.items).toEqual(await storedEvents({ entityType: 'SYNTHETIC_AUDIT_B' }));
+    expect(byType.items.length).toBe(20);
+    const byId = await everyPage({ entityId: target }, 2);
+    expect(byId.items).toEqual(await storedEvents({ entityId: target }));
+    expect(byId.items.length).toBe(5);
+    const both = await everyPage({ entityType: 'SYNTHETIC_AUDIT_B', entityId: target }, 2);
+    expect(both.items).toEqual(
+      await storedEvents({ entityType: 'SYNTHETIC_AUDIT_B', entityId: target }),
+    );
+    expect(both.items.length).toBe(5);
+    expect(
+      (await auditPage({ entityType: 'SYNTHETIC_AUDIT_A', entityId: target })).page.items,
+    ).toEqual([]);
+    const [first] = await storedEvents({ requestId: 'SYNTHETIC-request-7' });
+    const q = async (value: string) => (await everyPage({ q: value }, 100)).items;
+    expect(await q(first?.id as string)).toEqual([first]);
+    expect(await q('SYNTHETIC-request-7')).toEqual([first]);
+    expect(await q('SYNTHETIC_AUDIT_RECORDED')).toEqual(
+      await storedEvents({ action: 'SYNTHETIC_AUDIT_RECORDED' }),
+    );
+    expect(await q('SYNTHETIC_AUDIT_A')).toEqual(
+      await storedEvents({ entityType: 'SYNTHETIC_AUDIT_A' }),
+    );
+    expect(await q(target)).toEqual(await storedEvents({ entityId: target }));
+    expect(await q(client.session.userId)).toEqual(
+      await storedEvents({ actorUserId: client.session.userId }),
+    );
+    // Exact only: a substring, another case or a JSON value matches nothing.
+    for (const value of [
+      'SYNTHETIC-request',
+      'synthetic_audit_a',
+      'SYNTHETIC_AUDIT',
+      '{"n":7}',
+      '7',
+    ]) {
+      expect(await q(value), value).toEqual([]);
+    }
+    // An empty q is no filter (the list convention).
+    expect((await auditPage({ q: '' })).page.items).toEqual((await storedEvents()).slice(0, 25));
+  });
+
+  it('a cursor is valid only for its own filter set: another q, entityType or entityId — or another list’s cursor — is 400 INVALID_CURSOR; an unknown parameter or an invalid limit, entityId or q is refused', async () => {
+    await seedEvents(12);
+    const cursorOf = async (params: Record<string, string | number>) =>
+      (await auditPage({ ...params, limit: 2 })).page.nextCursor as string;
+    const plain = await cursorOf({});
+    const typed = await cursorOf({ entityType: 'SYNTHETIC_AUDIT_A' });
+    const searched = await cursorOf({ q: 'SYNTHETIC_AUDIT_NOTED' });
+    const refusals: Array<Record<string, string | number>> = [
+      { cursor: plain, entityType: 'SYNTHETIC_AUDIT_A' },
+      { cursor: plain, q: 'SYNTHETIC_AUDIT_NOTED' },
+      { cursor: plain, entityId: randomUUID() },
+      { cursor: typed },
+      { cursor: typed, entityType: 'SYNTHETIC_AUDIT_B' },
+      { cursor: searched, q: 'SYNTHETIC_AUDIT_RECORDED' },
+      { cursor: `${plain.slice(0, -2)}xx` },
+      { cursor: 'not-a-cursor' },
+    ];
+    for (const params of refusals) {
+      const result = await client.get('listAuditEvents', auditPath({ ...params, limit: 2 }));
+      expect(outcome(result), JSON.stringify(params)).toEqual([400, 'INVALID_CURSOR']);
+    }
+    // Another list's cursor (listCases) is not this list's.
+    for (let n = 0; n < 3; n += 1) await createCase((await createAgency(`C${n}`)).data.id);
+    const cases = dataOf<{ nextCursor: string | null }>(
+      await client.get('listCases', '/cases?limit=1'),
+    );
+    expect(
+      outcome(
+        await client.get('listAuditEvents', auditPath({ cursor: cases.nextCursor as string })),
+      ),
+    ).toEqual([400, 'INVALID_CURSOR']);
+    // The same filter set continues.
+    expect(
+      (await auditPage({ cursor: typed, entityType: 'SYNTHETIC_AUDIT_A', limit: 2 })).page.items,
+    ).toHaveLength(2);
+    const invalid: Array<[Record<string, string | number>, string]> = [
+      [{ limit: 0 }, 'limit'],
+      [{ limit: 101 }, 'limit'],
+      [{ limit: 'ten' }, 'limit'],
+      [{ limit: '1.5' }, 'limit'],
+      [{ entityId: 'not-a-uuid' }, 'entityId'],
+      [{ q: 'x'.repeat(201) }, 'q'],
+      [{ entityType: 'x'.repeat(101) }, 'entityType'],
+      [{ actorUserId: client.session.userId }, 'actorUserId'],
+      [{ action: 'SYNTHETIC_AUDIT_NOTED' }, 'action'],
+    ];
+    for (const [params, parameter] of invalid) {
+      const result = await client.get('listAuditEvents', auditPath(params));
+      expect(outcome(result), JSON.stringify(params)).toEqual([400, 'INVALID_QUERY_PARAMETER']);
+      expect(detailsOf(result)).toEqual({ parameter });
+    }
+  });
+
+  it('a real assessment capture and a real unsigned export are recoverable exactly as recorded — CANDIDATE_ASSESSMENT_CAPTURED and EXPORT_UNSIGNED, their texts only as lengths', async () => {
+    const r = await readyWorld();
+    const MARK = 'SYNTHETIC-PRIVATE-AUD018';
+    const successor = await assess(
+      r.candidate.id,
+      pass(r.candidate, r.view, 'G2', r.caseSource.data.id, {
+        result: 'HOLD',
+        supersedesAssessmentId: r.gates.G2?.id,
+        performerLabel: `${MARK} performer label`,
+        rationale: `${MARK} rationale text`,
+        scopeText: `${MARK} scope text`,
+        limitations: `${MARK} limitations text`,
+        sources: [
+          {
+            caseSourceId: r.caseSource.data.id,
+            supportedConclusion: `${MARK} supported conclusion`,
+          },
+        ],
+      }),
+    );
+    const captured = await auditPage({
+      entityType: 'CandidateAssessment',
+      entityId: successor.id,
+    });
+    expect(captured.page.items.map((item) => item.action)).toEqual([
+      'CANDIDATE_ASSESSMENT_CAPTURED',
+    ]);
+    expect(captured.page.items).toEqual(await storedEvents({ entityId: successor.id }));
+    expect(captured.text).not.toContain(MARK);
+    const after = captured.page.items[0]?.afterRedacted as Record<string, unknown>;
+    expect(after['rationale']).toEqual({
+      redacted: true,
+      codePoints: [...`${MARK} rationale text`].length,
+    });
+
+    // The G2 successor holds G2: a fresh world exports.
+    const x = await readyWorld({ label: 'B' });
+    const current = await readiness(x.candidate.id);
+    const handed = await exportUnsigned(x.candidate.id, exportBody(current));
+    const exported = await auditPage({ q: 'EXPORT_UNSIGNED', entityId: x.candidate.id });
+    expect(
+      exported.page.items.map((item) => [item.action, item.entityType, item.entityId]),
+    ).toEqual([['EXPORT_UNSIGNED', 'NoticeCandidate', x.candidate.id]]);
+    expect(exported.page.items).toEqual(
+      await storedEvents({ action: 'EXPORT_UNSIGNED', entityId: x.candidate.id }),
+    );
+    const exportAfter = exported.page.items[0]?.afterRedacted as Record<string, unknown>;
+    expect(exportAfter).toMatchObject({
+      candidateId: x.candidate.id,
+      artifactSha256: x.candidate.artifactSha256,
+      bodySha256: x.candidate.bodySha256,
+      signatureState: 'HUMAN_PENDING',
+      sendPerformed: false,
+      externalAction: 'PROHIBITED',
+      exportedAt: handed.exportedAt,
+    });
+    expect(exportAfter['bodyText']).toEqual({
+      redacted: true,
+      codePoints: [...x.candidate.bodyText].length,
+    });
+    expect(exported.text).not.toContain(x.candidate.bodyText);
+    expect(exported.text).not.toContain(x.candidate.subject);
+  });
+
+  it('the whole history of a reply’s life — capture, binding, facts, prompt, candidate, validation, reviews with ask dispositions, export, sign-in — shows no password, session or CSRF token and no private text', async () => {
+    const password = `synthetic-AUD018-password-${randomUUID()}`;
+    const user = await insertUser(
+      prisma,
+      `aud018-${randomUUID().slice(0, 8)}@example.invalid`,
+      password,
+    );
+    const signed = await login(t.port, user.email, password);
+    expect(signed.status).toBe(200);
+    const token = sessionTokenFrom(signed) as string;
+    const csrfToken = (signed.json as { data: { csrfToken: string } }).data.csrfToken;
+    const r = await readyReplyWorld();
+    await g6Pass(r, [ask(r, { questionText: 'SYNTHETIC-PRIVATE-QUESTION about the licence' })]);
+    const current = await readiness(r.candidate.id);
+    expect(current.status).toBe('READY_FOR_SIGNER');
+    await exportUnsigned(r.candidate.id, exportBody(current));
+    const { items, texts } = await everyPage();
+    expect(items).toEqual(await storedEvents());
+    const actions = new Set(items.map((item) => item.action));
+    for (const action of [
+      'AUTH_LOGIN_SUCCEEDED',
+      'CORRESPONDENCE_CAPTURED',
+      'CORRESPONDENCE_BOUND',
+      'PROMPT_GENERATED',
+      'CANDIDATE_IMPORTED',
+      'VALIDATION_RUN_RECORDED',
+      'CANDIDATE_ASSESSMENT_CAPTURED',
+      'EXPORT_UNSIGNED',
+    ]) {
+      expect(actions.has(action), action).toBe(true);
+    }
+    const privateTexts = [
+      password,
+      token,
+      csrfToken,
+      client.session.token,
+      client.session.csrfToken,
+      ...(await prisma.noticeCandidate.findMany()).flatMap((row) => [row.subject, row.bodyText]),
+      ...(await prisma.correspondence.findMany()).flatMap((row) => [
+        row.subject,
+        row.bodyText ?? '',
+        row.messageId ?? '',
+        row.fromAddress ?? '',
+      ]),
+      ...(await prisma.candidateAssessment.findMany()).flatMap((row) => [
+        row.rationale,
+        row.scopeText,
+        row.performerLabel,
+        row.limitations ?? '',
+        ...((row.askDispositions ?? []) as Array<{ questionText: string }>).map(
+          (entry) => entry.questionText,
+        ),
+      ]),
+      ...(await prisma.assessmentSource.findMany()).map((row) => row.supportedConclusion),
+      ...(await prisma.factSource.findMany()).map((row) => row.supportedAssertion),
+      ...(await prisma.promptSnapshot.findMany()).map((row) => row.renderedPrompt),
+    ].filter((value) => value.length >= 12);
+    expect(privateTexts.length).toBeGreaterThan(20);
+    for (const text of texts) {
+      for (const secret of privateTexts) {
+        expect(text.includes(JSON.stringify(secret).slice(1, -1)), secret.slice(0, 40)).toBe(false);
+      }
+    }
+  });
+
+  it('reading writes nothing — no audit event about reading, no idempotency record, no row version — and the response is no-store; no other audit route exists', async () => {
+    await seedEvents(5);
+    await readyWorld();
+    const before = { ...(await suiteDump()), auth_sessions: [] };
+    const reads: Array<Record<string, string | number>> = [
+      {},
+      { limit: 1 },
+      { q: 'SYNTHETIC_AUDIT_NOTED' },
+      { entityType: 'Agency' },
+    ];
+    for (const params of reads) {
+      await auditPage(params);
+    }
+    await everyPage({}, 3);
+    expect({ ...(await suiteDump()), auth_sessions: [] }).toEqual(before);
+    const [event] = await storedEvents();
+    for (const [method, target] of [
+      ['GET', `/audit-events/${event?.id as string}`],
+      ['POST', '/audit-events'],
+      ['PATCH', `/audit-events/${event?.id as string}`],
+      ['PUT', `/audit-events/${event?.id as string}`],
+      ['DELETE', `/audit-events/${event?.id as string}`],
+      ['DELETE', '/audit-events'],
+    ] as const) {
+      const response = await unrouted(method, target);
+      expect([response.status, code(response)], `${method} ${target}`).toEqual([404, 'NOT_FOUND']);
+    }
+    expect({ ...(await suiteDump()), auth_sessions: [] }).toEqual(before);
+  });
+
+  it('route parity: every contracted operation but getMeta is routed (144 of 145), no route outside the contract exists, and no sign, send, submit, AS_SENT or G7 route', () => {
+    const express = t.app.getHttpAdapter().getInstance() as {
+      router: { stack: Array<{ route?: { path: string; methods: Record<string, boolean> } }> };
+    };
+    const routed = new Set<string>();
+    for (const layer of express.router.stack) {
+      if (!layer.route) continue;
+      for (const [method, on] of Object.entries(layer.route.methods)) {
+        if (on)
+          routed.add(`${method.toUpperCase()} ${layer.route.path.replace(/:[A-Za-z]+/g, '{}')}`);
+      }
+    }
+    const contracted = new Map(
+      operations.map((operation) => [
+        `${operation.method.toUpperCase()} /api/v1${operation.path.replace(/\{[A-Za-z]+\}/g, '{}')}`,
+        operation.operationId,
+      ]),
+    );
+    expect(contracted.size).toBe(145);
+    const unroutedOperations = [...contracted].filter(([route]) => !routed.has(route));
+    expect(unroutedOperations.map(([, operationId]) => operationId)).toEqual(['getMeta']);
+    expect([...routed].filter((route) => !contracted.has(route))).toEqual([]);
+    expect(routed.size).toBe(144);
+    expect(routed.has('GET /api/v1/audit-events')).toBe(true);
+    for (const route of routed) {
+      expect(route).not.toMatch(/\/(sign|signature|send|submit|adopt|g7|as-sent)\b/i);
+    }
   });
 });
 

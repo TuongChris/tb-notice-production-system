@@ -1,11 +1,32 @@
 # ADR-0008 — Candidate assessment freshness uses the current production context dependency epoch
 
-Status: **ACCEPTED_BY_OPERATOR · INDEPENDENT_REVIEW_DEFERRED** — accepted for implementation by the operator on 2026-09-28 (mission TB_P4H_CANDIDATE_ASSESSMENT_FAST_TRACK_IMPLEMENTATION, an operator-authorized fast track), on the architecture committed at `5afd2ec`, with the open decisions D-1…D-6 resolved as recorded under "Operator acceptance" below. The independent Astra review of this architecture was **deferred by the operator**: no independent review has taken place, and nothing here is independently verified. Proposed 2026-09-28 by mission TB_PRE_ASSESSMENT_AUD005_AUD006_ARCHITECTURE (architecture and specification only).
-Addresses: the Astra finding **R14-AUD-005** (a future plan-source freshness policy; FUTURE_ASSESSMENT_PREREQUISITE, it blocked CandidateAssessment implementation). Proposed as DESIGN_PROPOSED_PENDING_INDEPENDENT_REVIEW; after the operator's acceptance it is implemented by P4H (status in `docs/verification/p4h/P4H_CANDIDATE_ASSESSMENT.md`), with the independent review deferred.
+Status: **ACCEPTED** — independent final engineering audit: **VERIFIED_WITH_LIMITS** at `3d432688a20266548447d71029830a4bbf85e38d` (R14-AUD-005 **CLOSED_VERIFIED_WITH_LIMITS**).
+- Accepted by the operator on 2026-09-29 (mission TB_FINAL_ACCEPTANCE_CLOSEOUT_MERGE_AND_POST_MAIN_VERIFICATION), on the recommendation of the independent Astra re-audit of that exact target.
+- A bounded review of the accepted single-PC engineering scope: whole-critical coverage 73.18 %, the whole repository PARTIAL. It is not legal approval or real-case readiness.
+- The operator's decisions D-1…D-6 stand unchanged ("Operator acceptance" below; D-6 stays deferred). The earlier status text is kept verbatim under "Acceptance history".
+- Record: `docs/verification/final-audit/FINAL_ENGINEERING_AUDIT_CLOSEOUT.md`.
+
+Addresses: the Astra finding **R14-AUD-005** (a future plan-source freshness policy; FUTURE_ASSESSMENT_PREREQUISITE, it blocked CandidateAssessment implementation). Proposed as DESIGN_PROPOSED_PENDING_INDEPENDENT_REVIEW; after the operator's acceptance it is implemented by P4H (status in `docs/verification/p4h/P4H_CANDIDATE_ASSESSMENT.md`), with the independent review deferred. **Final disposition (2026-09-29): CLOSED_VERIFIED_WITH_LIMITS** — closed for Model A at `3d43268`: no longer an unimplemented CandidateAssessment prerequisite, and the plan-source closure stays non-waivable.
 Acceptance boundary: an engineering design decision only. It creates no legal or factual authority, no finding, no review, no G1–G7 decision and no readiness. It derives no READY_FOR_SIGNER. The operator's acceptance authorizes the P4H CandidateAssessment capture and history only — no readiness, unsigned export, G7, signature, sending or external action.
 Scope: the CandidateAssessment capture (`captureCandidateAssessment`, `listCandidateAssessments`; P4H) and the future readiness evaluation (`getCandidateReadiness`, `exportUnsignedCandidate`; later phases). As proposed it changed no code, contract, schema, ruleset, digest definition or record; the identifier changes made with its implementation are ADR-0009's and ADR-0010's.
 Related: frozen INVARIANTS §2 (the readiness decision algorithm) and §5 (validation/export transactions); PFC §8–§12; DOMAIN_MODEL §14–§16; ADR-0006 (the v1.3.0 read, ruleset identity §8, Consequences on version-only drift); ADR-0007 (the digest definition, its versioning rule and history); ADR-0009 (the AssessmentSource read-back, the other pre-assessment prerequisite); P4F report (R13 decisions 9, 10, 13); P4G report §7 and §30 (V1–V14), §36–§40.
 Design record: `docs/architecture/PRE_ASSESSMENT_AUD005_AUD006_ARCHITECTURE.md`. It holds the code trace, the full transition matrix, the traceability matrix and the future acceptance tests. Verification of this mission: `docs/verification/pre-assessment/PRE_ASSESSMENT_ARCHITECTURE_VERIFICATION.md`.
+
+## Acceptance history
+
+Kept as recorded. The independent review took place **after** the implementation, not before it; accepting the ADR for implementation was the operator's fast track.
+
+1. **2026-09-28 — PROPOSED** by mission TB_PRE_ASSESSMENT_AUD005_AUD006_ARCHITECTURE (architecture and specification only). R14-AUD-005: DESIGN_PROPOSED_PENDING_INDEPENDENT_REVIEW.
+2. **2026-09-28 — ACCEPTED_BY_OPERATOR · INDEPENDENT_REVIEW_DEFERRED**, for implementation (mission TB_P4H_CANDIDATE_ASSESSMENT_FAST_TRACK_IMPLEMENTATION). The status line then read:
+   > Status: **ACCEPTED_BY_OPERATOR · INDEPENDENT_REVIEW_DEFERRED** — accepted for implementation by the operator on 2026-09-28 (mission TB_P4H_CANDIDATE_ASSESSMENT_FAST_TRACK_IMPLEMENTATION, an operator-authorized fast track), on the architecture committed at `5afd2ec`, with the open decisions D-1…D-6 resolved as recorded under "Operator acceptance" below. The independent Astra review of this architecture was **deferred by the operator**: no independent review has taken place, and nothing here is independently verified. Proposed 2026-09-28 by mission TB_PRE_ASSESSMENT_AUD005_AUD006_ARCHITECTURE (architecture and specification only).
+3. **2026-09-28/29 — implemented by P4H**, self-verified; merged by pull request #12 (merge commit `19a7cb2`). R14-AUD-005: IMPLEMENTED_SELF_VERIFIED · INDEPENDENT_REVIEW_DEFERRED.
+4. **2026-09-29 — the independent Astra final whole-system audit of `abc31fc`** (FINAL_ENGINEERING_AUDIT = HOLD, on six other blockers, R14-AUD-015 … -020) accepted AUD-005 and AUD-006 for the current implementation.
+5. **2026-09-29 — ACCEPTED.**
+   - The independent Astra re-audit of `3d432688a20266548447d71029830a4bbf85e38d` closed R14-AUD-005 **CLOSED_VERIFIED_WITH_LIMITS**, on the limits reviewed before and on cross-regression byte identity and traces at that target. It opened no new implementation mission, since CandidateAssessment exists.
+   - Nothing waives `PLAN.SOURCE_IN_CONTEXT` or a technical REVIEW_REQUIRED. Version-only prompt drift stays a conservative REVIEW_REQUIRED, not a mandatory re-draft. No rebinding or override workflow is created.
+   - The operator accepted the recommendation (mission TB_FINAL_ACCEPTANCE_CLOSEOUT_MERGE_AND_POST_MAIN_VERIFICATION).
+
+The sections below keep the text of their time. For example, the last item of "Consequences" describes the state when this ADR was proposed. Decisions 3 and 15 name the identifiers of that time; "Operator acceptance" records the change.
 
 ## Operator acceptance (2026-09-28, fast track; independent review deferred)
 

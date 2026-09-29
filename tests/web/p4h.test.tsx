@@ -17,18 +17,36 @@
 // (412) shown exactly, never retried; a lost reply replayed into one assessment; an archived case
 // read-only; another candidate's assessment never displayed; recorded text as inert plain text;
 // keyboard focus; and that no readiness, G7, sign, send, waiver or disposition wording or action
-// appears. All data is synthetic.
+// appears. R14-AUD-017: a G6 review of a reply records the dispositions of the parent message's asks
+// — the editor only for G6 of an NMI_REPLY prompt, the parent binding fixed from the prompt, no ask
+// or disposition preselected, the six contracted dispositions, each ask sent exactly as entered and
+// read back from the server (also after a reload), the client checks, the sources an ask may cite
+// and a 412 never retried. R14-AUD-019: every successful write on the candidate page that can change
+// the readiness — supersession, a technical validation run, a G1–G6 review — drops the readiness
+// evaluation and any unsigned handoff the page shows (no copy control of it remains), only a new
+// evaluation shows a readiness again, and a readiness or export response to a request started
+// before the write is discarded; the request and response order is proven with the fake server.
+// All data is synthetic.
 import { describe, expect, it } from 'vitest';
-import type { ContextView, ProductionContext } from '../../packages/contracts/src/index.js';
+import type {
+  CaptureAssessment,
+  ContextView,
+  ProductionContext,
+  Readiness,
+} from '../../packages/contracts/src/index.js';
 import {
   CandidateAssessmentSchema,
   CandidateAssessmentSourcesViewSchema,
   CaptureAssessmentSchema,
   ContextViewSchema,
   PromptSnapshotSchema,
+  ReadinessSchema,
 } from '../../packages/contracts/src/index.js';
 import {
+  ADD_ASK_LABEL,
   AI_DOCUMENT_REVIEW_NOTE,
+  ASK_EDITOR_NOTE,
+  ASK_SOURCE_NOT_APPLICABLE_NOTE,
   ASSESSMENT_ARTIFACT_CHANGED,
   ASSESSMENT_BOUNDARY,
   ASSESSMENT_CONTEXT_CHANGED,
@@ -36,13 +54,20 @@ import {
   ASSESSMENT_NOT_HERE,
   ASSESSMENT_SUPERSEDED_NOTE,
   NOT_APPLICABLE_SUPPORT_NOTE,
+  DISPOSITION_MEANING,
   PRESENT_STATE_LABEL,
   RECORD_ASSESSMENT_LABEL,
+  REMOVE_ASK_LABEL,
   SCOPE_STATE_LABEL,
   SCOPE_STATE_NOTE,
   SHOW_SUPPORTS_LABEL,
 } from '../../apps/web/src/app/cases/assessments.js';
 import { CASE_ARCHIVED_READ_ONLY } from '../../apps/web/src/app/cases/intake-ui.js';
+import {
+  EVALUATE_LABEL,
+  PREPARE_LABEL,
+  READY_LABEL,
+} from '../../apps/web/src/app/cases/readiness.js';
 import {
   all,
   claimTexts,
@@ -1162,5 +1187,793 @@ describe('P4H candidate assessments', () => {
     expect(api.writes().map((request) => request.path)).toEqual([
       `/api/v1/candidates/${candidate.id}/assessments`,
     ]);
+  });
+});
+
+describe('R14-AUD-017 — the G6 ask dispositions of a reply', () => {
+  /**
+   * A world, an NMI_REPLY DRAFTING prompt of case A naming a parent binding, its candidate, the
+   * current context answering reads and a TECHNICAL_PASS run of the candidate's current epoch.
+   */
+  async function setupReply(options: { restricted?: boolean } = {}) {
+    const api = new FakeDirectory();
+    const w = world(api);
+    const parentBindingId = api.id();
+    const reply = { taskType: 'NMI_REPLY', parentBindingId } as const;
+    const view = viewOf(w, DIGEST, {
+      ...reply,
+      ...(options.restricted ? restrictedConflict(w) : {}),
+    });
+    const { context } = view;
+    const prompt = await api.seedPrompt({
+      caseId: context.caseId,
+      taskType: 'NMI_REPLY',
+      generationMode: 'DRAFTING',
+      authoritySelectionId: context.authoritySelectionId,
+      parentBindingId,
+      contextRevision: 7,
+      dependencyDigest: view.dependencyDigest,
+      dependencyManifest: view.dependencies,
+      contextJson: context,
+      sourceManifest: [],
+    });
+    expect(PromptSnapshotSchema.safeParse(prompt).success).toBe(true);
+    const candidate = await api.seedCandidate({
+      caseId: w.caseA.id,
+      promptSnapshotId: prompt.id,
+      taskType: 'NMI_REPLY',
+      envelopeJson: {
+        from: SENDER,
+        to: 'synthetic-platform@example.invalid',
+        replyTo: null,
+        parentBindingId,
+      },
+      bodyText: 'SYNTHETIC reply\n[PENDING AUTHORIZED SIGNER — FULL LEGAL NAME REQUIRED]\n',
+    });
+    api.contextReplies.set(w.caseA.id, answer(view));
+    seedRun(api, candidate, view);
+    return { api, w, prompt, candidate, view, parentBindingId, reply };
+  }
+
+  interface AskFill {
+    askId?: string;
+    questionText?: string;
+    disposition?: string;
+    answerLocator?: string;
+    unresolvedRemainder?: string;
+    sources?: readonly string[];
+  }
+  /** Adds one ask and fills it in the order a person would. */
+  async function addAsk(values: AskFill) {
+    const index = all('[data-testid="assessment-ask"]').length;
+    await click(q('[data-testid="assessment-ask-add"]') as HTMLElement);
+    const at = (field: string) => `#assessment-ask-${index}-${field}`;
+    if (values.askId !== undefined) await type(at('askId'), values.askId);
+    if (values.questionText !== undefined) await type(at('questionText'), values.questionText);
+    if (values.disposition !== undefined) await type(at('disposition'), values.disposition);
+    if (values.answerLocator !== undefined) await type(at('answerLocator'), values.answerLocator);
+    if (values.unresolvedRemainder !== undefined) {
+      await type(at('unresolvedRemainder'), values.unresolvedRemainder);
+    }
+    for (const sourceId of values.sources ?? []) {
+      await click(q(at(`source-${sourceId}`)) as HTMLElement);
+    }
+  }
+  const summaryItems = () =>
+    [...(q('[data-testid="validation-summary"]')?.querySelectorAll('li') ?? [])].map(
+      (item) => item.textContent,
+    );
+  /** The ask dispositions a recorded review shows, as the page renders them. */
+  const shownDispositions = (item: ParentNode) =>
+    [...item.querySelectorAll('[data-testid="assessment-ask-disposition"]')].map((row) => ({
+      askId: text('[data-testid="ask-id"]', row),
+      questionText: row.querySelector('[data-testid="ask-question"]')?.textContent,
+      disposition: text('[data-testid="ask-disposition"]', row),
+      answerLocator: row.querySelector('[data-testid="ask-answer-locator"]')?.textContent ?? null,
+      sources: [...row.querySelectorAll('[data-testid="ask-sources"] code')].map(
+        (code) => code.textContent,
+      ),
+      unresolvedRemainder:
+        row.querySelector('[data-testid="ask-unresolved-remainder"]')?.textContent ?? null,
+      parentBindingId: text('[data-testid="ask-parent"]', row),
+    }));
+
+  it('the editor is offered only for G6 of a reply: the parent binding is fixed from the prompt snapshot and shown, never chosen; no ask and no disposition is preselected; exactly the six contracted dispositions are offered, with neutral copy', async () => {
+    const { api, w, candidate, parentBindingId } = await setupReply();
+    await openCandidate(api, w.caseA.id, candidate.id);
+    await readEpoch();
+    expect(contextReads()[0]?.path).toContain('taskType=NMI_REPLY');
+    expect(contextReads()[0]?.path).toContain(`parentBindingId=${parentBindingId}`);
+    expect(q('[data-testid="assessment-asks"]')).toBeNull();
+    for (const gate of ['G1', 'G2', 'G3', 'G4', 'G5']) {
+      await type('#assessment-gate', gate);
+      expect(q('[data-testid="assessment-asks"]'), gate).toBeNull();
+    }
+    await type('#assessment-gate', 'G6');
+    const editor = q('[data-testid="assessment-asks"]') as HTMLElement;
+    expect(editor).not.toBeNull();
+    expect(editor.textContent).toContain(ASK_EDITOR_NOTE);
+    // The parent is the prompt's, shown as text: no input, select or option carries it.
+    expect(text('[data-testid="assessment-ask-parent"]')).toBe(parentBindingId);
+    expect(editor.querySelectorAll('input, select, textarea')).toHaveLength(0);
+    expect(all('[data-testid="assessment-ask"]')).toEqual([]);
+    expect(q('[data-testid="assessment-asks-none"]')).not.toBeNull();
+    expect(text('[data-testid="assessment-ask-add"]')).toBe(ADD_ASK_LABEL);
+    await click(q('[data-testid="assessment-ask-add"]') as HTMLElement);
+    expect(all('[data-testid="assessment-ask"]')).toHaveLength(1);
+    // Focus moves to the new ask; every field is empty and no disposition is chosen.
+    expect(document.activeElement).toBe(q('#assessment-ask-0-askId'));
+    for (const field of ['askId', 'questionText', 'disposition', 'answerLocator']) {
+      expect(valueOf(`#assessment-ask-0-${field}`), field).toBe('');
+    }
+    expect(valueOf('#assessment-ask-0-unresolvedRemainder')).toBe('');
+    expect(optionValues('#assessment-ask-0-disposition')).toEqual([
+      '',
+      'ANSWERED_SUPPORTED',
+      'ANSWERED_WITH_LIMITATION',
+      'REQUIRES_DOCUMENT',
+      'MISSING_FACT',
+      'LEGAL_REVIEW_REQUIRED',
+      'NOT_APPLICABLE_WITH_REASON',
+    ]);
+    expect(Object.keys(DISPOSITION_MEANING)).toEqual(
+      optionValues('#assessment-ask-0-disposition').slice(1),
+    );
+    const labels = [
+      ...(q('#assessment-ask-0-disposition') as HTMLSelectElement).querySelectorAll('option'),
+    ].map((option) => option.textContent ?? '');
+    for (const label of labels) {
+      expect(label).not.toMatch(FORBIDDEN_STATES);
+      expect(label).not.toMatch(/READY_FOR_SIGNER|G[1-7] PASS|APPROVED/);
+    }
+    // The sources an ask may cite: this case's LINKED links' source revisions, none checked.
+    expect(
+      new Set(all('[data-testid="assessment-ask-source"] input').map((input) => input.id)),
+    ).toEqual(
+      new Set([
+        `assessment-ask-0-source-${String(w.evidence.id)}`,
+        `assessment-ask-0-source-${String(w.restricted.id)}`,
+      ]),
+    );
+    expect(all('[data-testid="assessment-ask-source"] input:checked')).toEqual([]);
+    // Every action in the section is one of the page's own neutral actions.
+    const actions = [...section().querySelectorAll('button, a')].map(
+      (element) => element.textContent?.trim() ?? '',
+    );
+    expect(actions.filter((label) => FORBIDDEN_ACTIONS.test(label))).toEqual([]);
+    expect(actions).toContain(`${REMOVE_ASK_LABEL} 1`);
+    // A review of another gate of this reply sends no ask disposition.
+    await fill(complete(w, { gate: 'G2' }));
+    expect(q('[data-testid="assessment-asks"]')).toBeNull();
+    await record();
+    expect(sentBody<CaptureAssessment>(candidate.id).askDispositions).toBeUndefined();
+
+    // An initial notice's G6 review has no ask editor.
+    const initial = await setup();
+    await unmount();
+    await openCandidate(initial.api, initial.w.caseA.id, initial.candidate.id);
+    await readEpoch();
+    await type('#assessment-gate', 'G6');
+    expect(q('[data-testid="assessment-asks"]')).toBeNull();
+  });
+
+  it('each ask is sent exactly as entered — its identifier, question, the prompt’s parent binding, the chosen disposition, answer locator, sources and unresolved remainder — and the history shows it as the server stored it, also after a reload', async () => {
+    const { api, w, candidate, parentBindingId } = await setupReply();
+    await openCandidate(api, w.caseA.id, candidate.id);
+    await readEpoch();
+    await fill(
+      complete(w, { gate: 'G6', result: 'PASS', scopeState: 'SCOPE_CONFIRMED_FOR_CANDIDATE' }),
+    );
+    await addAsk({
+      askId: ' Q1 ',
+      questionText: 'SYNTHETIC Question 1: please provide the licence.\n  (kept exactly)  ',
+      disposition: 'ANSWERED_WITH_LIMITATION',
+      answerLocator: 'SYNTHETIC reply, paragraph 2',
+      sources: [String(w.evidence.id)],
+      unresolvedRemainder: 'SYNTHETIC the licence term after 2027 is not addressed',
+    });
+    await addAsk({
+      askId: 'Q2',
+      questionText: 'SYNTHETIC Question 2: who owns the work?',
+      disposition: 'REQUIRES_DOCUMENT',
+    });
+    await record();
+    const body = sentBody<CaptureAssessment>(candidate.id);
+    expect(CaptureAssessmentSchema.safeParse(body).success).toBe(true);
+    const expected = [
+      {
+        askId: ' Q1 ',
+        questionText: 'SYNTHETIC Question 1: please provide the licence.\n  (kept exactly)  ',
+        parentBindingId,
+        disposition: 'ANSWERED_WITH_LIMITATION',
+        answerLocator: 'SYNTHETIC reply, paragraph 2',
+        sourceIds: [w.evidence.id],
+        unresolvedRemainder: 'SYNTHETIC the licence term after 2027 is not addressed',
+      },
+      {
+        askId: 'Q2',
+        questionText: 'SYNTHETIC Question 2: who owns the work?',
+        parentBindingId,
+        disposition: 'REQUIRES_DOCUMENT',
+        sourceIds: [],
+      },
+    ];
+    expect(body.askDispositions).toEqual(expected);
+    expect(body.gate).toBe('G6');
+    // The server stored them as sent; the form starts over.
+    expect(api.assessments[0]?.['askDispositions']).toEqual(expected);
+    expect(q('[data-testid="assessment-asks"]')).toBeNull();
+    expect(valueOf('#assessment-gate')).toBe('');
+    await type('#assessment-gate', 'G6');
+    expect(all('[data-testid="assessment-ask"]')).toEqual([]);
+    const shown = [
+      {
+        askId: 'Q1',
+        questionText: 'SYNTHETIC Question 1: please provide the licence.\n  (kept exactly)  ',
+        disposition: 'ANSWERED_WITH_LIMITATION',
+        answerLocator: 'SYNTHETIC reply, paragraph 2',
+        sources: [w.evidence.id],
+        unresolvedRemainder: 'SYNTHETIC the licence term after 2027 is not addressed',
+        parentBindingId,
+      },
+      {
+        askId: 'Q2',
+        questionText: 'SYNTHETIC Question 2: who owns the work?',
+        disposition: 'REQUIRES_DOCUMENT',
+        answerLocator: null,
+        sources: [],
+        unresolvedRemainder: null,
+        parentBindingId,
+      },
+    ];
+    await waitFor(() => historyItems().length === 1, 'the history');
+    expect(shownDispositions(historyItems()[0] as HTMLElement)).toEqual(shown);
+    // After a reload, from what the server lists — never from what the page remembered.
+    await unmount();
+    await openCandidate(api, w.caseA.id, candidate.id);
+    await waitFor(() => historyItems().length === 1, 'the reloaded history');
+    expect(shownDispositions(historyItems()[0] as HTMLElement)).toEqual(shown);
+    const table = (historyItems()[0] as HTMLElement).querySelector(
+      '[data-testid="assessment-ask-dispositions"]',
+    );
+    expect(table?.closest('[role="region"]')?.getAttribute('tabindex')).toBe('0');
+  });
+
+  it('every contracted disposition round-trips through the form — sent exactly, shown from the server after a reload — and the readiness the server derives for it is shown as derived: REQUIRES_DOCUMENT, MISSING_FACT and LEGAL_REVIEW_REQUIRED with G6 on hold and their cause, the three others without', async () => {
+    const dispositions = [
+      ['ANSWERED_SUPPORTED', null],
+      ['ANSWERED_WITH_LIMITATION', null],
+      ['REQUIRES_DOCUMENT', 'G6_ASK_REQUIRES_DOCUMENT'],
+      ['MISSING_FACT', 'G6_ASK_MISSING_FACT'],
+      ['LEGAL_REVIEW_REQUIRED', 'G6_ASK_LEGAL_REVIEW_REQUIRED'],
+      ['NOT_APPLICABLE_WITH_REASON', null],
+    ] as const;
+    for (const [disposition, cause] of dispositions) {
+      const { api, w, candidate, parentBindingId } = await setupReply();
+      await openCandidate(api, w.caseA.id, candidate.id);
+      await readEpoch();
+      await fill(
+        complete(w, { gate: 'G6', result: 'PASS', scopeState: 'SCOPE_CONFIRMED_FOR_CANDIDATE' }),
+      );
+      // A resolved ask names where the reply answers it and what was checked; an unresolved one
+      // what remains open. The page infers nothing from either.
+      const entered: { answerLocator?: string; sourceIds: string[]; unresolvedRemainder?: string } =
+        cause === null
+          ? {
+              answerLocator: `SYNTHETIC reply, paragraph 2 (${disposition})`,
+              sourceIds: [w.evidence.id],
+              ...(disposition === 'ANSWERED_WITH_LIMITATION'
+                ? { unresolvedRemainder: 'SYNTHETIC the licence term after 2027 is not addressed' }
+                : {}),
+            }
+          : { sourceIds: [], unresolvedRemainder: `SYNTHETIC still open (${disposition})` };
+      await addAsk({
+        askId: 'Q1',
+        questionText: `SYNTHETIC Question 1 (${disposition})`,
+        disposition,
+        ...(entered.answerLocator === undefined ? {} : { answerLocator: entered.answerLocator }),
+        ...(entered.unresolvedRemainder === undefined
+          ? {}
+          : { unresolvedRemainder: entered.unresolvedRemainder }),
+        sources: entered.sourceIds.map(String),
+      });
+      await record();
+      const expected = {
+        askId: 'Q1',
+        questionText: `SYNTHETIC Question 1 (${disposition})`,
+        parentBindingId,
+        disposition,
+        ...entered,
+      };
+      expect(sentBody<CaptureAssessment>(candidate.id).askDispositions, disposition).toEqual([
+        expected,
+      ]);
+      const review = api.assessments[0] as { id: string };
+      // After a reload, from what the server lists.
+      await unmount();
+      await openCandidate(api, w.caseA.id, candidate.id);
+      await waitFor(() => historyItems().length === 1, `the reloaded history (${disposition})`);
+      expect(shownDispositions(historyItems()[0] as HTMLElement), disposition).toEqual([
+        {
+          askId: 'Q1',
+          questionText: `SYNTHETIC Question 1 (${disposition})`,
+          disposition,
+          answerLocator: entered.answerLocator ?? null,
+          sources: entered.sourceIds,
+          unresolvedRemainder: entered.unresolvedRemainder ?? null,
+          parentBindingId,
+        },
+      ]);
+      // The readiness is the server's: the page shows exactly what it derives for this review.
+      const run = api.validationRuns.find((row) => row.candidateId === candidate.id) as {
+        id: string;
+      };
+      const readiness = ReadinessSchema.parse({
+        candidateId: candidate.id,
+        artifactSha256: candidate['artifactSha256'],
+        dependencyDigest: DIGEST,
+        rulesetVersion: RULESET,
+        status: cause === null ? 'READY_FOR_SIGNER' : 'REVIEW_REQUIRED',
+        technicalResult: 'TECHNICAL_PASS',
+        validationRunId: run.id,
+        gates: ['G1', 'G2', 'G3', 'G4', 'G5', 'G6'].map((gate) => ({
+          gate,
+          status: gate === 'G6' && cause !== null ? 'HOLD' : 'PASS',
+          assessmentId: gate === 'G6' ? review.id : api.id(),
+          reasonCodes: gate === 'G6' && cause !== null ? ['GATE_HOLD', cause] : [],
+        })),
+        reasonCodes: cause === null ? [] : ['G6_HOLD', cause],
+        signatureState: 'HUMAN_PENDING',
+        externalAction: 'PROHIBITED',
+        evaluatedAt: NOW,
+      });
+      api.readinessReplies.set(candidate.id, () => json(200, { data: readiness, meta }));
+      await click(q('[data-testid="readiness-evaluate"]') as HTMLElement);
+      await waitFor(() => q('[data-testid="readiness-result"]') !== null, 'the readiness');
+      const g6 = all('[data-testid="readiness-gate"]').find(
+        (gate) => gate.dataset['gate'] === 'G6',
+      ) as HTMLElement;
+      const g6Codes = [...g6.querySelectorAll('[data-testid="readiness-reason-code"]')].map(
+        (code) => code.textContent,
+      );
+      if (cause === null) {
+        expect(text('[data-testid="readiness-status-label"]'), disposition).toBe(READY_LABEL);
+        expect(g6Codes, disposition).toEqual([]);
+        expect(q('[data-testid="handoff-prepare"]'), disposition).not.toBeNull();
+      } else {
+        expect(text('[data-testid="readiness-status-label"]'), disposition).toBe('Review required');
+        expect(
+          all('[data-testid="readiness-reasons"] [data-testid="readiness-reason-code"]').map(
+            (code) => code.textContent,
+          ),
+          disposition,
+        ).toEqual(['G6_HOLD', cause]);
+        expect(g6Codes, disposition).toEqual(['GATE_HOLD', cause]);
+        expect(text('[data-testid="readiness-gate-assessment"]', g6), disposition).toBe(review.id);
+        expect(q('[data-testid="handoff-prepare"]'), disposition).toBeNull();
+      }
+      await unmount();
+    }
+  });
+
+  it('client checks: an ask needs its identifier, question and an explicitly chosen disposition, and each identifier once — nothing is sent until then; a removed ask is not sent', async () => {
+    const { api, w, candidate, parentBindingId } = await setupReply();
+    await openCandidate(api, w.caseA.id, candidate.id);
+    await readEpoch();
+    await fill(complete(w, { gate: 'G6' }));
+    await addAsk({});
+    await record();
+    expect(summaryItems()).toEqual([
+      'Ask 1: identifier: Enter the ask’s identifier.',
+      'Ask 1: question: Enter the question as recorded.',
+      'Ask 1: disposition: Choose the disposition of this ask.',
+    ]);
+    expect(document.activeElement).toBe(q('[data-testid="validation-summary"]'));
+    expect(captures(candidate.id)).toEqual([]);
+    await type('#assessment-ask-0-askId', 'Q1');
+    await type('#assessment-ask-0-questionText', 'SYNTHETIC Question 1');
+    await type('#assessment-ask-0-disposition', 'MISSING_FACT');
+    await addAsk({
+      askId: 'Q1',
+      questionText: 'SYNTHETIC the same ask again',
+      disposition: 'ANSWERED_SUPPORTED',
+    });
+    await record();
+    expect(summaryItems()).toEqual([
+      'Ask 2: identifier: Each ask has one disposition: this identifier is already entered above.',
+    ]);
+    expect(captures(candidate.id)).toEqual([]);
+    await click(all('[data-testid="assessment-ask-remove"]')[1] as HTMLElement);
+    expect(all('[data-testid="assessment-ask"]')).toHaveLength(1);
+    expect(document.activeElement).toBe(q('#assessment-asks'));
+    await record();
+    expect(sentBody<CaptureAssessment>(candidate.id).askDispositions).toEqual([
+      {
+        askId: 'Q1',
+        questionText: 'SYNTHETIC Question 1',
+        parentBindingId,
+        disposition: 'MISSING_FACT',
+        sourceIds: [],
+      },
+    ]);
+  });
+
+  it('keyboard: a refused submission moves focus to the summary once; typing a correction keeps the focus in the field being corrected', async () => {
+    const { api, w, candidate } = await setupReply();
+    await openCandidate(api, w.caseA.id, candidate.id);
+    await readEpoch();
+    await fill(complete(w, { gate: 'G6' }));
+    await addAsk({});
+    await record();
+    expect(document.activeElement).toBe(q('[data-testid="validation-summary"]'));
+    const field = q('#assessment-ask-0-askId') as HTMLInputElement;
+    field.focus();
+    await type('#assessment-ask-0-askId', 'Q');
+    expect(document.activeElement).toBe(field);
+    await type('#assessment-ask-0-askId', 'Q1');
+    expect(document.activeElement).toBe(field);
+    const disposition = q('#assessment-ask-0-disposition') as HTMLSelectElement;
+    disposition.focus();
+    await type('#assessment-ask-0-disposition', 'MISSING_FACT');
+    expect(document.activeElement).toBe(disposition);
+    expect(captures(candidate.id)).toEqual([]);
+  });
+
+  it('sources: a source the context records as not applicable cannot be cited by an ask (disabled, with its note, whatever the result); the server’s own refusal of an ask’s source is shown and focused at that source, and nothing is recorded', async () => {
+    const { api, w, candidate } = await setupReply({ restricted: true });
+    await openCandidate(api, w.caseA.id, candidate.id);
+    await readEpoch();
+    for (const result of ['HOLD', 'PASS']) {
+      await fill(complete(w, { gate: 'G6', result }));
+      if (all('[data-testid="assessment-ask"]').length === 0) await addAsk({});
+      const restricted = q(
+        `#assessment-ask-0-source-${String(w.restricted.id)}`,
+      ) as HTMLInputElement;
+      expect(restricted.disabled, result).toBe(true);
+      expect(restricted.checked, result).toBe(false);
+      const note = restricted
+        .closest('li')
+        ?.querySelector('[data-testid="assessment-ask-source-not-applicable"]');
+      expect(note?.textContent).toBe(ASK_SOURCE_NOT_APPLICABLE_NOTE);
+      expect(restricted.getAttribute('aria-describedby')).toBe(note?.id);
+      expect(
+        (q(`#assessment-ask-0-source-${String(w.evidence.id)}`) as HTMLInputElement).disabled,
+      ).toBe(false);
+    }
+    // The server keeps authority: a source it refuses (the fake states it) is shown at its box.
+    api.inapplicableSources.set(String(w.evidence.id), {
+      code: 'CROSS_OWNER_REFERENCE',
+      details: {},
+    });
+    await type('#assessment-result', 'HOLD');
+    await type('#assessment-ask-0-askId', 'Q1');
+    await type('#assessment-ask-0-questionText', 'SYNTHETIC Question 1');
+    await type('#assessment-ask-0-disposition', 'ANSWERED_SUPPORTED');
+    await click(q(`#assessment-ask-0-source-${String(w.evidence.id)}`) as HTMLElement);
+    await record();
+    expect(captures(candidate.id)).toHaveLength(1);
+    expect(sentBody<CaptureAssessment>(candidate.id).askDispositions?.[0]?.sourceIds).toEqual([
+      w.evidence.id,
+    ]);
+    const box = q(`#assessment-ask-0-source-${String(w.evidence.id)}`) as HTMLInputElement;
+    await waitFor(() => document.activeElement === box, 'focus on the refused source');
+    expect(box.getAttribute('aria-invalid')).toBe('true');
+    expect(box.closest('li')?.querySelector('.field-error')?.textContent).toBeTruthy();
+    expect(api.assessments).toEqual([]);
+  });
+
+  it('a context changed after the read (412) is shown exactly and never retried; the asks entered stay, and are sent again only by an explicit record after a new read', async () => {
+    const { api, w, candidate, parentBindingId, reply } = await setupReply();
+    await openCandidate(api, w.caseA.id, candidate.id);
+    await readEpoch();
+    await fill(complete(w, { gate: 'G6' }));
+    await addAsk({
+      askId: 'Q1',
+      questionText: 'SYNTHETIC Question 1',
+      disposition: 'LEGAL_REVIEW_REQUIRED',
+    });
+    const later = viewOf(w, DIGEST_LATER, reply);
+    api.contextReplies.set(w.caseA.id, answer(later));
+    await record();
+    await waitFor(() => q('[data-testid="assessment-context-changed"]') !== null, 'the 412');
+    expect(text('[data-testid="assessment-context-changed"] strong')).toBe(
+      ASSESSMENT_CONTEXT_CHANGED,
+    );
+    expect(captures(candidate.id)).toHaveLength(1);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(captures(candidate.id)).toHaveLength(1);
+    expect(api.assessments).toEqual([]);
+    // A run of the new epoch recorded meanwhile; a new read, then an explicit record.
+    seedRun(api, candidate, later);
+    await readEpoch();
+    expect(valueOf('#assessment-ask-0-askId')).toBe('Q1');
+    expect(valueOf('#assessment-ask-0-disposition')).toBe('LEGAL_REVIEW_REQUIRED');
+    expect(captures(candidate.id)).toHaveLength(1);
+    await record();
+    expect(captures(candidate.id)).toHaveLength(2);
+    const second = sentBody<CaptureAssessment>(candidate.id, 1);
+    expect(second.expectedDependencyDigest).toBe(DIGEST_LATER);
+    expect(second.askDispositions).toEqual([
+      {
+        askId: 'Q1',
+        questionText: 'SYNTHETIC Question 1',
+        parentBindingId,
+        disposition: 'LEGAL_REVIEW_REQUIRED',
+        sourceIds: [],
+      },
+    ]);
+    expect(api.assessments).toHaveLength(1);
+  });
+});
+
+describe('R14-AUD-019 — a write on the candidate page that can change the readiness drops the readiness and handoff shown', () => {
+  const GATE_IDS = ['G1', 'G2', 'G3', 'G4', 'G5', 'G6'] as const;
+  /** A contract-valid readiness the server would derive now (READY_FOR_SIGNER unless told). */
+  function readinessOf(
+    api: FakeDirectory,
+    candidate: Candidate,
+    runId: string,
+    fields: Partial<Readiness> = {},
+  ): Readiness {
+    return ReadinessSchema.parse({
+      candidateId: candidate.id,
+      artifactSha256: candidate['artifactSha256'],
+      dependencyDigest: DIGEST,
+      rulesetVersion: RULESET,
+      status: 'READY_FOR_SIGNER',
+      technicalResult: 'TECHNICAL_PASS',
+      validationRunId: runId,
+      gates: GATE_IDS.map((gate) => ({
+        gate,
+        status: 'PASS',
+        assessmentId: api.id(),
+        reasonCodes: [],
+      })),
+      reasonCodes: [],
+      signatureState: 'HUMAN_PENDING',
+      externalAction: 'PROHIBITED',
+      evaluatedAt: NOW,
+      ...fields,
+    });
+  }
+  /** What the server derives from now on (the page reads it only when asked). */
+  function derive(api: FakeDirectory, candidate: Candidate, readiness: Readiness) {
+    api.readinessReplies.set(candidate.id, () => json(200, { data: readiness, meta }));
+  }
+  const readinessReads = (candidateId: string) =>
+    api_.requests.filter(
+      (request) =>
+        request.method === 'GET' && request.path === `/api/v1/candidates/${candidateId}/readiness`,
+    );
+  const exportRequests = (candidateId: string) =>
+    api_.requests.filter(
+      (request) =>
+        request.method === 'POST' &&
+        request.path === `/api/v1/candidates/${candidateId}/unsigned-exports`,
+    );
+  const readinessSection = () =>
+    q('[data-testid="readiness-section"]')?.closest('section') as HTMLElement;
+  const readinessActions = () =>
+    [...readinessSection().querySelectorAll('button')].map(
+      (button) => button.textContent?.trim() ?? '',
+    );
+  async function evaluateReadiness() {
+    await click(q('[data-testid="readiness-evaluate"]') as HTMLElement);
+    await waitFor(
+      () =>
+        q('[data-testid="readiness-result"]') !== null ||
+        q('[data-testid="readiness-refused"]') !== null,
+      'the readiness evaluation',
+    );
+  }
+  /** READY evaluated and an unsigned handoff prepared from it, with its copy control. */
+  async function readyWithHandoff(candidateId: string) {
+    await evaluateReadiness();
+    expect(text('[data-testid="readiness-status-label"]')).toBe(READY_LABEL);
+    await click(q('[data-testid="handoff-prepare"]') as HTMLElement);
+    await waitFor(() => q('[data-testid="handoff"]') !== null, 'the unsigned handoff');
+    expect(exportRequests(candidateId)).toHaveLength(1);
+    expect(q('[data-testid="handoff-copy-body"]')).not.toBeNull();
+  }
+  /** Nothing of an earlier evaluation or handoff remains, and nothing replaces it. */
+  function expectDropped() {
+    expect(q('[data-testid="readiness-not-evaluated"]')).not.toBeNull();
+    for (const testId of [
+      'readiness-result',
+      'readiness-status-label',
+      'readiness-outdated',
+      'handoff',
+      'handoff-prepare',
+      'handoff-copy-body',
+      'handoff-changed',
+      'handoff-not-ready',
+    ]) {
+      expect(q(`[data-testid="${testId}"]`), testId).toBeNull();
+    }
+    expect(readinessSection().textContent).not.toContain(READY_LABEL);
+    expect(readinessSection().textContent).not.toContain('SYNTHETIC body');
+    expect(readinessActions()).toEqual([EVALUATE_LABEL]);
+  }
+  async function supersede() {
+    await type('#candidate-supersede-reason', 'SYNTHETIC a later draft artifact');
+    await click(q('[data-testid="candidate-supersede-button"]') as HTMLElement);
+    await waitFor(() => q('[data-testid="candidate-supersession"]') !== null, 'the supersession');
+  }
+  const runOf = (api: FakeDirectory, candidate: Candidate) =>
+    api.validationRuns.find((row) => row.candidateId === candidate.id) as { id: string };
+
+  it('A: READY with a prepared handoff, then the candidate is superseded — the evaluation, the handoff and its copy control are gone at once, nothing is read by itself, and a new evaluation shows SUPERSEDED', async () => {
+    const { api, w, candidate } = await setup();
+    derive(api, candidate, readinessOf(api, candidate, runOf(api, candidate).id));
+    await openCandidate(api, w.caseA.id, candidate.id);
+    await readyWithHandoff(candidate.id);
+    derive(
+      api,
+      candidate,
+      readinessOf(api, candidate, runOf(api, candidate).id, {
+        status: 'SUPERSEDED',
+        reasonCodes: ['CANDIDATE_SUPERSEDED'],
+      }),
+    );
+    await supersede();
+    expectDropped();
+    expect(readinessReads(candidate.id)).toHaveLength(1);
+    expect(exportRequests(candidate.id)).toHaveLength(1);
+    await evaluateReadiness();
+    expect(readinessReads(candidate.id)).toHaveLength(2);
+    expect(text('[data-testid="readiness-status-label"]')).toBe('Superseded candidate');
+    expect(q('[data-testid="handoff-prepare"]')).toBeNull();
+  });
+
+  it('B: READY, then a G6 HOLD successor is recorded — the READY evaluation is gone, and a new evaluation shows the review required', async () => {
+    const { api, w, candidate } = await setup();
+    const g6 = api.seedAssessment(
+      candidate,
+      { gate: 'G6', result: 'PASS', dependencyDigest: DIGEST },
+      [{ caseSourceId: w.linkA.id, supportedConclusion: 'SYNTHETIC G6 conclusion' }],
+    );
+    derive(api, candidate, readinessOf(api, candidate, runOf(api, candidate).id));
+    await openCandidate(api, w.caseA.id, candidate.id);
+    await evaluateReadiness();
+    expect(text('[data-testid="readiness-status-label"]')).toBe(READY_LABEL);
+    await readEpoch();
+    await fill(complete(w, { gate: 'G6', result: 'HOLD', supersedes: g6.id }));
+    derive(
+      api,
+      candidate,
+      readinessOf(api, candidate, runOf(api, candidate).id, {
+        status: 'REVIEW_REQUIRED',
+        reasonCodes: ['G6_HOLD', 'GATE_HOLD'],
+      }),
+    );
+    await record();
+    expect(sentBody<CaptureAssessment>(candidate.id).supersedesAssessmentId).toBe(g6.id);
+    await waitFor(() => historyItems().length === 2, 'the history');
+    expectDropped();
+    expect(readinessReads(candidate.id)).toHaveLength(1);
+    await evaluateReadiness();
+    expect(text('[data-testid="readiness-status-label"]')).toBe('Review required');
+    expect(
+      all('[data-testid="readiness-reasons"] [data-testid="readiness-reason-code"]').map(
+        (code) => code.textContent,
+      ),
+    ).toEqual(['G6_HOLD', 'GATE_HOLD']);
+  });
+
+  it('C: READY, then a second current review of one gate is recorded (a parallel head) — the READY evaluation is gone, and a new evaluation shows the conflict', async () => {
+    const { api, w, candidate } = await setup();
+    api.seedAssessment(candidate, { gate: 'G3', result: 'PASS', dependencyDigest: DIGEST }, [
+      { caseSourceId: w.linkA.id, supportedConclusion: 'SYNTHETIC G3 conclusion' },
+    ]);
+    derive(api, candidate, readinessOf(api, candidate, runOf(api, candidate).id));
+    await openCandidate(api, w.caseA.id, candidate.id);
+    await evaluateReadiness();
+    await readEpoch();
+    await fill(complete(w, { gate: 'G3', result: 'PASS' }));
+    derive(
+      api,
+      candidate,
+      readinessOf(api, candidate, runOf(api, candidate).id, {
+        status: 'REVIEW_REQUIRED',
+        reasonCodes: ['G3_CONFLICT', 'GATE_HEADS_UNRECONCILED'],
+      }),
+    );
+    await record();
+    expect(sentBody<CaptureAssessment>(candidate.id).supersedesAssessmentId).toBeUndefined();
+    await waitFor(() => historyItems().length === 2, 'the history');
+    expectDropped();
+    await evaluateReadiness();
+    expect(
+      all('[data-testid="readiness-reasons"] [data-testid="readiness-reason-code"]').map(
+        (code) => code.textContent,
+      ),
+    ).toEqual(['G3_CONFLICT', 'GATE_HEADS_UNRECONCILED']);
+  });
+
+  it('D: READY, then a new technical validation run is recorded — the evaluation is gone and a new evaluation is required; it reads the server again', async () => {
+    const { api, w, candidate } = await setup();
+    derive(api, candidate, readinessOf(api, candidate, runOf(api, candidate).id));
+    await openCandidate(api, w.caseA.id, candidate.id);
+    await evaluateReadiness();
+    await click(q('[data-testid="validation-read-context"]') as HTMLElement);
+    await waitFor(() => q('[data-testid="validation-run-button"]') !== null, 'the validation read');
+    const runsBefore = api.validationRuns.length;
+    await click(q('[data-testid="validation-run-button"]') as HTMLElement);
+    await waitFor(() => api.validationRuns.length === runsBefore + 1, 'the new run');
+    await waitFor(() => q('[data-testid="validation-result"]') !== null, 'the recorded run');
+    expectDropped();
+    const newest = api.validationRuns[api.validationRuns.length - 1] as { id: string };
+    derive(api, candidate, readinessOf(api, candidate, newest.id));
+    expect(readinessReads(candidate.id)).toHaveLength(1);
+    await evaluateReadiness();
+    expect(readinessReads(candidate.id)).toHaveLength(2);
+    expect(text('[data-testid="readiness-run"]')).toBe(newest.id);
+  });
+
+  it('E: a readiness response to a request started before a write on the page arrives after it — it is discarded and never shows READY', async () => {
+    const { api, w, candidate } = await setup();
+    derive(api, candidate, readinessOf(api, candidate, runOf(api, candidate).id));
+    await openCandidate(api, w.caseA.id, candidate.id);
+    api.holdReadinessReads = true;
+    await click(q('[data-testid="readiness-evaluate"]') as HTMLElement);
+    await waitFor(() => readinessReads(candidate.id).length === 1, 'the held readiness read');
+    // The write succeeds while the READY response is still on its way.
+    await readEpoch();
+    await fill(complete(w));
+    await record();
+    await waitFor(() => historyItems().length === 1, 'the recorded review');
+    const order = api_.requests.map((request) => `${request.method} ${request.path}`);
+    expect(order.indexOf(`GET /api/v1/candidates/${candidate.id}/readiness`)).toBeLessThan(
+      order.indexOf(`POST /api/v1/candidates/${candidate.id}/assessments`),
+    );
+    api.releaseReadinessReads();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    await waitFor(() => q('[data-testid="loading"]') === null, 'the settled page');
+    expectDropped();
+    // A new evaluation reads again and shows what the server derives now.
+    await evaluateReadiness();
+    expect(readinessReads(candidate.id)).toHaveLength(2);
+  });
+
+  it('F: an unsigned-export response to a request started before a write on the page arrives after it — the handoff is discarded, never shown or copyable', async () => {
+    const { api, w, candidate } = await setup();
+    derive(api, candidate, readinessOf(api, candidate, runOf(api, candidate).id));
+    await openCandidate(api, w.caseA.id, candidate.id);
+    await evaluateReadiness();
+    expect(readinessActions()).toEqual([EVALUATE_LABEL, PREPARE_LABEL]);
+    api.holdExports = true;
+    await click(q('[data-testid="handoff-prepare"]') as HTMLElement);
+    await waitFor(() => exportRequests(candidate.id).length === 1, 'the held export');
+    // The export is recorded by the (fake) server, its reply held; the candidate is superseded.
+    expect(api.unsignedExports).toHaveLength(1);
+    await supersede();
+    expectDropped();
+    api.releaseExports();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    await waitFor(() => q('[data-testid="loading"]') === null, 'the settled page');
+    expectDropped();
+    const order = api_.requests.map((request) => `${request.method} ${request.path}`);
+    expect(order.indexOf(`POST /api/v1/candidates/${candidate.id}/unsigned-exports`)).toBeLessThan(
+      order.indexOf(`POST /api/v1/candidates/${candidate.id}/supersede`),
+    );
+  });
+
+  it('reads start no new generation: opening a recorded run, reading the current context or showing supports leaves the evaluation shown', async () => {
+    const { api, w, candidate } = await setup();
+    const assessment = api.seedAssessment(candidate, { dependencyDigest: DIGEST }, [
+      { caseSourceId: w.linkA.id, supportedConclusion: 'SYNTHETIC conclusion' },
+    ]);
+    expect(assessment.id).toBeTruthy();
+    derive(api, candidate, readinessOf(api, candidate, runOf(api, candidate).id));
+    await openCandidate(api, w.caseA.id, candidate.id);
+    await evaluateReadiness();
+    await readEpoch();
+    await click(q('[data-testid="assessment-open-supports"]') as HTMLElement);
+    await waitFor(() => q('[data-testid="assessment-support-rows"]') !== null, 'the supports');
+    await click(q('[data-testid="validation-read-context"]') as HTMLElement);
+    await waitFor(() => q('[data-testid="validation-run-button"]') !== null, 'the validation read');
+    expect(text('[data-testid="readiness-status-label"]')).toBe(READY_LABEL);
+    expect(readinessActions()).toEqual([EVALUATE_LABEL, PREPARE_LABEL]);
+    expect(readinessReads(candidate.id)).toHaveLength(1);
   });
 });

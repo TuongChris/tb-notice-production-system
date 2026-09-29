@@ -1,14 +1,34 @@
 # ADR-0009 — Candidate assessment support rows require an additive historical read
 
-Status: **ACCEPTED_BY_OPERATOR · INDEPENDENT_REVIEW_DEFERRED** — accepted for implementation by the operator on 2026-09-28 (mission TB_P4H_CANDIDATE_ASSESSMENT_FAST_TRACK_IMPLEMENTATION, an operator-authorized fast track), on the architecture committed at `5afd2ec`; the open decisions D-1…D-6 are resolved in ADR-0008 ("Operator acceptance"). The independent Astra review was **deferred by the operator**: no independent review has taken place, and nothing here is independently verified. Proposed 2026-09-28 by mission TB_PRE_ASSESSMENT_AUD005_AUD006_ARCHITECTURE (architecture and specification only).
+Status: **ACCEPTED** — independent final engineering audit: **VERIFIED_WITH_LIMITS** at `3d432688a20266548447d71029830a4bbf85e38d` (R14-AUD-006 **CLOSED_VERIFIED_WITH_LIMITS**). **TB-SCHEMA-API-v1.4.0: ACCEPTED / ACTIVE.**
+- Accepted by the operator on 2026-09-29 (mission TB_FINAL_ACCEPTANCE_CLOSEOUT_MERGE_AND_POST_MAIN_VERIFICATION), on the recommendation of the independent Astra re-audit of that exact target.
+- A bounded review of the accepted single-PC engineering scope: whole-critical coverage 73.18 %, the whole repository PARTIAL. It is not legal approval or real-case readiness.
+- The earlier status text is kept verbatim under "Acceptance history".
+- Record: `docs/verification/final-audit/FINAL_ENGINEERING_AUDIT_CLOSEOUT.md`.
+
+The release and its ruleset:
 - The wire delta it needs, **TB-SCHEMA-API-v1.4.0**, was proposed in `docs/proposals/TB-SCHEMA-API-v1.4.0-assessment-support-readback.md` and is **activated by the same mission** as the release record `docs/contracts/TB-SCHEMA-API-v1.4.0/` (amendment and README), exactly as proposed (Decision 2).
 - The activation records the new technical ruleset version the release requires: `TB-TECHNICAL-RULESET-v3` (ADR-0010).
+- `amendment.json` is unchanged by the acceptance (sha256 `fb6b14a9781980f06ab7d1e41952feb478ee37f4df9df54f09d2fe941ff15c85`, pinned by `tests/contracts/release-v1-4-0.test.ts`).
 
-Addresses: the Astra finding **R14-AUD-006** (a future AssessmentSource read-back; FUTURE_ASSESSMENT_PREREQUISITE, it blocked CandidateAssessment implementation). Proposed as DESIGN_PROPOSED_PENDING_INDEPENDENT_REVIEW; after the operator's acceptance it is implemented by P4H (status in `docs/verification/p4h/P4H_CANDIDATE_ASSESSMENT.md`), with the independent review deferred.
+Addresses: the Astra finding **R14-AUD-006** (a future AssessmentSource read-back; FUTURE_ASSESSMENT_PREREQUISITE, it blocked CandidateAssessment implementation). Proposed as DESIGN_PROPOSED_PENDING_INDEPENDENT_REVIEW; after the operator's acceptance it is implemented by P4H (status in `docs/verification/p4h/P4H_CANDIDATE_ASSESSMENT.md`), with the independent review deferred. **Final disposition (2026-09-29): CLOSED_VERIFIED_WITH_LIMITS** — the exact historical 1–100 AssessmentSource read-back is closed at `3d43268`; the existing storage is sufficient.
 Acceptance boundary: an engineering contract design only. It creates no legal or factual authority, no finding, no proof, no review, no G1–G7 decision and no readiness.
 Scope: the read of the AssessmentSource rows of one CandidateAssessment (P4H) and the capture rules that the read depends on. D-3 (ADR-0008, "Operator acceptance") settles the non-PASS citation rule of Decision 6 as proposed.
 Related: ADR-0002 §6 (an intentional wire change needs a new approved release + ADR); ADR-0004, ADR-0005 (`getCaseFactSources`, the pattern followed) and ADR-0006 (`getValidationRun`); ADR-0008 (the assessment epoch; the other pre-assessment prerequisite); frozen INVARIANTS §3 ("AssessmentSource links a CaseSource from the same Case", a transactional service check) and §4; API_CONTRACT_v1 §5–§6; PFC §10.
 Design record: `docs/architecture/PRE_ASSESSMENT_AUD005_AUD006_ARCHITECTURE.md` §10–§16, §19. Verification of this mission: `docs/verification/pre-assessment/PRE_ASSESSMENT_ARCHITECTURE_VERIFICATION.md`.
+
+## Acceptance history
+
+Kept as recorded. The independent review took place **after** the implementation, not before it; accepting the ADR for implementation was the operator's fast track.
+
+1. **2026-09-28 — PROPOSED** by mission TB_PRE_ASSESSMENT_AUD005_AUD006_ARCHITECTURE; TB-SCHEMA-API-v1.4.0 a proposed, inactive delta. R14-AUD-006: DESIGN_PROPOSED_PENDING_INDEPENDENT_REVIEW.
+2. **2026-09-28 — ACCEPTED_BY_OPERATOR · INDEPENDENT_REVIEW_DEFERRED**, for implementation; TB-SCHEMA-API-v1.4.0 activated by P4H. The status line then read:
+   > Status: **ACCEPTED_BY_OPERATOR · INDEPENDENT_REVIEW_DEFERRED** — accepted for implementation by the operator on 2026-09-28 (mission TB_P4H_CANDIDATE_ASSESSMENT_FAST_TRACK_IMPLEMENTATION, an operator-authorized fast track), on the architecture committed at `5afd2ec`; the open decisions D-1…D-6 are resolved in ADR-0008 ("Operator acceptance"). The independent Astra review was **deferred by the operator**: no independent review has taken place, and nothing here is independently verified. Proposed 2026-09-28 by mission TB_PRE_ASSESSMENT_AUD005_AUD006_ARCHITECTURE (architecture and specification only).
+3. **2026-09-28/29 — implemented by P4H**, self-verified; merged by pull request #12 (merge commit `19a7cb2`). R14-AUD-006: IMPLEMENTED_SELF_VERIFIED · INDEPENDENT_REVIEW_DEFERRED.
+4. **2026-09-29 — the independent Astra final whole-system audit of `abc31fc`** (HOLD, on six other blockers) accepted AUD-005 and AUD-006 for the current implementation.
+5. **2026-09-29 — ACCEPTED.** The independent Astra re-audit of `3d432688a20266548447d71029830a4bbf85e38d` closed R14-AUD-006 **CLOSED_VERIFIED_WITH_LIMITS** and recommended TB-SCHEMA-API-v1.4.0's acceptance. It verified the contract package byte-identical across the audited paths; the counts 291 schemas, 145 operations and 100 paths are the inherited validated baseline plus the route-parity assertions, not a fresh standalone regeneration by the auditor. The operator accepted its recommendation (mission TB_FINAL_ACCEPTANCE_CLOSEOUT_MERGE_AND_POST_MAIN_VERIFICATION); TB-SCHEMA-API-v1.4.0 **ACCEPTED / ACTIVE**.
+
+The sections below keep the text of their time. For example, Decision 1 calls the release "proposed, inactive", and the last item of "Consequences" describes the state when this ADR was proposed.
 
 ## Context
 

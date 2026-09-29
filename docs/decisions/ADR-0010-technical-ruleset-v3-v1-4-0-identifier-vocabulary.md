@@ -1,8 +1,30 @@
 # ADR-0010 — TB-TECHNICAL-RULESET-v3 for the TB-SCHEMA-API-v1.4.0 internal-identifier vocabulary
 
-Status: **ACCEPTED_BY_OPERATOR · INDEPENDENT_REVIEW_DEFERRED** — 2026-09-28, mission TB_P4H_CANDIDATE_ASSESSMENT_FAST_TRACK_IMPLEMENTATION (operator-authorized fast-track implementation). The independent Astra review of this decision was **deferred by the operator**; no independent review has taken place. This is self-verified engineering, not independent assurance.
+Status: **ACCEPTED** — independent final engineering audit: **VERIFIED_WITH_LIMITS** at `3d432688a20266548447d71029830a4bbf85e38d`.
+- The audit — the independent Astra re-audit of that exact target — recommended accepting `TB-TECHNICAL-RULESET-v3` for its reviewed engineering semantics.
+- The operator accepted that recommendation on 2026-09-29 (mission TB_FINAL_ACCEPTANCE_CLOSEOUT_MERGE_AND_POST_MAIN_VERIFICATION).
+- A bounded review of the accepted single-PC engineering scope: whole-critical coverage 73.18 %, the whole repository PARTIAL.
+- **Unchanged by the acceptance:**
+  - the 29-rule identity (24 deterministic, 5 heuristic);
+  - the immutability of runs recorded as v1 or v2;
+  - the pinned vocabulary;
+  - the technical-only meaning — a TECHNICAL_PASS implies no G1–G7 decision, readiness or READY_FOR_SIGNER.
+- `TB-TECHNICAL-RULESET-v3` is **ACCEPTED / ACTIVE**. The earlier status text is kept verbatim under "Acceptance history".
+- Record: `docs/verification/final-audit/FINAL_ENGINEERING_AUDIT_CLOSEOUT.md`.
+
 Related: ADR-0006 §8 (the technical ruleset identity, R14-AUD-003), ADR-0007 (the digest definition; its Decision 7 and the R14-AUD-013 vocabulary exception; R14-AUD-014), ADR-0008 (the assessment epoch, whose `rulesetVersion` this identifier fills), ADR-0009 (TB-SCHEMA-API-v1.4.0, whose activation requires this decision).
 Acceptance boundary: an engineering identity decision about a technical ruleset. It is no legal review, no G1–G6 assessment, no readiness, no READY_FOR_SIGNER and no G7.
+
+## Acceptance history
+
+Kept as recorded. The independent review took place **after** the implementation, not before it.
+
+1. **2026-09-28 — ACCEPTED_BY_OPERATOR · INDEPENDENT_REVIEW_DEFERRED**, with the activation of TB-SCHEMA-API-v1.4.0 by P4H (merged by pull request #12, merge commit `19a7cb2`). The status line then read:
+   > Status: **ACCEPTED_BY_OPERATOR · INDEPENDENT_REVIEW_DEFERRED** — 2026-09-28, mission TB_P4H_CANDIDATE_ASSESSMENT_FAST_TRACK_IMPLEMENTATION (operator-authorized fast-track implementation). The independent Astra review of this decision was **deferred by the operator**; no independent review has taken place. This is self-verified engineering, not independent assurance.
+2. **2026-09-29 — ACCEPTED.**
+   - The independent Astra re-audit of `3d432688a20266548447d71029830a4bbf85e38d` recommended accepting `TB-TECHNICAL-RULESET-v3` and keeping the existing identifiers. Its reason: the readiness corrections of R14-AUD-015/016 change how immutable runs and assessments are consumed, not any technical rule's output, severity, kind or marker vocabulary.
+   - The operator accepted the recommendation (mission TB_FINAL_ACCEPTANCE_CLOSEOUT_MERGE_AND_POST_MAIN_VERIFICATION).
+   - The evidence listed at the end of this ADR is the implementer's own (self-verified). The re-audit's evidence is its own, outside this repository (`FINAL_ENGINEERING_AUDIT_CLOSEOUT.md` §2).
 
 ## Context
 

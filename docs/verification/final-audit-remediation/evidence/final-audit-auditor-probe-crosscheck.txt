@@ -1,0 +1,88 @@
+Final-audit remediation (R14-AUD-015…020) — cross-check with the auditor's own offline probe
+(mission TB_FINAL_CLOSEOUT_SCOPED_REMEDIATION_AUD015_TO_AUD020, §4 and §5), home PC, 2026-09-29
+==========================================================================================================
+
+What was run
+- The independent Astra final audit shipped an offline, pure-source probe with its findings (method, as the probe
+  states itself: "AUDITOR_EXECUTED_OFFLINE_PURE_SOURCE_PROBES; no HTTP/DB/app/tests/browser/generator"; caveat:
+  "Synthetic stored-input records; apiErrors replaced only with tagged error objects. No claim of end-to-end execution
+  or legal sufficiency."). It loads the readiness modules from source with Node's type stripping, builds a synthetic
+  READY_FOR_SIGNER input and varies it: the six NMI ask dispositions, five pairs of technical runs of one epoch, date
+  windows, time boundaries, and a delayed export replay whose fake clock crosses a G1 boundary while the replay's inputs
+  load. Nothing of the application, the database, the tests or a browser is involved.
+- It was run twice, from a scratchpad copy (never committed): against the source of the audited base abc31fc, and
+  against the remediated source. The remediated run used the code of this branch after R14-AUD-020/016/015; its module
+  hashes equal the files at the code head 742e9cc (the later commits 64f4016 and 742e9cc change web and test files only):
+    apps/api/src/modules/readiness/readiness-rules.ts    abc31fc f7b27ce5…4db34853   → 742e9cc 742101a4…e63e2c77
+    apps/api/src/modules/readiness/readiness.service.ts  abc31fc d9243e21…c1144964   → 742e9cc e6cd90f4…81807afd
+    readiness-views.ts 6e3b6f66…, assessment-rules.ts e6360cd0…, technical-ruleset.ts 8c108ff3…, text-scan.ts ac946957…,
+    candidate-artifact.ts 737ee02c…, tb-canonical-json.ts 8a1331d1… — unchanged by the remediation.
+  The probe's `target` field is a literal of the probe ("abc31fc…") in both outputs; the module hashes identify the
+  source each run loaded.
+- Adaptation for the remediated source (and only there): the probe cuts `release()` out of readiness.service.ts by a
+  fixed line range. R14-AUD-020 moved that method's lines, so the unmodified probe fails with a SyntaxError on the
+  remediated source. Two edits made it load the same method: the slice (187,212) → (190,221), and a no-op observer
+  (`probe.observer = {beforeReplayRead, afterReplayInput}` resolving at once) because `release()` now awaits the
+  observer seams. The diff:
+    96c96
+    <   },text=>'class ReplayProbe {\n'+text.split('\n').slice(187,212).join('\n')+'\n}');
+    ---
+    >   },text=>'class ReplayProbe {\n'+text.split('\n').slice(190,221).join('\n')+'\n}');
+    98a99
+    >   probe.observer={beforeReplayRead:async()=>{},afterReplayInput:async()=>{}};
+  No expectation, fixture or evaluator call of the probe was changed.
+
+Results (both runs: required rule count 29; baseline READY_FOR_SIGNER with no reason code; `inputUnchanged: true`
+everywhere — the evaluator never mutates its input)
+
+R14-AUD-016 — the six NMI ask dispositions of a G6 PASS of a reply
+  disposition                  abc31fc (audited base)                         remediated (742e9cc sources)
+  ANSWERED_SUPPORTED           READY_FOR_SIGNER, export allowed               READY_FOR_SIGNER, export allowed
+  ANSWERED_WITH_LIMITATION     READY_FOR_SIGNER, export allowed               READY_FOR_SIGNER, export allowed
+  REQUIRES_DOCUMENT            READY_FOR_SIGNER, export allowed  ← defect     REVIEW_REQUIRED [G6_HOLD, G6_ASK_REQUIRES_DOCUMENT],
+                                                                              G6 HOLD, export refused (candidateNotReady)
+  MISSING_FACT                 READY_FOR_SIGNER, export allowed  ← defect     REVIEW_REQUIRED [G6_HOLD, G6_ASK_MISSING_FACT],
+                                                                              G6 HOLD, export refused
+  LEGAL_REVIEW_REQUIRED        REVIEW_REQUIRED [G6_HOLD, G6_ASK_LEGAL_…]      unchanged
+  NOT_APPLICABLE_WITH_REASON   READY_FOR_SIGNER, export allowed               READY_FOR_SIGNER, export allowed
+
+R14-AUD-015 — two runs of the same epoch (older → newer; the newer keeps the fixture run's id …0032; an ERROR run is
+given a not-executed rule and a BLOCKER diagnostic issue, as a real ERROR run records)
+  pair                         abc31fc                                        remediated
+  ERROR → TECHNICAL_PASS       BLOCKED [VALIDATION_ERROR,                     READY_FOR_SIGNER, counted …0032 (the PASS)
+                               TECHNICAL_RUN_CONFLICT], none counted ← defect
+  TECHNICAL_PASS → ERROR       BLOCKED [VALIDATION_ERROR,                     BLOCKED [VALIDATION_ERROR,
+                               TECHNICAL_RUN_CONFLICT], none counted          VALIDATION_COVERAGE_INCOMPLETE], counted …0032
+                                                                              (the newer ERROR: no older PASS relied on)
+  TECHNICAL_PASS → BLOCKED     BLOCKED [VALIDATION_BLOCKED, TECHNICAL_RUN_…]   unchanged (completed runs that disagree)
+  TECHNICAL_PASS → REVIEW_REQ. REVIEW_REQUIRED [TECHNICAL_RUN_CONFLICT,       unchanged
+                               VALIDATION_REVIEW_REQUIRED]
+  BLOCKED → REVIEW_REQUIRED    BLOCKED [VALIDATION_BLOCKED, TECHNICAL_RUN_…,   unchanged
+                               VALIDATION_REVIEW_REQUIRED]
+  The audited defect: an ERROR run (a rule failed while running; no finding about the candidate) conflicted with a
+  later completed TECHNICAL_PASS forever, so re-validation could never recover. After the remediation only completed
+  runs are compared; the latest run counts otherwise, and a newer diagnostic run is never READY.
+
+R14-AUD-020 — the delayed export replay (fake clock: request 12:00:00.000Z, G1 boundary 12:00:00.010Z, the replay's
+evaluation after its inputs loaded at 12:00:00.020Z)
+  case                         abc31fc                                        remediated
+  no gate change               actualRefusal null; bodyReleased true,          actualRefusal candidateNotReady
+                               subjectReleased true; the old evaluation        [STALE_REVALIDATION_REQUIRED, [G1_UNASSESSED,
+                               (11:59:59.000Z) returned ← defect               G1_TEMPORAL_REVIEW_STALE]]; bodyReleased false,
+                                                                              subjectReleased false
+  a G2 HOLD → PASS successor   actualRefusal null; bodyReleased true ← defect  the same refusal; nothing released
+  while the replay loads       (the probe notes: "Old request time plus new
+                               gate rows is never-contemporaneous READY.")
+  expectedCurrentRefusal equals the remediated actualRefusal in both cases.
+
+Unchanged by the remediation (identical in both runs): the date windows of 2026-09-29, 2026-03-08 and 2026-11-01 (the
+interval [(D−1)T10:00Z, (D+1)T12:00Z)), and the three time-boundary cases (review 2026-09-28T09:59:59.999Z / now
+10:00:00.000Z → AMBIGUOUS; review 10:00:00.000Z / now 2026-09-29T12:00:00.000Z → AMBIGUOUS; review and now
+2026-09-30T12:00:00.000Z → FRESH).
+
+Scope of this cross-check
+- It shows the audited pure-source defects of R14-AUD-015, -016 and -020 reproduced at abc31fc and absent at the
+  remediated source, with the auditor's own inputs. It is offline evidence of the pure evaluator only; the end-to-end
+  behaviour is shown by the DB-backed HTTP tests (tests/db/p4i-http.test.ts), the compiled smoke:p4i in CI and the
+  browser pass. R14-AUD-017, -018 and -019 are outside the probe (web and routing).
+- It is not an independent re-audit: the probe was run by the implementer.

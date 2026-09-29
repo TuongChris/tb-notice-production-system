@@ -4,12 +4,12 @@
 |---|---|
 | Release | **TB-SCHEMA-API-v1.4.0** — additive (semantic minor) |
 | Base | **TB-SCHEMA-API-v1.3.0** (`docs/contracts/TB-SCHEMA-API-v1.3.0`, ADR-0006, accepted at R14 final; record sha256 `6b74c09aba024dcf8cb2e0a0c6e374bbce17b45298d2aec83cc2e3ab166a1630`). Its documents: `api-schemas.json` `5868d90e…6a8c`, `openapi.json` `3743fba3…dd36`, `openapi.yaml` `ad80e8ad…0ded` (that record's `result.files`). v1.3.0 is v1.2.0 plus its amendment, v1.2.0 is v1.1.0 plus its amendment, and v1.1.0 is the frozen TB-SCHEMA-API-v1.0.0 reference plus its amendment. The frozen pack `docs/reference/database-api-v1/TB_DATABASE_SCHEMA_API_CONTRACT_v1` is never edited. |
-| Decision | `docs/decisions/ADR-0009-candidate-assessment-support-rows-additive-historical-read.md` — **ACCEPTED_BY_OPERATOR · INDEPENDENT_REVIEW_DEFERRED** (operator, 2026-09-28, fast track, mission TB_P4H_CANDIDATE_ASSESSMENT_FAST_TRACK_IMPLEMENTATION). The independent review was deferred by the operator for this phase; it has not taken place. This release is the **active** wire contract. |
+| Decision | `docs/decisions/ADR-0009-candidate-assessment-support-rows-additive-historical-read.md` — **ACCEPTED** (operator, 2026-09-29, mission TB_FINAL_ACCEPTANCE_CLOSEOUT_MERGE_AND_POST_MAIN_VERIFICATION). The independent final engineering audit is **VERIFIED_WITH_LIMITS** at `3d432688a20266548447d71029830a4bbf85e38d`: the independent Astra re-audit, a bounded review of the accepted single-PC engineering scope, with R14-AUD-006 CLOSED_VERIFIED_WITH_LIMITS. This release is **ACCEPTED / ACTIVE**, the active wire contract. Earlier: ACCEPTED_BY_OPERATOR · INDEPENDENT_REVIEW_DEFERRED (operator, 2026-09-28, fast track, mission TB_P4H_CANDIDATE_ASSESSMENT_FAST_TRACK_IMPLEMENTATION), when the independent review had not taken place |
 | Finding | R14-AUD-006 (the AssessmentSource read-back) |
 | Recorded | 2026-09-28, P4H (mission TB_P4H_CANDIDATE_ASSESSMENT_FAST_TRACK_IMPLEMENTATION) |
 | Record | `amendment.json` (this folder), sha256 `fb6b14a9781980f06ab7d1e41952feb478ee37f4df9df54f09d2fe941ff15c85` |
 | Proposal | `docs/proposals/TB-SCHEMA-API-v1.4.0-assessment-support-readback.md` (the proposed delta of mission TB_PRE_ASSESSMENT_AUD005_AUD006_ARCHITECTURE; activated by this release) |
-| Verification | `docs/verification/p4h/P4H_CANDIDATE_ASSESSMENT.md` |
+| Verification | `docs/verification/p4h/P4H_CANDIDATE_ASSESSMENT.md`; the final acceptance `docs/verification/final-audit/FINAL_ENGINEERING_AUDIT_CLOSEOUT.md` |
 
 The wire contract of this release is TB-SCHEMA-API-v1.3.0, unchanged, plus exactly the amendment recorded here. The generated artifacts `packages/contracts/schemas/api-schemas.json` and `packages/contracts/openapi/openapi.{json,yaml}` are the release's documents. Their digests are in `amendment.json` (`result.files`):
 
@@ -109,4 +109,4 @@ The technical ruleset does not follow the release: `TB-TECHNICAL-RULESET-v3` pin
 
 `amendment.json` is the release record, written once for this release from the reviewed source change and the accepted v1.3.0 record. Its correctness is proven by the composition tests above, not by a generator. It is never edited: its digest is pinned in `tests/contracts/release-v1-4-0.test.ts`. A later wire change is a new release with its own record and ADR.
 
-The acceptance of ADR-0009 is the operator's fast-track acceptance for implementation; the independent review was deferred by the operator and has not taken place. Nothing in this release claims an independent verification.
+ADR-0009 was first accepted by the operator's fast track, for implementation, with the independent review deferred (2026-09-28). The independent final engineering audit took place later: the independent Astra re-audit of `3d432688a20266548447d71029830a4bbf85e38d` is **VERIFIED_WITH_LIMITS**, and the operator accepted ADR-0009 and this release on its recommendation (2026-09-29). It is a bounded review. It claims no 100 % whole-repository coverage, and it verified the contract package byte-identical rather than regenerating it standalone. `amendment.json` is byte-identical at that acceptance.
