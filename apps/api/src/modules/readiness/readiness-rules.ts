@@ -614,7 +614,13 @@ export function askSourceIds(head: ReadinessAssessment): string[] {
   return [...new Set(dispositions.flatMap((disposition) => [...disposition.sourceIds]))].sort();
 }
 
-const visible = (value: string) => /\S/u.test(value);
+/**
+ * Whether a recorded text shows anything (Decision 7, "visible text"): at least one code point that is
+ * not white space, a control character or a default-ignorable code point (zero-width spaces and
+ * joiners, bidi marks, the soft hyphen, variation selectors, …) — a text of those alone shows nothing.
+ */
+const visible = (value: string) =>
+  /[^\p{White_Space}\p{Cc}\p{Default_Ignorable_Code_Point}]/u.test(value);
 
 const MAX_SUPPORTS = 100;
 

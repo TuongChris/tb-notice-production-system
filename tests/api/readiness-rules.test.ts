@@ -838,11 +838,25 @@ describe('gates (Decisions 6–8): exact heads, never the latest PASS, no compen
       { performerLabel: ' \n\t' },
       { rationale: '   ' },
       { scopeText: ' ' },
+      // Invisible code points alone show nothing either: zero-width space, word joiner, a bidi
+      // mark, the soft hyphen, a byte-order mark, a control character, a Hangul filler.
+      { performerLabel: '\u200B' },
+      { rationale: '\u2060\u200E' },
+      { scopeText: '\u00AD\uFEFF' },
+      { performerLabel: '\u0001 \u3164' },
     ]) {
       expect(gateOf(withGate('G4', overrides), 'G4').reasonCodes).toEqual([
         'GATE_HOLD',
         'ASSESSMENT_RECORD_INCOMPLETE',
       ]);
+    }
+    // One visible character is enough, whatever surrounds it.
+    for (const overrides of [
+      { performerLabel: '\u200BX' },
+      { rationale: 'e\u0301' },
+      { scopeText: '🎵' },
+    ]) {
+      expect(gateOf(withGate('G4', overrides), 'G4').status).toBe('PASS');
     }
     for (const provenance of ['MISSING', 'CONFLICT']) {
       expect(gateOf(withGate('G4', { provenance }), 'G4').reasonCodes).toEqual([
