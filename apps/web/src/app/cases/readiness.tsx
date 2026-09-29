@@ -11,7 +11,10 @@
 // apart, with the reason codes in neutral copy. The handoff is requested against exactly the
 // artifact, digest and run of the evaluation shown; the server evaluates the readiness again, and a
 // 412 (something changed) or a 409 (not ready now) is shown exactly and never retried — only a new
-// evaluation is offered.
+// evaluation is offered. A successful write on the candidate page that can change the readiness
+// starts a new readiness generation (R14-AUD-019): the evaluation and any handoff shown are dropped
+// at once, and a response to a request started under an earlier generation is discarded — it never
+// brings an evaluation or a handoff back. Nothing is inferred in their place.
 import { useEffect, useRef, useState } from 'react';
 import type { GateSummary, NoticeCandidate, Readiness, UnsignedExport } from '@tb/contracts';
 import { ApiError } from '../api/client.js';
@@ -182,7 +185,14 @@ type Handoff =
     }
   | { readonly status: 'failed'; readonly error: unknown };
 
-export function CandidateReadiness({ candidate }: { candidate: NoticeCandidate }) {
+export function CandidateReadiness({
+  candidate,
+  generation,
+}: {
+  candidate: NoticeCandidate;
+  /** The page's readiness generation: a new one invalidates what this section shows. */
+  generation: number;
+}) {
   const api = useDirectoryApi();
   const write = useWrite();
   const intent = useIntentKey();
@@ -190,6 +200,17 @@ export function CandidateReadiness({ candidate }: { candidate: NoticeCandidate }
   const [handoff, setHandoff] = useState<Handoff>({ status: 'none' });
   // Where focus goes once the page settles: the evaluation's outcome, or the handoff's.
   const [focusTarget, setFocusTarget] = useState<'outcome' | 'handoff' | null>(null);
+  // A new generation drops the evaluation and the handoff before anything is shown with it.
+  const [shownGeneration, setShownGeneration] = useState(generation);
+  if (shownGeneration !== generation) {
+    setShownGeneration(generation);
+    setEvaluation({ status: 'idle' });
+    setHandoff({ status: 'none' });
+    setFocusTarget(null);
+  }
+  // The generation a response is checked against when it arrives (the latest rendered one).
+  const currentGeneration = useRef(generation);
+  currentGeneration.current = generation;
   const outcome = useRef<HTMLDivElement>(null);
   const handoffOutcome = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -198,15 +219,17 @@ export function CandidateReadiness({ candidate }: { candidate: NoticeCandidate }
   }, [focusTarget, evaluation, handoff]);
 
   async function evaluate() {
+    const started = currentGeneration.current;
     setHandoff({ status: 'none' });
     setFocusTarget('outcome');
     setEvaluation({ status: 'loading' });
     try {
-      setEvaluation({
-        status: 'ready',
-        readiness: await api.cases.candidates.readiness.get(candidate.id),
-      });
+      const readiness = await api.cases.candidates.readiness.get(candidate.id);
+      // Started before a write that can change the readiness: discarded, never shown.
+      if (currentGeneration.current !== started) return;
+      setEvaluation({ status: 'ready', readiness });
     } catch (error) {
+      if (currentGeneration.current !== started) return;
       setEvaluation({ status: 'error', error });
     }
   }
@@ -219,6 +242,7 @@ export function CandidateReadiness({ candidate }: { candidate: NoticeCandidate }
       validationRunId: readiness.validationRunId,
       format: 'PLAIN_TEXT' as const,
     };
+    const started = currentGeneration.current;
     setHandoff({ status: 'pending' });
     setFocusTarget('handoff');
     try {
@@ -226,8 +250,12 @@ export function CandidateReadiness({ candidate }: { candidate: NoticeCandidate }
         api.cases.candidates.readiness.exportUnsigned(candidate.id, body, auth),
       );
       intent.done();
+      // Requested before a write that can change the readiness: the handoff is discarded, never
+      // shown or offered for copying (the server re-evaluates any later request).
+      if (currentGeneration.current !== started) return;
       setHandoff({ status: 'prepared', handoff: prepared });
     } catch (error) {
+      if (currentGeneration.current !== started) return;
       // Never retried here: a change or a status that is not ready needs a new evaluation first.
       if (
         error instanceof ApiError &&

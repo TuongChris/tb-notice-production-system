@@ -21,12 +21,18 @@
 // — the editor only for G6 of an NMI_REPLY prompt, the parent binding fixed from the prompt, no ask
 // or disposition preselected, the six contracted dispositions, each ask sent exactly as entered and
 // read back from the server (also after a reload), the client checks, the sources an ask may cite
-// and a 412 never retried. All data is synthetic.
+// and a 412 never retried. R14-AUD-019: every successful write on the candidate page that can change
+// the readiness — supersession, a technical validation run, a G1–G6 review — drops the readiness
+// evaluation and any unsigned handoff the page shows (no copy control of it remains), only a new
+// evaluation shows a readiness again, and a readiness or export response to a request started
+// before the write is discarded; the request and response order is proven with the fake server.
+// All data is synthetic.
 import { describe, expect, it } from 'vitest';
 import type {
   CaptureAssessment,
   ContextView,
   ProductionContext,
+  Readiness,
 } from '../../packages/contracts/src/index.js';
 import {
   CandidateAssessmentSchema,
@@ -34,6 +40,7 @@ import {
   CaptureAssessmentSchema,
   ContextViewSchema,
   PromptSnapshotSchema,
+  ReadinessSchema,
 } from '../../packages/contracts/src/index.js';
 import {
   ADD_ASK_LABEL,
@@ -56,6 +63,11 @@ import {
   SHOW_SUPPORTS_LABEL,
 } from '../../apps/web/src/app/cases/assessments.js';
 import { CASE_ARCHIVED_READ_ONLY } from '../../apps/web/src/app/cases/intake-ui.js';
+import {
+  EVALUATE_LABEL,
+  PREPARE_LABEL,
+  READY_LABEL,
+} from '../../apps/web/src/app/cases/readiness.js';
 import {
   all,
   claimTexts,
@@ -1574,5 +1586,277 @@ describe('R14-AUD-017 — the G6 ask dispositions of a reply', () => {
       },
     ]);
     expect(api.assessments).toHaveLength(1);
+  });
+});
+
+describe('R14-AUD-019 — a write on the candidate page that can change the readiness drops the readiness and handoff shown', () => {
+  const GATE_IDS = ['G1', 'G2', 'G3', 'G4', 'G5', 'G6'] as const;
+  /** A contract-valid readiness the server would derive now (READY_FOR_SIGNER unless told). */
+  function readinessOf(
+    api: FakeDirectory,
+    candidate: Candidate,
+    runId: string,
+    fields: Partial<Readiness> = {},
+  ): Readiness {
+    return ReadinessSchema.parse({
+      candidateId: candidate.id,
+      artifactSha256: candidate['artifactSha256'],
+      dependencyDigest: DIGEST,
+      rulesetVersion: RULESET,
+      status: 'READY_FOR_SIGNER',
+      technicalResult: 'TECHNICAL_PASS',
+      validationRunId: runId,
+      gates: GATE_IDS.map((gate) => ({
+        gate,
+        status: 'PASS',
+        assessmentId: api.id(),
+        reasonCodes: [],
+      })),
+      reasonCodes: [],
+      signatureState: 'HUMAN_PENDING',
+      externalAction: 'PROHIBITED',
+      evaluatedAt: NOW,
+      ...fields,
+    });
+  }
+  /** What the server derives from now on (the page reads it only when asked). */
+  function derive(api: FakeDirectory, candidate: Candidate, readiness: Readiness) {
+    api.readinessReplies.set(candidate.id, () => json(200, { data: readiness, meta }));
+  }
+  const readinessReads = (candidateId: string) =>
+    api_.requests.filter(
+      (request) =>
+        request.method === 'GET' && request.path === `/api/v1/candidates/${candidateId}/readiness`,
+    );
+  const exportRequests = (candidateId: string) =>
+    api_.requests.filter(
+      (request) =>
+        request.method === 'POST' &&
+        request.path === `/api/v1/candidates/${candidateId}/unsigned-exports`,
+    );
+  const readinessSection = () =>
+    q('[data-testid="readiness-section"]')?.closest('section') as HTMLElement;
+  const readinessActions = () =>
+    [...readinessSection().querySelectorAll('button')].map(
+      (button) => button.textContent?.trim() ?? '',
+    );
+  async function evaluateReadiness() {
+    await click(q('[data-testid="readiness-evaluate"]') as HTMLElement);
+    await waitFor(
+      () =>
+        q('[data-testid="readiness-result"]') !== null ||
+        q('[data-testid="readiness-refused"]') !== null,
+      'the readiness evaluation',
+    );
+  }
+  /** READY evaluated and an unsigned handoff prepared from it, with its copy control. */
+  async function readyWithHandoff(candidateId: string) {
+    await evaluateReadiness();
+    expect(text('[data-testid="readiness-status-label"]')).toBe(READY_LABEL);
+    await click(q('[data-testid="handoff-prepare"]') as HTMLElement);
+    await waitFor(() => q('[data-testid="handoff"]') !== null, 'the unsigned handoff');
+    expect(exportRequests(candidateId)).toHaveLength(1);
+    expect(q('[data-testid="handoff-copy-body"]')).not.toBeNull();
+  }
+  /** Nothing of an earlier evaluation or handoff remains, and nothing replaces it. */
+  function expectDropped() {
+    expect(q('[data-testid="readiness-not-evaluated"]')).not.toBeNull();
+    for (const testId of [
+      'readiness-result',
+      'readiness-status-label',
+      'readiness-outdated',
+      'handoff',
+      'handoff-prepare',
+      'handoff-copy-body',
+      'handoff-changed',
+      'handoff-not-ready',
+    ]) {
+      expect(q(`[data-testid="${testId}"]`), testId).toBeNull();
+    }
+    expect(readinessSection().textContent).not.toContain(READY_LABEL);
+    expect(readinessSection().textContent).not.toContain('SYNTHETIC body');
+    expect(readinessActions()).toEqual([EVALUATE_LABEL]);
+  }
+  async function supersede() {
+    await type('#candidate-supersede-reason', 'SYNTHETIC a later draft artifact');
+    await click(q('[data-testid="candidate-supersede-button"]') as HTMLElement);
+    await waitFor(() => q('[data-testid="candidate-supersession"]') !== null, 'the supersession');
+  }
+  const runOf = (api: FakeDirectory, candidate: Candidate) =>
+    api.validationRuns.find((row) => row.candidateId === candidate.id) as { id: string };
+
+  it('A: READY with a prepared handoff, then the candidate is superseded — the evaluation, the handoff and its copy control are gone at once, nothing is read by itself, and a new evaluation shows SUPERSEDED', async () => {
+    const { api, w, candidate } = await setup();
+    derive(api, candidate, readinessOf(api, candidate, runOf(api, candidate).id));
+    await openCandidate(api, w.caseA.id, candidate.id);
+    await readyWithHandoff(candidate.id);
+    derive(
+      api,
+      candidate,
+      readinessOf(api, candidate, runOf(api, candidate).id, {
+        status: 'SUPERSEDED',
+        reasonCodes: ['CANDIDATE_SUPERSEDED'],
+      }),
+    );
+    await supersede();
+    expectDropped();
+    expect(readinessReads(candidate.id)).toHaveLength(1);
+    expect(exportRequests(candidate.id)).toHaveLength(1);
+    await evaluateReadiness();
+    expect(readinessReads(candidate.id)).toHaveLength(2);
+    expect(text('[data-testid="readiness-status-label"]')).toBe('Superseded candidate');
+    expect(q('[data-testid="handoff-prepare"]')).toBeNull();
+  });
+
+  it('B: READY, then a G6 HOLD successor is recorded — the READY evaluation is gone, and a new evaluation shows the review required', async () => {
+    const { api, w, candidate } = await setup();
+    const g6 = api.seedAssessment(
+      candidate,
+      { gate: 'G6', result: 'PASS', dependencyDigest: DIGEST },
+      [{ caseSourceId: w.linkA.id, supportedConclusion: 'SYNTHETIC G6 conclusion' }],
+    );
+    derive(api, candidate, readinessOf(api, candidate, runOf(api, candidate).id));
+    await openCandidate(api, w.caseA.id, candidate.id);
+    await evaluateReadiness();
+    expect(text('[data-testid="readiness-status-label"]')).toBe(READY_LABEL);
+    await readEpoch();
+    await fill(complete(w, { gate: 'G6', result: 'HOLD', supersedes: g6.id }));
+    derive(
+      api,
+      candidate,
+      readinessOf(api, candidate, runOf(api, candidate).id, {
+        status: 'REVIEW_REQUIRED',
+        reasonCodes: ['G6_HOLD', 'GATE_HOLD'],
+      }),
+    );
+    await record();
+    expect(sentBody<CaptureAssessment>(candidate.id).supersedesAssessmentId).toBe(g6.id);
+    await waitFor(() => historyItems().length === 2, 'the history');
+    expectDropped();
+    expect(readinessReads(candidate.id)).toHaveLength(1);
+    await evaluateReadiness();
+    expect(text('[data-testid="readiness-status-label"]')).toBe('Review required');
+    expect(
+      all('[data-testid="readiness-reasons"] [data-testid="readiness-reason-code"]').map(
+        (code) => code.textContent,
+      ),
+    ).toEqual(['G6_HOLD', 'GATE_HOLD']);
+  });
+
+  it('C: READY, then a second current review of one gate is recorded (a parallel head) — the READY evaluation is gone, and a new evaluation shows the conflict', async () => {
+    const { api, w, candidate } = await setup();
+    api.seedAssessment(candidate, { gate: 'G3', result: 'PASS', dependencyDigest: DIGEST }, [
+      { caseSourceId: w.linkA.id, supportedConclusion: 'SYNTHETIC G3 conclusion' },
+    ]);
+    derive(api, candidate, readinessOf(api, candidate, runOf(api, candidate).id));
+    await openCandidate(api, w.caseA.id, candidate.id);
+    await evaluateReadiness();
+    await readEpoch();
+    await fill(complete(w, { gate: 'G3', result: 'PASS' }));
+    derive(
+      api,
+      candidate,
+      readinessOf(api, candidate, runOf(api, candidate).id, {
+        status: 'REVIEW_REQUIRED',
+        reasonCodes: ['G3_CONFLICT', 'GATE_HEADS_UNRECONCILED'],
+      }),
+    );
+    await record();
+    expect(sentBody<CaptureAssessment>(candidate.id).supersedesAssessmentId).toBeUndefined();
+    await waitFor(() => historyItems().length === 2, 'the history');
+    expectDropped();
+    await evaluateReadiness();
+    expect(
+      all('[data-testid="readiness-reasons"] [data-testid="readiness-reason-code"]').map(
+        (code) => code.textContent,
+      ),
+    ).toEqual(['G3_CONFLICT', 'GATE_HEADS_UNRECONCILED']);
+  });
+
+  it('D: READY, then a new technical validation run is recorded — the evaluation is gone and a new evaluation is required; it reads the server again', async () => {
+    const { api, w, candidate } = await setup();
+    derive(api, candidate, readinessOf(api, candidate, runOf(api, candidate).id));
+    await openCandidate(api, w.caseA.id, candidate.id);
+    await evaluateReadiness();
+    await click(q('[data-testid="validation-read-context"]') as HTMLElement);
+    await waitFor(() => q('[data-testid="validation-run-button"]') !== null, 'the validation read');
+    const runsBefore = api.validationRuns.length;
+    await click(q('[data-testid="validation-run-button"]') as HTMLElement);
+    await waitFor(() => api.validationRuns.length === runsBefore + 1, 'the new run');
+    await waitFor(() => q('[data-testid="validation-result"]') !== null, 'the recorded run');
+    expectDropped();
+    const newest = api.validationRuns[api.validationRuns.length - 1] as { id: string };
+    derive(api, candidate, readinessOf(api, candidate, newest.id));
+    expect(readinessReads(candidate.id)).toHaveLength(1);
+    await evaluateReadiness();
+    expect(readinessReads(candidate.id)).toHaveLength(2);
+    expect(text('[data-testid="readiness-run"]')).toBe(newest.id);
+  });
+
+  it('E: a readiness response to a request started before a write on the page arrives after it — it is discarded and never shows READY', async () => {
+    const { api, w, candidate } = await setup();
+    derive(api, candidate, readinessOf(api, candidate, runOf(api, candidate).id));
+    await openCandidate(api, w.caseA.id, candidate.id);
+    api.holdReadinessReads = true;
+    await click(q('[data-testid="readiness-evaluate"]') as HTMLElement);
+    await waitFor(() => readinessReads(candidate.id).length === 1, 'the held readiness read');
+    // The write succeeds while the READY response is still on its way.
+    await readEpoch();
+    await fill(complete(w));
+    await record();
+    await waitFor(() => historyItems().length === 1, 'the recorded review');
+    const order = api_.requests.map((request) => `${request.method} ${request.path}`);
+    expect(order.indexOf(`GET /api/v1/candidates/${candidate.id}/readiness`)).toBeLessThan(
+      order.indexOf(`POST /api/v1/candidates/${candidate.id}/assessments`),
+    );
+    api.releaseReadinessReads();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    await waitFor(() => q('[data-testid="loading"]') === null, 'the settled page');
+    expectDropped();
+    // A new evaluation reads again and shows what the server derives now.
+    await evaluateReadiness();
+    expect(readinessReads(candidate.id)).toHaveLength(2);
+  });
+
+  it('F: an unsigned-export response to a request started before a write on the page arrives after it — the handoff is discarded, never shown or copyable', async () => {
+    const { api, w, candidate } = await setup();
+    derive(api, candidate, readinessOf(api, candidate, runOf(api, candidate).id));
+    await openCandidate(api, w.caseA.id, candidate.id);
+    await evaluateReadiness();
+    expect(readinessActions()).toEqual([EVALUATE_LABEL, PREPARE_LABEL]);
+    api.holdExports = true;
+    await click(q('[data-testid="handoff-prepare"]') as HTMLElement);
+    await waitFor(() => exportRequests(candidate.id).length === 1, 'the held export');
+    // The export is recorded by the (fake) server, its reply held; the candidate is superseded.
+    expect(api.unsignedExports).toHaveLength(1);
+    await supersede();
+    expectDropped();
+    api.releaseExports();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    await waitFor(() => q('[data-testid="loading"]') === null, 'the settled page');
+    expectDropped();
+    const order = api_.requests.map((request) => `${request.method} ${request.path}`);
+    expect(order.indexOf(`POST /api/v1/candidates/${candidate.id}/unsigned-exports`)).toBeLessThan(
+      order.indexOf(`POST /api/v1/candidates/${candidate.id}/supersede`),
+    );
+  });
+
+  it('reads start no new generation: opening a recorded run, reading the current context or showing supports leaves the evaluation shown', async () => {
+    const { api, w, candidate } = await setup();
+    const assessment = api.seedAssessment(candidate, { dependencyDigest: DIGEST }, [
+      { caseSourceId: w.linkA.id, supportedConclusion: 'SYNTHETIC conclusion' },
+    ]);
+    expect(assessment.id).toBeTruthy();
+    derive(api, candidate, readinessOf(api, candidate, runOf(api, candidate).id));
+    await openCandidate(api, w.caseA.id, candidate.id);
+    await evaluateReadiness();
+    await readEpoch();
+    await click(q('[data-testid="assessment-open-supports"]') as HTMLElement);
+    await waitFor(() => q('[data-testid="assessment-support-rows"]') !== null, 'the supports');
+    await click(q('[data-testid="validation-read-context"]') as HTMLElement);
+    await waitFor(() => q('[data-testid="validation-run-button"]') !== null, 'the validation read');
+    expect(text('[data-testid="readiness-status-label"]')).toBe(READY_LABEL);
+    expect(readinessActions()).toEqual([EVALUATE_LABEL, PREPARE_LABEL]);
+    expect(readinessReads(candidate.id)).toHaveLength(1);
   });
 });

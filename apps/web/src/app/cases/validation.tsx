@@ -133,6 +133,7 @@ export function CandidateValidation({
   prompt,
   promptError,
   archived,
+  onRecorded,
 }: {
   caseId: string;
   candidate: NoticeCandidate;
@@ -140,6 +141,8 @@ export function CandidateValidation({
   prompt: PromptSnapshot | null;
   promptError: unknown;
   archived: boolean;
+  /** Called once a run is recorded (the page's readiness is then no longer current). */
+  onRecorded?: () => void;
 }) {
   const api = useDirectoryApi();
   const [runs, reloadRuns] = useLoad(`validation-runs:${candidate.id}`, () =>
@@ -175,6 +178,7 @@ export function CandidateValidation({
           onRecorded={(run) => {
             setLatest(run);
             reloadRuns();
+            onRecorded?.();
           }}
         />
       )}

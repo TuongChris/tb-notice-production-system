@@ -358,6 +358,13 @@ function CandidateDetail({ caseId, candidateId }: { caseId: string; candidateId:
   );
   const heading = useRef<HTMLHeadingElement>(null);
   const supersession = useRef<HTMLHeadingElement>(null);
+  // R14-AUD-019: the readiness generation of this page. Every successful write here that can change
+  // the candidate's readiness — its supersession, a technical validation run, a G1–G6 review —
+  // starts a new generation: the readiness section then drops the evaluation and any unsigned
+  // handoff it shows and discards responses to requests started before, so only a new evaluation
+  // can show a readiness again. Reads never start one.
+  const [readinessGeneration, setReadinessGeneration] = useState(0);
+  const invalidateReadiness = () => setReadinessGeneration((generation) => generation + 1);
   // Superseded here: the supersession replaces the form, and focus moves to it once it is shown.
   const [supersededHere, setSupersededHere] = useState(false);
   useEffect(() => {
@@ -535,6 +542,7 @@ function CandidateDetail({ caseId, candidateId }: { caseId: string; candidateId:
         prompt={loadedPrompt}
         promptError={prompt.status === 'error' ? prompt.error : null}
         archived={archived}
+        onRecorded={invalidateReadiness}
       />
       <CandidateAssessments
         caseId={caseId}
@@ -542,8 +550,9 @@ function CandidateDetail({ caseId, candidateId }: { caseId: string; candidateId:
         prompt={loadedPrompt}
         promptError={prompt.status === 'error' ? prompt.error : null}
         archived={archived}
+        onRecorded={invalidateReadiness}
       />
-      <CandidateReadiness candidate={candidate} />
+      <CandidateReadiness candidate={candidate} generation={readinessGeneration} />
       {candidate.supersededAt !== null ? (
         <section className="sheet-section" aria-labelledby="candidate-superseded-heading">
           <div className="section-heading">
@@ -570,6 +579,7 @@ function CandidateDetail({ caseId, candidateId }: { caseId: string; candidateId:
           archived={archived}
           onSuperseded={(next) => {
             replace(next);
+            invalidateReadiness();
             setMessage(
               'Draft artifact superseded. Nothing was sent, contacted or retracted, and the candidate itself is unchanged.',
             );

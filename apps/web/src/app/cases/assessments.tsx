@@ -192,6 +192,7 @@ export function CandidateAssessments({
   prompt,
   promptError,
   archived,
+  onRecorded,
 }: {
   caseId: string;
   candidate: NoticeCandidate;
@@ -199,6 +200,8 @@ export function CandidateAssessments({
   prompt: PromptSnapshot | null;
   promptError: unknown;
   archived: boolean;
+  /** Called once a review is recorded (the page's readiness is then no longer current). */
+  onRecorded?: () => void;
 }) {
   const api = useDirectoryApi();
   const [assessments, reload] = useLoad(`assessments:${candidate.id}`, () =>
@@ -236,6 +239,7 @@ export function CandidateAssessments({
           onRecorded={(assessment) => {
             setLatest(assessment);
             reload();
+            onRecorded?.();
           }}
         />
       )}
