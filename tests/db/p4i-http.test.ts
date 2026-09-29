@@ -1464,9 +1464,16 @@ describe('P4I exportUnsignedCandidate — the unsigned text handoff, only while 
     expect(handoff.bodyText.split(SLOT)).toHaveLength(2);
     expect(await suiteDump(BUSINESS_TABLES)).toEqual(before);
     expect(await countRows(prisma, 'audit_events')).toBe(auditBefore + 1);
-    const event = await prisma.auditEvent.findFirstOrThrow({
-      where: { action: 'EXPORT_UNSIGNED' },
+    // The export's one audit event is exactly EXPORT_UNSIGNED — never SIGNED, SENT or SUBMITTED.
+    const candidateEvents = await prisma.auditEvent.findMany({
+      where: { entityType: 'NoticeCandidate', entityId: r.candidate.id },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     });
+    expect(candidateEvents.map((row) => row.action)).toEqual([
+      'CANDIDATE_IMPORTED',
+      'EXPORT_UNSIGNED',
+    ]);
+    const event = candidateEvents[1] as (typeof candidateEvents)[number];
     expect(event).toMatchObject({
       entityType: 'NoticeCandidate',
       entityId: r.candidate.id,
