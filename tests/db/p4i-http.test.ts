@@ -85,11 +85,17 @@ const collected: Recorded[] = [];
 
 type Hook = (caseId: string) => Promise<void>;
 
-/** The export's consistency hooks: each runs once, inside the export transaction. */
+/**
+ * The export's consistency hooks, each run once: inside the export transaction, or inside a guarded
+ * replay (R14-AUD-020: before its first read, after the request's instant, the claim and the replay
+ * lookup; and after its input reads, before its evaluation instant).
+ */
 const readinessObserver = {
   hooks: {
     afterCaseLock: null as Hook | null,
     beforeRecord: null as Hook | null,
+    beforeReplayRead: null as Hook | null,
+    afterReplayInput: null as Hook | null,
   },
   async afterCaseLock(caseId: string): Promise<void> {
     const hook = this.hooks.afterCaseLock;
@@ -100,6 +106,16 @@ const readinessObserver = {
     const hook = this.hooks.beforeRecord;
     this.hooks.beforeRecord = null;
     if (hook) await hook(caseId);
+  },
+  async beforeReplayRead(candidateId: string): Promise<void> {
+    const hook = this.hooks.beforeReplayRead;
+    this.hooks.beforeReplayRead = null;
+    if (hook) await hook(candidateId);
+  },
+  async afterReplayInput(candidateId: string): Promise<void> {
+    const hook = this.hooks.afterReplayInput;
+    this.hooks.afterReplayInput = null;
+    if (hook) await hook(candidateId);
   },
 };
 
@@ -124,6 +140,8 @@ beforeAll(async () => {
 beforeEach(async () => {
   readinessObserver.hooks.afterCaseLock = null;
   readinessObserver.hooks.beforeRecord = null;
+  readinessObserver.hooks.beforeReplayRead = null;
+  readinessObserver.hooks.afterReplayInput = null;
   validationObserver.failRule = null;
   auditWriter.armed = false;
   t = await startTestApp(prisma, { readinessObserver, validationObserver, auditWriter });
@@ -1710,6 +1728,207 @@ describe('P4I exportUnsignedCandidate — the unsigned text handoff, only while 
     });
     expect(outcome(refused)).toEqual([412, 'CONTEXT_CHANGED']);
     expect(refused.text).not.toContain('SYNTHETIC notice text');
+  });
+});
+
+describe('R14-AUD-020 — a replay judges the records it reads at an instant sampled after reading them', () => {
+  /**
+   * A READY world whose selected authority records an instant boundary 10 minutes ahead (part of
+   * the prompt's context: time never moves the digest), exported once with `key`.
+   */
+  async function exportedAheadOfBoundary(label = 'A') {
+    const boundary = t.clock.ms + 10 * MINUTE;
+    const r = await readyWorld({
+      label,
+      beforePrompt: async (w, a) => {
+        await recordEvent(a.mandate.data.id, w.source.id, { effectiveAt: iso(boundary) });
+      },
+    });
+    return { ...(await exported(r)), boundary };
+  }
+  /** A READY world whose authority records a date-only boundary `date`, exported once. */
+  async function exportedAheadOfDate(label: string, date: string) {
+    const r = await readyWorld({
+      label,
+      beforePrompt: async (w, a) => {
+        await recordEvent(a.mandate.data.id, w.source.id, { effectiveOn: date });
+      },
+    });
+    return exported(r);
+  }
+  async function exported(r: Awaited<ReturnType<typeof readyWorld>>) {
+    const current = await readiness(r.candidate.id);
+    expect(current.status).toBe('READY_FOR_SIGNER');
+    const key = newKey();
+    const first = await exportUnsigned(r.candidate.id, exportBody(current), key);
+    return { ...r, current, key, first };
+  }
+  type Exported = Awaited<ReturnType<typeof exported>>;
+  /** The test clock moves forward only. */
+  const clockTo = (ms: number) => {
+    expect(ms).toBeGreaterThanOrEqual(t.clock.ms);
+    t.clock.advance(ms - t.clock.ms);
+  };
+  const STALE_G1 = {
+    status: 'STALE_REVALIDATION_REQUIRED',
+    reasonCodes: ['G1_UNASSESSED', 'G1_TEMPORAL_REVIEW_STALE'],
+  };
+  const replayOf = (x: Exported) => exportPost(x.candidate.id, exportBody(x.current), x.key);
+  /** Nothing of the stored draft is in a refusal. */
+  function releasesNothing(refused: HttpResult, x: Exported) {
+    for (const text of ['SYNTHETIC notice text', 'SYNTHETIC notice subject', x.first.bodySha256]) {
+      expect(refused.text).not.toContain(text);
+    }
+  }
+  /** Every suite row but P1's session activity touch (independent of the export, see R-27). */
+  const rowsBesidesSessions = async () => ({ ...(await suiteDump()), auth_sessions: [] });
+  /** F: the replay of `x` is refused with `expected` — nothing released, nothing written. */
+  async function replayRefused(x: Exported, expected: Record<string, unknown>) {
+    const before = await rowsBesidesSessions();
+    const refused = await replayOf(x);
+    expect(outcome(refused)).toEqual([409, 'CANDIDATE_NOT_READY']);
+    expect(detailsOf(refused)).toEqual(expected);
+    releasesNothing(refused, x);
+    // No audit event or idempotency record, and no candidate, assessment or case change: the
+    // completed export stays exactly the history it was.
+    expect(await rowsBesidesSessions()).toEqual(before);
+  }
+
+  it('A / F: the boundary passes after the request’s instant, while the replay waits in its claim and replay lookup — 409 STALE_REVALIDATION_REQUIRED (G1_TEMPORAL_REVIEW_STALE); nothing released or written', async () => {
+    const x = await exportedAheadOfBoundary();
+    // The replay starts 1 ms before the boundary, which passes before the replay's first read.
+    clockTo(x.boundary - 1);
+    let waited = false;
+    readinessObserver.hooks.beforeReplayRead = async () => {
+      clockTo(x.boundary + 1);
+      waited = true;
+    };
+    await replayRefused(x, STALE_G1);
+    expect(waited).toBe(true);
+  });
+
+  it('B / F: the boundary passes while the replay reads its input — still refused: an instant taken when the replay starts, before its reads, is not the evaluation instant', async () => {
+    const x = await exportedAheadOfBoundary();
+    clockTo(x.boundary - 1);
+    let waited = false;
+    readinessObserver.hooks.afterReplayInput = async () => {
+      clockTo(x.boundary + 1);
+      waited = true;
+    };
+    await replayRefused(x, STALE_G1);
+    expect(waited).toBe(true);
+  });
+
+  it('C: no instant of the request is READY — G2 HOLD before the boundary, G1 stale from it on, a G2 PASS successor only after it; the replay reads the PASS and still refuses (G1 stale at its evaluation)', async () => {
+    const x = await exportedAheadOfBoundary();
+    // Before the replay: a supported G2 HOLD successor at the same epoch — no longer READY.
+    const hold = await assess(
+      x.candidate.id,
+      pass(x.candidate, x.view, 'G2', x.caseSource.data.id, {
+        supersedesAssessmentId: x.gates.G2?.id,
+        result: 'HOLD',
+      }),
+    );
+    const observed: Array<[string, Readiness['status'], string[]]> = [];
+    const observe = async (phase: string) => {
+      const now = await readiness(x.candidate.id);
+      observed.push([phase, now.status, now.reasonCodes]);
+    };
+    clockTo(x.boundary - 1);
+    await observe('T0 < e: G2 HOLD');
+    let successor: CandidateAssessment | null = null;
+    readinessObserver.hooks.beforeReplayRead = async () => {
+      clockTo(x.boundary);
+      await observe('e reached: G1 stale, G2 HOLD');
+      clockTo(x.boundary + MINUTE);
+      successor = await assess(
+        x.candidate.id,
+        pass(x.candidate, x.view, 'G2', x.caseSource.data.id, { supersedesAssessmentId: hold.id }),
+      );
+      await observe('T1 > e: a G2 PASS successor committed, G1 stale');
+    };
+    const exportEventsBefore = await prisma.auditEvent.findMany({
+      where: { action: 'EXPORT_UNSIGNED' },
+    });
+    const recordBefore = await prisma.idempotencyRecord.findFirstOrThrow({
+      where: { idempotencyKey: x.key },
+    });
+    const refused = await replayOf(x);
+    expect(outcome(refused)).toEqual([409, 'CANDIDATE_NOT_READY']);
+    // G2_HOLD is gone: the replay's snapshot read the PASS successor; G1 is stale at evaluation.
+    expect(detailsOf(refused)).toEqual(STALE_G1);
+    releasesNothing(refused, x);
+    // The state the replay read (G2 PASS) exists only from T1 > e on, when G1 is stale; before T1 G2
+    // was HOLD. At no instant of the request were both conditions met: never READY.
+    if (successor === null) throw new Error('the concurrent capture did not run');
+    expect(Date.parse((successor as CandidateAssessment).createdAt)).toBeGreaterThan(x.boundary);
+    expect(observed).toEqual([
+      ['T0 < e: G2 HOLD', 'REVIEW_REQUIRED', ['G2_HOLD']],
+      [
+        'e reached: G1 stale, G2 HOLD',
+        'STALE_REVALIDATION_REQUIRED',
+        ['G1_UNASSESSED', 'G2_HOLD', 'G1_TEMPORAL_REVIEW_STALE'],
+      ],
+      [
+        'T1 > e: a G2 PASS successor committed, G1 stale',
+        'STALE_REVALIDATION_REQUIRED',
+        ['G1_UNASSESSED', 'G1_TEMPORAL_REVIEW_STALE'],
+      ],
+    ]);
+    // The replay wrote nothing: the one export's audit event and its completed record stand.
+    expect(await prisma.auditEvent.findMany({ where: { action: 'EXPORT_UNSIGNED' } })).toEqual(
+      exportEventsBefore,
+    );
+    expect(
+      await prisma.idempotencyRecord.findFirstOrThrow({ where: { idempotencyKey: x.key } }),
+    ).toEqual(recordBefore);
+  });
+
+  it('D / F: a date-only boundary — the replay starts while the date lies ahead everywhere and is judged once the date may have begun somewhere (TEMPORAL_BOUNDARY_AMBIGUOUS) or has ended everywhere (G1 stale)', async () => {
+    // 2026-09-24 begins somewhere (UTC+14:00) at 2026-09-23T10:00Z; 2026-09-25 ends everywhere
+    // (UTC−12:00) at 2026-09-26T12:00Z. Start ten minutes before the first, in a fresh session.
+    clockTo(Date.parse('2026-09-23T09:50:00.000Z'));
+    client = new DirectoryClient(t.port, await signIn(t.port, prisma), collected);
+    const ahead = await exportedAheadOfDate('D', '2026-09-24');
+    clockTo(Date.parse('2026-09-23T09:59:59.999Z'));
+    readinessObserver.hooks.afterReplayInput = async () => {
+      clockTo(Date.parse('2026-09-23T10:00:00.000Z'));
+    };
+    await replayRefused(ahead, {
+      status: 'REVIEW_REQUIRED',
+      reasonCodes: ['G1_HOLD', 'TEMPORAL_BOUNDARY_AMBIGUOUS'],
+    });
+
+    const later = await exportedAheadOfDate('E', '2026-09-25');
+    readinessObserver.hooks.beforeReplayRead = async () => {
+      // The session was checked when the request started; the replay itself waits past the date.
+      clockTo(Date.parse('2026-09-26T12:00:00.000Z'));
+    };
+    await replayRefused(later, STALE_G1);
+  });
+
+  it('E: before the boundary, with nothing changed, the replay is allowed — exactly the original subject, envelope, body, readiness and exportedAt; no second audit event, the record unchanged', async () => {
+    const x = await exportedAheadOfBoundary();
+    const auditBefore = await prisma.auditEvent.findMany({
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    });
+    const recordBefore = await prisma.idempotencyRecord.findFirstOrThrow({
+      where: { idempotencyKey: x.key },
+    });
+    clockTo(x.boundary - 3 * MINUTE);
+    readinessObserver.hooks.beforeReplayRead = async () => clockTo(x.boundary - 2 * MINUTE);
+    readinessObserver.hooks.afterReplayInput = async () => clockTo(x.boundary - 1);
+    const replayed = await exportUnsigned(x.candidate.id, exportBody(x.current), x.key);
+    expect(replayed).toEqual(x.first);
+    // The current readiness only guarded the release: the response is the historical one.
+    expect(replayed.exportedAt).not.toBe(iso(t.clock.ms));
+    expect(replayed.readiness.evaluatedAt).toBe(x.first.readiness.evaluatedAt);
+    expect(
+      await prisma.auditEvent.findMany({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] }),
+    ).toEqual(auditBefore);
+    expect(
+      await prisma.idempotencyRecord.findFirstOrThrow({ where: { idempotencyKey: x.key } }),
+    ).toEqual(recordBefore);
   });
 });
 

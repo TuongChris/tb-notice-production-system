@@ -29,7 +29,9 @@
 // only while a present-day condition holds: the idempotency record keeps the response status, the
 // meta and what `keep` selects of the data — never the released content — and every replay calls
 // `release`, which re-evaluates the present state and either rebuilds the historical response data
-// or throws the present refusal, so a replay releases nothing once the condition is gone.
+// or throws the present refusal, so a replay releases nothing once the condition is gone. The
+// request's instant is sampled before the claim and the replay lookup, so it is never handed to
+// `release`: a guard samples its own evaluation instant after the reads it decides on (R14-AUD-020).
 import { setTimeout as delay } from 'node:timers/promises';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { AffectedResource } from '@tb/contracts';
@@ -81,9 +83,11 @@ export interface GuardedReplay {
   keep(data: object): Prisma.InputJsonObject;
   /**
    * The historical response data rebuilt from what was kept, after re-evaluating the present
-   * state at `now`; throws the present refusal instead (nothing is released then).
+   * state; throws the present refusal instead (nothing is released then). It receives no instant:
+   * the request's instant precedes the claim, the replay lookup and the guard's own reads, so the
+   * guard samples its evaluation instant after those reads (R14-AUD-020).
    */
-  release(kept: Prisma.JsonValue | undefined, now: Date): Promise<object>;
+  release(kept: Prisma.JsonValue | undefined): Promise<object>;
 }
 
 /** Who sent the write and the conditional headers they sent (from the authenticated request). */
@@ -194,7 +198,7 @@ export class WriteExecutor {
     );
     if (claim.kind === 'replay') {
       if (options.guardedReplay !== undefined) {
-        return replayGuarded(claim, requester.requestId, options.guardedReplay, now);
+        return replayGuarded(claim, requester.requestId, options.guardedReplay);
       }
       return options.replayRecord === undefined
         ? replay(claim, requester.requestId)
@@ -346,13 +350,12 @@ async function replayGuarded(
   claim: Extract<Claim, { kind: 'replay' }>,
   requestId: string,
   guard: GuardedReplay,
-  now: Date,
 ): Promise<WriteReply> {
   const stored = claim.body as {
     meta?: { affectedResources?: unknown };
     kept?: Prisma.JsonValue;
   } | null;
-  const data = await guard.release(stored?.kept, now);
+  const data = await guard.release(stored?.kept);
   const affectedResources = Array.isArray(stored?.meta?.affectedResources)
     ? (stored.meta.affectedResources as AffectedResource[])
     : [];
