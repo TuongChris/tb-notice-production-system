@@ -1439,6 +1439,123 @@ describe('R14-AUD-017 — the G6 ask dispositions of a reply', () => {
     expect(table?.closest('[role="region"]')?.getAttribute('tabindex')).toBe('0');
   });
 
+  it('every contracted disposition round-trips through the form — sent exactly, shown from the server after a reload — and the readiness the server derives for it is shown as derived: REQUIRES_DOCUMENT, MISSING_FACT and LEGAL_REVIEW_REQUIRED with G6 on hold and their cause, the three others without', async () => {
+    const dispositions = [
+      ['ANSWERED_SUPPORTED', null],
+      ['ANSWERED_WITH_LIMITATION', null],
+      ['REQUIRES_DOCUMENT', 'G6_ASK_REQUIRES_DOCUMENT'],
+      ['MISSING_FACT', 'G6_ASK_MISSING_FACT'],
+      ['LEGAL_REVIEW_REQUIRED', 'G6_ASK_LEGAL_REVIEW_REQUIRED'],
+      ['NOT_APPLICABLE_WITH_REASON', null],
+    ] as const;
+    for (const [disposition, cause] of dispositions) {
+      const { api, w, candidate, parentBindingId } = await setupReply();
+      await openCandidate(api, w.caseA.id, candidate.id);
+      await readEpoch();
+      await fill(
+        complete(w, { gate: 'G6', result: 'PASS', scopeState: 'SCOPE_CONFIRMED_FOR_CANDIDATE' }),
+      );
+      // A resolved ask names where the reply answers it and what was checked; an unresolved one
+      // what remains open. The page infers nothing from either.
+      const entered: { answerLocator?: string; sourceIds: string[]; unresolvedRemainder?: string } =
+        cause === null
+          ? {
+              answerLocator: `SYNTHETIC reply, paragraph 2 (${disposition})`,
+              sourceIds: [w.evidence.id],
+              ...(disposition === 'ANSWERED_WITH_LIMITATION'
+                ? { unresolvedRemainder: 'SYNTHETIC the licence term after 2027 is not addressed' }
+                : {}),
+            }
+          : { sourceIds: [], unresolvedRemainder: `SYNTHETIC still open (${disposition})` };
+      await addAsk({
+        askId: 'Q1',
+        questionText: `SYNTHETIC Question 1 (${disposition})`,
+        disposition,
+        ...(entered.answerLocator === undefined ? {} : { answerLocator: entered.answerLocator }),
+        ...(entered.unresolvedRemainder === undefined
+          ? {}
+          : { unresolvedRemainder: entered.unresolvedRemainder }),
+        sources: entered.sourceIds.map(String),
+      });
+      await record();
+      const expected = {
+        askId: 'Q1',
+        questionText: `SYNTHETIC Question 1 (${disposition})`,
+        parentBindingId,
+        disposition,
+        ...entered,
+      };
+      expect(sentBody<CaptureAssessment>(candidate.id).askDispositions, disposition).toEqual([
+        expected,
+      ]);
+      const review = api.assessments[0] as { id: string };
+      // After a reload, from what the server lists.
+      await unmount();
+      await openCandidate(api, w.caseA.id, candidate.id);
+      await waitFor(() => historyItems().length === 1, `the reloaded history (${disposition})`);
+      expect(shownDispositions(historyItems()[0] as HTMLElement), disposition).toEqual([
+        {
+          askId: 'Q1',
+          questionText: `SYNTHETIC Question 1 (${disposition})`,
+          disposition,
+          answerLocator: entered.answerLocator ?? null,
+          sources: entered.sourceIds,
+          unresolvedRemainder: entered.unresolvedRemainder ?? null,
+          parentBindingId,
+        },
+      ]);
+      // The readiness is the server's: the page shows exactly what it derives for this review.
+      const run = api.validationRuns.find((row) => row.candidateId === candidate.id) as {
+        id: string;
+      };
+      const readiness = ReadinessSchema.parse({
+        candidateId: candidate.id,
+        artifactSha256: candidate['artifactSha256'],
+        dependencyDigest: DIGEST,
+        rulesetVersion: RULESET,
+        status: cause === null ? 'READY_FOR_SIGNER' : 'REVIEW_REQUIRED',
+        technicalResult: 'TECHNICAL_PASS',
+        validationRunId: run.id,
+        gates: ['G1', 'G2', 'G3', 'G4', 'G5', 'G6'].map((gate) => ({
+          gate,
+          status: gate === 'G6' && cause !== null ? 'HOLD' : 'PASS',
+          assessmentId: gate === 'G6' ? review.id : api.id(),
+          reasonCodes: gate === 'G6' && cause !== null ? ['GATE_HOLD', cause] : [],
+        })),
+        reasonCodes: cause === null ? [] : ['G6_HOLD', cause],
+        signatureState: 'HUMAN_PENDING',
+        externalAction: 'PROHIBITED',
+        evaluatedAt: NOW,
+      });
+      api.readinessReplies.set(candidate.id, () => json(200, { data: readiness, meta }));
+      await click(q('[data-testid="readiness-evaluate"]') as HTMLElement);
+      await waitFor(() => q('[data-testid="readiness-result"]') !== null, 'the readiness');
+      const g6 = all('[data-testid="readiness-gate"]').find(
+        (gate) => gate.dataset['gate'] === 'G6',
+      ) as HTMLElement;
+      const g6Codes = [...g6.querySelectorAll('[data-testid="readiness-reason-code"]')].map(
+        (code) => code.textContent,
+      );
+      if (cause === null) {
+        expect(text('[data-testid="readiness-status-label"]'), disposition).toBe(READY_LABEL);
+        expect(g6Codes, disposition).toEqual([]);
+        expect(q('[data-testid="handoff-prepare"]'), disposition).not.toBeNull();
+      } else {
+        expect(text('[data-testid="readiness-status-label"]'), disposition).toBe('Review required');
+        expect(
+          all('[data-testid="readiness-reasons"] [data-testid="readiness-reason-code"]').map(
+            (code) => code.textContent,
+          ),
+          disposition,
+        ).toEqual(['G6_HOLD', cause]);
+        expect(g6Codes, disposition).toEqual(['GATE_HOLD', cause]);
+        expect(text('[data-testid="readiness-gate-assessment"]', g6), disposition).toBe(review.id);
+        expect(q('[data-testid="handoff-prepare"]'), disposition).toBeNull();
+      }
+      await unmount();
+    }
+  });
+
   it('client checks: an ask needs its identifier, question and an explicitly chosen disposition, and each identifier once — nothing is sent until then; a removed ask is not sent', async () => {
     const { api, w, candidate, parentBindingId } = await setupReply();
     await openCandidate(api, w.caseA.id, candidate.id);
