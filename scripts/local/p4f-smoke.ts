@@ -1014,8 +1014,8 @@ async function main(): Promise<void> {
   for (const [label, method, suffix] of [
     ['PATCH /candidates/{id}', 'PATCH', `/candidates/${v2.id}`],
     ['DELETE /candidates/{id}', 'DELETE', `/candidates/${v2.id}`],
-    // Technical validation is routed since P4G (smoke:p4g); P4F records no run.
-    ['POST /candidates/{id}/assessments', 'POST', `/candidates/${v2.id}/assessments`],
+    // Technical validation is routed since P4G (smoke:p4g) and candidate assessments since P4H
+    // (smoke:p4h); P4F records neither.
     ['GET /candidates/{id}/readiness', 'GET', `/candidates/${v2.id}/readiness`],
     ['POST /candidates/{id}/unsigned-exports', 'POST', `/candidates/${v2.id}/unsigned-exports`],
   ] as const) {

@@ -1,33 +1,30 @@
-// TB-SCHEMA-API-v1.3.0 (ADR-0006, R14 remediation): the active contract is the accepted
+// TB-SCHEMA-API-v1.3.0 (ADR-0006, R14 remediation, accepted at R14 final): the accepted
 // TB-SCHEMA-API-v1.2.0 — itself the accepted v1.1.0 plus its amendment, on the frozen
 // TB-SCHEMA-API-v1.0.0 — plus exactly one reviewed additive amendment: the read-back of one stored
-// ValidationRun exactly as recorded. These tests pin the release: its base is the accepted v1.2.0
-// (record and documents), the generated artifacts are byte-identical to "frozen + v1.1.0 + v1.2.0 +
-// v1.3.0", nothing of v1.0.0, v1.1.0 or v1.2.0 is changed, removed or reordered, and the addition is
-// only the {data, meta} envelope of the unchanged v1.0.0 ValidationRun: no new semantic schema and no
-// inferred, current, re-evaluated or readiness information.
+// ValidationRun exactly as recorded. Since P4H the active contract is TB-SCHEMA-API-v1.4.0 (ADR-0009),
+// which extends this release (./release-v1-4-0.test.ts). These tests pin this release as accepted:
+// its record is unchanged, its base is the accepted v1.2.0 (record and documents), "frozen + v1.1.0 +
+// v1.2.0 + v1.3.0" still reproduces its documents to the digests recorded at acceptance, nothing of
+// v1.0.0, v1.1.0 or v1.2.0 is changed, removed or reordered, and its addition — unchanged in the
+// active contract — is only the {data, meta} envelope of the unchanged v1.0.0 ValidationRun: no new
+// semantic schema and no inferred, current, re-evaluated or readiness information.
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { describe, expect, it } from 'vitest';
 import {
-  apiSchemaCatalog,
   buildContractArtifacts,
-  CONTRACT_BASELINE,
-  FROZEN_REFERENCE_RELEASE,
   operations,
   PFC_SCHEMA_VERSION,
   type OperationSpec,
 } from '../../packages/contracts/src/index.js';
 import { repoRoot } from './oracle.js';
 import {
-  ACTIVE_RELEASE,
   amendmentBytes,
   frozenBundleRaw,
   frozenOpenApiRaw,
   operationKeys,
   readAmendment,
-  releaseBaseline,
   releaseDocuments,
   renderDocuments,
   RELEASES,
@@ -40,14 +37,14 @@ const RELEASE = 'TB-SCHEMA-API-v1.3.0';
 
 /**
  * sha256 of docs/contracts/TB-SCHEMA-API-v1.3.0/amendment.json as written for the R14 remediation and
- * proposed for R14 final. A release record is never edited: a later wire change is a new release with
+ * accepted at R14 final. A release record is never edited: a later wire change is a new release with
  * its own amendment and ADR.
  */
 const AMENDMENT_SHA256 = '6b74c09aba024dcf8cb2e0a0c6e374bbce17b45298d2aec83cc2e3ab166a1630';
 
 const amendment = readAmendment(RELEASE);
 const previous = readAmendment('TB-SCHEMA-API-v1.2.0');
-const baseline = releaseBaseline();
+const release = releaseDocuments(RELEASE);
 const v110 = releaseDocuments('TB-SCHEMA-API-v1.1.0');
 const v120 = releaseDocuments('TB-SCHEMA-API-v1.2.0');
 const { jsonSchemaBundle, openApi } = buildContractArtifacts();
@@ -56,7 +53,8 @@ const frozenOpenApi = JSON.parse(frozenOpenApiRaw()) as JsonObject;
 const frozenDefs = frozenBundle['$defs'] as JsonObject;
 const v110Defs = v110.bundle['$defs'] as JsonObject;
 const v120Defs = v120.bundle['$defs'] as JsonObject;
-const generatedDefs = jsonSchemaBundle['$defs'] as JsonObject;
+const releaseDefs = release.bundle['$defs'] as JsonObject;
+const activeDefs = jsonSchemaBundle['$defs'] as JsonObject;
 const addedSchemaNames = Object.keys(amendment.schemas.added);
 const NEW_PATH = '/validation-runs/{id}';
 
@@ -73,7 +71,7 @@ describe('TB-SCHEMA-API-v1.3.0 release record', () => {
 
   it('extends exactly the accepted TB-SCHEMA-API-v1.2.0: its record and its documents, reproduced to their recorded digests', () => {
     const base = amendment.base as ReleaseBase;
-    expect(RELEASES).toEqual(['TB-SCHEMA-API-v1.1.0', 'TB-SCHEMA-API-v1.2.0', RELEASE]);
+    expect(RELEASES.indexOf(RELEASE)).toBe(RELEASES.indexOf('TB-SCHEMA-API-v1.2.0') + 1);
     expect(base.release).toBe('TB-SCHEMA-API-v1.2.0');
     expect(base.path).toBe('docs/contracts/TB-SCHEMA-API-v1.2.0');
     expect(sha256(readFileSync(path.join(repoRoot, base.path, 'amendment.json')))).toBe(
@@ -90,49 +88,31 @@ describe('TB-SCHEMA-API-v1.3.0 release record', () => {
     });
   });
 
-  it('the package names the active release and the frozen release it extends', () => {
-    expect(ACTIVE_RELEASE).toBe(RELEASE);
-    expect(CONTRACT_BASELINE).toBe(amendment.release);
-    expect(FROZEN_REFERENCE_RELEASE).toBe('TB-SCHEMA-API-v1.0.0');
-    expect((openApi['info'] as JsonObject)['version']).toBe(amendment.openApiInfoVersion.to);
-    // Unrelated identifiers stay exactly as they were.
+  it('names its document version; unrelated identifiers stay exactly as they were', () => {
+    expect((release.openApi['info'] as JsonObject)['version']).toBe('1.3.0');
     expect(PFC_SCHEMA_VERSION).toBe('PFC-YT-EMAIL-v1.1');
-    expect(jsonSchemaBundle['$id']).toBe(frozenBundle['$id']);
+    expect(release.bundle['$id']).toBe(frozenBundle['$id']);
     // GET /meta is not routed; its schemaRelease constant is part of the unchanged v1.0.0 schemas
     // (ADR-0004, ADR-0005, ADR-0006: changing it would not be additive).
-    expect(
-      ((generatedDefs['AppMeta'] as JsonObject)['properties'] as JsonObject)['schemaRelease'],
-    ).toEqual({ const: 'TB-SCHEMA-API-v1.0.0' });
+    for (const defs of [releaseDefs, activeDefs]) {
+      expect(
+        ((defs['AppMeta'] as JsonObject)['properties'] as JsonObject)['schemaRelease'],
+      ).toEqual({ const: 'TB-SCHEMA-API-v1.0.0' });
+    }
   });
 });
 
-describe('frozen v1.0.0 + v1.1.0 + v1.2.0 + v1.3.0 reproduces the generated contract byte for byte', () => {
-  it('JSON Schema bundle', () => {
-    expect(
-      JSON.stringify(jsonSchemaBundle, null, 2) === JSON.stringify(baseline.bundle, null, 2),
-    ).toBe(true);
-    expect(isDeepStrictEqual(jsonSchemaBundle, baseline.bundle)).toBe(true);
-  });
-
-  it('OpenAPI document', () => {
-    expect(JSON.stringify(openApi, null, 2) === JSON.stringify(baseline.openApi, null, 2)).toBe(
-      true,
-    );
-    expect(isDeepStrictEqual(openApi, baseline.openApi)).toBe(true);
-  });
-
-  it('the committed artifacts (JSON and YAML) are the rendered release and have its digests', () => {
-    const rendered = renderDocuments(baseline);
+describe('frozen v1.0.0 + v1.1.0 + v1.2.0 + v1.3.0 reproduces the accepted v1.3.0 documents byte for byte', () => {
+  it('JSON Schema bundle, OpenAPI JSON and YAML have the digests recorded at acceptance', () => {
+    const rendered = renderDocuments(release);
     expect(Object.keys(rendered)).toEqual(Object.keys(amendment.result.files));
     for (const [file, digest] of Object.entries(amendment.result.files)) {
-      const committed = readFileSync(path.join(repoRoot, file), 'utf8');
-      expect(committed === rendered[file], `${file} is the rendered release`).toBe(true);
-      expect(sha256(committed), file).toBe(digest);
+      expect(sha256(rendered[file] as string), file).toBe(digest);
     }
-    expect(Object.keys(generatedDefs)).toHaveLength(amendment.result.schemaCount);
+    expect(Object.keys(releaseDefs)).toHaveLength(amendment.result.schemaCount);
     expect(amendment.result.schemaCount).toBe(289);
-    expect(operationKeys(openApi)).toHaveLength(amendment.result.operationCount);
-    expect(operations).toHaveLength(144);
+    expect(operationKeys(release.openApi)).toHaveLength(amendment.result.operationCount);
+    expect(amendment.result.operationCount).toBe(144);
   });
 });
 
@@ -150,16 +130,15 @@ describe('additive only: nothing of v1.0.0, v1.1.0 or v1.2.0 is changed, removed
       [frozenNames, frozenDefs],
     ] as const) {
       for (const name of names) {
-        expect(JSON.stringify(generatedDefs[name]) === JSON.stringify(defs[name]), name).toBe(true);
+        expect(JSON.stringify(releaseDefs[name]) === JSON.stringify(defs[name]), name).toBe(true);
       }
     }
-    const generatedNames = Object.keys(generatedDefs);
-    expect(generatedNames.filter((name) => v120Names.includes(name))).toEqual(v120Names);
-    expect(generatedNames.filter((name) => !v120Names.includes(name))).toEqual(addedSchemaNames);
+    const releaseNames = Object.keys(releaseDefs);
+    expect(releaseNames.filter((name) => v120Names.includes(name))).toEqual(v120Names);
+    expect(releaseNames.filter((name) => !v120Names.includes(name))).toEqual(addedSchemaNames);
     expect(addedSchemaNames).toEqual(['GetValidationRunResponse']);
-    const at = generatedNames.indexOf('ListValidationRunsResponse');
-    expect(generatedNames.slice(at + 1, at + 2)).toEqual(addedSchemaNames);
-    expect(apiSchemaCatalog.map(([name]) => name)).toEqual(generatedNames);
+    const at = releaseNames.indexOf('ListValidationRunsResponse');
+    expect(releaseNames.slice(at + 1, at + 2)).toEqual(addedSchemaNames);
   });
 
   it('all 141 frozen, 142 v1.1.0 and 143 v1.2.0 operations are identical and in their order; the only new one is getValidationRun', () => {
@@ -167,35 +146,34 @@ describe('additive only: nothing of v1.0.0, v1.1.0 or v1.2.0 is changed, removed
     expect(operationKeys(frozenOpenApi)).toHaveLength(141);
     expect(operationKeys(v110.openApi)).toHaveLength(142);
     expect(v120Keys).toHaveLength(143);
-    const generatedKeys = operationKeys(openApi);
-    expect(generatedKeys.filter((key) => v120Keys.includes(key))).toEqual(v120Keys);
-    expect(generatedKeys.filter((key) => !v120Keys.includes(key))).toEqual([`GET ${NEW_PATH}`]);
-    const generatedPaths = openApi['paths'] as JsonObject;
+    const releaseKeys = operationKeys(release.openApi);
+    expect(releaseKeys.filter((key) => v120Keys.includes(key))).toEqual(v120Keys);
+    expect(releaseKeys.filter((key) => !v120Keys.includes(key))).toEqual([`GET ${NEW_PATH}`]);
+    const releasePaths = release.openApi['paths'] as JsonObject;
     for (const document of [v120.openApi, v110.openApi, frozenOpenApi]) {
       for (const [route, item] of Object.entries(document['paths'] as JsonObject)) {
-        expect(isDeepStrictEqual(generatedPaths[route], item), route).toBe(true);
+        expect(isDeepStrictEqual(releasePaths[route], item), route).toBe(true);
       }
     }
     const ids = operations.map((operation) => operation.operationId);
-    expect(new Set(ids).size).toBe(144);
     expect(ids.indexOf('getValidationRun')).toBe(ids.indexOf('listValidationRuns') + 1);
     expect(ids.indexOf('listValidationIssues')).toBe(ids.indexOf('getValidationRun') + 1);
-    expect(generatedKeys.indexOf(`GET ${NEW_PATH}`)).toBe(
-      generatedKeys.indexOf('GET /candidates/{candidateId}/validation-runs') + 1,
+    expect(releaseKeys.indexOf(`GET ${NEW_PATH}`)).toBe(
+      releaseKeys.indexOf('GET /candidates/{candidateId}/validation-runs') + 1,
     );
   });
 
   it('document-level metadata: only info.version names the new release', () => {
     for (const key of Object.keys(v120.openApi)) {
       if (key === 'paths' || key === 'components' || key === 'info') continue;
-      expect(isDeepStrictEqual(openApi[key], v120.openApi[key]), key).toBe(true);
+      expect(isDeepStrictEqual(release.openApi[key], v120.openApi[key]), key).toBe(true);
     }
-    expect(Object.keys(openApi)).toEqual(Object.keys(frozenOpenApi));
-    expect(openApi['info']).toEqual({
+    expect(Object.keys(release.openApi)).toEqual(Object.keys(frozenOpenApi));
+    expect(release.openApi['info']).toEqual({
       ...(frozenOpenApi['info'] as JsonObject),
       version: '1.3.0',
     });
-    const components = openApi['components'] as JsonObject;
+    const components = release.openApi['components'] as JsonObject;
     const v120Components = v120.openApi['components'] as JsonObject;
     expect(Object.keys(components)).toEqual(Object.keys(v120Components));
     for (const key of ['securitySchemes', 'parameters', 'responses']) {
@@ -219,31 +197,45 @@ describe('additive only: nothing of v1.0.0, v1.1.0 or v1.2.0 is changed, removed
       'ListValidationIssuesResponse',
       'ResponseMeta',
     ]) {
-      expect(isDeepStrictEqual(generatedDefs[name], frozenDefs[name]), name).toBe(true);
+      expect(isDeepStrictEqual(releaseDefs[name], frozenDefs[name]), name).toBe(true);
+      expect(isDeepStrictEqual(activeDefs[name], frozenDefs[name]), name).toBe(true);
     }
     // POST/GET /candidates/{candidateId}/validation-runs and GET /validation-runs/{id}/issues are
     // exactly the frozen operations: the run a write returns and the lists keep their shapes.
-    for (const route of [
-      '/candidates/{candidateId}/validation-runs',
-      '/validation-runs/{id}/issues',
-    ]) {
-      expect(
-        isDeepStrictEqual(
-          (openApi['paths'] as JsonObject)[route],
-          (frozenOpenApi['paths'] as JsonObject)[route],
-        ),
-        route,
-      ).toBe(true);
+    for (const document of [release.openApi, openApi]) {
+      for (const route of [
+        '/candidates/{candidateId}/validation-runs',
+        '/validation-runs/{id}/issues',
+      ]) {
+        expect(
+          isDeepStrictEqual(
+            (document['paths'] as JsonObject)[route],
+            (frozenOpenApi['paths'] as JsonObject)[route],
+          ),
+          route,
+        ).toBe(true);
+      }
     }
   });
 });
 
-describe('the added read: one stored run by id, read-only, exactly the recorded ValidationRun', () => {
+describe('the added read: one stored run by id, read-only, exactly the recorded ValidationRun — unchanged in the active contract', () => {
   const spec: OperationSpec | undefined = operations.find(
     (operation) => operation.operationId === 'getValidationRun',
   );
   const pathItem = (openApi['paths'] as JsonObject)[NEW_PATH] as JsonObject | undefined;
   const generatedOperation = (pathItem?.['get'] ?? {}) as JsonObject;
+
+  it('the active contract carries the v1.3.0 operation and schema exactly as released', () => {
+    expect(isDeepStrictEqual(pathItem, (release.openApi['paths'] as JsonObject)[NEW_PATH])).toBe(
+      true,
+    );
+    expect(isDeepStrictEqual(pathItem, amendment.operations.added[NEW_PATH])).toBe(true);
+    for (const name of addedSchemaNames) {
+      expect(isDeepStrictEqual(activeDefs[name], releaseDefs[name]), name).toBe(true);
+      expect(isDeepStrictEqual(activeDefs[name], amendment.schemas.added[name]), name).toBe(true);
+    }
+  });
 
   it('GET by the run id, session only, no body, no If-Match, no Idempotency-Key, not a list', () => {
     expect(Object.keys(pathItem ?? {}), NEW_PATH).toEqual(['get']);
@@ -283,7 +275,7 @@ describe('the added read: one stored run by id, read-only, exactly the recorded 
   });
 
   it('the response is exactly the unchanged v1.0.0 ValidationRun in the {data, meta} envelope — the shape a validation write returns', () => {
-    expect(generatedDefs['GetValidationRunResponse']).toEqual({
+    expect(activeDefs['GetValidationRunResponse']).toEqual({
       type: 'object',
       properties: {
         data: { $ref: '#/$defs/ValidationRun' },
@@ -293,14 +285,12 @@ describe('the added read: one stored run by id, read-only, exactly the recorded 
       additionalProperties: false,
     });
     // The same body as the 201 of validateCandidate: what was recorded is what is read back.
-    expect(generatedDefs['GetValidationRunResponse']).toEqual(
-      generatedDefs['ValidateCandidateResponse'],
-    );
+    expect(activeDefs['GetValidationRunResponse']).toEqual(activeDefs['ValidateCandidateResponse']);
     // The run it returns is the frozen v1.0.0 schema, unchanged: every stored field, including the
     // evaluated context, the dependency manifest and the coverage manifest with
     // semanticReviewRequired always true.
-    expect(generatedDefs['ValidationRun']).toEqual(frozenDefs['ValidationRun']);
-    const run = generatedDefs['ValidationRun'] as JsonObject;
+    expect(activeDefs['ValidationRun']).toEqual(frozenDefs['ValidationRun']);
+    const run = activeDefs['ValidationRun'] as JsonObject;
     expect(run['required']).toEqual([
       'id',
       'candidateId',
@@ -321,7 +311,7 @@ describe('the added read: one stored run by id, read-only, exactly the recorded 
       'createdById',
     ]);
     expect(
-      ((generatedDefs['CoverageManifest'] as JsonObject)['properties'] as JsonObject)[
+      ((activeDefs['CoverageManifest'] as JsonObject)['properties'] as JsonObject)[
         'semanticReviewRequired'
       ],
     ).toEqual({ const: true });
@@ -342,7 +332,7 @@ describe('the added read: one stored run by id, read-only, exactly the recorded 
         }
       }
     };
-    for (const name of addedSchemaNames) walk(generatedDefs[name]);
+    for (const name of addedSchemaNames) walk(activeDefs[name]);
     expect(keys.sort()).toEqual(['data', 'meta']);
     expect(keys.filter((key) => forbidden.test(key))).toEqual([]);
     // Only existing schemas are referenced: the run itself and the response meta. The issues stay

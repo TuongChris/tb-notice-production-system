@@ -208,6 +208,45 @@ describe('ui:sandbox cleanup ownership — disarmed until the empty-start check 
     expect(events.at(-1)).toBe('exit 1');
   });
 
+  it('the teardown covers every table of the committed migration once (the P4H assessment tables included), in an order its foreign keys allow: a referencing table is emptied first, or its pointer is cleared first', () => {
+    const migration = readFileSync(
+      path.join(repoRoot, 'apps/api/prisma/migrations/20260923103912_initial_schema/migration.sql'),
+      'utf8',
+    );
+    const tables = [...migration.matchAll(/CREATE TABLE `(\w+)`/g)].map((match) => match[1]);
+    expect([...SANDBOX_TABLES].sort()).toEqual([...tables].sort());
+    expect(new Set(SANDBOX_TABLES).size).toBe(SANDBOX_TABLES.length);
+    expect(SANDBOX_TABLES).toEqual(
+      expect.arrayContaining(['candidate_assessments', 'assessment_sources']),
+    );
+    const cleared = SANDBOX_POINTERS.map((statement) => ({
+      table: /^UPDATE `(\w+)`/.exec(statement)?.[1],
+      columns: [...statement.matchAll(/`(\w+)` = NULL/g)].map((match) => match[1]),
+    }));
+    const foreignKeys = [
+      ...migration.matchAll(
+        /ALTER TABLE `(\w+)` ADD CONSTRAINT `(\w+)` FOREIGN KEY \(([^)]*)\) REFERENCES `(\w+)`/g,
+      ),
+    ].map((match) => ({
+      from: match[1] as string,
+      name: match[2] as string,
+      columns: [...(match[3] ?? '').matchAll(/`(\w+)`/g)].map((column) => column[1]),
+      to: match[4] as string,
+    }));
+    expect(foreignKeys.length).toBeGreaterThan(100);
+    const order = SANDBOX_TABLES as readonly string[];
+    const blocked = foreignKeys.filter(
+      (key) =>
+        order.indexOf(key.from) >= order.indexOf(key.to) &&
+        !cleared.some(
+          (pointer) =>
+            pointer.table === key.from &&
+            key.columns.every((column) => pointer.columns.includes(column)),
+        ),
+    );
+    expect(blocked.map((key) => key.name)).toEqual([]);
+  });
+
   it('the script cleans up only through the lifecycle: signals, the empty-start check and every failure go through it', () => {
     const script = readFileSync(path.join(repoRoot, 'scripts/local/ui-sandbox.ts'), 'utf8');
     const code = script.replace(/^\s*\/\/.*$/gm, '');

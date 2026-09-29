@@ -566,8 +566,9 @@ async function main(): Promise<void> {
   }
   pass('refusals wrote nothing: the case moved only with the five recorded bindings');
 
-  // Nothing sends, edits, deletes or computes readiness (the production context is a GET-only read
-  // since P4D, with its own smoke:p4d) -------------------------------------------------------------
+  // Nothing sends, edits, deletes, exports or computes readiness (the production context is a
+  // GET-only read since P4D, with its own smoke:p4d; candidate assessments are routed since P4H,
+  // smoke:p4h) -------------------------------------------------------------------------------------
   for (const [label, method, suffix] of [
     ['POST /correspondence/{id}/send', 'POST', `/correspondence/${outbound.data.id}/send`],
     ['POST /correspondence/{id}/reply', 'POST', `/correspondence/${nmi.data.id}/reply`],
@@ -575,7 +576,11 @@ async function main(): Promise<void> {
     ['DELETE /correspondence/{id}', 'DELETE', `/correspondence/${nmi.data.id}`],
     ['GET /cases/{caseId}/readiness', 'GET', `/cases/${caseId}/readiness`],
     ['POST /cases/{caseId}/production-context', 'POST', `/cases/${caseId}/production-context`],
-    ['POST /candidates/{id}/assessments', 'POST', `/candidates/${randomUUID()}/assessments`],
+    [
+      'POST /candidates/{id}/unsigned-exports',
+      'POST',
+      `/candidates/${randomUUID()}/unsigned-exports`,
+    ],
   ] as const) {
     const refused = await call(
       `${label} (not routed)`,

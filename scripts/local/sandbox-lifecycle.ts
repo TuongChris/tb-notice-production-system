@@ -20,15 +20,18 @@ export interface SandboxDatabase {
  * versions, coverage, coverage signers and authority events, P4A cases, case sources and authority
  * selections with their pinned coverage, P4B reported items, works, use mappings, case facts and
  * their supports, P4C captured correspondence and its case bindings, P4E prompt snapshots, P4F
- * notice candidates, P4G validation runs and their issues), in foreign-key deletion order. Source
+ * notice candidates, P4G validation runs and their issues, P4H candidate assessments and their
+ * support rows) — every table of the committed migration — in foreign-key deletion order. Source
  * references and the records that point at them reference each other (canonical bindings,
  * revision chains, citations), routes ⇄ coverage, cases ⇄ selections and the version / coverage /
- * event / fact / binding / candidate chains point at their own tables, so those pointers are
- * cleared first (SANDBOX_POINTERS).
+ * event / fact / binding / candidate / assessment chains point at their own tables, so those
+ * pointers are cleared first (SANDBOX_POINTERS).
  */
 export const SANDBOX_TABLES = [
   'idempotency_records',
   'audit_events',
+  'assessment_sources',
+  'candidate_assessments',
   'validation_issues',
   'validation_runs',
   'notice_candidates',
@@ -62,8 +65,8 @@ export const SANDBOX_TABLES = [
 
 /**
  * Pointers cleared before deleting rows (canonical bindings, citations, revision chains, preferred
- * coverage, version / coverage lineage, event, fact and binding supersession, candidate lineage and
- * a case's selection pointer).
+ * coverage, version / coverage lineage, event, fact, binding and assessment supersession, candidate
+ * lineage and a case's selection pointer).
  */
 export const SANDBOX_POINTERS = [
   'UPDATE `cases` SET `current_authority_selection_id` = NULL, `packet_source_id` = NULL, `canonical_binding_source_id` = NULL',
@@ -81,6 +84,7 @@ export const SANDBOX_POINTERS = [
   'UPDATE `case_facts` SET `supersedes_fact_id` = NULL',
   'UPDATE `correspondence_bindings` SET `supersedes_binding_id` = NULL',
   'UPDATE `notice_candidates` SET `parent_candidate_id` = NULL',
+  'UPDATE `candidate_assessments` SET `supersedes_assessment_id` = NULL',
 ] as const;
 
 const messageOf = (error: unknown) => (error instanceof Error ? error.message : String(error));

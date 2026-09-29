@@ -648,7 +648,7 @@ async function main(): Promise<void> {
   ) =>
     frozen.canonicalSha256({
       algorithm,
-      contract: 'TB-SCHEMA-API-v1.3.0',
+      contract: 'TB-SCHEMA-API-v1.4.0',
       schemaVersion: 'PFC-YT-EMAIL-v1.1',
       scope,
       dependencies: view.dependencies.map(({ entityType, entityId, fingerprint }) => ({
@@ -830,8 +830,7 @@ async function main(): Promise<void> {
 
   for (const [label, method, suffix] of [
     ['POST /cases/{caseId}/production-context', 'POST', `/cases/${caseId}/production-context`],
-    ['POST /candidates/{id}/assessments', 'POST', `/candidates/${randomUUID()}/assessments`],
-    ['POST /candidates/{id}/assessments', 'POST', `/candidates/${randomUUID()}/assessments`],
+    // Candidate assessments are routed since P4H (smoke:p4h).
     ['GET /candidates/{id}/readiness', 'GET', `/candidates/${randomUUID()}/readiness`],
     [
       'POST /candidates/{id}/unsigned-exports',

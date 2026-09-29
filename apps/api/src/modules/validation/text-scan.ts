@@ -1,4 +1,4 @@
-// Exact, bounded text scanning for the technical ruleset (TB-TECHNICAL-RULESET-v2): positions of an
+// Exact, bounded text scanning for the technical ruleset (TB-TECHNICAL-RULESET-v3): positions of an
 // exact token and of a fixed pattern in one stored text, reported by line (1-based; lines end at a
 // line feed, so a carriage return stays at the end of its line) and column (1-based, in code
 // points), with the matched text cut to a short excerpt. Nothing is normalized or folded: a match is

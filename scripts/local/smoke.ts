@@ -14,11 +14,12 @@
 //     a valid contract OperationError with Cache-Control: no-store.
 //  6. Business boundary of the compiled API, read-only: every directory (P2), source and route
 //     (P3A), representation-authority (P3B), case (P4A), case intake (P4B) and correspondence (P4C)
-//     collection, the read-backs of TB-SCHEMA-API-v1.1.0, v1.2.0 and v1.3.0, the production-context
-//     read (P4D), the prompt operations (P4E), the candidate operations (P4F) and the technical
-//     validation operations (P4G) are routed and session-protected (no cookie → 401, also through
-//     the web proxy), unsafe writes without Origin → 403 before any handler, canonical bindings and
-//     freezes are session-protected, and later case phases (assessments onward) are not routed (404).
+//     collection, the read-backs of TB-SCHEMA-API-v1.1.0, v1.2.0, v1.3.0 and v1.4.0, the
+//     production-context read (P4D), the prompt operations (P4E), the candidate operations (P4F),
+//     the technical validation operations (P4G) and the candidate assessment operations (P4H) are
+//     routed and session-protected (no cookie → 401, also through the web proxy), unsafe writes
+//     without Origin → 403 before any handler, canonical bindings and freezes are session-protected,
+//     and later case phases (readiness and unsigned export onward) are not routed (404).
 //  7. Terminate both processes (SIGTERM, bounded wait, SIGKILL fallback) and verify ports 3000 and
 //     5173 are released. Any failure exits non-zero.
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
@@ -604,10 +605,47 @@ async function checkBusinessBoundary(): Promise<void> {
       401,
       'SESSION_REQUIRED',
     ],
-    // Assessments and every later case record are later phases: not routed.
+    // P4H: assessment capture, the assessment list and the support read-back of
+    // TB-SCHEMA-API-v1.4.0 (ADR-0009) are behind the same guard (session, Origin).
     [
-      'POST /candidates/{id}/assessments (later phase, not routed)',
+      'POST /candidates/{id}/assessments without a session',
       `${api}/candidates/${id}/assessments`,
+      { method: 'POST', headers: { ...json, Origin: origin }, body: '{}' },
+      401,
+      'SESSION_REQUIRED',
+    ],
+    [
+      'POST /candidates/{id}/assessments without Origin',
+      `${api}/candidates/${id}/assessments`,
+      { method: 'POST', headers: json, body: '{}' },
+      403,
+      'ORIGIN_REJECTED',
+    ],
+    [
+      'GET /candidates/{id}/assessments through the web proxy without a session',
+      `http://localhost:${WEB_PORT}/api/v1/candidates/${id}/assessments`,
+      {},
+      401,
+      'SESSION_REQUIRED',
+    ],
+    [
+      'GET /candidates/{id}/assessments/{id}/sources without a session',
+      `${api}/candidates/${id}/assessments/${id}/sources`,
+      {},
+      401,
+      'SESSION_REQUIRED',
+    ],
+    // Readiness, the unsigned export and every later case record are later phases: not routed.
+    [
+      'GET /candidates/{id}/readiness (later phase, not routed)',
+      `${api}/candidates/${id}/readiness`,
+      {},
+      404,
+      'NOT_FOUND',
+    ],
+    [
+      'POST /candidates/{id}/unsigned-exports (later phase, not routed)',
+      `${api}/candidates/${id}/unsigned-exports`,
       { method: 'POST', headers: { ...json, Origin: origin }, body: '{}' },
       404,
       'NOT_FOUND',

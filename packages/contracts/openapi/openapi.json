@@ -2,7 +2,7 @@
   "openapi": "3.1.1",
   "info": {
     "title": "TB Notice Production System — API Contract v1",
-    "version": "1.3.0",
+    "version": "1.4.0",
     "description": "LOCAL-FIRST contract, not a deployed API. Terminal product: unsigned candidate. Technical validation does not certify rights/G1-G6. No send, signature, G7 or raw evidence export route."
   },
   "servers": [
@@ -13965,6 +13965,99 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ListCandidateAssessmentsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "x-precondition-target": null,
+        "x-idempotent-write": false
+      }
+    },
+    "/candidates/{candidateId}/assessments/{id}/sources": {
+      "get": {
+        "operationId": "getCandidateAssessmentSources",
+        "tags": [
+          "Assessment"
+        ],
+        "summary": "Read the exact AssessmentSource rows recorded for one assessment of this candidate; a stored historical record, not proof, a review or a gate result.",
+        "parameters": [
+          {
+            "name": "candidateId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 36,
+              "minLength": 36,
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 36,
+              "minLength": 36,
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; source-based truth and human gates remain separate.",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Strong entity row-version ETag when the resource is mutable."
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "no-store"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetCandidateAssessmentSourcesResponse"
                 }
               }
             }
@@ -33683,6 +33776,47 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/CandidateAssessmentPage"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "CandidateAssessmentSourcesView": {
+        "type": "object",
+        "properties": {
+          "assessmentId": {
+            "type": "string",
+            "maxLength": 36,
+            "minLength": 36,
+            "format": "uuid"
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AssessmentSource"
+            },
+            "minItems": 1,
+            "maxItems": 100
+          }
+        },
+        "required": [
+          "assessmentId",
+          "sources"
+        ],
+        "additionalProperties": false,
+        "description": "The exact stored AssessmentSource rows recorded for one CandidateAssessment (assessmentId) of this candidate, in ascending createdAt, then id order; every captured assessment has at least one. A historical record only: never proof or truth of a supported conclusion, a document review by itself, an ownership, authority, permission, infringement or exception finding, currentness, G1–G7 or readiness."
+      },
+      "GetCandidateAssessmentSourcesResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CandidateAssessmentSourcesView"
           },
           "meta": {
             "$ref": "#/components/schemas/ResponseMeta"

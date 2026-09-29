@@ -181,12 +181,12 @@ const DEPENDENCIES: Dependency[] = [
 describe('dependencyDigest — the closure and the scope, never a row version or a clock', () => {
   it('is the SHA-256 of the TB canonical JSON of the algorithm, contract, PFC version, scope (priors as a sorted set) and the dependencies without row versions', () => {
     expect(DEPENDENCY_DIGEST_ALGORITHM).toBe('TB-PRODUCTION-CONTEXT-DIGEST-v2');
-    expect(CONTRACT_BASELINE).toBe('TB-SCHEMA-API-v1.3.0');
+    expect(CONTRACT_BASELINE).toBe('TB-SCHEMA-API-v1.4.0');
     expect(PFC_SCHEMA_VERSION).toBe('PFC-YT-EMAIL-v1.1');
     expect(dependencyDigest(scope(), DEPENDENCIES)).toBe(
       tbCanonicalSha256({
         algorithm: 'TB-PRODUCTION-CONTEXT-DIGEST-v2',
-        contract: 'TB-SCHEMA-API-v1.3.0',
+        contract: 'TB-SCHEMA-API-v1.4.0',
         schemaVersion: 'PFC-YT-EMAIL-v1.1',
         scope: {
           caseId: CASE,
@@ -238,11 +238,16 @@ describe('dependencyDigest — the closure and the scope, never a row version or
 });
 
 describe('TB-PRODUCTION-CONTEXT-DIGEST-v2 — the digest definition names the context semantics (R14-AUD-013, ADR-0007)', () => {
-  const IDENTIFIERS = { contract: 'TB-SCHEMA-API-v1.3.0', schemaVersion: 'PFC-YT-EMAIL-v1.1' };
+  const IDENTIFIERS = { contract: 'TB-SCHEMA-API-v1.4.0', schemaVersion: 'PFC-YT-EMAIL-v1.1' };
+  /** The identifiers of the accepted TB-SCHEMA-API-v1.3.0 (R14 final), active until P4H. */
+  const IDENTIFIERS_V130 = { contract: 'TB-SCHEMA-API-v1.3.0', schemaVersion: 'PFC-YT-EMAIL-v1.1' };
   /** The v2 preimage of scope() and DEPENDENCIES, written out as its TB canonical JSON v1 text. */
-  const V2_PREIMAGE = `{"algorithm":"TB-PRODUCTION-CONTEXT-DIGEST-v2","contract":"TB-SCHEMA-API-v1.3.0","dependencies":[{"entityId":"${CASE}","entityType":"CaseRecord","fingerprint":"${'a'.repeat(64)}"},{"entityId":"${SELECTION}","entityType":"CaseAuthoritySelection","fingerprint":"${'b'.repeat(64)}"}],"schemaVersion":"PFC-YT-EMAIL-v1.1","scope":{"authoritySelectionId":"${SELECTION}","caseId":"${CASE}","generationMode":"PREPARATION","parentBindingId":"${PARENT}","priorBindingIds":["${PRIOR_A}","${PRIOR_B}"],"taskType":"NMI_REPLY"}}`;
-  const V2_GOLDEN = '68c080db4609de5c744a0810c499d3b828c6726f2503c801df7e525900dd5ffc';
-  /** What the accepted TB-PRODUCTION-CONTEXT-DIGEST-v1 implementation computed for the same inputs (e0a521a). */
+  const V2_PREIMAGE = `{"algorithm":"TB-PRODUCTION-CONTEXT-DIGEST-v2","contract":"TB-SCHEMA-API-v1.4.0","dependencies":[{"entityId":"${CASE}","entityType":"CaseRecord","fingerprint":"${'a'.repeat(64)}"},{"entityId":"${SELECTION}","entityType":"CaseAuthoritySelection","fingerprint":"${'b'.repeat(64)}"}],"schemaVersion":"PFC-YT-EMAIL-v1.1","scope":{"authoritySelectionId":"${SELECTION}","caseId":"${CASE}","generationMode":"PREPARATION","parentBindingId":"${PARENT}","priorBindingIds":["${PRIOR_A}","${PRIOR_B}"],"taskType":"NMI_REPLY"}}`;
+  const V2_GOLDEN = 'a1f5d3f5bbe998628fe34022af840cc28cf3f196856cf510f3edc5121b82786a';
+  /** The same preimage under TB-SCHEMA-API-v1.3.0: what the application computed until P4H (20367b9). */
+  const V2_PREIMAGE_V130 = `{"algorithm":"TB-PRODUCTION-CONTEXT-DIGEST-v2","contract":"TB-SCHEMA-API-v1.3.0","dependencies":[{"entityId":"${CASE}","entityType":"CaseRecord","fingerprint":"${'a'.repeat(64)}"},{"entityId":"${SELECTION}","entityType":"CaseAuthoritySelection","fingerprint":"${'b'.repeat(64)}"}],"schemaVersion":"PFC-YT-EMAIL-v1.1","scope":{"authoritySelectionId":"${SELECTION}","caseId":"${CASE}","generationMode":"PREPARATION","parentBindingId":"${PARENT}","priorBindingIds":["${PRIOR_A}","${PRIOR_B}"],"taskType":"NMI_REPLY"}}`;
+  const V2_GOLDEN_V130 = '68c080db4609de5c744a0810c499d3b828c6726f2503c801df7e525900dd5ffc';
+  /** What the accepted TB-PRODUCTION-CONTEXT-DIGEST-v1 implementation computed for the same inputs (e0a521a, TB-SCHEMA-API-v1.3.0). */
   const V1_GOLDEN = 'df75eed4984e595e8b16c1a3e200beb596362086117aad0f7022fdd1609fbc9e';
   const sha256 = (text: string) => createHash('sha256').update(text, 'utf8').digest('hex');
 
@@ -262,17 +267,39 @@ describe('TB-PRODUCTION-CONTEXT-DIGEST-v2 — the digest definition names the co
     ).toBe(V2_GOLDEN);
   });
 
+  it('activating TB-SCHEMA-API-v1.4.0 changes every current digest once and keeps the definition: the same closure and scope under v1.3.0 give the pinned pre-activation digest, which the application no longer computes (a preview read before the activation is refused with 412)', () => {
+    expect(DEPENDENCY_DIGEST_ALGORITHM).toBe('TB-PRODUCTION-CONTEXT-DIGEST-v2');
+    expect(V2_PREIMAGE).toBe(
+      V2_PREIMAGE_V130.replace(
+        '"contract":"TB-SCHEMA-API-v1.3.0"',
+        '"contract":"TB-SCHEMA-API-v1.4.0"',
+      ),
+    );
+    expect(sha256(V2_PREIMAGE_V130)).toBe(V2_GOLDEN_V130);
+    expect(digestPreimageText(CURRENT_DIGEST_V2, IDENTIFIERS_V130, scope(), DEPENDENCIES)).toBe(
+      V2_PREIMAGE_V130,
+    );
+    expect(currentV2Digest(IDENTIFIERS_V130, scope(), DEPENDENCIES)).toBe(V2_GOLDEN_V130);
+    expect(V2_GOLDEN).not.toBe(V2_GOLDEN_V130);
+    expect(dependencyDigest(scope(), DEPENDENCIES)).not.toBe(V2_GOLDEN_V130);
+  });
+
   it('the legacy v1 oracle reproduces the accepted v1 digest exactly; the two definitions differ only in the identifier, so the same closure, scope, contract and PFC identifiers give two different digests', () => {
-    const v1Preimage = digestPreimageText(LEGACY_DIGEST_V1, IDENTIFIERS, scope(), DEPENDENCIES);
+    const v1Preimage = digestPreimageText(
+      LEGACY_DIGEST_V1,
+      IDENTIFIERS_V130,
+      scope(),
+      DEPENDENCIES,
+    );
     expect(v1Preimage).toBe(
-      V2_PREIMAGE.replace(
+      V2_PREIMAGE_V130.replace(
         '"algorithm":"TB-PRODUCTION-CONTEXT-DIGEST-v2"',
         '"algorithm":"TB-PRODUCTION-CONTEXT-DIGEST-v1"',
       ),
     );
     expect(sha256(v1Preimage)).toBe(V1_GOLDEN);
-    expect(legacyV1Digest(IDENTIFIERS, scope(), DEPENDENCIES)).toBe(V1_GOLDEN);
-    expect(V1_GOLDEN).not.toBe(V2_GOLDEN);
+    expect(legacyV1Digest(IDENTIFIERS_V130, scope(), DEPENDENCIES)).toBe(V1_GOLDEN);
+    expect(V1_GOLDEN).not.toBe(V2_GOLDEN_V130);
     expect(dependencyDigest(scope(), DEPENDENCIES)).not.toBe(V1_GOLDEN);
   });
 
@@ -300,10 +327,12 @@ describe('TB-PRODUCTION-CONTEXT-DIGEST-v2 — the digest definition names the co
         calls.push(...(text.match(/\bdependencyDigest\(/g) ?? []).map(() => file));
       }
     }
-    // The current definition once; the v1 string only as TB-TECHNICAL-RULESET-v2's pinned vocabulary.
+    // The current definition once; otherwise the v1 and v2 strings only as detected text in
+    // TB-TECHNICAL-RULESET-v3's pinned vocabulary (ADR-0010) — never a definition or a computation.
     expect(named.sort()).toEqual([
       'apps/api/src/modules/production/context-dependencies.ts: TB-PRODUCTION-CONTEXT-DIGEST-v2',
       'apps/api/src/modules/validation/technical-ruleset.ts: TB-PRODUCTION-CONTEXT-DIGEST-v1',
+      'apps/api/src/modules/validation/technical-ruleset.ts: TB-PRODUCTION-CONTEXT-DIGEST-v2',
     ]);
     expect(definitions).toEqual(['apps/api/src/modules/production/context-dependencies.ts']);
     expect(calls.sort()).toEqual([

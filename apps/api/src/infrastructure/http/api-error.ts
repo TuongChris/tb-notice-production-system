@@ -209,7 +209,7 @@ export const apiErrors = {
     ),
   revisionScopeChange: (
     fields: readonly string[],
-    subject: 'source' | 'fact' | 'binding' | 'candidate' = 'source',
+    subject: 'source' | 'fact' | 'binding' | 'candidate' | 'assessment' = 'source',
   ) =>
     new ApiError(
       422,
@@ -222,6 +222,8 @@ export const apiErrors = {
           'A correction keeps the captured message of the binding it corrects; another message needs its own binding.',
         candidate:
           "A revision keeps the candidate's case and task: its prompt snapshot must be of the same case and task. A draft for another task needs its own candidate.",
+        assessment:
+          'A successor keeps the candidate and the gate of the assessment it supersedes; a review of another candidate or gate is its own assessment.',
       }[subject],
       { fields },
     ),
@@ -544,5 +546,71 @@ export const apiErrors = {
       'CONTEXT_CHANGED',
       'The recorded context changed after it was read. Read the current context before validating again; no validation run was recorded.',
       { field },
+    ),
+
+  // Candidate assessments (P4H; ADR-0008, ADR-0009): the frozen stable codes ARTIFACT_CHANGED and
+  // CONTEXT_CHANGED (412); REFERENCE_NOT_FOUND, CROSS_CASE_REFERENCE, RECORD_STATE_CONFLICT,
+  // REVIEW_UNSUPPORTED and REVISION_SCOPE_CHANGE above are reused. RULESET_NOT_CURRENT,
+  // VALIDATION_RUN_REQUIRED, ASK_PARENT_MISMATCH (422) and ASSESSMENT_ALREADY_SUPERSEDED (409) are
+  // operation-specific codes in the free-string `code` field with the contracted statuses (R6
+  // interpretation 10).
+  /** An assessment is recorded only for exactly the artifact the reviewer expects. */
+  assessmentArtifactChanged: () =>
+    new ApiError(
+      412,
+      'ARTIFACT_CHANGED',
+      'The expected artifact SHA-256 is not the stored artifact of this candidate. A candidate never changes: read it again, or record the review on the candidate whose artifact was reviewed. No assessment was recorded.',
+      { field: 'expectedArtifactSha256' },
+    ),
+  /** An assessment is recorded only against exactly the current context of the candidate's scope. */
+  assessmentContextChanged: () =>
+    new ApiError(
+      412,
+      'CONTEXT_CHANGED',
+      'The recorded context changed after it was read. Read the current context before recording an assessment again; no assessment was recorded.',
+      { field: 'expectedDependencyDigest' },
+    ),
+  /** The epoch's ruleset is the one the server runs now; a caller never chooses another one. */
+  rulesetNotCurrent: (currentRulesetVersion: string) =>
+    new ApiError(
+      422,
+      'RULESET_NOT_CURRENT',
+      'An assessment binds the technical ruleset the server runs now. Another ruleset identifier is never recorded for a new assessment.',
+      { field: 'rulesetVersion', currentRulesetVersion },
+    ),
+  /** No completed technical run of exactly this candidate, artifact, digest and ruleset exists. */
+  validationRunRequired: (epoch: {
+    readonly artifactSha256: string;
+    readonly dependencyDigest: string;
+    readonly rulesetVersion: string;
+  }) =>
+    new ApiError(
+      422,
+      'VALIDATION_RUN_REQUIRED',
+      'An assessment is recorded against an evaluation epoch that has a recorded technical validation run: run the technical validation of this candidate against the current context first. The run need not pass; no assessment was recorded.',
+      { epoch },
+    ),
+  /** D-4 (ADR-0008): DOCUMENT_REVIEWED needs an actual human document review. */
+  aiDocumentReviewUnsupported: () =>
+    new ApiError(
+      422,
+      'REVIEW_UNSUPPORTED',
+      'DOCUMENT_REVIEWED requires an actual human document review. An AI-assisted performer cannot record it, and it is never inferred from a source, link, file name, URL or metadata.',
+      { field: 'provenance', reason: 'AI_ASSISTED_PERFORMER' },
+    ),
+  /** An ask disposition answers an ask of the exact parent message the candidate's prompt named. */
+  askParentMismatch: (field: string, promptParentBindingId: string | null) =>
+    new ApiError(
+      422,
+      'ASK_PARENT_MISMATCH',
+      "An ask disposition answers an ask of the parent message the candidate's prompt snapshot named (none for an initial notice). Another message's asks are not this candidate's.",
+      { field, promptParentBindingId },
+    ),
+  assessmentAlreadySuperseded: (successorId: string | null) =>
+    new ApiError(
+      409,
+      'ASSESSMENT_ALREADY_SUPERSEDED',
+      'The referenced assessment already has a successor; an assessment history does not fork. Supersede the latest assessment of its chain instead.',
+      successorId === null ? {} : { successorId },
     ),
 } as const;

@@ -22,8 +22,8 @@ import {
 
 /** Tables the directory suite writes (every one must be empty before and after it). */
 export const DIRECTORY_SUITE_TABLES = [
-  // Later-phase assessments: nothing writes them, so every suite proves them empty, and a
-  // negative control that writes one cannot leave rows behind (they name candidates).
+  // P4H candidate assessments and their supports (an assessment names its candidate and case, a
+  // support its assessment and a case source; the earlier suites write none and prove them empty).
   'assessment_sources',
   'candidate_assessments',
   'idempotency_records',

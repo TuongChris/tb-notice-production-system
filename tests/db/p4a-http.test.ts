@@ -3617,12 +3617,13 @@ describe('SECURITY / CONTRACT', () => {
     // The case intake material (reported items, works, mappings, facts) is routed since P4B
     // (tests/db/p4b-http.test.ts), correspondence since P4C (tests/db/p4c-http.test.ts) and the
     // read-only production context (GET only) since P4D (tests/db/p4d-http.test.ts), prompts
-    // since P4E (tests/db/p4e-http.test.ts), candidates since P4F (tests/db/p4f-http.test.ts) and
-    // technical validation since P4G (tests/db/p4g-http.test.ts); nothing writes a production
-    // context, and assessments and everything after them are not routed.
+    // since P4E (tests/db/p4e-http.test.ts), candidates since P4F (tests/db/p4f-http.test.ts),
+    // technical validation since P4G (tests/db/p4g-http.test.ts) and candidate assessments since
+    // P4H (tests/db/p4h-http.test.ts); nothing writes a production context, and readiness and
+    // everything after it are not routed.
     const paths: Array<['GET' | 'POST' | 'PATCH' | 'DELETE', string]> = [
       ['POST', `/cases/${id}/production-context`],
-      ['POST', `/candidates/${randomUUID()}/assessments`],
+      ['POST', `/candidates/${randomUUID()}/unsigned-exports`],
       ['GET', `/candidates/${randomUUID()}/readiness`],
       ['POST', `/cases/${id}/readiness`],
       ['POST', `/cases/${id}/sign`],

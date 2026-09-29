@@ -1,7 +1,7 @@
-// TB-TECHNICAL-RULESET-v2 is reproducible from its identifier alone (R14-AUD-003): the active
-// wire-contract constant is replaced here — for every module this file loads — by a synthetic later
-// release, and MARKER.INTERNAL_IDENTIFIERS still finds exactly what it finds under
-// TB-SCHEMA-API-v1.3.0. A controlled proof without touching the application's constants at run
+// TB-TECHNICAL-RULESET-v3 is reproducible from its identifier alone (R14-AUD-003, ADR-0010): the
+// active wire-contract constant is replaced here — for every module this file loads — by a synthetic
+// later release, and MARKER.INTERNAL_IDENTIFIERS still finds exactly what it finds under
+// TB-SCHEMA-API-v1.4.0. A controlled proof without touching the application's constants at run
 // time: the module graph of this test file alone sees the synthetic value.
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -68,14 +68,14 @@ function detected(token: string) {
   return check.findings.map((item) => (item.details as { occurrences: number }).occurrences);
 }
 
-describe('TB-TECHNICAL-RULESET-v2 under a changed active contract constant (R14-AUD-003)', () => {
+describe('TB-TECHNICAL-RULESET-v3 under a changed active contract constant (R14-AUD-003, ADR-0010)', () => {
   it('the active contract constant is the synthetic later release for this module graph', () => {
     expect(CONTRACT_BASELINE).toBe(SYNTHETIC_RELEASE);
     expect(rule?.checkKind).toBe('DETERMINISTIC');
   });
 
-  it('MARKER.INTERNAL_IDENTIFIERS finds exactly what it finds under TB-SCHEMA-API-v1.3.0: v1.2.0 and v1.3.0 still, the synthetic release not — the vocabulary and the identifier are unchanged', () => {
-    expect(TECHNICAL_RULESET_VERSION).toBe('TB-TECHNICAL-RULESET-v2');
+  it('MARKER.INTERNAL_IDENTIFIERS finds exactly what it finds under TB-SCHEMA-API-v1.4.0: v1.2.0, v1.3.0 and v1.4.0 still, the synthetic release and a future v1.5.0 not — the vocabulary and the identifier are unchanged', () => {
+    expect(TECHNICAL_RULESET_VERSION).toBe('TB-TECHNICAL-RULESET-v3');
     expect([...INTERNAL_IDENTIFIER_STRINGS]).toEqual([
       'TB-PROMPT-TEMPLATE-v1',
       'TB-CANDIDATE-ARTIFACT-v1',
@@ -85,10 +85,14 @@ describe('TB-TECHNICAL-RULESET-v2 under a changed active contract constant (R14-
       'TB-SCHEMA-API-v1.2.0',
       'TB-SCHEMA-API-v1.3.0',
       'PFC-YT-EMAIL-v1.1',
+      'TB-PRODUCTION-CONTEXT-DIGEST-v2',
+      'TB-TECHNICAL-RULESET-v3',
+      'TB-SCHEMA-API-v1.4.0',
     ]);
     expect(detected('TB-SCHEMA-API-v1.2.0')).toEqual([1]);
     expect(detected('TB-SCHEMA-API-v1.3.0')).toEqual([1]);
+    expect(detected('TB-SCHEMA-API-v1.4.0')).toEqual([1]);
     expect(detected(SYNTHETIC_RELEASE)).toEqual([]);
-    expect(detected('TB-SCHEMA-API-v1.4.0')).toEqual([]);
+    expect(detected('TB-SCHEMA-API-v1.5.0')).toEqual([]);
   });
 });

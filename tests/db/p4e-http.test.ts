@@ -927,7 +927,7 @@ describe('EXACT FREEZE — the snapshot is exactly the context read, rendered de
     expect(snapshot.renderedPrompt).toContain(`Dependency digest: ${view.dependencyDigest}`);
     expect(snapshot.renderedPrompt).toContain(`Context revision: ${view.contextRevision}`);
     expect(snapshot.renderedPrompt).toContain('Template: TB-PROMPT-TEMPLATE-v1');
-    expect(snapshot.renderedPrompt).toContain('Wire contract: TB-SCHEMA-API-v1.3.0');
+    expect(snapshot.renderedPrompt).toContain('Wire contract: TB-SCHEMA-API-v1.4.0');
     expect(snapshot.renderedPrompt).toContain('Context schema: PFC-YT-EMAIL-v1.1');
   });
 
@@ -1904,7 +1904,7 @@ describe('UNTRUSTED CONTENT, NO OUTBOUND CALL, LATER PHASES', () => {
     ).toEqual([]);
   });
 
-  it('assessments, readiness, unsigned export, signing and sending stay unrouted; no prompt is updated or deleted', async () => {
+  it('readiness, unsigned export, signing and sending stay unrouted; no prompt is updated or deleted', async () => {
     const p = await productionWorld();
     const { snapshot } = await generate(p.caseId, INITIAL(p));
     const id = p.caseId;
@@ -1916,10 +1916,9 @@ describe('UNTRUSTED CONTENT, NO OUTBOUND CALL, LATER PHASES', () => {
       ['DELETE', `/prompts/${snapshot.id}`],
       ['POST', `/prompts/${snapshot.id}/archive`],
       ['POST', `/prompts/${snapshot.id}/send`],
-      // Candidates are routed since P4F (tests/db/p4f-http.test.ts) and technical validation since
-      // P4G (tests/db/p4g-http.test.ts); P4E stores or validates none.
-      ['POST', `/candidates/${other}/assessments`],
-      ['GET', `/candidates/${other}/assessments`],
+      // Candidates are routed since P4F (tests/db/p4f-http.test.ts), technical validation since
+      // P4G (tests/db/p4g-http.test.ts) and candidate assessments since P4H
+      // (tests/db/p4h-http.test.ts); P4E stores, validates or assesses none.
       ['GET', `/candidates/${other}/readiness`],
       ['POST', `/candidates/${other}/unsigned-exports`],
       ['POST', `/cases/${id}/send`],
@@ -1972,7 +1971,7 @@ describe('UNTRUSTED CONTENT, NO OUTBOUND CALL, LATER PHASES', () => {
     for (const operationId of ['generatePrompt', 'listCasePrompts', 'getPrompt']) {
       expect(seen.has(operationId), operationId).toBe(true);
     }
-    expect(CONTRACT_BASELINE).toBe('TB-SCHEMA-API-v1.3.0');
+    expect(CONTRACT_BASELINE).toBe('TB-SCHEMA-API-v1.4.0');
   });
 });
 

@@ -3592,17 +3592,16 @@ describe('SECURITY AND ISOLATION — session-protected, read-only, no network, n
     ).toEqual([]);
   });
 
-  it('assessments, readiness and unsigned export stay unrouted; P4D creates no later-phase record', async () => {
+  it('readiness and unsigned export stay unrouted; P4D creates no later-phase record', async () => {
     const p = await productionWorld();
     const id = p.caseId;
     const other = randomUUID();
     const before = await suiteDump();
     // Prompts are routed since P4E (tests/db/p4e-http.test.ts), candidates since P4F
-    // (tests/db/p4f-http.test.ts) and technical validation since P4G (tests/db/p4g-http.test.ts);
-    // P4D still generates, stores or validates none of them.
+    // (tests/db/p4f-http.test.ts), technical validation since P4G (tests/db/p4g-http.test.ts) and
+    // candidate assessments since P4H (tests/db/p4h-http.test.ts); P4D still generates, stores,
+    // validates or assesses none of them.
     const paths: Array<['GET' | 'POST', string]> = [
-      ['POST', `/candidates/${other}/assessments`],
-      ['GET', `/candidates/${other}/assessments`],
       ['GET', `/candidates/${other}/readiness`],
       ['POST', `/candidates/${other}/unsigned-exports`],
       ['GET', '/audit-events'],
@@ -3662,7 +3661,7 @@ describe('SECURITY AND ISOLATION — session-protected, read-only, no network, n
     expect(
       collected.filter((entry) => entry.operationId === 'getProductionContext').length,
     ).toBeGreaterThan(100);
-    expect(CONTRACT_BASELINE).toBe('TB-SCHEMA-API-v1.3.0');
+    expect(CONTRACT_BASELINE).toBe('TB-SCHEMA-API-v1.4.0');
   });
 });
 

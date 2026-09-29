@@ -1,11 +1,12 @@
-// Technical ruleset TB-TECHNICAL-RULESET-v2 (P4G) without a database: the pinned inventory, every
-// rule on its own with exact synthetic inputs (the P4E context fixtures, cloned and adjusted), the
-// executed / not-executed / error accounting, the deterministic result aggregation, the separation
-// of deterministic checks and heuristic signals, the exact hashes (against the frozen reference
-// helper), the pending signature slot, the envelope, thread and document-plan rules, the internal
-// markers (kept in step with the rendered prompt), the recorded gaps and conflicts, drift from the
-// prompt snapshot, and the sources of the validation module: no clock, randomness, network or AI
-// provider. The database behaviour is covered over HTTP in tests/db/p4g-http.test.ts.
+// Technical ruleset TB-TECHNICAL-RULESET-v3 (P4G; ADR-0010) without a database: the pinned inventory,
+// every rule on its own with exact synthetic inputs (the P4E context fixtures, cloned and adjusted),
+// the executed / not-executed / error accounting, the deterministic result aggregation, the
+// separation of deterministic checks and heuristic signals, the exact hashes (against the frozen
+// reference helper), the pending signature slot, the envelope, thread and document-plan rules, the
+// internal markers (kept in step with the rendered prompt), the recorded gaps and conflicts, drift
+// from the prompt snapshot, and the sources of the validation module: no clock, randomness, network
+// or AI provider. The database behaviour is covered over HTTP in tests/db/p4g-http.test.ts.
+import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -66,8 +67,8 @@ const PLATFORM = 'synthetic-platform@example.invalid';
 const SIGNER = 'SYNTHETIC A Signer Person';
 
 /**
- * The pinned inventory of TB-TECHNICAL-RULESET-v2 — v1's, unchanged (kind D = DETERMINISTIC,
- * H = HEURISTIC).
+ * The pinned inventory of TB-TECHNICAL-RULESET-v3 — v1's and v2's, unchanged (kind D =
+ * DETERMINISTIC, H = HEURISTIC).
  */
 const INVENTORY = [
   ['ARTIFACT.TEXT_EXACT', 'D'],
@@ -221,9 +222,9 @@ const ruleIdsWithFindings = (evaluation: Evaluation) => [
   ...new Set(evaluation.findings.map((item) => item.ruleId)),
 ];
 
-describe('the ruleset TB-TECHNICAL-RULESET-v2 — pinned inventory, coverage and aggregation', () => {
+describe('the ruleset TB-TECHNICAL-RULESET-v3 — pinned inventory, coverage and aggregation', () => {
   it('is one identifier with a pinned inventory of 29 required rules; the implementations are exactly that inventory, in order, with the same kinds', () => {
-    expect(TECHNICAL_RULESET_VERSION).toBe('TB-TECHNICAL-RULESET-v2');
+    expect(TECHNICAL_RULESET_VERSION).toBe('TB-TECHNICAL-RULESET-v3');
     const pinned = INVENTORY.map(([id, kind]) => ({ id, checkKind: kindOf(kind) }));
     expect(REQUIRED_RULES).toEqual(pinned);
     expect(TECHNICAL_RULES.map((rule) => ({ id: rule.id, checkKind: rule.checkKind }))).toEqual(
@@ -237,12 +238,30 @@ describe('the ruleset TB-TECHNICAL-RULESET-v2 — pinned inventory, coverage and
     }
   });
 
+  it('ADR-0010: v3 changes MARKER.INTERNAL_IDENTIFIERS’ pinned vocabulary and nothing else — every rule’s id, kind and documented check (its meaning, severities and vocabulary of report) is byte-identical to v2’s once that one list is masked', () => {
+    const vocabulary = INTERNAL_IDENTIFIER_STRINGS.join(', ');
+    const documented = TECHNICAL_RULES.map((rule) => [
+      rule.id,
+      rule.checkKind,
+      rule.checks.split(vocabulary).join('<VOCABULARY>'),
+    ]);
+    // Only MARKER.INTERNAL_IDENTIFIERS documents the vocabulary; the rest is unchanged since v2.
+    expect(
+      documented.filter(([, , checks]) => checks?.includes('<VOCABULARY>')).map(([id]) => id),
+    ).toEqual(['MARKER.INTERNAL_IDENTIFIERS']);
+    // The same computation over TB-TECHNICAL-RULESET-v2 (5afd2ec, technical-ruleset.ts with v2's
+    // vocabulary) gives exactly this value.
+    expect(createHash('sha256').update(JSON.stringify(documented), 'utf8').digest('hex')).toBe(
+      '62975f23b5ce91f7c001451c22f0341f6cab7597fa670972ec762a46dc1fb7f7',
+    );
+  });
+
   it('a clean candidate: every required rule executed, nothing found — TECHNICAL_PASS, no issue, semantic review still required', () => {
     const evaluation = evaluateCandidate(inputOf());
     expect(evaluation.result).toBe('TECHNICAL_PASS');
     expect(evaluation.findings).toEqual([]);
     expect(evaluation.counts).toEqual({ blocker: 0, reviewRequired: 0, warning: 0, info: 0 });
-    expect(evaluation.rulesetVersion).toBe('TB-TECHNICAL-RULESET-v2');
+    expect(evaluation.rulesetVersion).toBe('TB-TECHNICAL-RULESET-v3');
     expect(evaluation.coverageManifest).toEqual({
       requiredRuleIds: INVENTORY.map(([id]) => id),
       executedRuleIds: INVENTORY.map(([id]) => id),
@@ -1101,9 +1120,12 @@ describe('wording and markers — bounded, documented detection', () => {
   });
 });
 
-describe('MARKER.INTERNAL_IDENTIFIERS vocabulary — pinned by TB-TECHNICAL-RULESET-v2, never read from the active release (R14-AUD-003)', () => {
-  /** The golden vocabulary of TB-TECHNICAL-RULESET-v2, exactly. */
-  const GOLDEN = [
+describe('MARKER.INTERNAL_IDENTIFIERS vocabulary — pinned by TB-TECHNICAL-RULESET-v3 (ADR-0010), never read from the active release (R14-AUD-003)', () => {
+  /**
+   * The golden vocabulary of TB-TECHNICAL-RULESET-v2, exactly (R14-AUD-003): the runs recorded under
+   * v2 stay as recorded, and v3 never drops a string v2 detected.
+   */
+  const V2_GOLDEN = [
     'TB-PROMPT-TEMPLATE-v1',
     'TB-CANDIDATE-ARTIFACT-v1',
     'TB-PRODUCTION-CONTEXT-DIGEST-v1',
@@ -1112,6 +1134,16 @@ describe('MARKER.INTERNAL_IDENTIFIERS vocabulary — pinned by TB-TECHNICAL-RULE
     'TB-SCHEMA-API-v1.2.0',
     'TB-SCHEMA-API-v1.3.0',
     'PFC-YT-EMAIL-v1.1',
+  ];
+  /**
+   * The golden vocabulary of TB-TECHNICAL-RULESET-v3 (ADR-0010), exactly: v2's, unchanged and in its
+   * order, plus the current digest definition, v3 itself and the release TB-SCHEMA-API-v1.4.0.
+   */
+  const GOLDEN = [
+    ...V2_GOLDEN,
+    'TB-PRODUCTION-CONTEXT-DIGEST-v2',
+    'TB-TECHNICAL-RULESET-v3',
+    'TB-SCHEMA-API-v1.4.0',
   ];
   /**
    * What TB-TECHNICAL-RULESET-v1 detected under the accepted TB-SCHEMA-API-v1.2.0 state (main
@@ -1133,9 +1165,16 @@ describe('MARKER.INTERNAL_IDENTIFIERS vocabulary — pinned by TB-TECHNICAL-RULE
       'MARKER.INTERNAL_IDENTIFIERS',
     );
 
-  it('the vocabulary is exactly the pinned list: everything v1 detected under the accepted v1.2.0 state, plus the v1.3.0 release and v2 itself — written out, not a constant that follows the active release', () => {
+  it('the vocabulary is exactly the pinned list: v2’s — everything v1 detected under the accepted v1.2.0 state, plus the v1.3.0 release and v2 — unchanged and in its order, plus the v2 digest definition, v3 itself and the v1.4.0 release; written out, not a constant that follows the active release', () => {
     expect([...INTERNAL_IDENTIFIER_STRINGS]).toEqual(GOLDEN);
+    // Derived from v2: nothing v2 detected is removed or moved.
+    expect(INTERNAL_IDENTIFIER_STRINGS.slice(0, V2_GOLDEN.length)).toEqual(V2_GOLDEN);
     expect(V1_AT_ACCEPTED_V1_2_0.filter((id) => !GOLDEN.includes(id))).toEqual([]);
+    expect(GOLDEN.filter((id) => !V2_GOLDEN.includes(id))).toEqual([
+      'TB-PRODUCTION-CONTEXT-DIGEST-v2',
+      'TB-TECHNICAL-RULESET-v3',
+      'TB-SCHEMA-API-v1.4.0',
+    ]);
     const source = readFileSync(path.join(VALIDATION_MODULE, 'technical-ruleset.ts'), 'utf8');
     const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\s)\/\/.*$/gm, '$1');
     const declared = /export const INTERNAL_IDENTIFIER_STRINGS = \[([\s\S]*?)\] as const;/.exec(
@@ -1148,11 +1187,11 @@ describe('MARKER.INTERNAL_IDENTIFIERS vocabulary — pinned by TB-TECHNICAL-RULE
         .filter(Boolean),
     ).toEqual(GOLDEN.map((id) => `'${id}'`));
     expect(code).not.toMatch(
-      /\bCONTRACT_BASELINE\b|\bPFC_SCHEMA_VERSION\b|\bPROMPT_TEMPLATE_VERSION\b/,
+      /\bCONTRACT_BASELINE\b|\bPFC_SCHEMA_VERSION\b|\bPROMPT_TEMPLATE_VERSION\b|\bDEPENDENCY_DIGEST_ALGORITHM\b/,
     );
   });
 
-  it('golden: TB-SCHEMA-API-v1.2.0 and TB-SCHEMA-API-v1.3.0 — and every other pinned identifier — are each one deterministic review signal at their exact position, in the body and in the subject', () => {
+  it('golden: every pinned identifier — the v1.4.0 release, v3 and the v2 digest definition included — is one deterministic review signal at its exact position, in the body and in the subject', () => {
     for (const token of GOLDEN) {
       expect(markerFindings(`Ref ${token}\n${PENDING_SIGNATURE}`), token).toEqual([
         {
@@ -1171,41 +1210,43 @@ describe('MARKER.INTERNAL_IDENTIFIERS vocabulary — pinned by TB-TECHNICAL-RULE
       ).toEqual(['subject']);
     }
     const both = markerFindings(
-      `Under TB-SCHEMA-API-v1.2.0 and TB-SCHEMA-API-v1.3.0\n${PENDING_SIGNATURE}`,
+      `Under TB-SCHEMA-API-v1.3.0 and TB-SCHEMA-API-v1.4.0\n${PENDING_SIGNATURE}`,
     );
     expect(both.map((item) => item.details)).toEqual([
       {
         occurrences: 2,
         matches: [
-          { text: 'TB-SCHEMA-API-v1.2.0', line: 1, column: 7 },
-          { text: 'TB-SCHEMA-API-v1.3.0', line: 1, column: 32 },
+          { text: 'TB-SCHEMA-API-v1.3.0', line: 1, column: 7 },
+          { text: 'TB-SCHEMA-API-v1.4.0', line: 1, column: 32 },
         ],
       },
     ]);
   });
 
-  it('golden: lookalikes are not exact identifiers of this vocabulary — another or a future release, other letter case, a space, a prefix, another ruleset number — no finding', () => {
+  it('golden: lookalikes and future identifiers are not part of v3 — a future release (v1.5.0), an earlier release outside the vocabulary, other letter case, a space, a prefix, another ruleset or digest number — no finding', () => {
     for (const lookalike of [
-      'TB-SCHEMA-API-v1.4.0',
+      'TB-SCHEMA-API-v1.5.0',
       'TB-SCHEMA-API-v1.1.0',
       'TB-SCHEMA-API-v1.0.0',
-      'tb-schema-api-v1.3.0',
-      'TB-SCHEMA-API v1.3.0',
-      'TB-SCHEMA-API-v1.3',
-      'TB-SCHEMA-API-1.2.0',
-      'TB-TECHNICAL-RULESET-v3',
+      'tb-schema-api-v1.4.0',
+      'TB-SCHEMA-API v1.4.0',
+      'TB-SCHEMA-API-v1.4',
+      'TB-SCHEMA-API-1.4.0',
+      'TB-TECHNICAL-RULESET-v4',
+      'TB-PRODUCTION-CONTEXT-DIGEST-v3',
       'PFC-YT-EMAIL-v1.2',
     ]) {
       expect(markerFindings(`Ref ${lookalike}\n${PENDING_SIGNATURE}`), lookalike).toEqual([]);
     }
   });
 
-  it('a later identifier needs a new ruleset version: every identifier the application uses now is in the pinned vocabulary — this fails, and never silently widens v2, when one changes', () => {
+  it('a later identifier needs a new ruleset version: every identifier the application uses now — the active release, the PFC version, the prompt template, the candidate artifact, the digest definition and this ruleset — is in the pinned vocabulary; this fails, and never silently widens v3, when one changes', () => {
     for (const active of [
       CONTRACT_BASELINE,
       PFC_SCHEMA_VERSION,
       PROMPT_TEMPLATE_VERSION,
       ARTIFACT_ALGORITHM,
+      DEPENDENCY_DIGEST_ALGORITHM,
       TECHNICAL_RULESET_VERSION,
     ]) {
       expect(
@@ -1215,29 +1256,18 @@ describe('MARKER.INTERNAL_IDENTIFIERS vocabulary — pinned by TB-TECHNICAL-RULE
     }
   });
 
-  it('the one named exception (operator decision, R14-AUD-013, ADR-0007): the digest definition identifier TB-PRODUCTION-CONTEXT-DIGEST-v2 is outside v2’s vocabulary, which stays exactly as pinned with v1 — any other digest identifier fails here and needs a decision', () => {
-    // v2's vocabulary is unchanged (TB-TECHNICAL-RULESET-v2 is not re-versioned for R14-AUD-013).
-    // The application never emits the v2 digest identifier itself (no generated metadata, template
-    // text or UI metadata), but captured or operator-supplied free text can contain the literal and
-    // flow through context, prompt and candidate text. v2 intentionally does not detect it: a
-    // documented bounded limitation (R14-AUD-014), not evidence that the literal cannot appear. A
-    // ruleset that detects it needs a new ruleset version (backlog, ADR-0007).
+  it('ADR-0010: the R14-AUD-013 exception belongs to v2 only — v3 detects the current digest definition identifier TB-PRODUCTION-CONTEXT-DIGEST-v2 (and v1), which v2, by the operator’s decision, did not; v2’s pinned vocabulary stays as it was', () => {
     expect(DEPENDENCY_DIGEST_ALGORITHM).toBe('TB-PRODUCTION-CONTEXT-DIGEST-v2');
-    expect(INTERNAL_IDENTIFIER_STRINGS).not.toContain(DEPENDENCY_DIGEST_ALGORITHM);
-    expect(INTERNAL_IDENTIFIER_STRINGS).toContain('TB-PRODUCTION-CONTEXT-DIGEST-v1');
-    expect(TECHNICAL_RULESET_VERSION).toBe('TB-TECHNICAL-RULESET-v2');
-    // v2 still finds the v1 identifier and, as pinned, not the v2 one.
-    expect(
-      markerFindings(`Ref TB-PRODUCTION-CONTEXT-DIGEST-v1\n${PENDING_SIGNATURE}`).map(
-        (item) => item.details,
-      ),
-    ).toEqual([
-      {
-        occurrences: 1,
-        matches: [{ text: 'TB-PRODUCTION-CONTEXT-DIGEST-v1', line: 1, column: 5 }],
-      },
-    ]);
-    expect(markerFindings(`Ref TB-PRODUCTION-CONTEXT-DIGEST-v2\n${PENDING_SIGNATURE}`)).toEqual([]);
+    expect(TECHNICAL_RULESET_VERSION).toBe('TB-TECHNICAL-RULESET-v3');
+    expect(INTERNAL_IDENTIFIER_STRINGS).toContain(DEPENDENCY_DIGEST_ALGORITHM);
+    // v2's vocabulary (R14-AUD-013, ADR-0007 §7): the v2 digest identifier was outside it.
+    expect(V2_GOLDEN).not.toContain(DEPENDENCY_DIGEST_ALGORITHM);
+    for (const token of ['TB-PRODUCTION-CONTEXT-DIGEST-v1', 'TB-PRODUCTION-CONTEXT-DIGEST-v2']) {
+      expect(
+        markerFindings(`Ref ${token}\n${PENDING_SIGNATURE}`).map((item) => item.details),
+        token,
+      ).toEqual([{ occurrences: 1, matches: [{ text: token, line: 1, column: 5 }] }]);
+    }
   });
 });
 
