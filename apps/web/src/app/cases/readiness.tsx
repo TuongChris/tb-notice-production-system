@@ -148,7 +148,10 @@ const REASON_TEXT: Readonly<Record<string, string>> = {
   G6_ASK_LEGAL_REVIEW_REQUIRED: 'An ask disposition records that legal review is required.',
   G6_ASK_SOURCE_NOT_APPLICABLE:
     'An ask disposition cites a source that does not apply to the case scope now.',
-  GATE_HOLD: 'The current review of this gate is recorded as HOLD.',
+  // A recorded PASS can be held too (an unresolved ask, an unconfirmed scope…): never claim a
+  // recorded result the review does not have.
+  GATE_HOLD:
+    'This gate is on hold: its current review is recorded as HOLD, or its recorded PASS does not count for the reasons listed with it.',
   GATE_BLOCKED: 'This gate is blocked.',
   GATE_MISSING: 'The current review of this gate is recorded as MISSING.',
   GATE_CONFLICT: 'This gate is in conflict.',

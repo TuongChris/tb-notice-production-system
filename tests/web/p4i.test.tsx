@@ -396,6 +396,41 @@ describe('P4I readiness section', () => {
     expect(exportsOf(w)).toEqual([]);
   });
 
+  it('a gate on hold reads truthfully: a recorded PASS the server holds (an unresolved ask, R14-AUD-016) shows HOLD with its cause, and the copy never claims the review is recorded as HOLD', async () => {
+    const w = await setup();
+    const gates = passGates().map((gate) =>
+      gate.gate === 'G6'
+        ? {
+            ...gate,
+            status: 'HOLD' as const,
+            reasonCodes: ['GATE_HOLD', 'G6_ASK_REQUIRES_DOCUMENT'],
+          }
+        : gate,
+    );
+    derive(
+      w,
+      readinessOf(w, {
+        status: 'REVIEW_REQUIRED',
+        gates,
+        reasonCodes: ['G6_HOLD', 'G6_ASK_REQUIRES_DOCUMENT'],
+      }),
+    );
+    await openCandidate(w);
+    await evaluate();
+    const g6 = all('[data-testid="readiness-gate"]').find((gate) => gate.dataset['gate'] === 'G6');
+    expect(text('[data-testid="readiness-gate-assessment"]', g6 as HTMLElement)).toBe(HEADS[5]);
+    expect(
+      [...(g6?.querySelectorAll('[data-testid="readiness-reason"]') ?? [])].map(
+        (reason) => reason.textContent,
+      ),
+    ).toEqual([
+      'GATE_HOLD — This gate is on hold: its current review is recorded as HOLD, or its recorded PASS does not count for the reasons listed with it.',
+      'G6_ASK_REQUIRES_DOCUMENT — An ask disposition records that a requested document is still needed: the ask is unresolved.',
+    ]);
+    expect(section().textContent).not.toContain('review of this gate is recorded as HOLD.');
+    expect(q('[data-testid="handoff-prepare"]')).toBeNull();
+  });
+
   it('the unsigned handoff: requested with exactly the evaluation’s artifact, digest and run (PLAIN_TEXT), then shown exactly — subject, From, To, Reply-To, the body with its CRLF, trailing spaces and Unicode as inert plain text, both hashes, the readiness evaluated and the instant — labelled UNSIGNED and NOT SENT, with focus on it and no further handoff or send action', async () => {
     const w = await setup();
     derive(w, readinessOf(w));
