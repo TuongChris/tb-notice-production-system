@@ -38,7 +38,16 @@
 // prior bindings from the frozen manifest, derived here independently of the page); it then stores
 // the test's stated result, coverage manifest and issues against that reply. Runs are immutable,
 // listed per candidate as summaries (newest first) and their issues per run in reported order; a
-// retried run with the same Idempotency-Key replays the first. All data is synthetic.
+// retried run with the same Idempotency-Key replays the first. Candidate assessments (P4H) follow
+// the capture rules the assessment section relies on, in the server's order: the request-only
+// refusals (NUL, an unreadable assessedAt, a link cited twice, an AI-assisted document review), the
+// archived case, 412 ARTIFACT_CHANGED unless the expected artifact is the candidate's, 412
+// CONTEXT_CHANGED unless the expected digest is the case's stated context reply for the prompt
+// snapshot's scope, the current ruleset only, a recorded run of exactly that epoch, a supersession
+// of the head of the same candidate's gate only, supports that are LINKED links of this case, and —
+// for a PASS only — the applicability refusal a test states for a source (the fake derives none).
+// Assessments and their support rows are immutable; the rows are read back per assessment of this
+// candidate only (getCandidateAssessmentSources, TB-SCHEMA-API-v1.4.0). All data is synthetic.
 import { act, StrictMode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter, useNavigate } from 'react-router';
@@ -253,6 +262,27 @@ export class FakeDirectory {
    */
   holdRunReads = false;
   private readonly heldRunReads: Array<() => void> = [];
+  /** Candidate assessments (P4H), in recording order; immutable (no ETag, update or delete). */
+  readonly assessments: Array<Record<string, unknown> & { id: string; candidateId: string }> = [];
+  /**
+   * The AssessmentSource rows each assessment was recorded with, exactly as
+   * getCandidateAssessmentSources returns them (TB-SCHEMA-API-v1.4.0).
+   */
+  readonly assessmentSources = new Map<string, Array<Record<string, unknown> & { id: string }>>();
+  /**
+   * The refusal the server's applicability check gives a PASS citing a source, by source id: the
+   * fake derives no applicability (a test states it, with the context conflict the page reads).
+   */
+  readonly inapplicableSources = new Map<
+    string,
+    { code: string; details?: Record<string, unknown> }
+  >();
+  /**
+   * Holds getCandidateAssessmentSources replies until `releaseSupportReads()`: proves that the page
+   * shows recorded supports only from what it read back, never from what it remembers.
+   */
+  holdSupportReads = false;
+  private readonly heldSupportReads: Array<() => void> = [];
   /** First results of correspondence and prompt writes by Idempotency-Key (a retry replays them). */
   private readonly replays = new Map<string, { body: string; response: Record<string, unknown> }>();
   /** The next correspondence write is recorded, but its reply is lost (a 500 reaches the page). */
@@ -735,6 +765,9 @@ export class FakeDirectory {
     }
     if (collection === 'validation-runs' && id && action === 'issues' && !childId) {
       return method === 'GET' ? this.validationIssuesRequest(id, url) : failure(404, 'NOT_FOUND');
+    }
+    if (collection === 'candidates' && id && action === 'assessments') {
+      return this.assessmentsRequest(method, id, childId, childAction, url, headers, body);
     }
     if (collection === 'candidates' && id) {
       return this.candidateRequest(method, id, action, headers, body);
@@ -1553,6 +1586,233 @@ export class FakeDirectory {
       });
     }
     return null;
+  }
+
+  // Candidate assessments (P4H) -----------------------------------------------------------------
+
+  /**
+   * Seeds one stored assessment of a candidate with its support rows (for history, read-back and
+   * isolation tests): nothing is checked, exactly as a recorded row would be read.
+   */
+  seedAssessment(
+    candidate: Record<string, unknown> & { id: string; caseId: string },
+    fields: Record<string, unknown> = {},
+    supports: ReadonlyArray<{ caseSourceId: string; supportedConclusion: string }> = [],
+  ): Record<string, unknown> & { id: string; candidateId: string } {
+    const row = {
+      id: this.id(),
+      candidateId: candidate.id,
+      caseId: candidate.caseId,
+      gate: 'G1',
+      result: 'HOLD',
+      artifactSha256: candidate['artifactSha256'],
+      dependencyDigest: 'd'.repeat(64),
+      rulesetVersion: 'TB-TECHNICAL-RULESET-v3',
+      scopeState: 'RECORDED_NOT_ADOPTED',
+      performerKind: 'HUMAN',
+      performerLabel: 'SYNTHETIC Reviewer',
+      assessedAt: null,
+      provenance: 'OPERATOR_REPORTED',
+      rationale: 'SYNTHETIC seeded rationale',
+      scopeText: 'SYNTHETIC seeded scope',
+      limitations: null,
+      askDispositions: null,
+      supersedesAssessmentId: null,
+      createdAt: NOW,
+      createdById: USER_ID,
+      ...fields,
+    };
+    this.assessments.push(row);
+    this.assessmentSources.set(
+      row.id,
+      supports.map((support) => ({
+        id: this.id(),
+        assessmentId: row.id,
+        caseSourceId: support.caseSourceId,
+        supportedConclusion: support.supportedConclusion,
+        createdAt: NOW,
+        createdById: USER_ID,
+      })),
+    );
+    return row;
+  }
+
+  private assessmentsRequest(
+    method: string,
+    candidateId: string,
+    assessmentId: string | undefined,
+    childAction: string | undefined,
+    url: URL,
+    headers: Record<string, string>,
+    body: unknown,
+  ): Response | Promise<Response> {
+    const candidate = this.candidates.find((row) => row.id === candidateId);
+    if (assessmentId !== undefined) {
+      if (method !== 'GET' || childAction !== 'sources') return failure(404, 'NOT_FOUND');
+      return this.assessmentSourcesRequest(candidateId, assessmentId);
+    }
+    if (method === 'GET') {
+      if (!candidate) return failure(404, 'NOT_FOUND');
+      const q = url.searchParams.get('q');
+      const rows = this.assessments
+        .filter((row) => row.candidateId === candidateId)
+        .filter((row) => !q || ASSESSMENT_Q_FIELDS.some((field) => row[field] === q))
+        .reverse();
+      return pageOf(rows, url);
+    }
+    if (method !== 'POST') return failure(404, 'NOT_FOUND');
+    // The request-only refusals come before any claim, as on the server.
+    const problem = assessmentRequestProblem(body as Record<string, unknown>);
+    if (problem) return problem;
+    return this.idempotent(headers, body, () =>
+      candidate
+        ? this.captureAssessment(candidate, body as Record<string, unknown>)
+        : failure(404, 'NOT_FOUND'),
+    );
+  }
+
+  /**
+   * getCandidateAssessmentSources: the stored rows of one assessment of this candidate — another
+   * candidate's assessment is 404 exactly like an unknown one.
+   */
+  private assessmentSourcesRequest(
+    candidateId: string,
+    assessmentId: string,
+  ): Response | Promise<Response> {
+    const assessment = this.assessments.find(
+      (row) => row.id === assessmentId && row.candidateId === candidateId,
+    );
+    if (!this.candidates.some((row) => row.id === candidateId) || !assessment) {
+      return failure(404, 'NOT_FOUND');
+    }
+    const reply = () =>
+      json(200, {
+        data: { assessmentId, sources: this.assessmentSources.get(assessmentId) ?? [] },
+        meta: { requestId: 'r', affectedResources: [] },
+      });
+    if (!this.holdSupportReads) return reply();
+    return new Promise((resolve) => this.heldSupportReads.push(() => resolve(reply())));
+  }
+
+  /** Answers every held getCandidateAssessmentSources request (and stops holding new ones). */
+  releaseSupportReads(): void {
+    this.holdSupportReads = false;
+    for (const release of this.heldSupportReads.splice(0)) release();
+  }
+
+  private async captureAssessment(
+    candidate: Record<string, unknown> & { id: string; caseId: string },
+    request: Record<string, unknown>,
+  ): Promise<Response | Record<string, unknown>> {
+    const refusal = this.candidateCaseRefusal(candidate.caseId, 'captureCandidateAssessment');
+    if (refusal) return refusal;
+    if (request['expectedArtifactSha256'] !== candidate['artifactSha256']) {
+      return failure(412, 'ARTIFACT_CHANGED', { field: 'expectedArtifactSha256' });
+    }
+    const prompt = this.prompts.find((row) => row.id === candidate['promptSnapshotId']);
+    const reply = this.contextReplies.get(candidate.caseId);
+    if (!prompt || !reply) return failure(500, 'INTERNAL_ERROR');
+    const response = reply(validationScope(prompt));
+    // A binding the prompt named that has since been corrected: the context changed.
+    if (response.status === 409) {
+      return failure(412, 'CONTEXT_CHANGED', { field: 'expectedDependencyDigest' });
+    }
+    if (!response.ok) return response;
+    const view = ((await response.json()) as { data: Record<string, unknown> }).data;
+    if (view['dependencyDigest'] !== request['expectedDependencyDigest']) {
+      return failure(412, 'CONTEXT_CHANGED', { field: 'expectedDependencyDigest' });
+    }
+    if (request['rulesetVersion'] !== CURRENT_RULESET) {
+      return failure(422, 'RULESET_NOT_CURRENT', {
+        field: 'rulesetVersion',
+        currentRulesetVersion: CURRENT_RULESET,
+      });
+    }
+    const epoch = {
+      artifactSha256: candidate['artifactSha256'],
+      dependencyDigest: view['dependencyDigest'],
+      rulesetVersion: CURRENT_RULESET,
+    };
+    const run = this.validationRuns.find(
+      (row) =>
+        row.candidateId === candidate.id &&
+        row['artifactSha256'] === epoch.artifactSha256 &&
+        row['dependencyDigest'] === epoch.dependencyDigest &&
+        row['rulesetVersion'] === epoch.rulesetVersion,
+    );
+    if (!run) return failure(422, 'VALIDATION_RUN_REQUIRED', { epoch });
+    const supersedes = (request['supersedesAssessmentId'] as string | null | undefined) ?? null;
+    if (supersedes !== null) {
+      const field = 'supersedesAssessmentId';
+      const predecessor = this.assessments.find((row) => row.id === supersedes);
+      if (!predecessor) return failure(422, 'REFERENCE_NOT_FOUND', { field });
+      if (predecessor['caseId'] !== candidate.caseId) {
+        return failure(422, 'CROSS_CASE_REFERENCE', { field });
+      }
+      if (predecessor.candidateId !== candidate.id) {
+        return failure(422, 'REVISION_SCOPE_CHANGE', { fields: ['candidateId'] });
+      }
+      if (predecessor['gate'] !== request['gate']) {
+        return failure(422, 'REVISION_SCOPE_CHANGE', { fields: ['gate'] });
+      }
+      const successor = this.assessments.find(
+        (row) => row['supersedesAssessmentId'] === supersedes,
+      );
+      if (successor)
+        return failure(409, 'ASSESSMENT_ALREADY_SUPERSEDED', { successorId: successor.id });
+    }
+    const supports = request['sources'] as Array<{
+      caseSourceId: string;
+      supportedConclusion: string;
+    }>;
+    const links: Row[] = [];
+    for (const [index, support] of supports.entries()) {
+      const field = `sources.${index}.caseSourceId`;
+      const link = this.rows.CaseSource.get(support.caseSourceId);
+      if (!link) return failure(422, 'REFERENCE_NOT_FOUND', { field });
+      if (link['caseId'] !== candidate.caseId)
+        return failure(422, 'CROSS_CASE_REFERENCE', { field });
+      if (link['linkState'] !== 'LINKED') {
+        return failure(409, 'RECORD_STATE_CONFLICT', {
+          record: 'CaseSource',
+          linkState: link['linkState'],
+          operation: 'captureCandidateAssessment',
+          field,
+        });
+      }
+      links.push(link);
+    }
+    // D-3: only a PASS needs every cited source to apply to the case now.
+    if (request['result'] === 'PASS') {
+      for (const [index, link] of links.entries()) {
+        const inapplicable = this.inapplicableSources.get(String(link['sourceId']));
+        if (inapplicable) {
+          return failure(422, inapplicable.code, {
+            field: `sources.${index}.caseSourceId`,
+            ...inapplicable.details,
+          });
+        }
+      }
+    }
+    return this.seedAssessment(
+      candidate,
+      {
+        gate: request['gate'],
+        result: request['result'],
+        dependencyDigest: epoch.dependencyDigest,
+        scopeState: request['scopeState'],
+        performerKind: request['performerKind'],
+        performerLabel: request['performerLabel'],
+        assessedAt: request['assessedAt'] ?? null,
+        provenance: request['provenance'],
+        rationale: request['rationale'],
+        scopeText: request['scopeText'],
+        limitations: request['limitations'] ?? null,
+        askDispositions: request['askDispositions'] ?? null,
+        supersedesAssessmentId: supersedes,
+      },
+      supports,
+    );
   }
 
   private async storeCandidate(
@@ -2875,6 +3135,85 @@ const RUN_SUMMARY_FIELDS = [
   'completedAt',
   'createdAt',
 ] as const;
+
+/** The technical ruleset the server runs now (a new assessment binds exactly this one). */
+const CURRENT_RULESET = 'TB-TECHNICAL-RULESET-v3';
+
+/** The fields listCandidateAssessments' `q` matches exactly (never a text search). */
+const ASSESSMENT_Q_FIELDS = [
+  'id',
+  'gate',
+  'result',
+  'scopeState',
+  'dependencyDigest',
+  'rulesetVersion',
+  'performerLabel',
+] as const;
+
+/**
+ * The request-only refusals of a capture, in the server's order and before any claim: a NUL
+ * anywhere, an assessedAt that is no storable instant, a link cited twice (422 VALIDATION_FAILED),
+ * then an AI-assisted performer recording DOCUMENT_REVIEWED (422 REVIEW_UNSUPPORTED, D-4).
+ */
+function assessmentRequestProblem(request: Record<string, unknown>): Response | null {
+  const nul: string[] = [];
+  const scan = (value: unknown, path: readonly string[]) => {
+    if (typeof value === 'string') {
+      if (value.includes('\u0000')) nul.push(path.join('.'));
+    } else if (Array.isArray(value)) {
+      value.forEach((item, index) => scan(item, [...path, String(index)]));
+    } else if (value !== null && typeof value === 'object') {
+      for (const [key, item] of Object.entries(value)) scan(item, [...path, key]);
+    }
+  };
+  scan(request, []);
+  if (nul.length > 0) {
+    return failure(422, 'VALIDATION_FAILED', {
+      issues: nul.map((path) => ({
+        path,
+        message: 'Contains a NUL character, which is not stored',
+      })),
+    });
+  }
+  const assessedAt = request['assessedAt'];
+  if (typeof assessedAt === 'string') {
+    const instant = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:(\d{2})(\.\d+)?(Z|[+-]\d{2}:\d{2})$/.exec(
+      assessedAt,
+    );
+    if (!instant || instant[1] === '60') {
+      return failure(422, 'VALIDATION_FAILED', {
+        issues: [{ path: 'assessedAt', message: 'Not an instant that is stored exactly' }],
+      });
+    }
+  }
+  const sources = (request['sources'] ?? []) as Array<{ caseSourceId: string }>;
+  if (sources.length === 0) {
+    return failure(422, 'VALIDATION_FAILED', {
+      issues: [{ path: 'sources', message: 'At least one support is required' }],
+    });
+  }
+  const seen = new Set<string>();
+  const duplicates = sources.flatMap((support, index) => {
+    const again = seen.has(support.caseSourceId);
+    seen.add(support.caseSourceId);
+    return again
+      ? [
+          {
+            path: `sources.${index}.caseSourceId`,
+            message: 'Each case source supports an assessment once',
+          },
+        ]
+      : [];
+  });
+  if (duplicates.length > 0) return failure(422, 'VALIDATION_FAILED', { issues: duplicates });
+  if (request['performerKind'] === 'AI_ASSISTED' && request['provenance'] === 'DOCUMENT_REVIEWED') {
+    return failure(422, 'REVIEW_UNSUPPORTED', {
+      field: 'provenance',
+      reason: 'AI_ASSISTED_PERFORMER',
+    });
+  }
+  return null;
+}
 
 /**
  * The production-context query of a prompt snapshot's scope, as the server derives it for a run:

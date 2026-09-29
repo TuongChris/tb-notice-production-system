@@ -19,14 +19,21 @@
 // prompt snapshot; its content never changes (no ETag), a revision is a new candidate, and its
 // supersession is an internal lifecycle step — never an approval, readiness, signature, sending or
 // retraction. Technical validation (P4G): a run is a technical result only; a recorded run is read
-// back by its id exactly as stored with getValidationRun (TB-SCHEMA-API-v1.3.0, ADR-0006).
+// back by its id exactly as stored with getValidationRun (TB-SCHEMA-API-v1.3.0, ADR-0006). Candidate
+// assessments (P4H): one recorded G1–G6 review of one exact candidate artifact at one evaluation
+// epoch, immutable (no ETag); its support rows are read back exactly as stored with
+// getCandidateAssessmentSources (TB-SCHEMA-API-v1.4.0, ADR-0009). An assessment is never readiness,
+// READY_FOR_SIGNER, G7, a signature or permission to send.
 import type {
   Agency,
   ArchiveRequest,
   AuthorityEvent,
   BindCaseRoute,
   BindCorrespondence,
+  CandidateAssessment,
+  CandidateAssessmentSourcesView,
   CanonicalBindingRequest,
+  CaptureAssessment,
   CaseAuthoritySelection,
   CaseAuthoritySelectionView,
   CaseFact,
@@ -768,6 +775,48 @@ export function createCasesApi(api: ApiClient) {
             await api.request<Page<ValidationIssue>>(
               'GET',
               `/api/v1/validation-runs/${runId}/issues${queryString(query)}`,
+            )
+          ).data,
+      },
+      /**
+       * Candidate assessments (P4H): recorded G1–G6 reviews of this exact candidate — never
+       * readiness, READY_FOR_SIGNER, G7, a signature or permission to send.
+       */
+      assessments: {
+        /**
+         * Records one review at the current epoch (no If-Match is contracted): the reviewed artifact
+         * and digest and the current ruleset are the precondition. A 412 means the artifact or the
+         * context changed: nothing was recorded.
+         */
+        capture: async (candidateId: string, body: CaptureAssessment, auth: WriteAuth) =>
+          (
+            await api.request<CandidateAssessment>(
+              'POST',
+              `/api/v1/candidates/${candidateId}/assessments`,
+              { body, ...writeHeaders(auth) },
+            )
+          ).data,
+        /**
+         * This candidate's assessments exactly as stored, newest first, superseded ones included;
+         * `q` = an exact id, gate, result, scope state, digest, ruleset or performer label.
+         */
+        list: async (candidateId: string, query: ListQuery = {}) =>
+          (
+            await api.request<Page<CandidateAssessment>>(
+              'GET',
+              `/api/v1/candidates/${candidateId}/assessments${queryString(query)}`,
+            )
+          ).data,
+        /**
+         * The AssessmentSource rows recorded for one assessment of this candidate, exactly as stored
+         * (getCandidateAssessmentSources, TB-SCHEMA-API-v1.4.0): historical, never the present link
+         * state. Another candidate's assessment is 404. No ETag: the rows never change.
+         */
+        sources: async (candidateId: string, id: string) =>
+          (
+            await api.request<CandidateAssessmentSourcesView>(
+              'GET',
+              `/api/v1/candidates/${candidateId}/assessments/${id}/sources`,
             )
           ).data,
       },
