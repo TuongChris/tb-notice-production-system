@@ -42,6 +42,8 @@ Persistent rules (they stay in force; `CLAUDE.md` carries them):
 | Signature / send | **NOT IMPLEMENTED** |
 | External action | **NONE**; real case data **0** |
 | Real-case production authorization | **NOT GRANTED** by this mission |
+| P4I merge (recorded later) | **MERGED_TO_MAIN** — pull request #13, merge commit `abc31fc`, `main` CI run 36537325354 success, both jobs (§22) |
+| Final whole-system audit (recorded later) | **HOLD** at `abc31fc` — R14-AUD-015, -016, -019 and -020 concern P4I; remediated by the final-audit remediation mission, **pending independent re-audit** (§23) |
 
 ## 1. Starting point and P4H merge reconciliation
 
@@ -195,8 +197,8 @@ Evidence: `evidence/p4i-own-code-review.txt`. Claude's own review of its own imp
 - **Permanent gate CONFLICT at one epoch (backlog).** Two supersession chains of one gate at the same epoch cannot be merged (a successor supersedes one predecessor, D-2), so the gate stays CONFLICT until the epoch changes; a reconciliation workflow needs its own ADR.
 - **Baseline strictness (P4H W-2).** READY_FOR_SIGNER needs the prompt's context to be the current context; after any context change a new run and new reviews (and, when the context changed after the prompt, a new prompt and candidate) are needed while D-6 stays deferred.
 - **A G1 review time is required** once the selected authority carries a reached boundary; a missing time is never guessed.
-- **One ERROR run blocks its epoch (OBS-P4I-01).** An ERROR run and a later TECHNICAL_PASS run of the same epoch disagree (`TECHNICAL_RUN_CONFLICT`); the epoch stays BLOCKED until it changes. An ERROR run arises only when a rule throws while running.
-- **G6 asks with an outstanding document or fact (OBS-P4I-02, open question).** REQUIRES_DOCUMENT and MISSING_FACT do not hold a counted G6 PASS on a reply; only LEGAL_REVIEW_REQUIRED does (ADR-0011 Decision 8). Whether PFC §6 requires more is left to the operator and the final independent audit.
+- **One ERROR run blocks its epoch (OBS-P4I-01).** An ERROR run and a later TECHNICAL_PASS run of the same epoch disagree (`TECHNICAL_RUN_CONFLICT`); the epoch stays BLOCKED until it changes. An ERROR run arises only when a rule throws while running. *(Confirmed by the final audit as R14-AUD-015 and remediated since, pending independent re-audit — §23.)*
+- **G6 asks with an outstanding document or fact (OBS-P4I-02, open question).** REQUIRES_DOCUMENT and MISSING_FACT do not hold a counted G6 PASS on a reply; only LEGAL_REVIEW_REQUIRED does (ADR-0011 Decision 8). Whether PFC §6 requires more is left to the operator and the final independent audit. *(Answered by the final audit as R14-AUD-016, HIGH: they must hold G6; remediated since, pending independent re-audit — §23.)*
 - **Lock-order retry (REV-P4I-02, LOW backlog).** A concurrent supersession can deadlock with an export; InnoDB detects it and the WriteExecutor retries (at most 3 attempts). The same pattern as P4H's capture.
 - **Visible text (REV-P4I-01, bounded).** A character Unicode classes as a graphic symbol but that renders blank in common fonts (e.g. U+2800) still counts as visible.
 - P4H backlog unchanged: W-3 (the `PLAN.SOURCE_IN_CONTEXT` message text; the readiness copy never presents a review as clearing it), O-1, O-3; R14-AUD-002 and -007 OPEN_BACKLOG; R14-AUD-011 and -012 NON_BLOCKING_BACKLOG. The `.table-frame` backlog is closed where the readiness and assessment tables are touched; other pages' scrollers are unchanged.
@@ -204,3 +206,22 @@ Evidence: `evidence/p4i-own-code-review.txt`. Claude's own review of its own imp
 ## 21. Status (maximum claim of this mission)
 
 Before the merge: `P4I = IMPLEMENTED_SELF_VERIFIED, READY_FOR_MERGE`. After the merge and post-main CI: `P4I = IMPLEMENTED_SELF_VERIFIED, MERGED_TO_MAIN` — never independently verified. Next mission (recommended, not started): **TB_FINAL_WHOLE_SYSTEM_INDEPENDENT_AUDIT_AND_CLOSEOUT**.
+
+## 22. P4I merge reconciliation (recorded by mission TB_FINAL_CLOSEOUT_SCOPED_REMEDIATION_AUD015_TO_AUD020)
+
+- Pull request #13 (`feature/p4i-readiness-unsigned-export` → `main`, "P4I: Derived readiness and unsigned signer handoff") was merged with a normal merge commit **`abc31fc350311aa21945776ec266ef48935e46c9`** at 2026-09-29T07:33:15Z; parents `19a7cb2` (the P4H merge) and the P4I documentation head `c501d5a` ("docs(p4i): readiness and unsigned export record, evidence and state"). The merge tree `bb5e14d` is identical to `c501d5a`'s: nothing but the reviewed branch entered `main`. The branch is kept.
+- `main` push CI run **36537325354**: success, both jobs ("Database, seed and smoke (MySQL 8.4.11)" 07:33:20Z–07:45:22Z; "Non-DB checks (cold install)" 07:33:20Z–07:35:55Z).
+- `P4I = IMPLEMENTED_SELF_VERIFIED, MERGED_TO_MAIN` — never independently verified.
+
+## 23. The final whole-system audit and its remediation (cross-reference)
+
+The independent Astra final whole-system audit of `abc31fc` returned **FINAL_ENGINEERING_AUDIT = HOLD**, **SYSTEM_SETUP_STATUS = NOT_VERIFIED_COMPLETE**, with six confirmed blockers; four concern P4I directly:
+
+| Finding | P4I subject |
+|---|---|
+| R14-AUD-015 (MEDIUM) | OBS-P4I-01 — one ERROR run blocked its epoch for good (ADR-0011 Decision 4) |
+| R14-AUD-016 (HIGH) | OBS-P4I-02 — a G6 PASS of a reply counted with REQUIRES_DOCUMENT or MISSING_FACT asks (Decision 8) |
+| R14-AUD-019 (MEDIUM) | the readiness section kept a READY evaluation and a handoff after a same-page write (§10) |
+| R14-AUD-020 (HIGH) | the export replay evaluated its reads at the request's earlier instant (§7, Decision 17) |
+
+(R14-AUD-017 concerns the P4H review form, `P4H_CANDIDATE_ASSESSMENT.md` §25; R14-AUD-018 the unrouted contracted audit read.) All six were remediated by mission TB_FINAL_CLOSEOUT_SCOPED_REMEDIATION_AUD015_TO_AUD020 on `feature/final-audit-remediation-aud015-aud020`, with ADR-0011 revised (**REVISED_FOR_AUD_015_AUD_016 · PENDING_INDEPENDENT_REAUDIT**): each **REMEDIATED_PENDING_INDEPENDENT_REVIEW**; FINAL_ENGINEERING_AUDIT **HOLD_FOR_REAUDIT**; SYSTEM_SETUP_STATUS **NOT_VERIFIED_COMPLETE**. The P4I sections above describe the behaviour as merged at `abc31fc` and are not rewritten; the corrected behaviour and its evidence are in `docs/verification/final-audit-remediation/FINAL_AUDIT_REMEDIATION_AUD015_AUD020.md`.

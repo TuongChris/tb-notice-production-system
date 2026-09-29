@@ -1,0 +1,149 @@
+Final-audit remediation (R14-AUD-015…020) — Playwright MCP browser verification (mission
+TB_FINAL_CLOSEOUT_SCOPED_REMEDIATION_AUD015_TO_AUD020, §51), home PC, 2026-09-29 11:18–11:33 UTC
+====================================================================================================================
+
+Target and isolation
+- `yarn ui:sandbox --password-file <scratchpad file outside the repository>` ran the COMPILED API on the disposable
+  `tb_notice_test` schema plus the built web app (`vite preview`) on http://localhost:5173 (proxying /api). Two runs:
+  - run 1 (11:17–11:28 UTC) built from the committed head 37fc5cb (the working tree differed only by the untracked
+    evidence folder): web chunks `index-YpN7Cp11.js` 332.70 kB, `candidates-Cwe4am6T.js` 110.59 kB (the candidate,
+    validation, assessment and readiness pages; `@tb/contracts` imported for types only), `index-CLlS2Rit.css` 21.36 kB;
+  - run 2 (11:30–11:33 UTC) built from 64f4016 (the fixes of UI-FINAL-01 and UI-FINAL-02 below):
+    `index-De_NPGJ5.js` 332.70 kB, `candidates-CfeM0aQT.js` 110.67 kB, `index-COrn-CTx.css` 21.41 kB.
+  - No Zod runtime marker (ZodError, _zod, $ZodType, z.object) in any served chunk.
+- Before each run `yarn db:verify test --expect-empty` PASS (domain rows total 0) and ports 3000/5173 free. Each start
+  verified the empty schema itself (R14-AUD-004 ownership guard: cleanup armed only then); each stop (SIGINT) printed
+  "sandbox rows deleted; tb_notice_test is empty again", and `yarn db:verify test --expect-empty` PASS afterwards.
+- The synthetic sandbox user was p2-ui-sandbox@example.invalid. Its generated password was typed into the isolated
+  browser's login form only, and the password file was deleted after the session. No password, cookie or CSRF token is
+  recorded here.
+- Browser: the Playwright MCP isolated headless Chromium profile (no personal profile, no real login session), viewport
+  390×844 for every scenario. `document.documentElement.scrollWidth` was 390 wherever it was measured (no horizontal
+  page scroll).
+- Never `tb_notice_dev`, never the operator's `yarn dev`, never real case, owner, authority, review or draft data; every
+  address is @example.invalid. No AI provider, mailbox, Drive or platform was contacted: every request of the browser
+  went to http://localhost:5173/ (a filter for any other origin returned nothing). Console: only the expected 401 of
+  the session probe before each login.
+
+Prerequisites (a scratchpad script, not committed; seeded through the compiled API with the sandbox user)
+- Agency "SYNTHETIC Agency FINAL-A" with its canonical-record source; owner "SYNTHETIC Brand FINAL-X" linked to
+  "SYNTHETIC Subject FINAL-A LLC" (one route); signer "SYNTHETIC Signer FINAL Person"; a mandate whose version 1
+  (SIGNED_APPEARING) has one coverage of the route recording the signer, then FROZEN. Each case: bound to the route, a
+  selection of that coverage (intended From synthetic-final-sender@example.invalid), one reported item, one work, one
+  mapping and one LINKED licence source (role SYNTHETIC_LICENCE).
+- World A (scenario A and the export race): case "SYNTHETIC Case FINAL-A"; an NMI captured as full text (Reply-To
+  synthetic-final-reviewer-reply@example.invalid, the question "SYNTHETIC question 1: please provide the licence covering
+  the reported use.") bound as NMI; an OUTBOUND capture with a subject-scoped raw source bound as INITIAL_AS_SENT; the
+  NMI_REPLY DRAFTING context (parent = the NMI binding, prior = the AS_SENT binding) → a prompt → a candidate (To the
+  Reply-To, the parent binding in its envelope) → one TECHNICAL_PASS run (TB-TECHNICAL-RULESET-v3) → G1–G5 PASS
+  reviews at that epoch, no G6: readiness REVIEW_REQUIRED [G6_UNASSESSED].
+- Worlds B and C (scenarios B, C and the readiness race): cases "SYNTHETIC Case FINAL-B" / "-C", each an INITIAL
+  DRAFTING prompt → a candidate → one TECHNICAL_PASS run → six PASS reviews: READY_FOR_SIGNER when seeded.
+- Every seeded subject, body and rationale carries a marker (PRIVATE-SUBJECT-<tag>, PRIVATE-BODY-<tag>,
+  PRIVATE-RATIONALE-<tag>) for scenario E.
+- Run 1: world A case 790e0748-…, candidate c3776632-4bc3-4485-af12-65263e50ffea, NMI binding
+  87db1fe9-fd3d-496d-8cef-c12c2d62341d, licence source revision 67ff6543-…; world B candidate
+  dc986c2b-198b-4dfd-8854-6617bc8cf384; world C candidate dc1697cf-bebf-450e-9406-c077b67c89ac. Run 2: world A candidate
+  8a1e2a72-f944-4925-a890-49fc90229487, NMI binding 5aae4b66-7b08-4418-b361-42b888622d52.
+
+Scenarios and results (screenshots in evidence/screenshots/final-*.png, all at 390 px)
+A. NMI G6 ask dispositions (R14-AUD-017 with R14-AUD-016) — PASS (run 1, world A)
+  1. "Read the current context" in the G1–G6 review section, then Gate "G6 — exact candidate artifact consistency,
+     traceability and whole-artifact QA": the fieldset "Ask dispositions of the parent message" appears with its note
+     and "Parent binding (fixed by the prompt snapshot, not chosen here): 87db1fe9-fd3d-496d-8cef-c12c2d62341d" — exactly
+     the prompt's parent (the NMI binding), read-only; "No ask disposition entered."; no ask or disposition preselected.
+     For an INITIAL candidate (world C) and for G1–G5 no ask editor is shown.
+  2. Keyboard: "Add an ask" focused and Enter → a row "Ask 1", focus on "Ask identifier". Typing Q1 only and Enter on
+     "Record assessment" → nothing sent; focus on the error summary (role alert) "Nothing was saved. Fix these fields:"
+     with "Ask 1: question: Enter the question as recorded." and "Ask 1: disposition: Choose the disposition of this ask."
+     linking #assessment-ask-0-questionText and #assessment-ask-0-disposition; Tab + Enter on the first link moved focus
+     to the question field. [final-a1-ask-editor-390px.png]
+  3. The question typed, disposition REQUIRES_DOCUMENT (the option copy "a requested document is still needed; the ask
+     stays unresolved"), an unresolved remainder, no source; Enter on "Record assessment" → POST …/assessments 201; the
+     request body carried exactly one ask:
+     {"askId":"Q1","questionText":"SYNTHETIC question 1: please provide the licence covering the reported use.",
+      "parentBindingId":"87db1fe9-fd3d-496d-8cef-c12c2d62341d","disposition":"REQUIRES_DOCUMENT","sourceIds":[],
+      "unresolvedRemainder":"SYNTHETIC: the licence document is still to be obtained."}
+     (no answerLocator key when it was left empty); the stored review echoed it. Focus moved to "Assessment recorded:
+     G6 — … — recorded result PASS"; the form was reset (no gate, no ask).
+  4. "Evaluate current readiness" (keyboard) → "Current readiness: Review required", Derived status REVIEW_REQUIRED,
+     Reasons G6_HOLD and G6_ASK_REQUIRES_DOCUMENT ("An ask disposition records that a requested document is still
+     needed: the ask is unresolved."); G6 gate HOLD with "Counted review: c22309eb-…"; no "Prepare unsigned handoff".
+     [final-a2-readiness-unresolved-ask-390px.png] — finding UI-FINAL-01 below.
+  5. Full page reload: readiness "Not evaluated yet" (nothing inferred); the history lists the G6 review "recorded
+     result PASS" with its table "Ask dispositions, as recorded": Ask Q1, the question, REQUIRES_DOCUMENT, Answer locator
+     "Not recorded", Sources "None", the unresolved remainder, Parent binding 87db1fe9-… — exactly as stored; the table
+     scroller is a focusable named region ("Ask dispositions, as recorded", tabindex 0).
+     [final-a3-history-after-reload-390px.png] — finding UI-FINAL-02 below.
+  6. A G6 successor (Supersedes: the PASS review c22309eb-… offered as the gate's only head): Q1 ANSWERED_SUPPORTED with
+     answer locator "SYNTHETIC second paragraph of the reply" and the licence source revision 67ff6543-… checked → body
+     askDispositions [{askId Q1, questionText …, parentBindingId 87db1fe9-…, disposition ANSWERED_SUPPORTED,
+     answerLocator …, sourceIds [67ff6543-…]}], supersedesAssessmentId c22309eb-…; 201. Evaluate → "Current readiness:
+     Ready for authorized human signer review", READY_FOR_SIGNER, the unsigned-and-unsent qualifier, HUMAN_PENDING,
+     PROHIBITED, "Prepare unsigned handoff" offered. [final-a4-readiness-after-resolved-ask-390px.png]
+  Run 2 (world A of run 2) repeated it with two asks: Q1 MISSING_FACT with a remainder, and Q2 ANSWERED_WITH_LIMITATION
+  with an answer locator and the licence source → REVIEW_REQUIRED, reasons G6_HOLD and G6_ASK_MISSING_FACT (the
+  answered ask never compensates for the unresolved one).
+B. READY, handoff, supersede — PASS (run 1, world B)
+  Evaluate → READY_FOR_SIGNER; "Prepare unsigned handoff" (keyboard) → POST …/unsigned-exports 200, "Unsigned handoff
+  prepared", UNSIGNED / NOT SENT, From/To/Reply-To/thread shown [final-b1-ready-handoff-before-supersede-390px.png].
+  The supersede reason typed and Enter on "Supersede this draft artifact" → POST …/supersede 200; at once the READY
+  evaluation, the handoff, its copy control and "Prepare unsigned handoff" were gone, the section read "Not evaluated
+  yet. Readiness is read from the server only when you ask; this page infers nothing." and focus was on "Superseded
+  artifact" [final-b2-after-supersede-cleared-390px.png]. No readiness request was sent by itself (the requests of the
+  page, in order: GET readiness, POST unsigned-exports, POST supersede, then the explicit GET readiness). The fresh
+  evaluation → "Current readiness: Superseded candidate", SUPERSEDED, CANDIDATE_SUPERSEDED, no handoff action
+  [final-b3-fresh-evaluation-superseded-390px.png].
+C. READY, HOLD successor — PASS (run 1, world C)
+  Evaluate → READY_FOR_SIGNER; a G2 HOLD successor of the G2 PASS head recorded (Enter on "Record assessment") → at once
+  no READY, no "Prepare unsigned handoff", the section "Not evaluated yet", focus on "Assessment recorded: G2 — …
+  recorded result HOLD". The fresh evaluation → REVIEW_REQUIRED [G2_HOLD]
+  [final-c1-fresh-status-after-hold-successor-390px.png].
+D. Delayed responses (the race) — PASS, browser-practical through a deterministic seam in the automation page only: a
+  wrapper of `window.fetch` (the web client resolves `fetch` at call time) installed with browser_evaluate, which awaits
+  the real response and then holds it until released. Nothing of the application was changed.
+  - Readiness race (world C, first returned to READY by a G2 PASS successor of the HOLD): the hold armed for
+    GET …/readiness; "Evaluate current readiness" → the server answered 200 READY_FOR_SIGNER (held; the page showed
+    "Evaluating the current readiness…"); while held, a G3 HOLD successor was recorded → the section at once "Not
+    evaluated yet"; the held READY response was then released: after 1.5 s the page showed no READY, no handoff action,
+    still "Not evaluated yet", and focus stayed on "Assessment recorded: G3 — … HOLD". The seam disarmed, a fresh
+    evaluation → REVIEW_REQUIRED [G3_HOLD].
+  - Export race (world A after scenario A, READY): the hold armed for POST …/unsigned-exports; "Prepare unsigned handoff"
+    → the server answered 200 (it released the handoff; held client-side); while held, the candidate was superseded
+    (the "Supersede this draft artifact" action stayed available) → "Superseded artifact"; the held 200 response was
+    then released: after 1.5 s no "Unsigned handoff prepared", NOT SENT, UNSIGNED label or "Copy body text" existed, the
+    section read "Not evaluated yet", focus stayed on "Superseded artifact" [final-d1-export-race-dropped-390px.png].
+  The same races are covered with the fake server's own holds in tests/web/p4h.test.tsx (R14-AUD-019 E and F).
+E. The audit read seen by the browser (R14-AUD-018) — PASS (run 1)
+  In the signed-in page, fetch('/api/v1/audit-events?limit=100') with the session cookie (same origin, through the web
+  proxy): 200, Cache-Control no-store, 77 events on one page (nextCursor null), 27 distinct actions (CANDIDATE_SUPERSEDED 2,
+  EXPORT_UNSIGNED 2, CANDIDATE_ASSESSMENT_CAPTURED 22, AUTH_LOGIN_SUCCEEDED 2, VALIDATION_RUN_RECORDED 3, …). None of
+  the response text contained any of: PRIVATE-BODY-<tag>, PRIVATE-SUBJECT-<tag>, PRIVATE-RATIONALE-<tag>, the G6
+  rationale typed in the browser, the NMI question, the answer locator, the unresolved remainder, the notice body text,
+  the supersede reasons typed, the sandbox password, the cookie name tb_session_dev or "csrfToken". Both EXPORT_UNSIGNED
+  events: subject and bodyText only as {redacted: true, codePoints}, sendPerformed false, externalAction PROHIBITED,
+  signatureState HUMAN_PENDING (the second is the export of the race above, which the server performed and the page
+  dropped). The G6 CANDIDATE_ASSESSMENT_CAPTURED events: rationale and performer label as {redacted, codePoints}, the
+  ask dispositions only as counts ({"count":1,"dispositions":{"REQUIRES_DOCUMENT":1}} and
+  {"count":1,"dispositions":{"ANSWERED_SUPPORTED":1}}). No audit page exists in the UI (no admin console).
+No sign/send/G7 action — PASS: on the candidate pages of worlds A and C every button and link was listed; the only one
+  matching sign|send|sent|adopt|approve|submit|g7|email|retract|counter-notif|upload was the application's "Sign out".
+  A read-only query of tb_notice_test after run 1: two EXPORT_UNSIGNED events (sendPerformed false, externalAction
+  PROHIBITED, HUMAN_PENDING), no audit action matching SIGNATURE|SIGNED|SIGN_|_SIGN$|SEND|SENT|ADOPT|G7|SUBMIT|RETRACT
+  (other than EXPORT_UNSIGNED), no table named export/readiness/signature/send, and the exportUnsignedCandidate
+  idempotency records COMPLETED 2.
+
+Findings of the pass (fixed in 64f4016 and re-verified in run 2)
+- UI-FINAL-01 (MEDIUM, copy; pre-existing since P4I, made frequent by R14-AUD-016): the reason copy of GATE_HOLD read
+  "The current review of this gate is recorded as HOLD." also where the server holds a recorded PASS (the G6 review
+  above is recorded as PASS; so is a PASS with an unconfirmed scope). Fixed: "This gate is on hold: its current review
+  is recorded as HOLD, or its recorded PASS does not count for the reasons listed with it." Run 2: the G6 gate lists
+  GATE_HOLD with that copy and G6_ASK_MISSING_FACT; the old sentence appears nowhere
+  [final-r2-1-g6-hold-copy-390px.png]. A web test pins it; its negative control (the old copy) fails on its assertion.
+- UI-FINAL-02 (LOW, layout; caused by the three columns R14-AUD-017 added): at 390 px the history's ask-disposition
+  table squeezed the recorded question to a few characters per line ("SYNTH / ETIC / quest / ion …"). Fixed: the
+  table's free-text cells keep a minimum width (14rem) and the table scrolls inside its focusable frame. Run 2: the
+  question cell 210 px wide with whole words, the frame 1183 px of content in 286 px (scrollable; ArrowRight scrolls
+  it with the frame focused), the page 390 px [final-r2-2-ask-table-readable-390px.png].
+- Observation (LOW, app-wide pattern, not changed): a field's client-side message stays shown after the field is
+  corrected until the next submission (the forms validate on submit), as elsewhere in the application.

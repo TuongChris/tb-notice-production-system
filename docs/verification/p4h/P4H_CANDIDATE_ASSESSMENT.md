@@ -275,3 +275,11 @@ Recorded by mission TB_P4I_READINESS_AND_UNSIGNED_EXPORT_FAST_TRACK (`docs/verif
 - The P4H backlog item on CaseFact `meta.affectedResources` (102 entries for 100 supports) is remediated there (§9: the affected roots only — the CaseFact and the CaseRecord).
 - The `.table-frame` observation is closed where the readiness and assessment tables are touched: the assessment section's two table scrollers are focusable named regions. Other pages' scrollers are unchanged.
 - W-2, W-3, O-1 and O-3 stay backlog; D-6 (no waiver) stays deferred and READY_FOR_SIGNER never waives a technical issue.
+
+## 25. Later cross-reference — the final whole-system audit (2026-09-29)
+
+Recorded by mission TB_FINAL_CLOSEOUT_SCOPED_REMEDIATION_AUD015_TO_AUD020 (`docs/verification/final-audit-remediation/FINAL_AUDIT_REMEDIATION_AUD015_AUD020.md`); §1–§24 are unchanged.
+
+- The independent Astra final whole-system audit of `abc31fc` confirmed **R14-AUD-017** (MEDIUM) against the G1–G6 review section of this phase: the page built the capture body without `askDispositions` and had no field for them, so every G6 review of an NMI reply recorded through the page was held (`G6_ASK_DISPOSITIONS_MISSING`) and a replacement through the same form could not add them. The API accepted them (§4); nothing false was made READY.
+- Remediated on `feature/final-audit-remediation-aud015-aud020` (`72e612e`, `742e9cc`): the editor "Ask dispositions of the parent message", offered only for G6 of a reply — the parent binding fixed from the prompt snapshot and shown, never chosen; no ask or disposition preselected; the six contracted dispositions with neutral copy; sources only from the read context, the inapplicable ones disabled; client checks with one focus move per refused submission; the stored dispositions shown as the server recorded them. The server classifies them (R14-AUD-016): REQUIRES_DOCUMENT, MISSING_FACT and LEGAL_REVIEW_REQUIRED hold G6.
+- Status: **REMEDIATED_PENDING_INDEPENDENT_REVIEW**. The capture API, its checks, D-1…D-6 and ADR-0008/0009 are unchanged: a review still decides nothing by being recorded.
