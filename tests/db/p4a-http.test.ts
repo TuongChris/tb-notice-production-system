@@ -3611,7 +3611,7 @@ describe('SECURITY / CONTRACT', () => {
     expect(await countRows(prisma, 'case_authority_selections')).toBe(0);
   });
 
-  it('later case phases, readiness, signing and sending stay unrouted', async () => {
+  it('later case phases, signing and sending stay unrouted', async () => {
     const { case: created } = await caseWorld();
     const id = created.data.id;
     // The case intake material (reported items, works, mappings, facts) is routed since P4B
@@ -3619,12 +3619,11 @@ describe('SECURITY / CONTRACT', () => {
     // read-only production context (GET only) since P4D (tests/db/p4d-http.test.ts), prompts
     // since P4E (tests/db/p4e-http.test.ts), candidates since P4F (tests/db/p4f-http.test.ts),
     // technical validation since P4G (tests/db/p4g-http.test.ts) and candidate assessments since
-    // P4H (tests/db/p4h-http.test.ts); nothing writes a production context, and readiness and
-    // everything after it are not routed.
+    // P4H (tests/db/p4h-http.test.ts), and readiness and the unsigned export of a candidate since
+    // P4I (tests/db/p4i-http.test.ts); nothing writes a production context, and no signing,
+    // sending or case-level readiness route exists.
     const paths: Array<['GET' | 'POST' | 'PATCH' | 'DELETE', string]> = [
       ['POST', `/cases/${id}/production-context`],
-      ['POST', `/candidates/${randomUUID()}/unsigned-exports`],
-      ['GET', `/candidates/${randomUUID()}/readiness`],
       ['POST', `/cases/${id}/readiness`],
       ['POST', `/cases/${id}/sign`],
       ['POST', `/cases/${id}/send`],

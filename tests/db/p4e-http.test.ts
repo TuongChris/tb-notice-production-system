@@ -1904,7 +1904,7 @@ describe('UNTRUSTED CONTENT, NO OUTBOUND CALL, LATER PHASES', () => {
     ).toEqual([]);
   });
 
-  it('readiness, unsigned export, signing and sending stay unrouted; no prompt is updated or deleted', async () => {
+  it('signing and sending stay unrouted; no prompt is updated or deleted', async () => {
     const p = await productionWorld();
     const { snapshot } = await generate(p.caseId, INITIAL(p));
     const id = p.caseId;
@@ -1918,9 +1918,9 @@ describe('UNTRUSTED CONTENT, NO OUTBOUND CALL, LATER PHASES', () => {
       ['POST', `/prompts/${snapshot.id}/send`],
       // Candidates are routed since P4F (tests/db/p4f-http.test.ts), technical validation since
       // P4G (tests/db/p4g-http.test.ts) and candidate assessments since P4H
-      // (tests/db/p4h-http.test.ts); P4E stores, validates or assesses none.
-      ['GET', `/candidates/${other}/readiness`],
-      ['POST', `/candidates/${other}/unsigned-exports`],
+      // (tests/db/p4h-http.test.ts), readiness and the unsigned export since P4I
+      // (tests/db/p4i-http.test.ts); P4E stores, validates, assesses or exports none.
+      ['POST', `/candidates/${other}/sign`],
       ['POST', `/cases/${id}/send`],
       ['POST', `/cases/${id}/sign`],
     ];

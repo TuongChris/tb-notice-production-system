@@ -2578,7 +2578,7 @@ describe('P4H boundaries — no outbound call, no readiness, no export, no waive
     ).toEqual([]);
   });
 
-  it('hard stop: readiness and the unsigned export stay unrouted (404); no assessment is updated or deleted; no waiver, disposition, override, adoption, signing or sending route exists', async () => {
+  it('hard stop: no assessment is updated or deleted; no waiver, disposition, override, adoption, signing or sending route exists (readiness and the unsigned export are routed since P4I, tests/db/p4i-http.test.ts)', async () => {
     const p = await assessmentWorld();
     const recorded = await assess(
       p.candidate.id,
@@ -2587,9 +2587,7 @@ describe('P4H boundaries — no outbound call, no readiness, no export, no waive
     const before = await suiteDump();
     const base = `/candidates/${p.candidate.id}`;
     const paths: Array<['GET' | 'POST' | 'PATCH' | 'DELETE' | 'PUT', string]> = [
-      ['GET', `${base}/readiness`],
       ['POST', `${base}/readiness`],
-      ['POST', `${base}/unsigned-exports`],
       ['GET', `${base}/unsigned-exports`],
       ['GET', `${base}/assessments/${recorded.id}`],
       ['PATCH', `${base}/assessments/${recorded.id}`],
