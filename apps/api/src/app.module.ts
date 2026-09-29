@@ -3,6 +3,7 @@ import { APP_FILTER } from '@nestjs/core';
 import { DatabaseModule } from './infrastructure/database/database.module.js';
 import { ApiExceptionFilter } from './infrastructure/http/api-exception.filter.js';
 import { AssessmentsModule } from './modules/assessments/assessments.module.js';
+import { AuditModule } from './modules/audit/audit.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { CandidatesModule } from './modules/candidates/candidates.module.js';
 import { CasesModule } from './modules/cases/cases.module.js';
@@ -32,7 +33,8 @@ import { HealthModule } from './modules/health/health.module.js';
 // evaluation epoch, and the read-back of its stored support rows (a record only; nothing counts
 // toward readiness there). P4I: readiness — READY_FOR_SIGNER derived from the current captured
 // records on every read (never stored; ready for authorized human signer review only) — and the
-// unsigned text handoff of a candidate that is ready now. No signing, sending or G7 endpoints.
+// unsigned text handoff of a candidate that is ready now. R14-AUD-018: the contracted audit history
+// read (listAuditEvents), read-only. No signing, sending or G7 endpoints.
 @Module({
   imports: [
     DatabaseModule,
@@ -49,6 +51,7 @@ import { HealthModule } from './modules/health/health.module.js';
     ValidationModule,
     AssessmentsModule,
     ReadinessModule,
+    AuditModule,
   ],
   providers: [{ provide: APP_FILTER, useClass: ApiExceptionFilter }],
 })

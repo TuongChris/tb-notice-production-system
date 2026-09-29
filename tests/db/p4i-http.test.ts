@@ -21,6 +21,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import type { PrismaClient } from '../../apps/api/generated/prisma/client.js';
 import type {
   Agency,
+  AuditEvent,
   AuthorityEvent,
   CandidateAssessment,
   CaseAuthoritySelection,
@@ -51,6 +52,7 @@ import type {
 } from '../../packages/contracts/src/index.js';
 import {
   CONTRACT_BASELINE,
+  ListAuditEventsResponseSchema,
   OperationErrorSchema,
   operations,
 } from '../../packages/contracts/src/index.js';
@@ -59,7 +61,10 @@ import {
   ALLOWED_ORIGIN,
   cookieHeader,
   http,
+  insertUser,
+  login,
   openTestPrisma,
+  sessionTokenFrom,
   startTestApp,
   type HttpResult,
   type TestApp,
@@ -1963,30 +1968,30 @@ describe('R14-AUD-015 — a run that did not complete is a diagnostic: the lates
   });
 });
 
-describe('R14-AUD-016 — an NMI ask the G6 review records as unresolved holds G6: never READY, never exported', () => {
-  type ReplyWorld = Awaited<ReturnType<typeof readyReplyWorld>>;
-  /** One ask disposition of the reply's parent (answered and supported unless overridden). */
-  const ask = (r: ReplyWorld, fields: Record<string, unknown> = {}) => ({
-    askId: 'Q1',
-    questionText: 'SYNTHETIC Question 1: please provide the licence.',
-    parentBindingId: r.nmi.id,
-    disposition: 'ANSWERED_SUPPORTED',
-    answerLocator: 'SYNTHETIC second paragraph of the reply',
-    sourceIds: [r.linked.id],
-    ...fields,
-  });
-  const secondAsk = (r: ReplyWorld, fields: Record<string, unknown> = {}) =>
-    ask(r, { askId: 'Q2', questionText: 'SYNTHETIC Question 2: who owns the work?', ...fields });
-  /** A confirmed G6 PASS of the reply's epoch with `askDispositions` (a successor of `previous`). */
-  const g6Pass = (r: ReplyWorld, askDispositions: unknown[], previous?: string) =>
-    assess(
-      r.candidate.id,
-      pass(r.candidate, r.view, 'G6', r.caseSource.data.id, {
-        askDispositions,
-        ...(previous === undefined ? {} : { supersedesAssessmentId: previous }),
-      }),
-    );
+type ReplyWorld = Awaited<ReturnType<typeof readyReplyWorld>>;
+/** One ask disposition of the reply's parent (answered and supported unless overridden). */
+const ask = (r: ReplyWorld, fields: Record<string, unknown> = {}) => ({
+  askId: 'Q1',
+  questionText: 'SYNTHETIC Question 1: please provide the licence.',
+  parentBindingId: r.nmi.id,
+  disposition: 'ANSWERED_SUPPORTED',
+  answerLocator: 'SYNTHETIC second paragraph of the reply',
+  sourceIds: [r.linked.id],
+  ...fields,
+});
+const secondAsk = (r: ReplyWorld, fields: Record<string, unknown> = {}) =>
+  ask(r, { askId: 'Q2', questionText: 'SYNTHETIC Question 2: who owns the work?', ...fields });
+/** A confirmed G6 PASS of the reply's epoch with `askDispositions` (a successor of `previous`). */
+const g6Pass = (r: ReplyWorld, askDispositions: unknown[], previous?: string) =>
+  assess(
+    r.candidate.id,
+    pass(r.candidate, r.view, 'G6', r.caseSource.data.id, {
+      askDispositions,
+      ...(previous === undefined ? {} : { supersedesAssessmentId: previous }),
+    }),
+  );
 
+describe('R14-AUD-016 — an NMI ask the G6 review records as unresolved holds G6: never READY, never exported', () => {
   it('REQUIRES_DOCUMENT, MISSING_FACT and LEGAL_REVIEW_REQUIRED — alone or beside answered asks — hold G6 with their reason: REVIEW_REQUIRED, five PASS gates never compensate, a fresh export is refused and releases nothing', async () => {
     const r = await readyReplyWorld();
     const cases: Array<[string, unknown[], string]> = [
@@ -2408,6 +2413,412 @@ describe('R14-AUD-020 — a replay judges the records it reads at an instant sam
     expect(
       await prisma.idempotencyRecord.findFirstOrThrow({ where: { idempotencyKey: x.key } }),
     ).toEqual(recordBefore);
+  });
+});
+
+describe('R14-AUD-018 — the contracted audit history read (listAuditEvents, GET /audit-events)', () => {
+  type AuditPage = { items: AuditEvent[]; nextCursor: string | null };
+  const auditPath = (params: Record<string, string | number> = {}) => {
+    const search = new URLSearchParams(
+      Object.entries(params).map(([name, value]): [string, string] => [name, String(value)]),
+    ).toString();
+    return `/audit-events${search === '' ? '' : `?${search}`}`;
+  };
+  /** One page, checked against the contract: 200, no ETag, no-store. */
+  async function auditPage(params: Record<string, string | number> = {}) {
+    const result = await client.get('listAuditEvents', auditPath(params));
+    expect(result.status, result.text).toBe(200);
+    expect(result.headers['etag']).toBeUndefined();
+    expect(result.headers['cache-control']).toBe('no-store');
+    const parsed = ListAuditEventsResponseSchema.safeParse(result.json);
+    expect(parsed.success, JSON.stringify(parsed.error?.issues)).toBe(true);
+    return { page: dataOf<AuditPage>(result), text: result.text };
+  }
+  /** Every page of one filter set, following nextCursor. */
+  async function everyPage(params: Record<string, string | number> = {}, limit = 100) {
+    const items: AuditEvent[] = [];
+    const texts: string[] = [];
+    let cursor: string | null = null;
+    do {
+      const { page, text } = await auditPage({
+        ...params,
+        limit,
+        ...(cursor === null ? {} : { cursor }),
+      });
+      items.push(...page.items);
+      texts.push(text);
+      cursor = page.nextCursor;
+    } while (cursor !== null);
+    return { items, texts };
+  }
+  /** The stored rows, newest first — (createdAt DESC, id DESC) — exactly as the contract shows them. */
+  async function storedEvents(where: Record<string, unknown> = {}): Promise<AuditEvent[]> {
+    const rows = await prisma.auditEvent.findMany({
+      where,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      actorUserId: row.actorUserId,
+      requestId: row.requestId,
+      action: row.action,
+      entityType: row.entityType,
+      entityId: row.entityId,
+      beforeRedacted: row.beforeRedacted as AuditEvent['beforeRedacted'],
+      afterRedacted: row.afterRedacted as AuditEvent['afterRedacted'],
+      reason: row.reason,
+      sourceIds: row.sourceIds as AuditEvent['sourceIds'],
+      createdAt: row.createdAt.toISOString(),
+    }));
+  }
+  const SEEDED_TYPES = ['SYNTHETIC_AUDIT_A', 'SYNTHETIC_AUDIT_B'] as const;
+  /**
+   * Synthetic audit rows of this suite's test schema only (fixtures for paging): created in groups
+   * of three at one instant, so ties are ordered by id; two entity types, eight shared entity ids.
+   */
+  async function seedEvents(count: number) {
+    const base = Date.parse('2026-09-20T08:00:00.000Z');
+    const entityIds = Array.from({ length: 8 }, () => randomUUID());
+    await prisma.auditEvent.createMany({
+      data: Array.from({ length: count }, (_, n) => ({
+        id: randomUUID(),
+        actorUserId: n % 2 === 0 ? client.session.userId : null,
+        requestId: `SYNTHETIC-request-${n}`,
+        action: n % 5 === 0 ? 'SYNTHETIC_AUDIT_RECORDED' : 'SYNTHETIC_AUDIT_NOTED',
+        entityType: SEEDED_TYPES[n % 2] as string,
+        entityId: entityIds[n % 8] as string,
+        afterRedacted: { n },
+        createdAt: new Date(base + Math.floor(n / 3) * 1000),
+      })),
+    });
+    return { entityIds };
+  }
+
+  it('without a session 401 and nothing is returned; an operator reads a contract-valid page, no-store — an empty one for a filter nothing matches', async () => {
+    await seedEvents(3);
+    const anonymous = await http(t.port, 'GET', '/api/v1/audit-events', {
+      headers: { Origin: ALLOWED_ORIGIN },
+    });
+    expect(anonymous.status).toBe(401);
+    expect(anonymous.text).not.toContain('SYNTHETIC-request');
+    expect(anonymous.headers['cache-control']).toBe('no-store');
+    const empty = await auditPage({ entityType: 'SYNTHETIC_NOTHING_MATCHES' });
+    expect(empty.page).toEqual({ items: [], nextCursor: null });
+    const { page } = await auditPage();
+    expect(page.items).toEqual(await storedEvents());
+    expect(page.nextCursor).toBeNull();
+  });
+
+  it('limit 1, the default 25, 25 and 100; a stable keyset walk (createdAt DESC, id DESC; ties by id) returns every stored event once, exactly as stored', async () => {
+    await seedEvents(130);
+    const stored = await storedEvents();
+    expect(stored.length).toBeGreaterThan(130);
+    const one = await auditPage({ limit: 1 });
+    expect(one.page.items).toEqual(stored.slice(0, 1));
+    expect(one.page.nextCursor).not.toBeNull();
+    expect((await auditPage()).page.items).toEqual(stored.slice(0, 25));
+    expect((await auditPage({ limit: 25 })).page.items).toEqual(stored.slice(0, 25));
+    const hundred = await auditPage({ limit: 100 });
+    expect(hundred.page.items).toEqual(stored.slice(0, 100));
+    const next = await auditPage({ limit: 100, cursor: hundred.page.nextCursor as string });
+    expect(next.page.items).toEqual(stored.slice(100));
+    expect(next.page.nextCursor).toBeNull();
+    for (const limit of [1, 7, 25]) {
+      const walked = await everyPage({}, limit);
+      expect(
+        walked.items.map((item) => item.id),
+        `limit ${limit}`,
+      ).toEqual(stored.map((item) => item.id));
+    }
+    // Ties exist, and the id decides their order.
+    const tied = stored.filter((item, index) => stored[index + 1]?.createdAt === item.createdAt);
+    expect(tied.length).toBeGreaterThan(10);
+  });
+
+  it('filters: entityType, entityId and both together, exactly; q is exactly an event id, request id, action, entity type, entity id or actor — never a text search', async () => {
+    const { entityIds } = await seedEvents(40);
+    const target = entityIds[3] as string;
+    const byType = await everyPage({ entityType: 'SYNTHETIC_AUDIT_B' }, 7);
+    expect(byType.items).toEqual(await storedEvents({ entityType: 'SYNTHETIC_AUDIT_B' }));
+    expect(byType.items.length).toBe(20);
+    const byId = await everyPage({ entityId: target }, 2);
+    expect(byId.items).toEqual(await storedEvents({ entityId: target }));
+    expect(byId.items.length).toBe(5);
+    const both = await everyPage({ entityType: 'SYNTHETIC_AUDIT_B', entityId: target }, 2);
+    expect(both.items).toEqual(
+      await storedEvents({ entityType: 'SYNTHETIC_AUDIT_B', entityId: target }),
+    );
+    expect(both.items.length).toBe(5);
+    expect(
+      (await auditPage({ entityType: 'SYNTHETIC_AUDIT_A', entityId: target })).page.items,
+    ).toEqual([]);
+    const [first] = await storedEvents({ requestId: 'SYNTHETIC-request-7' });
+    const q = async (value: string) => (await everyPage({ q: value }, 100)).items;
+    expect(await q(first?.id as string)).toEqual([first]);
+    expect(await q('SYNTHETIC-request-7')).toEqual([first]);
+    expect(await q('SYNTHETIC_AUDIT_RECORDED')).toEqual(
+      await storedEvents({ action: 'SYNTHETIC_AUDIT_RECORDED' }),
+    );
+    expect(await q('SYNTHETIC_AUDIT_A')).toEqual(
+      await storedEvents({ entityType: 'SYNTHETIC_AUDIT_A' }),
+    );
+    expect(await q(target)).toEqual(await storedEvents({ entityId: target }));
+    expect(await q(client.session.userId)).toEqual(
+      await storedEvents({ actorUserId: client.session.userId }),
+    );
+    // Exact only: a substring, another case or a JSON value matches nothing.
+    for (const value of [
+      'SYNTHETIC-request',
+      'synthetic_audit_a',
+      'SYNTHETIC_AUDIT',
+      '{"n":7}',
+      '7',
+    ]) {
+      expect(await q(value), value).toEqual([]);
+    }
+    // An empty q is no filter (the list convention).
+    expect((await auditPage({ q: '' })).page.items).toEqual((await storedEvents()).slice(0, 25));
+  });
+
+  it('a cursor is valid only for its own filter set: another q, entityType or entityId — or another list’s cursor — is 400 INVALID_CURSOR; an unknown parameter or an invalid limit, entityId or q is refused', async () => {
+    await seedEvents(12);
+    const cursorOf = async (params: Record<string, string | number>) =>
+      (await auditPage({ ...params, limit: 2 })).page.nextCursor as string;
+    const plain = await cursorOf({});
+    const typed = await cursorOf({ entityType: 'SYNTHETIC_AUDIT_A' });
+    const searched = await cursorOf({ q: 'SYNTHETIC_AUDIT_NOTED' });
+    const refusals: Array<Record<string, string | number>> = [
+      { cursor: plain, entityType: 'SYNTHETIC_AUDIT_A' },
+      { cursor: plain, q: 'SYNTHETIC_AUDIT_NOTED' },
+      { cursor: plain, entityId: randomUUID() },
+      { cursor: typed },
+      { cursor: typed, entityType: 'SYNTHETIC_AUDIT_B' },
+      { cursor: searched, q: 'SYNTHETIC_AUDIT_RECORDED' },
+      { cursor: `${plain.slice(0, -2)}xx` },
+      { cursor: 'not-a-cursor' },
+    ];
+    for (const params of refusals) {
+      const result = await client.get('listAuditEvents', auditPath({ ...params, limit: 2 }));
+      expect(outcome(result), JSON.stringify(params)).toEqual([400, 'INVALID_CURSOR']);
+    }
+    // Another list's cursor (listCases) is not this list's.
+    for (let n = 0; n < 3; n += 1) await createCase((await createAgency(`C${n}`)).data.id);
+    const cases = dataOf<{ nextCursor: string | null }>(
+      await client.get('listCases', '/cases?limit=1'),
+    );
+    expect(
+      outcome(
+        await client.get('listAuditEvents', auditPath({ cursor: cases.nextCursor as string })),
+      ),
+    ).toEqual([400, 'INVALID_CURSOR']);
+    // The same filter set continues.
+    expect(
+      (await auditPage({ cursor: typed, entityType: 'SYNTHETIC_AUDIT_A', limit: 2 })).page.items,
+    ).toHaveLength(2);
+    const invalid: Array<[Record<string, string | number>, string]> = [
+      [{ limit: 0 }, 'limit'],
+      [{ limit: 101 }, 'limit'],
+      [{ limit: 'ten' }, 'limit'],
+      [{ limit: '1.5' }, 'limit'],
+      [{ entityId: 'not-a-uuid' }, 'entityId'],
+      [{ q: 'x'.repeat(201) }, 'q'],
+      [{ entityType: 'x'.repeat(101) }, 'entityType'],
+      [{ actorUserId: client.session.userId }, 'actorUserId'],
+      [{ action: 'SYNTHETIC_AUDIT_NOTED' }, 'action'],
+    ];
+    for (const [params, parameter] of invalid) {
+      const result = await client.get('listAuditEvents', auditPath(params));
+      expect(outcome(result), JSON.stringify(params)).toEqual([400, 'INVALID_QUERY_PARAMETER']);
+      expect(detailsOf(result)).toEqual({ parameter });
+    }
+  });
+
+  it('a real assessment capture and a real unsigned export are recoverable exactly as recorded — CANDIDATE_ASSESSMENT_CAPTURED and EXPORT_UNSIGNED, their texts only as lengths', async () => {
+    const r = await readyWorld();
+    const MARK = 'SYNTHETIC-PRIVATE-AUD018';
+    const successor = await assess(
+      r.candidate.id,
+      pass(r.candidate, r.view, 'G2', r.caseSource.data.id, {
+        result: 'HOLD',
+        supersedesAssessmentId: r.gates.G2?.id,
+        performerLabel: `${MARK} performer label`,
+        rationale: `${MARK} rationale text`,
+        scopeText: `${MARK} scope text`,
+        limitations: `${MARK} limitations text`,
+        sources: [
+          {
+            caseSourceId: r.caseSource.data.id,
+            supportedConclusion: `${MARK} supported conclusion`,
+          },
+        ],
+      }),
+    );
+    const captured = await auditPage({
+      entityType: 'CandidateAssessment',
+      entityId: successor.id,
+    });
+    expect(captured.page.items.map((item) => item.action)).toEqual([
+      'CANDIDATE_ASSESSMENT_CAPTURED',
+    ]);
+    expect(captured.page.items).toEqual(await storedEvents({ entityId: successor.id }));
+    expect(captured.text).not.toContain(MARK);
+    const after = captured.page.items[0]?.afterRedacted as Record<string, unknown>;
+    expect(after['rationale']).toEqual({
+      redacted: true,
+      codePoints: [...`${MARK} rationale text`].length,
+    });
+
+    // The G2 successor holds G2: a fresh world exports.
+    const x = await readyWorld({ label: 'B' });
+    const current = await readiness(x.candidate.id);
+    const handed = await exportUnsigned(x.candidate.id, exportBody(current));
+    const exported = await auditPage({ q: 'EXPORT_UNSIGNED', entityId: x.candidate.id });
+    expect(
+      exported.page.items.map((item) => [item.action, item.entityType, item.entityId]),
+    ).toEqual([['EXPORT_UNSIGNED', 'NoticeCandidate', x.candidate.id]]);
+    expect(exported.page.items).toEqual(
+      await storedEvents({ action: 'EXPORT_UNSIGNED', entityId: x.candidate.id }),
+    );
+    const exportAfter = exported.page.items[0]?.afterRedacted as Record<string, unknown>;
+    expect(exportAfter).toMatchObject({
+      candidateId: x.candidate.id,
+      artifactSha256: x.candidate.artifactSha256,
+      bodySha256: x.candidate.bodySha256,
+      signatureState: 'HUMAN_PENDING',
+      sendPerformed: false,
+      externalAction: 'PROHIBITED',
+      exportedAt: handed.exportedAt,
+    });
+    expect(exportAfter['bodyText']).toEqual({
+      redacted: true,
+      codePoints: [...x.candidate.bodyText].length,
+    });
+    expect(exported.text).not.toContain(x.candidate.bodyText);
+    expect(exported.text).not.toContain(x.candidate.subject);
+  });
+
+  it('the whole history of a reply’s life — capture, binding, facts, prompt, candidate, validation, reviews with ask dispositions, export, sign-in — shows no password, session or CSRF token and no private text', async () => {
+    const password = `synthetic-AUD018-password-${randomUUID()}`;
+    const user = await insertUser(
+      prisma,
+      `aud018-${randomUUID().slice(0, 8)}@example.invalid`,
+      password,
+    );
+    const signed = await login(t.port, user.email, password);
+    expect(signed.status).toBe(200);
+    const token = sessionTokenFrom(signed) as string;
+    const csrfToken = (signed.json as { data: { csrfToken: string } }).data.csrfToken;
+    const r = await readyReplyWorld();
+    await g6Pass(r, [ask(r, { questionText: 'SYNTHETIC-PRIVATE-QUESTION about the licence' })]);
+    const current = await readiness(r.candidate.id);
+    expect(current.status).toBe('READY_FOR_SIGNER');
+    await exportUnsigned(r.candidate.id, exportBody(current));
+    const { items, texts } = await everyPage();
+    expect(items).toEqual(await storedEvents());
+    const actions = new Set(items.map((item) => item.action));
+    for (const action of [
+      'AUTH_LOGIN_SUCCEEDED',
+      'CORRESPONDENCE_CAPTURED',
+      'CORRESPONDENCE_BOUND',
+      'PROMPT_GENERATED',
+      'CANDIDATE_IMPORTED',
+      'VALIDATION_RUN_RECORDED',
+      'CANDIDATE_ASSESSMENT_CAPTURED',
+      'EXPORT_UNSIGNED',
+    ]) {
+      expect(actions.has(action), action).toBe(true);
+    }
+    const privateTexts = [
+      password,
+      token,
+      csrfToken,
+      client.session.token,
+      client.session.csrfToken,
+      ...(await prisma.noticeCandidate.findMany()).flatMap((row) => [row.subject, row.bodyText]),
+      ...(await prisma.correspondence.findMany()).flatMap((row) => [
+        row.subject,
+        row.bodyText ?? '',
+        row.messageId ?? '',
+        row.fromAddress ?? '',
+      ]),
+      ...(await prisma.candidateAssessment.findMany()).flatMap((row) => [
+        row.rationale,
+        row.scopeText,
+        row.performerLabel,
+        row.limitations ?? '',
+        ...((row.askDispositions ?? []) as Array<{ questionText: string }>).map(
+          (entry) => entry.questionText,
+        ),
+      ]),
+      ...(await prisma.assessmentSource.findMany()).map((row) => row.supportedConclusion),
+      ...(await prisma.factSource.findMany()).map((row) => row.supportedAssertion),
+      ...(await prisma.promptSnapshot.findMany()).map((row) => row.renderedPrompt),
+    ].filter((value) => value.length >= 12);
+    expect(privateTexts.length).toBeGreaterThan(20);
+    for (const text of texts) {
+      for (const secret of privateTexts) {
+        expect(text.includes(JSON.stringify(secret).slice(1, -1)), secret.slice(0, 40)).toBe(false);
+      }
+    }
+  });
+
+  it('reading writes nothing — no audit event about reading, no idempotency record, no row version — and the response is no-store; no other audit route exists', async () => {
+    await seedEvents(5);
+    await readyWorld();
+    const before = { ...(await suiteDump()), auth_sessions: [] };
+    const reads: Array<Record<string, string | number>> = [
+      {},
+      { limit: 1 },
+      { q: 'SYNTHETIC_AUDIT_NOTED' },
+      { entityType: 'Agency' },
+    ];
+    for (const params of reads) {
+      await auditPage(params);
+    }
+    await everyPage({}, 3);
+    expect({ ...(await suiteDump()), auth_sessions: [] }).toEqual(before);
+    const [event] = await storedEvents();
+    for (const [method, target] of [
+      ['GET', `/audit-events/${event?.id as string}`],
+      ['POST', '/audit-events'],
+      ['PATCH', `/audit-events/${event?.id as string}`],
+      ['PUT', `/audit-events/${event?.id as string}`],
+      ['DELETE', `/audit-events/${event?.id as string}`],
+      ['DELETE', '/audit-events'],
+    ] as const) {
+      const response = await unrouted(method, target);
+      expect([response.status, code(response)], `${method} ${target}`).toEqual([404, 'NOT_FOUND']);
+    }
+    expect({ ...(await suiteDump()), auth_sessions: [] }).toEqual(before);
+  });
+
+  it('route parity: every contracted operation but getMeta is routed (144 of 145), no route outside the contract exists, and no sign, send, submit, AS_SENT or G7 route', () => {
+    const express = t.app.getHttpAdapter().getInstance() as {
+      router: { stack: Array<{ route?: { path: string; methods: Record<string, boolean> } }> };
+    };
+    const routed = new Set<string>();
+    for (const layer of express.router.stack) {
+      if (!layer.route) continue;
+      for (const [method, on] of Object.entries(layer.route.methods)) {
+        if (on)
+          routed.add(`${method.toUpperCase()} ${layer.route.path.replace(/:[A-Za-z]+/g, '{}')}`);
+      }
+    }
+    const contracted = new Map(
+      operations.map((operation) => [
+        `${operation.method.toUpperCase()} /api/v1${operation.path.replace(/\{[A-Za-z]+\}/g, '{}')}`,
+        operation.operationId,
+      ]),
+    );
+    expect(contracted.size).toBe(145);
+    const unroutedOperations = [...contracted].filter(([route]) => !routed.has(route));
+    expect(unroutedOperations.map(([, operationId]) => operationId)).toEqual(['getMeta']);
+    expect([...routed].filter((route) => !contracted.has(route))).toEqual([]);
+    expect(routed.size).toBe(144);
+    expect(routed.has('GET /api/v1/audit-events')).toBe(true);
+    for (const route of routed) {
+      expect(route).not.toMatch(/\/(sign|signature|send|submit|adopt|g7|as-sent)\b/i);
+    }
   });
 });
 
