@@ -44,8 +44,10 @@
 // archived case, 412 ARTIFACT_CHANGED unless the expected artifact is the candidate's, 412
 // CONTEXT_CHANGED unless the expected digest is the case's stated context reply for the prompt
 // snapshot's scope, the current ruleset only, a recorded run of exactly that epoch, a supersession
-// of the head of the same candidate's gate only, supports that are LINKED links of this case, and —
-// for a PASS only — the applicability refusal a test states for a source (the fake derives none).
+// of the head of the same candidate's gate only, supports that are LINKED links of this case, ask
+// dispositions of exactly the prompt's parent binding (each ask once), and the applicability
+// refusal a test states for a source — for a PASS's supports and, whatever the result, for the
+// sources an ask disposition cites (the fake derives none).
 // Assessments and their support rows are immutable; the rows are read back per assessment of this
 // candidate only (getCandidateAssessmentSources, TB-SCHEMA-API-v1.4.0). Readiness (P4I) follows the
 // evaluation rules the readiness section relies on: the fake derives nothing — each test states the
@@ -1894,6 +1896,31 @@ export class FakeDirectory {
         }
       }
     }
+    // Each ask disposition answers an ask of exactly the parent the prompt named, and every source
+    // it cites applies to the case, whatever the result.
+    const dispositions = (request['askDispositions'] ?? []) as Array<{
+      parentBindingId: string;
+      sourceIds: string[];
+    }>;
+    for (const [index, disposition] of dispositions.entries()) {
+      if (disposition.parentBindingId !== prompt['parentBindingId']) {
+        return failure(422, 'ASK_PARENT_MISMATCH', {
+          field: `askDispositions.${index}.parentBindingId`,
+          promptParentBindingId: prompt['parentBindingId'] ?? null,
+        });
+      }
+    }
+    for (const [index, disposition] of dispositions.entries()) {
+      for (const [position, sourceId] of disposition.sourceIds.entries()) {
+        const inapplicable = this.inapplicableSources.get(sourceId);
+        if (inapplicable) {
+          return failure(422, inapplicable.code, {
+            field: `askDispositions.${index}.sourceIds.${position}`,
+            ...inapplicable.details,
+          });
+        }
+      }
+    }
     return this.seedAssessment(
       candidate,
       {
@@ -3306,6 +3333,23 @@ function assessmentRequestProblem(request: Record<string, unknown>): Response | 
       : [];
   });
   if (duplicates.length > 0) return failure(422, 'VALIDATION_FAILED', { issues: duplicates });
+  const asks = new Set<string>();
+  const askAgain = ((request['askDispositions'] ?? []) as Array<Record<string, unknown>>).flatMap(
+    (disposition, index) => {
+      const key = `${String(disposition['parentBindingId'])}\u0000${String(disposition['askId'])}`;
+      const again = asks.has(key);
+      asks.add(key);
+      return again
+        ? [
+            {
+              path: `askDispositions.${index}.askId`,
+              message: 'Each ask of a parent message has one disposition',
+            },
+          ]
+        : [];
+    },
+  );
+  if (askAgain.length > 0) return failure(422, 'VALIDATION_FAILED', { issues: askAgain });
   if (request['performerKind'] === 'AI_ASSISTED' && request['provenance'] === 'DOCUMENT_REVIEWED') {
     return failure(422, 'REVIEW_UNSUPPORTED', {
       field: 'provenance',

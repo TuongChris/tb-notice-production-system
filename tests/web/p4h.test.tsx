@@ -17,9 +17,17 @@
 // (412) shown exactly, never retried; a lost reply replayed into one assessment; an archived case
 // read-only; another candidate's assessment never displayed; recorded text as inert plain text;
 // keyboard focus; and that no readiness, G7, sign, send, waiver or disposition wording or action
-// appears. All data is synthetic.
+// appears. R14-AUD-017: a G6 review of a reply records the dispositions of the parent message's asks
+// — the editor only for G6 of an NMI_REPLY prompt, the parent binding fixed from the prompt, no ask
+// or disposition preselected, the six contracted dispositions, each ask sent exactly as entered and
+// read back from the server (also after a reload), the client checks, the sources an ask may cite
+// and a 412 never retried. All data is synthetic.
 import { describe, expect, it } from 'vitest';
-import type { ContextView, ProductionContext } from '../../packages/contracts/src/index.js';
+import type {
+  CaptureAssessment,
+  ContextView,
+  ProductionContext,
+} from '../../packages/contracts/src/index.js';
 import {
   CandidateAssessmentSchema,
   CandidateAssessmentSourcesViewSchema,
@@ -28,7 +36,10 @@ import {
   PromptSnapshotSchema,
 } from '../../packages/contracts/src/index.js';
 import {
+  ADD_ASK_LABEL,
   AI_DOCUMENT_REVIEW_NOTE,
+  ASK_EDITOR_NOTE,
+  ASK_SOURCE_NOT_APPLICABLE_NOTE,
   ASSESSMENT_ARTIFACT_CHANGED,
   ASSESSMENT_BOUNDARY,
   ASSESSMENT_CONTEXT_CHANGED,
@@ -36,8 +47,10 @@ import {
   ASSESSMENT_NOT_HERE,
   ASSESSMENT_SUPERSEDED_NOTE,
   NOT_APPLICABLE_SUPPORT_NOTE,
+  DISPOSITION_MEANING,
   PRESENT_STATE_LABEL,
   RECORD_ASSESSMENT_LABEL,
+  REMOVE_ASK_LABEL,
   SCOPE_STATE_LABEL,
   SCOPE_STATE_NOTE,
   SHOW_SUPPORTS_LABEL,
@@ -1162,5 +1175,404 @@ describe('P4H candidate assessments', () => {
     expect(api.writes().map((request) => request.path)).toEqual([
       `/api/v1/candidates/${candidate.id}/assessments`,
     ]);
+  });
+});
+
+describe('R14-AUD-017 — the G6 ask dispositions of a reply', () => {
+  /**
+   * A world, an NMI_REPLY DRAFTING prompt of case A naming a parent binding, its candidate, the
+   * current context answering reads and a TECHNICAL_PASS run of the candidate's current epoch.
+   */
+  async function setupReply(options: { restricted?: boolean } = {}) {
+    const api = new FakeDirectory();
+    const w = world(api);
+    const parentBindingId = api.id();
+    const reply = { taskType: 'NMI_REPLY', parentBindingId } as const;
+    const view = viewOf(w, DIGEST, {
+      ...reply,
+      ...(options.restricted ? restrictedConflict(w) : {}),
+    });
+    const { context } = view;
+    const prompt = await api.seedPrompt({
+      caseId: context.caseId,
+      taskType: 'NMI_REPLY',
+      generationMode: 'DRAFTING',
+      authoritySelectionId: context.authoritySelectionId,
+      parentBindingId,
+      contextRevision: 7,
+      dependencyDigest: view.dependencyDigest,
+      dependencyManifest: view.dependencies,
+      contextJson: context,
+      sourceManifest: [],
+    });
+    expect(PromptSnapshotSchema.safeParse(prompt).success).toBe(true);
+    const candidate = await api.seedCandidate({
+      caseId: w.caseA.id,
+      promptSnapshotId: prompt.id,
+      taskType: 'NMI_REPLY',
+      envelopeJson: {
+        from: SENDER,
+        to: 'synthetic-platform@example.invalid',
+        replyTo: null,
+        parentBindingId,
+      },
+      bodyText: 'SYNTHETIC reply\n[PENDING AUTHORIZED SIGNER — FULL LEGAL NAME REQUIRED]\n',
+    });
+    api.contextReplies.set(w.caseA.id, answer(view));
+    seedRun(api, candidate, view);
+    return { api, w, prompt, candidate, view, parentBindingId, reply };
+  }
+
+  interface AskFill {
+    askId?: string;
+    questionText?: string;
+    disposition?: string;
+    answerLocator?: string;
+    unresolvedRemainder?: string;
+    sources?: readonly string[];
+  }
+  /** Adds one ask and fills it in the order a person would. */
+  async function addAsk(values: AskFill) {
+    const index = all('[data-testid="assessment-ask"]').length;
+    await click(q('[data-testid="assessment-ask-add"]') as HTMLElement);
+    const at = (field: string) => `#assessment-ask-${index}-${field}`;
+    if (values.askId !== undefined) await type(at('askId'), values.askId);
+    if (values.questionText !== undefined) await type(at('questionText'), values.questionText);
+    if (values.disposition !== undefined) await type(at('disposition'), values.disposition);
+    if (values.answerLocator !== undefined) await type(at('answerLocator'), values.answerLocator);
+    if (values.unresolvedRemainder !== undefined) {
+      await type(at('unresolvedRemainder'), values.unresolvedRemainder);
+    }
+    for (const sourceId of values.sources ?? []) {
+      await click(q(at(`source-${sourceId}`)) as HTMLElement);
+    }
+  }
+  const summaryItems = () =>
+    [...(q('[data-testid="validation-summary"]')?.querySelectorAll('li') ?? [])].map(
+      (item) => item.textContent,
+    );
+  /** The ask dispositions a recorded review shows, as the page renders them. */
+  const shownDispositions = (item: ParentNode) =>
+    [...item.querySelectorAll('[data-testid="assessment-ask-disposition"]')].map((row) => ({
+      askId: text('[data-testid="ask-id"]', row),
+      questionText: row.querySelector('[data-testid="ask-question"]')?.textContent,
+      disposition: text('[data-testid="ask-disposition"]', row),
+      answerLocator: row.querySelector('[data-testid="ask-answer-locator"]')?.textContent ?? null,
+      sources: [...row.querySelectorAll('[data-testid="ask-sources"] code')].map(
+        (code) => code.textContent,
+      ),
+      unresolvedRemainder:
+        row.querySelector('[data-testid="ask-unresolved-remainder"]')?.textContent ?? null,
+      parentBindingId: text('[data-testid="ask-parent"]', row),
+    }));
+
+  it('the editor is offered only for G6 of a reply: the parent binding is fixed from the prompt snapshot and shown, never chosen; no ask and no disposition is preselected; exactly the six contracted dispositions are offered, with neutral copy', async () => {
+    const { api, w, candidate, parentBindingId } = await setupReply();
+    await openCandidate(api, w.caseA.id, candidate.id);
+    await readEpoch();
+    expect(contextReads()[0]?.path).toContain('taskType=NMI_REPLY');
+    expect(contextReads()[0]?.path).toContain(`parentBindingId=${parentBindingId}`);
+    expect(q('[data-testid="assessment-asks"]')).toBeNull();
+    for (const gate of ['G1', 'G2', 'G3', 'G4', 'G5']) {
+      await type('#assessment-gate', gate);
+      expect(q('[data-testid="assessment-asks"]'), gate).toBeNull();
+    }
+    await type('#assessment-gate', 'G6');
+    const editor = q('[data-testid="assessment-asks"]') as HTMLElement;
+    expect(editor).not.toBeNull();
+    expect(editor.textContent).toContain(ASK_EDITOR_NOTE);
+    // The parent is the prompt's, shown as text: no input, select or option carries it.
+    expect(text('[data-testid="assessment-ask-parent"]')).toBe(parentBindingId);
+    expect(editor.querySelectorAll('input, select, textarea')).toHaveLength(0);
+    expect(all('[data-testid="assessment-ask"]')).toEqual([]);
+    expect(q('[data-testid="assessment-asks-none"]')).not.toBeNull();
+    expect(text('[data-testid="assessment-ask-add"]')).toBe(ADD_ASK_LABEL);
+    await click(q('[data-testid="assessment-ask-add"]') as HTMLElement);
+    expect(all('[data-testid="assessment-ask"]')).toHaveLength(1);
+    // Focus moves to the new ask; every field is empty and no disposition is chosen.
+    expect(document.activeElement).toBe(q('#assessment-ask-0-askId'));
+    for (const field of ['askId', 'questionText', 'disposition', 'answerLocator']) {
+      expect(valueOf(`#assessment-ask-0-${field}`), field).toBe('');
+    }
+    expect(valueOf('#assessment-ask-0-unresolvedRemainder')).toBe('');
+    expect(optionValues('#assessment-ask-0-disposition')).toEqual([
+      '',
+      'ANSWERED_SUPPORTED',
+      'ANSWERED_WITH_LIMITATION',
+      'REQUIRES_DOCUMENT',
+      'MISSING_FACT',
+      'LEGAL_REVIEW_REQUIRED',
+      'NOT_APPLICABLE_WITH_REASON',
+    ]);
+    expect(Object.keys(DISPOSITION_MEANING)).toEqual(
+      optionValues('#assessment-ask-0-disposition').slice(1),
+    );
+    const labels = [
+      ...(q('#assessment-ask-0-disposition') as HTMLSelectElement).querySelectorAll('option'),
+    ].map((option) => option.textContent ?? '');
+    for (const label of labels) {
+      expect(label).not.toMatch(FORBIDDEN_STATES);
+      expect(label).not.toMatch(/READY_FOR_SIGNER|G[1-7] PASS|APPROVED/);
+    }
+    // The sources an ask may cite: this case's LINKED links' source revisions, none checked.
+    expect(
+      new Set(all('[data-testid="assessment-ask-source"] input').map((input) => input.id)),
+    ).toEqual(
+      new Set([
+        `assessment-ask-0-source-${String(w.evidence.id)}`,
+        `assessment-ask-0-source-${String(w.restricted.id)}`,
+      ]),
+    );
+    expect(all('[data-testid="assessment-ask-source"] input:checked')).toEqual([]);
+    // Every action in the section is one of the page's own neutral actions.
+    const actions = [...section().querySelectorAll('button, a')].map(
+      (element) => element.textContent?.trim() ?? '',
+    );
+    expect(actions.filter((label) => FORBIDDEN_ACTIONS.test(label))).toEqual([]);
+    expect(actions).toContain(`${REMOVE_ASK_LABEL} 1`);
+    // A review of another gate of this reply sends no ask disposition.
+    await fill(complete(w, { gate: 'G2' }));
+    expect(q('[data-testid="assessment-asks"]')).toBeNull();
+    await record();
+    expect(sentBody<CaptureAssessment>(candidate.id).askDispositions).toBeUndefined();
+
+    // An initial notice's G6 review has no ask editor.
+    const initial = await setup();
+    await unmount();
+    await openCandidate(initial.api, initial.w.caseA.id, initial.candidate.id);
+    await readEpoch();
+    await type('#assessment-gate', 'G6');
+    expect(q('[data-testid="assessment-asks"]')).toBeNull();
+  });
+
+  it('each ask is sent exactly as entered — its identifier, question, the prompt’s parent binding, the chosen disposition, answer locator, sources and unresolved remainder — and the history shows it as the server stored it, also after a reload', async () => {
+    const { api, w, candidate, parentBindingId } = await setupReply();
+    await openCandidate(api, w.caseA.id, candidate.id);
+    await readEpoch();
+    await fill(
+      complete(w, { gate: 'G6', result: 'PASS', scopeState: 'SCOPE_CONFIRMED_FOR_CANDIDATE' }),
+    );
+    await addAsk({
+      askId: ' Q1 ',
+      questionText: 'SYNTHETIC Question 1: please provide the licence.\n  (kept exactly)  ',
+      disposition: 'ANSWERED_WITH_LIMITATION',
+      answerLocator: 'SYNTHETIC reply, paragraph 2',
+      sources: [String(w.evidence.id)],
+      unresolvedRemainder: 'SYNTHETIC the licence term after 2027 is not addressed',
+    });
+    await addAsk({
+      askId: 'Q2',
+      questionText: 'SYNTHETIC Question 2: who owns the work?',
+      disposition: 'REQUIRES_DOCUMENT',
+    });
+    await record();
+    const body = sentBody<CaptureAssessment>(candidate.id);
+    expect(CaptureAssessmentSchema.safeParse(body).success).toBe(true);
+    const expected = [
+      {
+        askId: ' Q1 ',
+        questionText: 'SYNTHETIC Question 1: please provide the licence.\n  (kept exactly)  ',
+        parentBindingId,
+        disposition: 'ANSWERED_WITH_LIMITATION',
+        answerLocator: 'SYNTHETIC reply, paragraph 2',
+        sourceIds: [w.evidence.id],
+        unresolvedRemainder: 'SYNTHETIC the licence term after 2027 is not addressed',
+      },
+      {
+        askId: 'Q2',
+        questionText: 'SYNTHETIC Question 2: who owns the work?',
+        parentBindingId,
+        disposition: 'REQUIRES_DOCUMENT',
+        sourceIds: [],
+      },
+    ];
+    expect(body.askDispositions).toEqual(expected);
+    expect(body.gate).toBe('G6');
+    // The server stored them as sent; the form starts over.
+    expect(api.assessments[0]?.['askDispositions']).toEqual(expected);
+    expect(q('[data-testid="assessment-asks"]')).toBeNull();
+    expect(valueOf('#assessment-gate')).toBe('');
+    await type('#assessment-gate', 'G6');
+    expect(all('[data-testid="assessment-ask"]')).toEqual([]);
+    const shown = [
+      {
+        askId: 'Q1',
+        questionText: 'SYNTHETIC Question 1: please provide the licence.\n  (kept exactly)  ',
+        disposition: 'ANSWERED_WITH_LIMITATION',
+        answerLocator: 'SYNTHETIC reply, paragraph 2',
+        sources: [w.evidence.id],
+        unresolvedRemainder: 'SYNTHETIC the licence term after 2027 is not addressed',
+        parentBindingId,
+      },
+      {
+        askId: 'Q2',
+        questionText: 'SYNTHETIC Question 2: who owns the work?',
+        disposition: 'REQUIRES_DOCUMENT',
+        answerLocator: null,
+        sources: [],
+        unresolvedRemainder: null,
+        parentBindingId,
+      },
+    ];
+    await waitFor(() => historyItems().length === 1, 'the history');
+    expect(shownDispositions(historyItems()[0] as HTMLElement)).toEqual(shown);
+    // After a reload, from what the server lists — never from what the page remembered.
+    await unmount();
+    await openCandidate(api, w.caseA.id, candidate.id);
+    await waitFor(() => historyItems().length === 1, 'the reloaded history');
+    expect(shownDispositions(historyItems()[0] as HTMLElement)).toEqual(shown);
+    const table = (historyItems()[0] as HTMLElement).querySelector(
+      '[data-testid="assessment-ask-dispositions"]',
+    );
+    expect(table?.closest('[role="region"]')?.getAttribute('tabindex')).toBe('0');
+  });
+
+  it('client checks: an ask needs its identifier, question and an explicitly chosen disposition, and each identifier once — nothing is sent until then; a removed ask is not sent', async () => {
+    const { api, w, candidate, parentBindingId } = await setupReply();
+    await openCandidate(api, w.caseA.id, candidate.id);
+    await readEpoch();
+    await fill(complete(w, { gate: 'G6' }));
+    await addAsk({});
+    await record();
+    expect(summaryItems()).toEqual([
+      'Ask 1: identifier: Enter the ask’s identifier.',
+      'Ask 1: question: Enter the question as recorded.',
+      'Ask 1: disposition: Choose the disposition of this ask.',
+    ]);
+    expect(document.activeElement).toBe(q('[data-testid="validation-summary"]'));
+    expect(captures(candidate.id)).toEqual([]);
+    await type('#assessment-ask-0-askId', 'Q1');
+    await type('#assessment-ask-0-questionText', 'SYNTHETIC Question 1');
+    await type('#assessment-ask-0-disposition', 'MISSING_FACT');
+    await addAsk({
+      askId: 'Q1',
+      questionText: 'SYNTHETIC the same ask again',
+      disposition: 'ANSWERED_SUPPORTED',
+    });
+    await record();
+    expect(summaryItems()).toEqual([
+      'Ask 2: identifier: Each ask has one disposition: this identifier is already entered above.',
+    ]);
+    expect(captures(candidate.id)).toEqual([]);
+    await click(all('[data-testid="assessment-ask-remove"]')[1] as HTMLElement);
+    expect(all('[data-testid="assessment-ask"]')).toHaveLength(1);
+    expect(document.activeElement).toBe(q('#assessment-asks'));
+    await record();
+    expect(sentBody<CaptureAssessment>(candidate.id).askDispositions).toEqual([
+      {
+        askId: 'Q1',
+        questionText: 'SYNTHETIC Question 1',
+        parentBindingId,
+        disposition: 'MISSING_FACT',
+        sourceIds: [],
+      },
+    ]);
+  });
+
+  it('keyboard: a refused submission moves focus to the summary once; typing a correction keeps the focus in the field being corrected', async () => {
+    const { api, w, candidate } = await setupReply();
+    await openCandidate(api, w.caseA.id, candidate.id);
+    await readEpoch();
+    await fill(complete(w, { gate: 'G6' }));
+    await addAsk({});
+    await record();
+    expect(document.activeElement).toBe(q('[data-testid="validation-summary"]'));
+    const field = q('#assessment-ask-0-askId') as HTMLInputElement;
+    field.focus();
+    await type('#assessment-ask-0-askId', 'Q');
+    expect(document.activeElement).toBe(field);
+    await type('#assessment-ask-0-askId', 'Q1');
+    expect(document.activeElement).toBe(field);
+    const disposition = q('#assessment-ask-0-disposition') as HTMLSelectElement;
+    disposition.focus();
+    await type('#assessment-ask-0-disposition', 'MISSING_FACT');
+    expect(document.activeElement).toBe(disposition);
+    expect(captures(candidate.id)).toEqual([]);
+  });
+
+  it('sources: a source the context records as not applicable cannot be cited by an ask (disabled, with its note, whatever the result); the server’s own refusal of an ask’s source is shown and focused at that source, and nothing is recorded', async () => {
+    const { api, w, candidate } = await setupReply({ restricted: true });
+    await openCandidate(api, w.caseA.id, candidate.id);
+    await readEpoch();
+    for (const result of ['HOLD', 'PASS']) {
+      await fill(complete(w, { gate: 'G6', result }));
+      if (all('[data-testid="assessment-ask"]').length === 0) await addAsk({});
+      const restricted = q(
+        `#assessment-ask-0-source-${String(w.restricted.id)}`,
+      ) as HTMLInputElement;
+      expect(restricted.disabled, result).toBe(true);
+      expect(restricted.checked, result).toBe(false);
+      const note = restricted
+        .closest('li')
+        ?.querySelector('[data-testid="assessment-ask-source-not-applicable"]');
+      expect(note?.textContent).toBe(ASK_SOURCE_NOT_APPLICABLE_NOTE);
+      expect(restricted.getAttribute('aria-describedby')).toBe(note?.id);
+      expect(
+        (q(`#assessment-ask-0-source-${String(w.evidence.id)}`) as HTMLInputElement).disabled,
+      ).toBe(false);
+    }
+    // The server keeps authority: a source it refuses (the fake states it) is shown at its box.
+    api.inapplicableSources.set(String(w.evidence.id), {
+      code: 'CROSS_OWNER_REFERENCE',
+      details: {},
+    });
+    await type('#assessment-result', 'HOLD');
+    await type('#assessment-ask-0-askId', 'Q1');
+    await type('#assessment-ask-0-questionText', 'SYNTHETIC Question 1');
+    await type('#assessment-ask-0-disposition', 'ANSWERED_SUPPORTED');
+    await click(q(`#assessment-ask-0-source-${String(w.evidence.id)}`) as HTMLElement);
+    await record();
+    expect(captures(candidate.id)).toHaveLength(1);
+    expect(sentBody<CaptureAssessment>(candidate.id).askDispositions?.[0]?.sourceIds).toEqual([
+      w.evidence.id,
+    ]);
+    const box = q(`#assessment-ask-0-source-${String(w.evidence.id)}`) as HTMLInputElement;
+    await waitFor(() => document.activeElement === box, 'focus on the refused source');
+    expect(box.getAttribute('aria-invalid')).toBe('true');
+    expect(box.closest('li')?.querySelector('.field-error')?.textContent).toBeTruthy();
+    expect(api.assessments).toEqual([]);
+  });
+
+  it('a context changed after the read (412) is shown exactly and never retried; the asks entered stay, and are sent again only by an explicit record after a new read', async () => {
+    const { api, w, candidate, parentBindingId, reply } = await setupReply();
+    await openCandidate(api, w.caseA.id, candidate.id);
+    await readEpoch();
+    await fill(complete(w, { gate: 'G6' }));
+    await addAsk({
+      askId: 'Q1',
+      questionText: 'SYNTHETIC Question 1',
+      disposition: 'LEGAL_REVIEW_REQUIRED',
+    });
+    const later = viewOf(w, DIGEST_LATER, reply);
+    api.contextReplies.set(w.caseA.id, answer(later));
+    await record();
+    await waitFor(() => q('[data-testid="assessment-context-changed"]') !== null, 'the 412');
+    expect(text('[data-testid="assessment-context-changed"] strong')).toBe(
+      ASSESSMENT_CONTEXT_CHANGED,
+    );
+    expect(captures(candidate.id)).toHaveLength(1);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(captures(candidate.id)).toHaveLength(1);
+    expect(api.assessments).toEqual([]);
+    // A run of the new epoch recorded meanwhile; a new read, then an explicit record.
+    seedRun(api, candidate, later);
+    await readEpoch();
+    expect(valueOf('#assessment-ask-0-askId')).toBe('Q1');
+    expect(valueOf('#assessment-ask-0-disposition')).toBe('LEGAL_REVIEW_REQUIRED');
+    expect(captures(candidate.id)).toHaveLength(1);
+    await record();
+    expect(captures(candidate.id)).toHaveLength(2);
+    const second = sentBody<CaptureAssessment>(candidate.id, 1);
+    expect(second.expectedDependencyDigest).toBe(DIGEST_LATER);
+    expect(second.askDispositions).toEqual([
+      {
+        askId: 'Q1',
+        questionText: 'SYNTHETIC Question 1',
+        parentBindingId,
+        disposition: 'LEGAL_REVIEW_REQUIRED',
+        sourceIds: [],
+      },
+    ]);
+    expect(api.assessments).toHaveLength(1);
   });
 });

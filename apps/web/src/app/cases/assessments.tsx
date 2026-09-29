@@ -11,8 +11,13 @@
 // first and shown; a review is recorded only against exactly that read (the server refuses with 412
 // when anything changed, and the page then requires a new read — it never retries). No field has a
 // substantive default: the gate, result, scope state, performer and provenance are always chosen.
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+// A G6 review of a reply records the disposition of each ask of the parent message the prompt
+// snapshot named (R14-AUD-017): the parent is fixed from the prompt, every disposition is chosen
+// explicitly, and the page infers nothing from a question, an answer locator or a remainder — the
+// server classifies the recorded dispositions when it derives readiness.
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import type {
+  AskDisposition,
   CandidateAssessment,
   CaptureAssessment,
   CaseSource,
@@ -130,6 +135,55 @@ const TEXT_HINT =
 interface SupportDraft {
   readonly selected: boolean;
   readonly conclusion: string;
+}
+
+type Disposition = AskDisposition['disposition'];
+/**
+ * The six contracted dispositions of an ask, in the contract's order, each with neutral copy: what
+ * the reviewer records about the ask — never a finding about the reply's prose.
+ */
+export const DISPOSITION_MEANING: Readonly<Record<Disposition, string>> = {
+  ANSWERED_SUPPORTED: 'answered, with the cited sources supporting the answer',
+  ANSWERED_WITH_LIMITATION: 'answered within a limitation the reviewer records',
+  REQUIRES_DOCUMENT: 'a requested document is still needed; the ask stays unresolved',
+  MISSING_FACT: 'a material fact is still missing; the ask stays unresolved',
+  LEGAL_REVIEW_REQUIRED: 'legal review is still required; the ask stays unresolved',
+  NOT_APPLICABLE_WITH_REASON: 'the ask does not apply, for the reason the reviewer records',
+};
+const DISPOSITIONS = Object.keys(DISPOSITION_MEANING) as Disposition[];
+/** What the ask editor records (R14-AUD-017). */
+export const ASK_EDITOR_NOTE =
+  'Record the disposition of each ask of the parent message as the reviewer determined it: the ask as the reviewer identifies it, its question, the disposition, where the reply answers it and the sources checked. Nothing is inferred from the question, the answer locator or the remainder; the server evaluates the recorded dispositions.';
+/** A reply prompt that names no parent binding. */
+export const ASK_PARENT_NONE =
+  'The prompt snapshot names no parent binding, so no ask disposition can be recorded for it.';
+/** An ask source the context records as not applicable (the server refuses it for any result). */
+export const ASK_SOURCE_NOT_APPLICABLE_NOTE =
+  'This source is not currently applicable to the Case scope; an ask disposition cannot cite it.';
+export const ADD_ASK_LABEL = 'Add an ask';
+export const REMOVE_ASK_LABEL = 'Remove ask';
+
+/** One ask disposition as entered; `key` keeps its inputs stable when an earlier ask is removed. */
+interface AskDraft {
+  readonly key: number;
+  readonly askId: string;
+  readonly questionText: string;
+  readonly disposition: Disposition | '';
+  readonly answerLocator: string;
+  readonly unresolvedRemainder: string;
+  readonly sourceIds: readonly string[];
+}
+
+/** A source revision an ask may cite: one of this case's LINKED links' sources, and its links. */
+interface AskSource {
+  readonly sourceId: string;
+  readonly links: readonly CaseSource[];
+}
+
+/** Where a server issue or refusal belongs: the cited links and each ask's sent sources. */
+interface FieldTargets {
+  readonly links: readonly CaseSource[];
+  readonly askSources: ReadonlyArray<readonly string[]>;
 }
 
 export function CandidateAssessments({
@@ -279,6 +333,14 @@ function CaptureForm({
   const [limitations, setLimitations] = useState('');
   const [supersedes, setSupersedes] = useState('');
   const [supports, setSupports] = useState<Readonly<Record<string, SupportDraft>>>({});
+  const [asks, setAsks] = useState<readonly AskDraft[]>([]);
+  const nextAskKey = useRef(1);
+  const [askFocus, setAskFocus] = useState<string | null>(null);
+  useEffect(() => {
+    if (askFocus === null) return;
+    document.getElementById(askFocus)?.focus();
+    setAskFocus(null);
+  }, [askFocus]);
   const outcome = useRef<HTMLDivElement>(null);
   const [focusOutcome, setFocusOutcome] = useState(false);
   useEffect(() => {
@@ -323,6 +385,21 @@ function CaptureForm({
       run.artifactSha256 === candidate.artifactSha256,
   );
   const selectedLinks = linked.filter((link) => supports[link.id]?.selected === true);
+  // A G6 review of a reply records the dispositions of the parent's asks; the parent is the prompt's.
+  const recordsAsks = prompt.taskType === 'NMI_REPLY' && gate === 'G6';
+  const askSources: AskSource[] = [...new Set(linked.map((link) => link.sourceId))].map(
+    (sourceId) => ({
+      sourceId,
+      links: linked.filter((link) => link.sourceId === sourceId),
+    }),
+  );
+  // An ask cites exactly the offered sources it shows checked, in the order they are offered.
+  const sentAskSources = (draft: AskDraft) =>
+    askSources.map((entry) => entry.sourceId).filter((id) => draft.sourceIds.includes(id));
+  const targets: FieldTargets = {
+    links: selectedLinks,
+    askSources: recordsAsks ? asks.map(sentAskSources) : [],
+  };
   // Heads of the chosen gate's chains: a successor names the latest assessment of its chain.
   const heads = recorded.filter(
     (entry) =>
@@ -353,6 +430,32 @@ function CaptureForm({
       [linkId]: { selected: false, conclusion: '', ...current[linkId], ...change },
     }));
   }
+  function addAsk() {
+    const key = nextAskKey.current;
+    nextAskKey.current += 1;
+    setAsks((current) => [
+      ...current,
+      {
+        key,
+        askId: '',
+        questionText: '',
+        disposition: '',
+        answerLocator: '',
+        unresolvedRemainder: '',
+        sourceIds: [],
+      },
+    ]);
+    setAskFocus(`assessment-ask-${asks.length}-askId`);
+  }
+  function updateAsk(key: number, change: Partial<AskDraft>) {
+    setAsks((current) =>
+      current.map((draft) => (draft.key === key ? { ...draft, ...change } : draft)),
+    );
+  }
+  function removeAsk(key: number) {
+    setAsks((current) => current.filter((draft) => draft.key !== key));
+    setAskFocus('assessment-asks');
+  }
 
   function body(currentView: ContextView): CaptureAssessment | null {
     const issues: FieldIssue[] = [];
@@ -381,6 +484,31 @@ function CaptureForm({
         });
       }
     });
+    const parentBindingId = prompt.parentBindingId;
+    const recordedAsks = recordsAsks && parentBindingId !== null ? asks : [];
+    recordedAsks.forEach((draft, index) => {
+      const at = `askDispositions.${index}`;
+      required(draft.askId, `${at}.askId`, 'Enter the ask’s identifier.');
+      if (
+        draft.askId !== '' &&
+        recordedAsks.slice(0, index).some((earlier) => earlier.askId === draft.askId)
+      ) {
+        issues.push({
+          path: `${at}.askId`,
+          message: 'Each ask has one disposition: this identifier is already entered above.',
+        });
+      }
+      required(draft.questionText, `${at}.questionText`, 'Enter the question as recorded.');
+      required(draft.disposition, `${at}.disposition`, 'Choose the disposition of this ask.');
+      sentAskSources(draft).forEach((sourceId, position) => {
+        if (notApplicable.has(sourceId)) {
+          issues.push({
+            path: `${at}.sourceIds.${position}`,
+            message: ASK_SOURCE_NOT_APPLICABLE_NOTE,
+          });
+        }
+      });
+    });
     setClientIssues(issues);
     if (
       issues.length > 0 ||
@@ -407,6 +535,21 @@ function CaptureForm({
       ...(limitations === '' ? {} : { limitations }),
       ...(assessedAt === '' ? {} : { assessedAt }),
       ...(supersedes === '' ? {} : { supersedesAssessmentId: supersedes }),
+      ...(recordedAsks.length === 0 || parentBindingId === null
+        ? {}
+        : {
+            askDispositions: recordedAsks.map((draft) => ({
+              askId: draft.askId,
+              questionText: draft.questionText,
+              parentBindingId,
+              disposition: draft.disposition as Disposition,
+              ...(draft.answerLocator === '' ? {} : { answerLocator: draft.answerLocator }),
+              sourceIds: sentAskSources(draft),
+              ...(draft.unresolvedRemainder === ''
+                ? {}
+                : { unresolvedRemainder: draft.unresolvedRemainder }),
+            })),
+          }),
       sources: selectedLinks.map((link) => ({
         caseSourceId: link.id,
         supportedConclusion: supports[link.id]?.conclusion ?? '',
@@ -440,6 +583,7 @@ function CaptureForm({
       setLimitations('');
       setSupersedes('');
       setSupports({});
+      setAsks([]);
       onRecorded(assessment);
     } catch (error) {
       // Never retried here: a changed context or artifact needs a new read first.
@@ -448,7 +592,7 @@ function CaptureForm({
         setChanged(error.code === 'ARTIFACT_CHANGED' ? 'ARTIFACT_CHANGED' : 'CONTEXT_CHANGED');
       } else {
         setFailure(error);
-        const target = refusalFieldId(error, selectedLinks);
+        const target = refusalFieldId(error, targets);
         if (target !== null) document.getElementById(target)?.focus();
       }
     } finally {
@@ -456,14 +600,16 @@ function CaptureForm({
     }
   }
 
-  const serverIssues = issuesOf(failure);
-  const refusedField = refusalFieldId(failure, selectedLinks);
+  // One list per submission: the summary takes focus when a submission reports issues, never again
+  // on a later render (typing a correction, adding or removing an ask keeps the focus where it is).
+  const serverIssues = useMemo(() => issuesOf(failure), [failure]);
+  const refusedField = refusalFieldId(failure, targets);
   const refusalText = failure === null ? null : describeError(failure, 'assessment');
   const errorAt = (path: string, id: string) =>
     clientIssues.find((issue) => issue.path === path)?.message ??
     serverIssues.find((issue) => issue.path === path)?.message ??
     (refusedField === id ? (refusalText ?? undefined) : undefined);
-  const issues = [...clientIssues, ...serverIssues];
+  const issues = useMemo(() => [...clientIssues, ...serverIssues], [clientIssues, serverIssues]);
 
   return (
     <div data-testid="assessment-capture">
@@ -576,8 +722,8 @@ function CaptureForm({
         <>
           <ValidationSummary
             issues={issues}
-            label={(path) => ISSUE_LABEL[path.split('.')[0] ?? ''] ?? path}
-            fieldId={(path) => fieldIdOf(path, selectedLinks)}
+            label={issueLabel}
+            fieldId={(path) => fieldIdOf(path, targets)}
           />
           {failure !== null && serverIssues.length === 0 && refusedField === null && (
             <ErrorNotice error={failure} recordLabel="assessment" focusOnShow />
@@ -733,6 +879,19 @@ function CaptureForm({
               onChange={updateSupport}
               errorAt={errorAt}
             />
+            {recordsAsks && (
+              <AskEditor
+                parentBindingId={prompt.parentBindingId}
+                asks={asks}
+                sources={askSources}
+                inapplicable={(sourceId) => notApplicable.has(sourceId)}
+                sentSources={sentAskSources}
+                onAdd={addAsk}
+                onChange={updateAsk}
+                onRemove={removeAsk}
+                errorAt={errorAt}
+              />
+            )}
             <div className="form-actions">
               <button
                 type="submit"
@@ -763,26 +922,60 @@ const ISSUE_LABEL: Readonly<Record<string, string>> = {
   limitations: 'Limitations',
   supersedesAssessmentId: 'Supersedes',
   sources: 'Supporting linked sources',
+  askDispositions: 'Ask dispositions',
+};
+const ASK_FIELD_LABEL: Readonly<Record<string, string>> = {
+  askId: 'identifier',
+  questionText: 'question',
+  parentBindingId: 'parent binding',
+  disposition: 'disposition',
+  answerLocator: 'answer locator',
+  sourceIds: 'sources checked',
+  unresolvedRemainder: 'unresolved remainder',
 };
 
-/** The input an issue path belongs to (`sources.N.*` names the N-th cited link). */
-function fieldIdOf(path: string, selected: readonly CaseSource[]): string | null {
+/** The summary's name for an issue path (an ask's field names its ask). */
+function issueLabel(path: string): string {
   const [head, index, sub] = path.split('.');
+  if (head === 'askDispositions' && index !== undefined && sub !== undefined) {
+    return `Ask ${Number(index) + 1}: ${ASK_FIELD_LABEL[sub] ?? sub}`;
+  }
+  return ISSUE_LABEL[head ?? ''] ?? path;
+}
+
+/**
+ * The input an issue path belongs to (`sources.N.*` names the N-th cited link,
+ * `askDispositions.N.*` the N-th ask and `askDispositions.N.sourceIds.M` the M-th source it cites).
+ */
+function fieldIdOf(path: string, targets: FieldTargets): string | null {
+  const [head, index, sub, position] = path.split('.');
   if (head === 'sources') {
-    const link = index === undefined ? undefined : selected[Number(index)];
+    const link = index === undefined ? undefined : targets.links[Number(index)];
     if (link === undefined) return 'assessment-supports';
     return sub === 'supportedConclusion'
       ? `assessment-support-conclusion-${link.id}`
       : `assessment-support-${link.id}`;
+  }
+  if (head === 'askDispositions') {
+    const sent = index === undefined ? undefined : targets.askSources[Number(index)];
+    if (sent === undefined || sub === undefined) return 'assessment-asks';
+    if (sub === 'parentBindingId') return 'assessment-ask-parent';
+    if (sub === 'sourceIds') {
+      const sourceId = position === undefined ? undefined : sent[Number(position)];
+      return sourceId === undefined
+        ? `assessment-ask-${index}-sources`
+        : `assessment-ask-${index}-source-${sourceId}`;
+    }
+    return `assessment-ask-${index}-${sub}`;
   }
   if (head === 'supersedesAssessmentId') return 'assessment-supersedes';
   return head === undefined || head === '' ? null : `assessment-${head}`;
 }
 
 /** The field a refusal names (details.field), when the form shows it. */
-function refusalFieldId(error: unknown, selected: readonly CaseSource[]): string | null {
+function refusalFieldId(error: unknown, targets: FieldTargets): string | null {
   if (!(error instanceof ApiError) || typeof error.details['field'] !== 'string') return null;
-  const id = fieldIdOf(error.details['field'], selected);
+  const id = fieldIdOf(error.details['field'], targets);
   return id !== null && id !== 'assessment-rulesetVersion' ? id : null;
 }
 
@@ -887,6 +1080,211 @@ function SupportPicker({
             );
           })}
         </ul>
+      )}
+    </fieldset>
+  );
+}
+
+/**
+ * The dispositions of the parent message's asks for a G6 review of a reply (R14-AUD-017): the
+ * parent binding is the prompt snapshot's, shown and never chosen; each ask is entered with an
+ * explicitly chosen disposition (none is preselected) and the source revisions of this case's
+ * linked sources it cites — one the context records as not applicable cannot be cited.
+ */
+function AskEditor({
+  parentBindingId,
+  asks,
+  sources,
+  inapplicable,
+  sentSources,
+  onAdd,
+  onChange,
+  onRemove,
+  errorAt,
+}: {
+  parentBindingId: string | null;
+  asks: readonly AskDraft[];
+  sources: readonly AskSource[];
+  inapplicable: (sourceId: string) => boolean;
+  sentSources: (draft: AskDraft) => string[];
+  onAdd: () => void;
+  onChange: (key: number, change: Partial<AskDraft>) => void;
+  onRemove: (key: number) => void;
+  errorAt: (path: string, id: string) => string | undefined;
+}) {
+  const listError = errorAt('askDispositions', 'assessment-asks');
+  const parentError = errorAt('askDispositions.parentBindingId', 'assessment-ask-parent');
+  return (
+    <fieldset
+      className="fieldset assessment-asks"
+      id="assessment-asks"
+      tabIndex={-1}
+      aria-describedby={listError ? 'assessment-asks-error' : 'assessment-asks-hint'}
+      data-testid="assessment-asks"
+    >
+      <legend>Ask dispositions of the parent message</legend>
+      <p id="assessment-asks-hint" className="hint">
+        {ASK_EDITOR_NOTE}
+      </p>
+      <p className="field-static">
+        <span className="field-static-label">Parent binding</span> (fixed by the prompt snapshot,
+        not chosen here):{' '}
+        {parentBindingId === null ? (
+          <span className="absent" id="assessment-ask-parent" tabIndex={-1}>
+            None named
+          </span>
+        ) : (
+          <code id="assessment-ask-parent" tabIndex={-1} data-testid="assessment-ask-parent">
+            {parentBindingId}
+          </code>
+        )}
+      </p>
+      {parentError && <p className="field-error">{parentError}</p>}
+      {listError && (
+        <p id="assessment-asks-error" className="field-error">
+          {listError}
+        </p>
+      )}
+      {parentBindingId === null ? (
+        <p className="absent" data-testid="assessment-asks-unavailable">
+          {ASK_PARENT_NONE}
+        </p>
+      ) : (
+        <>
+          {asks.length === 0 && (
+            <p className="absent" data-testid="assessment-asks-none">
+              No ask disposition entered.
+            </p>
+          )}
+          {asks.map((draft, index) => {
+            const at = `askDispositions.${index}`;
+            const id = (field: string) => `assessment-ask-${index}-${field}`;
+            const sent = sentSources(draft);
+            return (
+              <div key={draft.key} className="repeat-row" data-testid="assessment-ask">
+                <p className="field-static-label">Ask {index + 1}</p>
+                <TextField
+                  id={id('askId')}
+                  label="Ask identifier"
+                  required
+                  value={draft.askId}
+                  onChange={(value) => onChange(draft.key, { askId: value })}
+                  hint="As the reviewer identifies the ask (for example Q1). Each ask once."
+                  error={errorAt(`${at}.askId`, id('askId'))}
+                />
+                <TextField
+                  id={id('questionText')}
+                  label="Question"
+                  required
+                  multiline
+                  value={draft.questionText}
+                  onChange={(value) => onChange(draft.key, { questionText: value })}
+                  hint={TEXT_HINT}
+                  error={errorAt(`${at}.questionText`, id('questionText'))}
+                />
+                <SelectField
+                  id={id('disposition')}
+                  label="Disposition"
+                  required
+                  value={draft.disposition}
+                  placeholder="Choose a disposition"
+                  options={DISPOSITIONS.map((value) => ({
+                    value,
+                    label: `${value} — ${DISPOSITION_MEANING[value]}`,
+                  }))}
+                  onChange={(value) =>
+                    onChange(draft.key, { disposition: value as Disposition | '' })
+                  }
+                  error={errorAt(`${at}.disposition`, id('disposition'))}
+                />
+                <TextField
+                  id={id('answerLocator')}
+                  label="Answer locator"
+                  value={draft.answerLocator}
+                  onChange={(value) => onChange(draft.key, { answerLocator: value })}
+                  hint="Optional. Where the reply answers this ask, as the reviewer records it."
+                  error={errorAt(`${at}.answerLocator`, id('answerLocator'))}
+                />
+                <TextField
+                  id={id('unresolvedRemainder')}
+                  label="Unresolved remainder"
+                  multiline
+                  value={draft.unresolvedRemainder}
+                  onChange={(value) => onChange(draft.key, { unresolvedRemainder: value })}
+                  hint="Optional. What the answer leaves open, as the reviewer records it; kept as text, nothing is inferred from it."
+                  error={errorAt(`${at}.unresolvedRemainder`, id('unresolvedRemainder'))}
+                />
+                <fieldset
+                  className="assessment-ask-sources"
+                  id={id('sources')}
+                  tabIndex={-1}
+                  data-testid="assessment-ask-sources"
+                >
+                  <legend>Sources checked for this ask</legend>
+                  {sources.length === 0 ? (
+                    <p className="absent">This case has no linked source to cite.</p>
+                  ) : (
+                    <ul className="support-choices">
+                      {sources.map(({ sourceId, links }) => {
+                        const checked = draft.sourceIds.includes(sourceId);
+                        const excluded = inapplicable(sourceId);
+                        const boxId = id(`source-${sourceId}`);
+                        const position = sent.indexOf(sourceId);
+                        const boxError =
+                          position < 0 ? undefined : errorAt(`${at}.sourceIds.${position}`, boxId);
+                        return (
+                          <li key={sourceId} data-testid="assessment-ask-source">
+                            <label className="checkbox-label">
+                              <input
+                                type="checkbox"
+                                id={boxId}
+                                checked={checked}
+                                // Not citable; one checked before a new read can still be unchecked.
+                                disabled={excluded && !checked}
+                                aria-invalid={boxError ? true : undefined}
+                                aria-describedby={excluded ? `${boxId}-note` : undefined}
+                                onChange={(event) =>
+                                  onChange(draft.key, {
+                                    sourceIds: event.target.checked
+                                      ? [...draft.sourceIds, sourceId]
+                                      : draft.sourceIds.filter((entry) => entry !== sourceId),
+                                  })
+                                }
+                              />{' '}
+                              Source revision <code>{sourceId}</code> — linked as{' '}
+                              {links.map((link) => link.useRole).join(', ')}
+                            </label>
+                            {excluded && (
+                              <p
+                                id={`${boxId}-note`}
+                                className="hint hint-conflict"
+                                data-testid="assessment-ask-source-not-applicable"
+                              >
+                                {ASK_SOURCE_NOT_APPLICABLE_NOTE}
+                              </p>
+                            )}
+                            {boxError && <p className="field-error">{boxError}</p>}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </fieldset>
+                <button
+                  type="button"
+                  className="button button-quiet"
+                  onClick={() => onRemove(draft.key)}
+                  data-testid="assessment-ask-remove"
+                >
+                  {REMOVE_ASK_LABEL} {index + 1}
+                </button>
+              </div>
+            );
+          })}
+          <button type="button" className="button" onClick={onAdd} data-testid="assessment-ask-add">
+            {ADD_ASK_LABEL}
+          </button>
+        </>
       )}
     </fieldset>
   );
@@ -1059,25 +1457,54 @@ function AskDispositions({
             <th scope="col">Ask</th>
             <th scope="col">Question</th>
             <th scope="col">Disposition</th>
+            <th scope="col">Answer locator</th>
             <th scope="col">Sources</th>
+            <th scope="col">Unresolved remainder</th>
+            <th scope="col">Parent binding</th>
           </tr>
         </thead>
         <tbody>
-          {dispositions.map((entry) => (
-            <tr key={`${entry.parentBindingId}:${entry.askId}`}>
+          {dispositions.map((entry, index) => (
+            <tr
+              key={`${index}:${entry.parentBindingId}:${entry.askId}`}
+              data-testid="assessment-ask-disposition"
+            >
               <td>
-                <code>{entry.askId}</code>
+                <code data-testid="ask-id">{entry.askId}</code>
               </td>
               <td>
-                <pre className="captured-text">{entry.questionText}</pre>
+                <pre className="captured-text" data-testid="ask-question">
+                  {entry.questionText}
+                </pre>
               </td>
-              <td>{entry.disposition}</td>
+              <td data-testid="ask-disposition">{entry.disposition}</td>
               <td>
+                {entry.answerLocator === null || entry.answerLocator === undefined ? (
+                  <span className="absent">Not recorded</span>
+                ) : (
+                  <pre className="captured-text" data-testid="ask-answer-locator">
+                    {entry.answerLocator}
+                  </pre>
+                )}
+              </td>
+              <td data-testid="ask-sources">
                 {entry.sourceIds.length === 0 ? (
                   <span className="absent">None</span>
                 ) : (
                   entry.sourceIds.map((id) => <code key={id}>{id}</code>)
                 )}
+              </td>
+              <td>
+                {entry.unresolvedRemainder === null || entry.unresolvedRemainder === undefined ? (
+                  <span className="absent">Not recorded</span>
+                ) : (
+                  <pre className="captured-text" data-testid="ask-unresolved-remainder">
+                    {entry.unresolvedRemainder}
+                  </pre>
+                )}
+              </td>
+              <td>
+                <code data-testid="ask-parent">{entry.parentBindingId}</code>
               </td>
             </tr>
           ))}
