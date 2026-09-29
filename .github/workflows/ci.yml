@@ -75,7 +75,8 @@
 # that assessments onward stay unrouted; smoke:p4g builds the same kind of synthetic case with an
 # INITIAL DRAFTING prompt per case, imports a clean candidate, reads the current context of its
 # prompt's scope and validates exactly that artifact and digest (TECHNICAL_PASS with all 29 rules of
-# TB-TECHNICAL-RULESET-v1 executed and semantic review still required), replays the same key, then
+# the current technical ruleset executed — TB-TECHNICAL-RULESET-v3 since P4H — and semantic review
+# still required), replays the same key, then
 # two pending slots (BLOCKED, deterministic), attachment wording without a planned file
 # (REVIEW_REQUIRED, heuristic), another artifact (412 ARTIFACT_CHANGED), an authority event and the
 # earlier digest (412 CONTEXT_CHANGED), a new read (drift since the prompt is review required), a
@@ -83,6 +84,18 @@
 # readiness, export, signing or sending route exists, leaving synthetic records in the disposable CI
 # tb_notice_dev only (it refuses to run outside CI). A technical validation is not a G1-G6 review,
 # approval or readiness; nothing is signed, exported or sent, and no AI provider is called.
+# P4H: smoke:local also checks that the compiled assessment operations are session-protected and
+# that readiness and the unsigned export stay unrouted; smoke:p4h builds the same kind of synthetic
+# case, validates a clean candidate and captures a G1 PASS at exactly its epoch (the candidate, its
+# stored artifact, the current digest under TB-SCHEMA-API-v1.4.0 and TB-TECHNICAL-RULESET-v3),
+# replays the same key, checks the refusals (another artifact 412, the earlier digest 412, another
+# ruleset, no run of the epoch, another case's link, an unknown link, an AI-assisted document review,
+# a PASS citing a source that no longer applies), records a truthful HOLD citing that source and a
+# successor across epochs (a fork refused), reads the support rows back unchanged after the link is
+# paused, assesses a superseded candidate as history, and checks the rows written and that no
+# assessment update, readiness, export, signing or sending route exists, leaving synthetic records
+# in the disposable CI tb_notice_dev only (it refuses to run outside CI). An assessment records one
+# G1-G6 review; it is not G7, a signature, adoption, readiness or permission to send.
 name: CI
 
 on:
@@ -239,6 +252,8 @@ jobs:
         run: yarn smoke:p4f --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"
       - name: P4G compiled technical validation → TECHNICAL_PASS → replay → BLOCKED slot → heuristic wording → stale 412 → drift (yarn smoke:p4g, synthetic; technical checks only, nothing assessed, signed or sent)
         run: yarn smoke:p4g --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"
+      - name: P4H compiled candidate assessment → exact epoch → replay → stale 412 → run required → supports (foreign, inapplicable PASS refused, truthful HOLD) → supersession → support read-back (yarn smoke:p4h, synthetic; a G1-G6 review record only, nothing ready, signed or sent)
+        run: yarn smoke:p4h --email p1-ci-admin@example.invalid < "$RUNNER_TEMP/p1-ci-admin-password"
       - name: P1.1 recovery commands (synthetic account; P0 actor untouched)
         run: |
           E=p1-ci-admin@example.invalid

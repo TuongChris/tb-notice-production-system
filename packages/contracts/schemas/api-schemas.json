@@ -19386,6 +19386,47 @@
       ],
       "additionalProperties": false
     },
+    "CandidateAssessmentSourcesView": {
+      "type": "object",
+      "properties": {
+        "assessmentId": {
+          "type": "string",
+          "maxLength": 36,
+          "minLength": 36,
+          "format": "uuid"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AssessmentSource"
+          },
+          "minItems": 1,
+          "maxItems": 100
+        }
+      },
+      "required": [
+        "assessmentId",
+        "sources"
+      ],
+      "additionalProperties": false,
+      "description": "The exact stored AssessmentSource rows recorded for one CandidateAssessment (assessmentId) of this candidate, in ascending createdAt, then id order; every captured assessment has at least one. A historical record only: never proof or truth of a supported conclusion, a document review by itself, an ownership, authority, permission, infringement or exception finding, currentness, G1–G7 or readiness."
+    },
+    "GetCandidateAssessmentSourcesResponse": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/CandidateAssessmentSourcesView"
+        },
+        "meta": {
+          "$ref": "#/$defs/ResponseMeta"
+        }
+      },
+      "required": [
+        "data",
+        "meta"
+      ],
+      "additionalProperties": false
+    },
     "GetCandidateReadinessResponse": {
       "type": "object",
       "properties": {

@@ -1,5 +1,5 @@
-// The technical ruleset TB-TECHNICAL-RULESET-v2 (P4G, validateCandidate; R14-AUD-003) and its
-// engine: a pure function of exact stored values — the candidate, its prompt snapshot, the current
+// The technical ruleset TB-TECHNICAL-RULESET-v3 (P4G, validateCandidate; R14-AUD-003, ADR-0010) and
+// its engine: a pure function of exact stored values — the candidate, its prompt snapshot, the current
 // production context the run evaluates and the stored source revisions its document plan names. No
 // database, clock, randomness, locale, environment or network: the same input always gives the same
 // rule records, findings, coverage and result.
@@ -36,11 +36,14 @@
 //
 // Identity history (R14-AUD-003). TB-TECHNICAL-RULESET-v1 read part of MARKER.INTERNAL_IDENTIFIERS'
 // vocabulary from the active contract constant, so the release change TB-SCHEMA-API-v1.2.0 → v1.3.0
-// changed what that rule detected under the same identifier. TB-TECHNICAL-RULESET-v2 is v1 with that
+// changed what that rule detected under the same identifier. TB-TECHNICAL-RULESET-v2 was v1 with that
 // vocabulary written out here (INTERNAL_IDENTIFIER_STRINGS) and nothing else changed: the same 29
-// rules, kinds, severities, order and aggregation. Runs recorded as TB-TECHNICAL-RULESET-v1 stay
-// exactly as recorded; a later release or identifier needs a new ruleset version, never a silent
-// change of this one.
+// rules, kinds, severities, order and aggregation. TB-TECHNICAL-RULESET-v3 (ADR-0010) is v2 with the
+// vocabulary extended — every string v2 detected, plus TB-PRODUCTION-CONTEXT-DIGEST-v2 (outside v2's
+// vocabulary by the operator's R14-AUD-013 decision), TB-TECHNICAL-RULESET-v3 and the release
+// TB-SCHEMA-API-v1.4.0 — and nothing else changed: the same 29 rules, kinds, severities, order and
+// aggregation. Runs recorded as TB-TECHNICAL-RULESET-v1 or -v2 stay exactly as recorded; a later
+// release or identifier needs a new ruleset version, never a silent change of this one.
 import {
   CreateCandidateSchema,
   EnvelopeSchema,
@@ -62,7 +65,7 @@ import {
 import { DRAFTING_BLOCKING_CODES } from '../production/context-assembly.js';
 import { exactOccurrences, located, patternMatches, type Found } from './text-scan.js';
 
-export const TECHNICAL_RULESET_VERSION = 'TB-TECHNICAL-RULESET-v2';
+export const TECHNICAL_RULESET_VERSION = 'TB-TECHNICAL-RULESET-v3';
 
 export type CheckKind = 'DETERMINISTIC' | 'HEURISTIC';
 export type IssueSeverity = 'BLOCKER' | 'REVIEW_REQUIRED' | 'WARNING' | 'INFO';
@@ -1033,13 +1036,16 @@ export const PROMPT_STRUCTURE_MARKERS = [
 ] as const;
 /**
  * Internal identifier strings of this application (never case text), pinned for
- * TB-TECHNICAL-RULESET-v2 (R14-AUD-003): written out here and never read from a constant that
- * follows the active release, so a later release cannot change what this ruleset detects. It is every
- * string TB-TECHNICAL-RULESET-v1 detected under the accepted TB-SCHEMA-API-v1.2.0 state — the prompt
- * template, candidate-artifact and production-context digest identifiers, the v1 ruleset, the
- * v1.2.0 release and the PFC schema version — plus the v1.3.0 release and this ruleset's own
- * identifier. A unit test pins the list and fails when an identifier the application now uses is
- * missing from it: a new ruleset version is then needed.
+ * TB-TECHNICAL-RULESET-v3 (ADR-0010): written out here and never read from a constant that follows
+ * the active release, so a later release cannot change what this ruleset detects. The first eight are
+ * TB-TECHNICAL-RULESET-v2's vocabulary, unchanged and in its order — every string
+ * TB-TECHNICAL-RULESET-v1 detected under the accepted TB-SCHEMA-API-v1.2.0 state (the prompt
+ * template, candidate-artifact and production-context digest v1 identifiers, the v1 ruleset, the
+ * v1.2.0 release and the PFC schema version), the v1.3.0 release and the v2 ruleset. v3 adds the
+ * current digest definition TB-PRODUCTION-CONTEXT-DIGEST-v2 (which v2 left outside its vocabulary by
+ * the operator's R14-AUD-013 decision), its own identifier and the release TB-SCHEMA-API-v1.4.0. A
+ * unit test pins the list and fails when an identifier the application now uses is missing from it:
+ * a new ruleset version is then needed.
  */
 export const INTERNAL_IDENTIFIER_STRINGS = [
   'TB-PROMPT-TEMPLATE-v1',
@@ -1050,6 +1056,9 @@ export const INTERNAL_IDENTIFIER_STRINGS = [
   'TB-SCHEMA-API-v1.2.0',
   'TB-SCHEMA-API-v1.3.0',
   'PFC-YT-EMAIL-v1.1',
+  'TB-PRODUCTION-CONTEXT-DIGEST-v2',
+  'TB-TECHNICAL-RULESET-v3',
+  'TB-SCHEMA-API-v1.4.0',
 ] as const;
 /** Internal state and provenance codes (upper-case identifiers of this application's records). */
 export const INTERNAL_STATUS_CODES = [
@@ -1341,7 +1350,7 @@ const PROMPT_DRIFT: TechnicalRule = {
 
 // ---- the ruleset and its engine ----------------------------------------------------------------------
 
-/** The rules of TB-TECHNICAL-RULESET-v2, in the order they run and report. */
+/** The rules of TB-TECHNICAL-RULESET-v3, in the order they run and report. */
 export const TECHNICAL_RULES: readonly TechnicalRule[] = [
   TEXT_EXACT,
   SHAPE,
@@ -1375,10 +1384,10 @@ export const TECHNICAL_RULES: readonly TechnicalRule[] = [
 ];
 
 /**
- * The required inventory of TB-TECHNICAL-RULESET-v2 (v1's, unchanged): every rule, with its kind.
- * Kept apart from the implementations on purpose — a rule that is not run (left out, NOT_EXECUTED or
- * failed) still appears here and so in notExecutedRuleIds; unit tests pin this list and the
- * implementations to it.
+ * The required inventory of TB-TECHNICAL-RULESET-v3 (v1's and v2's, unchanged): every rule, with its
+ * kind. Kept apart from the implementations on purpose — a rule that is not run (left out,
+ * NOT_EXECUTED or failed) still appears here and so in notExecutedRuleIds; unit tests pin this list
+ * and the implementations to it.
  */
 export const REQUIRED_RULES: ReadonlyArray<{ readonly id: string; readonly checkKind: CheckKind }> =
   [

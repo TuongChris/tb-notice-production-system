@@ -388,7 +388,7 @@ describe('P4G technical validation on the candidate page', () => {
       candidate['artifactSha256'],
     );
     expect(q('[data-testid="validation-prompt-mode"]')?.textContent).toContain('(DRAFTING)');
-    expect(q('[data-testid="validation-ruleset"]')?.textContent).toBe('TB-TECHNICAL-RULESET-v2');
+    expect(q('[data-testid="validation-ruleset"]')?.textContent).toBe('TB-TECHNICAL-RULESET-v3');
     expect(q('[data-testid="validation-expected"]')?.textContent).toContain('(INITIAL)');
     expect(q('[data-testid="validation-digest-unread"]')?.textContent).toBe('Not read yet');
     expect(q('[data-testid="validation-run-button"]')).toBeNull();
@@ -834,7 +834,7 @@ describe('P4G technical validation on the candidate page', () => {
     expect(inDetail('[data-testid="validation-result-label"]')).toBe('ERROR');
     expect(inDetail('[data-testid="validation-qualifier"]')).toBe(TECHNICAL_QUALIFIER);
     expect(inDetail('[data-testid="validation-recorded-note"]')).toBe(HISTORICAL_RUN_NOTE);
-    expect(inDetail('[data-testid="validation-result-ruleset"]')).toBe('TB-TECHNICAL-RULESET-v2');
+    expect(inDetail('[data-testid="validation-result-ruleset"]')).toBe('TB-TECHNICAL-RULESET-v3');
     expect(inDetail('[data-testid="validation-result-artifact"]')).toBe(
       candidate['artifactSha256'],
     );
@@ -1003,25 +1003,28 @@ describe('P4G technical validation on the candidate page', () => {
     expect(detail().textContent).not.toContain(DIGEST_READ);
   });
 
-  it('R14-AUD-003: a run recorded under TB-TECHNICAL-RULESET-v1 opens exactly as recorded — the historical ruleset shown, never relabelled — while the panel names the ruleset a new run is recorded under (v2)', async () => {
-    api_ = new FakeDirectory();
-    const w = world(api_);
-    const { candidate } = await initialCandidate(api_, w);
-    await openCandidate(w.caseA.id, candidate.id);
-    await readContext();
-    await runValidation();
-    await waitFor(() => q('[data-testid="validation-result"]') !== null, 'the result');
-    expect(q('[data-testid="validation-result-ruleset"]')?.textContent).toBe(
-      'TB-TECHNICAL-RULESET-v2',
-    );
-    const [stored] = api_.validationRuns;
-    if (!stored) throw new Error('no recorded run');
-    // A run recorded by the v1 code (the fake server's stored row, set directly).
-    stored['rulesetVersion'] = 'TB-TECHNICAL-RULESET-v1';
-    await reloadAndOpenRun(w.caseA.id, candidate.id, stored.id);
-    expect(inDetail('[data-testid="validation-result-ruleset"]')).toBe('TB-TECHNICAL-RULESET-v1');
-    expect(q('[data-testid="validation-ruleset"]')?.textContent).toBe('TB-TECHNICAL-RULESET-v2');
-    expect(detail().textContent).not.toContain('TB-TECHNICAL-RULESET-v2');
+  it('R14-AUD-003, ADR-0010: a run recorded under TB-TECHNICAL-RULESET-v1 or -v2 opens exactly as recorded — the historical ruleset shown, never relabelled — while the panel names the ruleset a new run is recorded under (v3)', async () => {
+    for (const historical of ['TB-TECHNICAL-RULESET-v1', 'TB-TECHNICAL-RULESET-v2']) {
+      await unmount();
+      api_ = new FakeDirectory();
+      const w = world(api_);
+      const { candidate } = await initialCandidate(api_, w);
+      await openCandidate(w.caseA.id, candidate.id);
+      await readContext();
+      await runValidation();
+      await waitFor(() => q('[data-testid="validation-result"]') !== null, 'the result');
+      expect(q('[data-testid="validation-result-ruleset"]')?.textContent).toBe(
+        'TB-TECHNICAL-RULESET-v3',
+      );
+      const [stored] = api_.validationRuns;
+      if (!stored) throw new Error('no recorded run');
+      // A run recorded by the earlier code (the fake server's stored row, set directly).
+      stored['rulesetVersion'] = historical;
+      await reloadAndOpenRun(w.caseA.id, candidate.id, stored.id);
+      expect(inDetail('[data-testid="validation-result-ruleset"]'), historical).toBe(historical);
+      expect(q('[data-testid="validation-ruleset"]')?.textContent).toBe('TB-TECHNICAL-RULESET-v3');
+      expect(detail().textContent).not.toContain('TB-TECHNICAL-RULESET-v3');
+    }
   });
 
   it('an archived case: the run is inert with its reason; recorded runs stay listed; nothing is read or written', async () => {

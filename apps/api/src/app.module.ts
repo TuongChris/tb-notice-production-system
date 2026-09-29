@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
 import { DatabaseModule } from './infrastructure/database/database.module.js';
 import { ApiExceptionFilter } from './infrastructure/http/api-exception.filter.js';
+import { AssessmentsModule } from './modules/assessments/assessments.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { CandidatesModule } from './modules/candidates/candidates.module.js';
 import { CasesModule } from './modules/cases/cases.module.js';
@@ -25,8 +26,10 @@ import { HealthModule } from './modules/health/health.module.js';
 // provider call). P4F: notice candidates — the exact unsigned draft artifact drafted outside the
 // application from one prompt snapshot, stored with its hashes (no AI provider call). P4G: technical
 // validation — the technical ruleset's result for one exact candidate artifact against the current
-// context of its prompt's scope (technical checks only; no G1–G6 review, approval or readiness). No
-// assessment, readiness, export, signing or sending endpoints.
+// context of its prompt's scope (technical checks only; no G1–G6 review, approval or readiness).
+// P4H: candidate assessments — one attributable G1–G6 review of one exact candidate artifact at one
+// evaluation epoch, and the read-back of its stored support rows (a record only; nothing counts
+// toward readiness here). No readiness, export, signing or sending endpoints.
 @Module({
   imports: [
     DatabaseModule,
@@ -41,6 +44,7 @@ import { HealthModule } from './modules/health/health.module.js';
     PromptsModule,
     CandidatesModule,
     ValidationModule,
+    AssessmentsModule,
   ],
   providers: [{ provide: APP_FILTER, useClass: ApiExceptionFilter }],
 })

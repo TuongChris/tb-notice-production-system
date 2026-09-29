@@ -829,8 +829,9 @@ describe('SECURITY', () => {
     // selection operations, R8 the selection read-back of TB-SCHEMA-API-v1.1.0, P4B the case intake
     // operations, R9 the fact-source read-back of TB-SCHEMA-API-v1.2.0, P4C the correspondence
     // capture and case-binding operations, P4D the read-only production context, P4E the prompt
-    // operations, P4F the candidate operations, P4G the technical validation operations and R14 the
-    // validation-run read-back of TB-SCHEMA-API-v1.3.0 (exact inventory: directory-http.test.ts);
+    // operations, P4F the candidate operations, P4G the technical validation operations, R14 the
+    // validation-run read-back of TB-SCHEMA-API-v1.3.0 and P4H the candidate assessment operations
+    // with the support read-back of TB-SCHEMA-API-v1.4.0 (exact inventory: directory-http.test.ts);
     // nothing else (a candidate has no send route: see below).
     const directory =
       /^[A-Z]+ \/api\/v1\/(agencies|owners|legal-subjects|signers|owner-subjects|sources|routes|mandates|mandate-versions|coverages|coverage-signers|cases|case-sources|correspondence|prompts|candidates|validation-runs)(\/|$)/;

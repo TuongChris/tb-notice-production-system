@@ -491,7 +491,9 @@ export function describeError(error: unknown, recordLabel = 'record'): string {
         return `${INTAKE_RECORD_TEXT[record]} is archived, so nothing new can name it. Restore it first.`;
       }
       if (record === 'CaseSource') {
-        return 'That linked source is paused or unlinked, so it cannot support a fact. Link it again first.';
+        return details['operation'] === 'captureCandidateAssessment'
+          ? 'That linked source is paused or unlinked, so it cannot support a new assessment. Link it again first.'
+          : 'That linked source is paused or unlinked, so it cannot support a fact. Link it again first.';
       }
       if (record === 'Route') {
         return typeof details['linkState'] === 'string'
@@ -573,6 +575,12 @@ export function describeError(error: unknown, recordLabel = 'record'): string {
       if (details['field'] === 'routeId' || details['field'] === 'ownerHintId') {
         return 'The case’s owner hint and its route’s owner must be the same owner. Change the owner hint or choose that owner’s route.';
       }
+      if (
+        typeof details['field'] === 'string' &&
+        /^sources\.\d+\.caseSourceId$/.test(details['field'])
+      ) {
+        return 'That linked source is now recorded as another owner’s material, so it does not apply to this case’s scope and cannot support a PASS. It may be cited by a HOLD, BLOCKED, MISSING or CONFLICT review to record the problem.';
+      }
       return 'That source is already recorded as another owner’s material, so it cannot be used for this owner.';
     case 'CROSS_CASE_REFERENCE':
       if (details['field'] === 'promptSnapshotId') {
@@ -583,6 +591,15 @@ export function describeError(error: unknown, recordLabel = 'record'): string {
       }
       if (details['field'] === 'supersedesBindingId') {
         return 'That binding belongs to another case. A corrected interpretation names an earlier binding of this same case.';
+      }
+      if (details['field'] === 'supersedesAssessmentId') {
+        return 'That assessment belongs to another case. A successor supersedes an assessment of this same candidate and gate.';
+      }
+      if (
+        typeof details['field'] === 'string' &&
+        /^askDispositions\.\d+\.parentBindingId$/.test(details['field'])
+      ) {
+        return 'That message binding belongs to another case. An ask disposition answers an ask of this case’s own parent message.';
       }
       if (isCaseRecordField(typeof details['field'] === 'string' ? details['field'] : '')) {
         return 'That record belongs to another case. A case uses only its own works, reported items, use mappings and linked sources.';
@@ -627,6 +644,11 @@ export function describeError(error: unknown, recordLabel = 'record'): string {
       }
       return 'A newer revision of this source exists. Only the current revision can be revised.';
     case 'REVISION_SCOPE_CHANGE':
+      if (recordLabel === 'assessment') {
+        return stringList(details['fields']).includes('gate')
+          ? 'A successor keeps the gate of the assessment it supersedes. A review of another gate is its own assessment.'
+          : 'A successor keeps the candidate of the assessment it supersedes. A review of another candidate is its own assessment.';
+      }
       if (stringList(details['fields']).includes('promptSnapshotId')) {
         return 'A revision keeps the candidate’s task: choose a prompt snapshot of the same task. A draft for another task needs its own candidate.';
       }
@@ -685,6 +707,8 @@ export function describeError(error: unknown, recordLabel = 'record'): string {
       return '“Draft document” and “Appears signed” describe a document: choose the primary source first.';
     case 'REVIEW_UNSUPPORTED':
       switch (details['reason']) {
+        case 'AI_ASSISTED_PERFORMER':
+          return 'DOCUMENT_REVIEWED requires an actual human document review. An AI-assisted review records its analysis instead.';
         case 'SOURCE_NOT_REVIEWED':
           return '“Document reviewed” needs a source that records who reviewed the document.';
         case 'NO_BASIS_SOURCE':
@@ -737,6 +761,14 @@ export function describeError(error: unknown, recordLabel = 'record'): string {
       return details['reason'] === 'NOT_RECORDED_AS_SUPPLIED'
         ? '“Previously supplied” needs a prior transmission in this prompt snapshot’s context whose captured attachments name that exact source. A source or a sent message alone does not record it.'
         : 'A planned document can name only the SHA-256 recorded on its source revision, whose hash target says what that hash covers.';
+    case 'RULESET_NOT_CURRENT':
+      return 'An assessment binds the technical ruleset the server runs now. Reload the page: it names the current ruleset.';
+    case 'VALIDATION_RUN_REQUIRED':
+      return 'No technical validation run is recorded for this candidate against the current context. Run the technical validation first (it need not pass), then record the assessment.';
+    case 'ASK_PARENT_MISMATCH':
+      return 'An ask disposition answers an ask of the parent message this candidate’s prompt snapshot named (an initial notice has none).';
+    case 'ASSESSMENT_ALREADY_SUPERSEDED':
+      return 'That assessment already has a successor. An assessment history does not fork: supersede the latest assessment of its chain instead.';
     case 'CANDIDATE_ALREADY_SUPERSEDED':
       return 'This draft artifact is already superseded. A supersession is recorded once and never changed.';
     case 'PROMPT_TOO_LARGE':

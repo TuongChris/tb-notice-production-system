@@ -9,9 +9,11 @@
 // port is provenance only and must not be re-run over it. Build wire schemas with the `tb`
 // builders only — the JSON Schema/OpenAPI lowering rejects anything else.
 // Amended additively by TB-SCHEMA-API-v1.1.0 (ADR-0004, docs/contracts/TB-SCHEMA-API-v1.1.0):
-// CaseAuthoritySelectionView and GetCaseAuthoritySelectionResponse; and by TB-SCHEMA-API-v1.2.0
+// CaseAuthoritySelectionView and GetCaseAuthoritySelectionResponse; by TB-SCHEMA-API-v1.2.0
 // (ADR-0005, docs/contracts/TB-SCHEMA-API-v1.2.0): CaseFactSourcesView and
-// GetCaseFactSourcesResponse.
+// GetCaseFactSourcesResponse; and by TB-SCHEMA-API-v1.4.0 (ADR-0009,
+// docs/contracts/TB-SCHEMA-API-v1.4.0): CandidateAssessmentSourcesView and
+// GetCandidateAssessmentSourcesResponse.
 
 import type { z } from 'zod';
 import { tb } from '../../primitives/wire.js';
@@ -4044,6 +4046,30 @@ export const ListCandidateAssessmentsResponseSchema = tb.object({
 });
 export type ListCandidateAssessmentsResponse = z.infer<
   typeof ListCandidateAssessmentsResponseSchema
+>;
+
+// TB-SCHEMA-API-v1.4.0 (ADR-0009, additive): the read-back of the AssessmentSource rows recorded for
+// one CandidateAssessment of this candidate. Exactly the stored rows — nothing current, inferred or
+// evaluated; 1–100 rows, the bound of the CaptureAssessment supports that are the only way rows are
+// written (a captured assessment always has at least one).
+export const CandidateAssessmentSourcesViewSchema = tb.object(
+  {
+    assessmentId: tb.string({ maxLength: 36, minLength: 36, format: 'uuid' }),
+    sources: tb.array(AssessmentSourceSchema, { minItems: 1, maxItems: 100 }),
+  },
+  {
+    description:
+      'The exact stored AssessmentSource rows recorded for one CandidateAssessment (assessmentId) of this candidate, in ascending createdAt, then id order; every captured assessment has at least one. A historical record only: never proof or truth of a supported conclusion, a document review by itself, an ownership, authority, permission, infringement or exception finding, currentness, G1–G7 or readiness.',
+  },
+);
+export type CandidateAssessmentSourcesView = z.infer<typeof CandidateAssessmentSourcesViewSchema>;
+
+export const GetCandidateAssessmentSourcesResponseSchema = tb.object({
+  data: CandidateAssessmentSourcesViewSchema,
+  meta: ResponseMetaSchema,
+});
+export type GetCandidateAssessmentSourcesResponse = z.infer<
+  typeof GetCandidateAssessmentSourcesResponseSchema
 >;
 
 export const GetCandidateReadinessResponseSchema = tb.object({

@@ -181,7 +181,7 @@ describe('renderPrompt — deterministic (TB-PROMPT-TEMPLATE-v1)', () => {
     expect(lines.slice(0, 11)).toEqual([
       'TB NOTICE PRODUCTION SYSTEM — PROMPT',
       'Template: TB-PROMPT-TEMPLATE-v1',
-      'Wire contract: TB-SCHEMA-API-v1.3.0',
+      'Wire contract: TB-SCHEMA-API-v1.4.0',
       'Context schema: PFC-YT-EMAIL-v1.1',
       'Task: NMI_REPLY',
       'Mode: PREPARATION',

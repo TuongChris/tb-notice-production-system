@@ -578,7 +578,7 @@ async function main(): Promise<void> {
       a.sourceId < b.sourceId ? -1 : a.sourceId > b.sourceId ? 1 : 0,
     );
     if (
-      snapshot.contractVersion !== 'TB-SCHEMA-API-v1.3.0' ||
+      snapshot.contractVersion !== 'TB-SCHEMA-API-v1.4.0' ||
       snapshot.templateVersion !== 'TB-PROMPT-TEMPLATE-v1' ||
       snapshot.contextRevision !== view.contextRevision ||
       snapshot.dependencyDigest !== view.dependencyDigest ||
@@ -797,8 +797,7 @@ async function main(): Promise<void> {
   for (const [label, method, suffix] of [
     ['PATCH /prompts/{id}', 'PATCH', `/prompts/${s1.id}`],
     ['DELETE /prompts/{id}', 'DELETE', `/prompts/${s1.id}`],
-    ['POST /candidates/{id}/assessments', 'POST', `/candidates/${randomUUID()}/assessments`],
-    ['POST /candidates/{id}/assessments', 'POST', `/candidates/${randomUUID()}/assessments`],
+    // Candidate assessments are routed since P4H (smoke:p4h).
     ['GET /candidates/{id}/readiness', 'GET', `/candidates/${randomUUID()}/readiness`],
     [
       'POST /candidates/{id}/unsigned-exports',

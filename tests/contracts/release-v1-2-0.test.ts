@@ -1,12 +1,13 @@
 // TB-SCHEMA-API-v1.2.0 (ADR-0005, accepted at R9 final): the accepted TB-SCHEMA-API-v1.1.0 — itself
 // the frozen TB-SCHEMA-API-v1.0.0 plus its amendment — plus exactly one reviewed additive amendment:
 // the case-scoped read of the exact FactSource rows recorded for one CaseFact revision (R9
-// remediation). Since the R14 remediation the active contract is TB-SCHEMA-API-v1.3.0 (ADR-0006),
-// which extends this release (./release-v1-3-0.test.ts). These tests pin this release as accepted:
-// its record is unchanged, its base is the accepted v1.1.0 (record and documents), "frozen + v1.1.0
-// + v1.2.0" still reproduces its documents to the digests recorded at acceptance, nothing of v1.0.0
-// or v1.1.0 is changed, removed or reordered, and its addition — unchanged in the active contract —
-// carries no inferred, current, review or readiness information.
+// remediation). Later releases extend it: TB-SCHEMA-API-v1.3.0 (ADR-0006, ./release-v1-3-0.test.ts)
+// and TB-SCHEMA-API-v1.4.0 (ADR-0009, ./release-v1-4-0.test.ts), the active contract since P4H.
+// These tests pin this release as accepted: its record is unchanged, its base is the accepted v1.1.0
+// (record and documents), "frozen + v1.1.0 + v1.2.0" still reproduces its documents to the digests
+// recorded at acceptance, nothing of v1.0.0 or v1.1.0 is changed, removed or reordered, and its
+// addition — unchanged in the active contract — carries no inferred, current, review or readiness
+// information.
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { isDeepStrictEqual } from 'node:util';

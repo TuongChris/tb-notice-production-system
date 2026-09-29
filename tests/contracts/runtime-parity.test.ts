@@ -1,9 +1,9 @@
 // Three-way runtime parity (P0-D): for every payload, the baseline JSON Schema (Ajv/full oracle),
 // the generated JSON Schema (same oracle) and the active Zod schema must agree ACCEPT/REJECT.
-// The baseline is the active release TB-SCHEMA-API-v1.3.0 (ADR-0006): the frozen TB-SCHEMA-API-v1.0.0
-// schemas, unchanged, plus the schemas of each reviewed additive amendment (v1.1.0, ADR-0004: two;
-// v1.2.0, ADR-0005: two; v1.3.0, ADR-0006: one; ./release.ts); the 31 frozen fixtures are also
-// checked against the frozen bundle itself.
+// The baseline is the active release TB-SCHEMA-API-v1.4.0 (ADR-0009): the frozen TB-SCHEMA-API-v1.0.0
+// schemas, unchanged, plus the schemas of each additive amendment (v1.1.0, ADR-0004: two; v1.2.0,
+// ADR-0005: two; v1.3.0, ADR-0006: one; v1.4.0, ADR-0009: two; ./release.ts); the 31 frozen fixtures
+// are also checked against the frozen bundle itself.
 // No exception list exists: any divergence fails with the payload and all three results.
 import { writeFileSync } from 'node:fs';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -110,7 +110,7 @@ describe('frozen request-validation fixtures (31)', () => {
   });
 });
 
-describe('schema-driven synthetic payloads for all 289 schemas (284 frozen + 2 of v1.1.0 + 2 of v1.2.0 + 1 of v1.3.0)', () => {
+describe('schema-driven synthetic payloads for all 291 schemas (284 frozen + 2 of v1.1.0 + 2 of v1.2.0 + 1 of v1.3.0 + 2 of v1.4.0)', () => {
   it('synthetic base instances are valid under the baseline oracle (generator self-check)', () => {
     const invalid: string[] = [];
     for (const [name] of apiSchemaCatalog) {

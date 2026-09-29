@@ -11,8 +11,10 @@
 // Amended additively by TB-SCHEMA-API-v1.1.0 (ADR-0004, docs/contracts/TB-SCHEMA-API-v1.1.0): the
 // operation getCaseAuthoritySelection after listCaseAuthoritySelections; by TB-SCHEMA-API-v1.2.0
 // (ADR-0005, docs/contracts/TB-SCHEMA-API-v1.2.0): the operation getCaseFactSources after
-// getCaseFact; and by TB-SCHEMA-API-v1.3.0 (ADR-0006, docs/contracts/TB-SCHEMA-API-v1.3.0): the
-// operation getValidationRun after listValidationRuns.
+// getCaseFact; by TB-SCHEMA-API-v1.3.0 (ADR-0006, docs/contracts/TB-SCHEMA-API-v1.3.0): the
+// operation getValidationRun after listValidationRuns; and by TB-SCHEMA-API-v1.4.0 (ADR-0009,
+// docs/contracts/TB-SCHEMA-API-v1.4.0): the operation getCandidateAssessmentSources after
+// listCandidateAssessments.
 
 import { tb } from '../primitives/wire.js';
 import type { OperationSpec } from './operation-types.js';
@@ -82,6 +84,7 @@ import {
   GeneratePromptSchema,
   GeneratePromptResponseSchema,
   GetAgencyResponseSchema,
+  GetCandidateAssessmentSourcesResponseSchema,
   GetCandidateReadinessResponseSchema,
   GetCandidateResponseSchema,
   GetCaseAuthoritySelectionResponseSchema,
@@ -3560,6 +3563,37 @@ export const operations = [
       { name: 'q', in: 'query', schema: tb.string({ maxLength: 200 }) },
     ],
     success: { status: '200', schema: ListCandidateAssessmentsResponseSchema },
+    errors: ['400', '401', '403', '404', '409', '413', '422', '429', '500'],
+    security: 'session',
+    preconditionTarget: null,
+    idempotentWrite: false,
+  },
+  // TB-SCHEMA-API-v1.4.0 (ADR-0009, additive): the read-back of the exact AssessmentSource rows
+  // recorded for one assessment of this candidate. Same shape as getCaseFactSources (the candidate
+  // path scope, the {data, meta} envelope, no ETag for an append-only record); every row of the
+  // assessment in one response (1–100), never a page.
+  {
+    operationId: 'getCandidateAssessmentSources',
+    method: 'get',
+    path: '/candidates/{candidateId}/assessments/{id}/sources',
+    tags: ['Assessment'],
+    summary:
+      'Read the exact AssessmentSource rows recorded for one assessment of this candidate; a stored historical record, not proof, a review or a gate result.',
+    parameters: [
+      {
+        name: 'candidateId',
+        in: 'path',
+        required: true,
+        schema: tb.string({ maxLength: 36, minLength: 36, format: 'uuid' }),
+      },
+      {
+        name: 'id',
+        in: 'path',
+        required: true,
+        schema: tb.string({ maxLength: 36, minLength: 36, format: 'uuid' }),
+      },
+    ],
+    success: { status: '200', schema: GetCandidateAssessmentSourcesResponseSchema },
     errors: ['400', '401', '403', '404', '409', '413', '422', '429', '500'],
     security: 'session',
     preconditionTarget: null,

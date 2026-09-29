@@ -13,7 +13,9 @@
 // names a source revision of the prompt snapshot's own source manifest and is a plan only. A
 // revision is a new candidate (the revised one never changes); a supersession is recorded once and
 // is an internal lifecycle step, never a retraction. Every page is keyed by the case (and
-// candidate) id, and a candidate is shown only under its own case.
+// candidate) id, and a candidate is shown only under its own case. A candidate's page also shows
+// its technical validation (P4G, ./validation.tsx) and its recorded G1–G6 reviews (P4H,
+// ./assessments.tsx) — never readiness, a signature or permission to send.
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import type {
@@ -52,6 +54,7 @@ import {
 import { RecordedBy, SourceCitation } from '../representation/authority-ui.js';
 import { CASE_ARCHIVED_READ_ONLY, NotInThisCase } from './intake-ui.js';
 import { allPages, MODE_LABEL } from './production-context.js';
+import { CandidateAssessments } from './assessments.js';
 import { CandidateValidation } from './validation.js';
 
 /** The permanent statement of what a candidate is (mission §32, verbatim). */
@@ -524,6 +527,13 @@ function CandidateDetail({ caseId, candidateId }: { caseId: string; candidateId:
         <p className="hint">{ARTIFACT_SHA_MEANING}</p>
       </Section>
       <CandidateValidation
+        caseId={caseId}
+        candidate={candidate}
+        prompt={loadedPrompt}
+        promptError={prompt.status === 'error' ? prompt.error : null}
+        archived={archived}
+      />
+      <CandidateAssessments
         caseId={caseId}
         candidate={candidate}
         prompt={loadedPrompt}

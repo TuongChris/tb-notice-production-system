@@ -1,0 +1,174 @@
+{
+  "release": "TB-SCHEMA-API-v1.4.0",
+  "kind": "ADDITIVE",
+  "decision": "docs/decisions/ADR-0009-candidate-assessment-support-rows-additive-historical-read.md",
+  "summary": "Adds the read-back of the exact AssessmentSource rows recorded for one CandidateAssessment of one candidate (R14-AUD-006, ADR-0009). Nothing of TB-SCHEMA-API-v1.3.0 — and so nothing of TB-SCHEMA-API-v1.2.0, TB-SCHEMA-API-v1.1.0 or TB-SCHEMA-API-v1.0.0 — is changed or removed.",
+  "base": {
+    "release": "TB-SCHEMA-API-v1.3.0",
+    "path": "docs/contracts/TB-SCHEMA-API-v1.3.0",
+    "amendmentSha256": "6b74c09aba024dcf8cb2e0a0c6e374bbce17b45298d2aec83cc2e3ab166a1630",
+    "files": {
+      "packages/contracts/schemas/api-schemas.json": "5868d90ee84356643fe4c368a44a1b3a200502c40bb5e294146127423e956a8c",
+      "packages/contracts/openapi/openapi.json": "3743fba314fb5b976be17d6368c9ce3316ad35b97cf97d7a7591c9384312dd36",
+      "packages/contracts/openapi/openapi.yaml": "ad80e8ad27c5128807cd0688270d469efb2ef423c5d22e7c821c8f5b919c0ded"
+    }
+  },
+  "openApiInfoVersion": {
+    "from": "1.3.0",
+    "to": "1.4.0"
+  },
+  "schemas": {
+    "refForm": "JSON Schema $defs (#/$defs/<name>); in OpenAPI components.schemas the same schemas use #/components/schemas/<name>",
+    "insertAfter": "ListCandidateAssessmentsResponse",
+    "added": {
+      "CandidateAssessmentSourcesView": {
+        "type": "object",
+        "properties": {
+          "assessmentId": {
+            "type": "string",
+            "maxLength": 36,
+            "minLength": 36,
+            "format": "uuid"
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/AssessmentSource"
+            },
+            "minItems": 1,
+            "maxItems": 100
+          }
+        },
+        "required": [
+          "assessmentId",
+          "sources"
+        ],
+        "additionalProperties": false,
+        "description": "The exact stored AssessmentSource rows recorded for one CandidateAssessment (assessmentId) of this candidate, in ascending createdAt, then id order; every captured assessment has at least one. A historical record only: never proof or truth of a supported conclusion, a document review by itself, an ownership, authority, permission, infringement or exception finding, currentness, G1–G7 or readiness."
+      },
+      "GetCandidateAssessmentSourcesResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/CandidateAssessmentSourcesView"
+          },
+          "meta": {
+            "$ref": "#/$defs/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "operations": {
+    "insertAfterPath": "/candidates/{candidateId}/assessments",
+    "added": {
+      "/candidates/{candidateId}/assessments/{id}/sources": {
+        "get": {
+          "operationId": "getCandidateAssessmentSources",
+          "tags": [
+            "Assessment"
+          ],
+          "summary": "Read the exact AssessmentSource rows recorded for one assessment of this candidate; a stored historical record, not proof, a review or a gate result.",
+          "parameters": [
+            {
+              "name": "candidateId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "maxLength": 36,
+                "minLength": 36,
+                "format": "uuid"
+              }
+            },
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "maxLength": 36,
+                "minLength": 36,
+                "format": "uuid"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Success; source-based truth and human gates remain separate.",
+              "headers": {
+                "ETag": {
+                  "schema": {
+                    "type": "string"
+                  },
+                  "description": "Strong entity row-version ETag when the resource is mutable."
+                },
+                "Cache-Control": {
+                  "schema": {
+                    "type": "string"
+                  },
+                  "example": "no-store"
+                }
+              },
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/GetCandidateAssessmentSourcesResponse"
+                  }
+                }
+              }
+            },
+            "400": {
+              "$ref": "#/components/responses/Error"
+            },
+            "401": {
+              "$ref": "#/components/responses/Error"
+            },
+            "403": {
+              "$ref": "#/components/responses/Error"
+            },
+            "404": {
+              "$ref": "#/components/responses/Error"
+            },
+            "409": {
+              "$ref": "#/components/responses/Error"
+            },
+            "413": {
+              "$ref": "#/components/responses/Error"
+            },
+            "422": {
+              "$ref": "#/components/responses/Error"
+            },
+            "429": {
+              "$ref": "#/components/responses/Error"
+            },
+            "500": {
+              "$ref": "#/components/responses/Error"
+            }
+          },
+          "security": [
+            {
+              "SessionCookie": []
+            }
+          ],
+          "x-precondition-target": null,
+          "x-idempotent-write": false
+        }
+      }
+    }
+  },
+  "result": {
+    "schemaCount": 291,
+    "operationCount": 145,
+    "files": {
+      "packages/contracts/schemas/api-schemas.json": "bd2cbf509af6958e13f6a8fc7988f8a28d34cd35eebe00c9616e015f7e5087a4",
+      "packages/contracts/openapi/openapi.json": "ea24df81c6e707957d746ec80ebc39bf82bdda2f333410af5729a001a96fb8fe",
+      "packages/contracts/openapi/openapi.yaml": "e22ec29ea67aa481cfa8762e295bcf67a80a6265f4bf460ff60b16b86868c149"
+    }
+  }
+}

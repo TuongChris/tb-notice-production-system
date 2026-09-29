@@ -1,0 +1,290 @@
+# GitHub Actions run 36511717843 (workflow CI, push) — branch feature/p4h-candidate-assessment, the P4H code head.
+# commit 1eff3f3dd653589e1201bd0bf4f0ee9925d2b3ea. Created 2026-09-29T02:15:11Z, completed 2026-09-29T02:25:59Z. Status: completed; conclusion: success.
+# Jobs: "Database, seed and smoke (MySQL 8.4.11)" success (02:15:13Z–02:25:58Z); "Non-DB checks (cold install)" success (02:15:13Z–02:17:45Z)
+# https://github.com/TuongChris/tb-notice-production-system/actions/runs/36511717843 — no pull request existed for the branch at the time.
+# Verified with `gh run view`. Evidence lines extracted from the job logs (`gh api …/actions/jobs/<id>/logs`; step
+# echoes, environment blocks, ANSI codes and timestamps removed; grouped by job and step). Synthetic CI data only; the
+# smokes write only into the disposable CI tb_notice_dev. No Drive write, mail, deployment or other external action.
+# Individual check lines of the other smokes are left out; their "(N checks)" totals are kept, and every check line of
+# smoke:p4h is listed, as are smoke:local's six P4H boundary checks.
+
+Non-DB checks (cold install)
+  [corepack enable]
+    node v24.21.0, yarn 4.18.0, git version 2.55.0
+  [yarn install --immutable]
+    ➤ YN0000: · Done with warnings in 8s 521ms
+  [yarn reference:check]
+    [reference:check] pinned identity (REFERENCE_BASELINE.json): 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c matches
+    [reference:check] OK — frozen references intact.
+  [yarn reference:helper-tests]
+    [reference:helper-tests] frozen helper tests: pass 27, fail 0; exit 0
+  [yarn contracts:check]
+    [contracts:check] OK — 3 generated outputs match the active source.
+  [yarn lint]
+    Found 0 warnings and 0 errors.
+  [yarn format:check]
+    All matched files use Prettier code style!
+  [yarn test]
+    Test Files  55 passed (55)
+    Tests  1636 passed (1636)
+  [yarn build]
+    dist/assets/candidates-BOmCwjJ5.js            82.15 kB │ gzip:  20.29 kB
+    dist/assets/index-DDDFP4Ut.js                332.15 kB │ gzip: 103.07 kB
+    ✓ built in 228ms
+  [yarn reference:check]
+    test -z "$(git status --porcelain)" || { git status --porcelain; exit 1; }
+    [reference:check] pinned identity (REFERENCE_BASELINE.json): 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c matches
+    [reference:check] OK — frozen references intact.
+  [yarn typecheck]
+    (no output; the step and the job succeeded)
+
+Database, seed and smoke (MySQL 8.4.11)
+  [corepack enable]
+    node v24.21.0, yarn 4.18.0, Docker version 28.0.4, build b8034c0, Docker Compose version v2.38.2
+  [yarn install --immutable]
+    ➤ YN0000: · Done with warnings in 7s 547ms
+  [yarn db:migrate:deploy test]
+    [verify] tables 33/33 (InnoDB 33, utf8mb4_0900_bin 33); columns 541/541 (character columns with binary collation 391)
+    [verify] foreign keys 125/125 RESTRICT/RESTRICT (composite 27); CHECK constraints 30/30 semantically matching and ENFORCED=YES
+    [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+    [verify] domain rows total: 0
+    [verify] PASS: metadata matches the reviewed inventory.
+  [yarn test:db]
+    Test Files  15 passed (15)
+    Tests  580 passed (580)
+  [yarn db:migrate:deploy replay]
+    grep -q "No pending migrations to apply" replay-second-deploy.log
+    No pending migrations to apply.
+    [verify] tables 33/33 (InnoDB 33, utf8mb4_0900_bin 33); columns 541/541 (character columns with binary collation 391)
+    [verify] foreign keys 125/125 RESTRICT/RESTRICT (composite 27); CHECK constraints 30/30 semantically matching and ENFORCED=YES
+    [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+    [verify] domain rows total: 0
+    [verify] PASS: metadata matches the reviewed inventory.
+  [yarn db:migrate:deploy dev]
+    [verify] tables 33/33 (InnoDB 33, utf8mb4_0900_bin 33); columns 541/541 (character columns with binary collation 391)
+    [verify] foreign keys 125/125 RESTRICT/RESTRICT (composite 27); CHECK constraints 30/30 semantically matching and ENFORCED=YES
+    [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+    [verify] domain rows total: 0
+    [verify] PASS: metadata matches the reviewed inventory.
+  [yarn db:seed | tee seed-1.log]
+    [db:seed] synthetic actor 00000000-0000-4000-8000-00000000a0c7: inserted
+    [db:seed] rows=1 enabled=0 password_hash=!P0-SYNTHETIC-DISABLED-ACTOR-NO-CREDENTIAL
+    [db:seed] canonical digest 0ee26dc3ee5f3a1030fb78a6cadaf4dabef1f5a296b58163248584e1e0bfb775 (identical on every PC)
+    [db:seed] synthetic actor 00000000-0000-4000-8000-00000000a0c7: unchanged (already canonical)
+    [db:seed] rows=1 enabled=0 password_hash=!P0-SYNTHETIC-DISABLED-ACTOR-NO-CREDENTIAL
+    [db:seed] canonical digest 0ee26dc3ee5f3a1030fb78a6cadaf4dabef1f5a296b58163248584e1e0bfb775 (identical on every PC)
+    [verify] tables 33/33 (InnoDB 33, utf8mb4_0900_bin 33); columns 541/541 (character columns with binary collation 391)
+    [verify] foreign keys 125/125 RESTRICT/RESTRICT (composite 27); CHECK constraints 30/30 semantically matching and ENFORCED=YES
+    [verify] applied migrations: 20260923103912_initial_schema b54c36fdaada7bdd31e08558a93d70e9e40fd4c48348681c9c2a124503426515
+    [verify] domain rows total: 1
+    [verify] PASS: metadata matches the reviewed inventory.
+  [yarn db:drift:diff-migrations]
+    -- This is an empty migration.
+    -- This is an empty migration.
+  [yarn smoke:local]
+    [smoke] PASS (67 checks) — the P4H boundary checks among them:
+      [smoke] PASS business boundary: POST /candidates/{id}/assessments without a session → 401 SESSION_REQUIRED, no-store
+      [smoke] PASS business boundary: POST /candidates/{id}/assessments without Origin → 403 ORIGIN_REJECTED, no-store
+      [smoke] PASS business boundary: GET /candidates/{id}/assessments through the web proxy without a session → 401 SESSION_REQUIRED, no-store
+      [smoke] PASS business boundary: GET /candidates/{id}/assessments/{id}/sources without a session → 401 SESSION_REQUIRED, no-store
+      [smoke] PASS business boundary: GET /candidates/{id}/readiness (later phase, not routed) → 404 NOT_FOUND, no-store
+      [smoke] PASS business boundary: POST /candidates/{id}/unsigned-exports (later phase, not routed) → 404 NOT_FOUND, no-store
+  [P1 admin bootstrap (yarn admin:create, synthetic account)]
+    [admin:create] guard: tb_dev@127.0.0.1:3307/tb_notice_dev (local runtime account)
+    [admin:create] target tb_dev@127.0.0.1:3307/tb_notice_dev (password not shown)
+    [admin:create] created enabled application user e5024900-ca03-401e-a177-58e234004b5b
+  [yarn smoke:auth]
+    [smoke:auth] PASS (4 checks)
+  [yarn smoke:directory]
+    [smoke:directory] PASS (14 checks)
+  [yarn smoke:p3a]
+    [smoke:p3a] PASS (24 checks)
+  [yarn smoke:p3b]
+    [smoke:p3b] PASS (36 checks)
+  [yarn smoke:p4a]
+    [smoke:p4a] PASS (50 checks)
+  [yarn smoke:p4b]
+    [smoke:p4b] PASS (64 checks)
+  [yarn smoke:p4c]
+    [smoke:p4c] PASS (62 checks)
+  [yarn smoke:p4d]
+    [smoke:p4d] PASS (86 checks)
+  [yarn smoke:p4e]
+    [smoke:p4e] PASS (82 checks)
+  [yarn smoke:p4f]
+    [smoke:p4f] PASS (89 checks)
+  [yarn smoke:p4g]
+    [smoke:p4g] PASS (145 checks)
+    (smoke:p4b and smoke:p4c keep 64 and 62 checks: their probe of the assessment route became one of the
+    unsigned export. smoke:p4d 86 and smoke:p4e 82 (88 and 84 at R14), smoke:p4f 89 (90) and smoke:p4g 145 (146):
+    their probes that assessments are unrouted were removed in 38f5a1c, since P4H routes them.)
+  [yarn smoke:p4h] — every check line
+    [smoke:p4h] PASS GET /candidates/{id}/assessments without a session → 401 SESSION_REQUIRED
+    [smoke:p4h] PASS GET /candidates/{id}/assessments/{id}/sources without a session → 401 SESSION_REQUIRED
+    [smoke:p4h] PASS POST /candidates/{id}/assessments without a session → 401 SESSION_REQUIRED
+    [smoke:p4h] PASS login → 200 with a session cookie and CSRF token
+    [smoke:p4h] PASS POST /agencies → 201
+    [smoke:p4h] PASS POST /sources → 201
+    [smoke:p4h] PASS POST /owners → 201
+    [smoke:p4h] PASS POST /legal-subjects → 201
+    [smoke:p4h] PASS GET /owners/993350d7-36b9-448d-9d54-598e42a33b8e → 200
+    [smoke:p4h] PASS POST /owners/{id}/subjects → 201
+    [smoke:p4h] PASS POST /routes → 201
+    [smoke:p4h] PASS POST /signers → 201
+    [smoke:p4h] PASS POST /mandates → 201
+    [smoke:p4h] PASS GET /mandates/c8f2419a-38e0-4880-aeb1-532c71478ea6 → 200
+    [smoke:p4h] PASS POST /mandates/{id}/versions → 201
+    [smoke:p4h] PASS POST /sources → 201
+    [smoke:p4h] PASS GET /mandate-versions/48cc1987-4efd-43af-86f7-8d456530f591 → 200
+    [smoke:p4h] PASS POST /mandate-versions/{id}/coverages → 201
+    [smoke:p4h] PASS GET /coverages/f08e7858-57c9-48d8-b473-ff6dd86ad469 → 200
+    [smoke:p4h] PASS POST /coverages/{id}/signers → 201
+    [smoke:p4h] PASS GET /mandate-versions/48cc1987-4efd-43af-86f7-8d456530f591 → 200
+    [smoke:p4h] PASS POST /mandate-versions/{id}/freeze → 200
+    [smoke:p4h] PASS POST /sources → 201
+    [smoke:p4h] PASS POST /cases → 201
+    [smoke:p4h] PASS GET /cases/38913b61-2d50-4ddb-92c9-2c7d06f74be7 → 200
+    [smoke:p4h] PASS POST /cases/{caseId}/authority-selections → 201
+    [smoke:p4h] PASS GET /cases/38913b61-2d50-4ddb-92c9-2c7d06f74be7 → 200
+    [smoke:p4h] PASS POST /cases/{caseId}/reported-items → 201
+    [smoke:p4h] PASS GET /cases/38913b61-2d50-4ddb-92c9-2c7d06f74be7 → 200
+    [smoke:p4h] PASS POST /cases/{caseId}/works → 201
+    [smoke:p4h] PASS GET /cases/38913b61-2d50-4ddb-92c9-2c7d06f74be7 → 200
+    [smoke:p4h] PASS POST /cases/{caseId}/mappings → 201
+    [smoke:p4h] PASS POST /sources → 201
+    [smoke:p4h] PASS GET /cases/38913b61-2d50-4ddb-92c9-2c7d06f74be7 → 200
+    [smoke:p4h] PASS POST /cases/{caseId}/sources (case A) → 201
+    [smoke:p4h] PASS POST /cases → 201
+    [smoke:p4h] PASS GET /cases/eed4114a-8a61-4d9e-81f5-fca8ca20fdca → 200
+    [smoke:p4h] PASS POST /cases/{caseId}/authority-selections → 201
+    [smoke:p4h] PASS GET /cases/eed4114a-8a61-4d9e-81f5-fca8ca20fdca → 200
+    [smoke:p4h] PASS POST /cases/{caseId}/reported-items → 201
+    [smoke:p4h] PASS GET /cases/eed4114a-8a61-4d9e-81f5-fca8ca20fdca → 200
+    [smoke:p4h] PASS POST /cases/{caseId}/works → 201
+    [smoke:p4h] PASS GET /cases/eed4114a-8a61-4d9e-81f5-fca8ca20fdca → 200
+    [smoke:p4h] PASS POST /cases/{caseId}/mappings → 201
+    [smoke:p4h] PASS POST /sources → 201
+    [smoke:p4h] PASS GET /cases/eed4114a-8a61-4d9e-81f5-fca8ca20fdca → 200
+    [smoke:p4h] PASS POST /cases/{caseId}/sources (case B) → 201
+    [smoke:p4h] PASS GET /cases/{caseId}/production-context (case A INITIAL + DRAFTING) → 200
+    [smoke:p4h] PASS POST /cases/{caseId}/prompts (case A INITIAL + DRAFTING) → 201
+    [smoke:p4h] PASS GET /cases/{caseId}/production-context (case B INITIAL + DRAFTING) → 200
+    [smoke:p4h] PASS POST /cases/{caseId}/prompts (case B INITIAL + DRAFTING) → 201
+    [smoke:p4h] PASS POST /cases/{caseId}/candidates (case A) → 201
+    [smoke:p4h] PASS POST /cases/{caseId}/candidates (case B) → 201
+    [smoke:p4h] PASS GET /cases/{caseId}/production-context (the candidate’s prompt scope) → 200
+    [smoke:p4h] PASS the current digest is TB-PRODUCTION-CONTEXT-DIGEST-v2 of the closure and scope under the active contract TB-SCHEMA-API-v1.4.0 (rebuilt with the frozen helper)
+    [smoke:p4h] PASS POST /candidates/{id}/validation-runs (case A, epoch 1) → 201
+    [smoke:p4h] PASS a TECHNICAL_PASS run of exactly the candidate artifact and the current digest (ruleset v3)
+    [smoke:p4h] PASS GET /validation-runs/{id} (epoch 1 run before any assessment) → 200
+    [smoke:p4h] PASS GET /candidates/{id} (case A before any assessment) → 200
+    [smoke:p4h] PASS POST /candidates/{id}/assessments (case A, G1 PASS at epoch 1) → 201
+    [smoke:p4h] PASS capture: the G1 PASS is recorded exactly (texts byte-identical, no default filled in) at the epoch (candidate, stored artifact, current digest, TB-TECHNICAL-RULESET-v3)
+    [smoke:p4h] PASS the capture wrote one assessment, one support row, one audit event and one idempotency record
+    [smoke:p4h] PASS GET /candidates/{id} (case A after the capture) → 200
+    [smoke:p4h] PASS GET /validation-runs/{id} (epoch 1 run after the capture) → 200
+    [smoke:p4h] PASS the candidate and the TECHNICAL_PASS run read back unchanged after the capture
+    [smoke:p4h] PASS POST /candidates/{id}/assessments (the same key again) → 201
+    [smoke:p4h] PASS the same Idempotency-Key replays the stored assessment; nothing new is written
+    [smoke:p4h] PASS POST /candidates/{id}/assessments (the same key, another body) → 409
+    [smoke:p4h] PASS POST /candidates/{id}/assessments (another candidate’s artifact) → 412
+    [smoke:p4h] PASS another candidate’s artifact: 412 ARTIFACT_CHANGED, nothing written
+    [smoke:p4h] PASS POST /candidates/{id}/assessments (a ruleset that is not the current one) → 422
+    [smoke:p4h] PASS a ruleset that is not the current one: 422 RULESET_NOT_CURRENT, nothing written
+    [smoke:p4h] PASS POST /candidates/{id}/assessments (case B’s linked source) → 422
+    [smoke:p4h] PASS case B’s linked source: 422 CROSS_CASE_REFERENCE, nothing written
+    [smoke:p4h] PASS POST /candidates/{id}/assessments (an unknown linked source) → 422
+    [smoke:p4h] PASS an unknown linked source: 422 REFERENCE_NOT_FOUND, nothing written
+    [smoke:p4h] PASS POST /candidates/{id}/assessments (an AI-assisted performer recording DOCUMENT_REVIEWED) → 422
+    [smoke:p4h] PASS an AI-assisted performer recording DOCUMENT_REVIEWED: 422 REVIEW_UNSUPPORTED, nothing written
+    [smoke:p4h] PASS POST /sources → 201
+    [smoke:p4h] PASS GET /cases/38913b61-2d50-4ddb-92c9-2c7d06f74be7 → 200
+    [smoke:p4h] PASS POST /cases/{caseId}/sources (case A, a second source) → 201
+    [smoke:p4h] PASS POST /owners (owner B) → 201
+    [smoke:p4h] PASS POST /legal-subjects (owner B) → 201
+    [smoke:p4h] PASS GET /owners/92818f41-dcc2-4104-afdc-fde71381f509 → 200
+    [smoke:p4h] PASS POST /owners/{id}/subjects (owner B) → 201
+    [smoke:p4h] PASS POST /routes (owner B) → 201
+    [smoke:p4h] PASS POST /mandates (owner B) → 201
+    [smoke:p4h] PASS GET /mandates/8e353ad3-15e2-43d8-84b4-1c0cbe66ffaf → 200
+    [smoke:p4h] PASS POST /mandates/{id}/versions (owner B, draft) → 201
+    [smoke:p4h] PASS GET /mandate-versions/dffc172b-e1b8-41b4-801b-ef1f762af51d → 200
+    [smoke:p4h] PASS POST /mandate-versions/{id}/coverages (owner B cites case A’s second source) → 201
+    [smoke:p4h] PASS GET /cases/{caseId}/production-context (case A after owner B’s use of its second source) → 200
+    [smoke:p4h] PASS a new epoch: case A’s context lists its second source as SOURCE_NOT_APPLICABLE under a new digest
+    [smoke:p4h] PASS POST /candidates/{id}/assessments (the earlier digest) → 412
+    [smoke:p4h] PASS the earlier digest: 412 CONTEXT_CHANGED, nothing written
+    [smoke:p4h] PASS POST /candidates/{id}/assessments (the current digest without a run of its epoch) → 422
+    [smoke:p4h] PASS the current digest without a run of its epoch: 422 VALIDATION_RUN_REQUIRED, nothing written
+    [smoke:p4h] PASS POST /candidates/{id}/validation-runs (case A, epoch 2) → 201
+    [smoke:p4h] PASS a run of the new epoch records REVIEW_REQUIRED (it need not pass for an assessment)
+    [smoke:p4h] PASS POST /candidates/{id}/assessments (a PASS citing the source that no longer applies) → 422
+    [smoke:p4h] PASS a PASS citing the source that no longer applies: 422 CROSS_OWNER_REFERENCE, nothing written
+    [smoke:p4h] PASS POST /candidates/{id}/assessments (case A, G2 HOLD citing the source that no longer applies) → 201
+    [smoke:p4h] PASS D-3: a HOLD may cite a linked source that no longer applies; it is recorded with it
+    [smoke:p4h] PASS POST /candidates/{id}/assessments (case A, a G1 successor of the first PASS at the new epoch) → 201
+    [smoke:p4h] PASS D-2: a successor names the head of the same candidate and gate across epochs
+    [smoke:p4h] PASS POST /candidates/{id}/assessments (a second successor of the same assessment) → 409
+    [smoke:p4h] PASS a second successor of the same assessment: 409 ASSESSMENT_ALREADY_SUPERSEDED, nothing written
+    [smoke:p4h] PASS POST /candidates/{id}/assessments (a successor of another gate) → 422
+    [smoke:p4h] PASS a successor of another gate: 422 REVISION_SCOPE_CHANGE, nothing written
+    [smoke:p4h] PASS GET /candidates/{id}/assessments (case A) → 200
+    [smoke:p4h] PASS the list shows the three assessments newest first; the first reads back exactly
+    [smoke:p4h] PASS GET /candidates/{id}/assessments (q=G2) → 200
+    [smoke:p4h] PASS GET /candidates/{id}/assessments (q=PASS) → 200
+    [smoke:p4h] PASS GET /candidates/{id}/assessments (q=6efd6490-5d3) → 200
+    [smoke:p4h] PASS GET /candidates/{id}/assessments (q=e01c1f9b7a44) → 200
+    [smoke:p4h] PASS GET /candidates/{id}/assessments (q=G) → 200
+    [smoke:p4h] PASS q matches exactly an id, a gate, a result or a digest — never a prefix
+    [smoke:p4h] PASS GET /candidates/{id}/assessments/{id}/sources (the first PASS) → 200
+    [smoke:p4h] PASS GET /candidates/{id}/assessments/{id}/sources (the HOLD) → 200
+    [smoke:p4h] PASS GET /candidates/{id}/assessments/{id}/sources (the successor) → 200
+    [smoke:p4h] PASS the support rows read back exactly as stored, each assessment its own (the successor inherits none), the same-case links named
+    [smoke:p4h] PASS the lists and support reads wrote nothing
+    [smoke:p4h] PASS GET /case-sources/576b4d91-ab45-4764-86ed-98d2321c9c21 → 200
+    [smoke:p4h] PASS POST /case-sources/{id}/link-state (pause case A’s first link) → 200
+    [smoke:p4h] PASS GET /candidates/{id}/assessments/{id}/sources (the first PASS after the pause) → 200
+    [smoke:p4h] PASS GET /case-sources/{id} (present state) → 200
+    [smoke:p4h] PASS the link paused later: the stored support rows read back unchanged; the present state (PAUSED) is a separate read
+    [smoke:p4h] PASS POST /candidates/{id}/supersede (case B) → 200
+    [smoke:p4h] PASS GET /cases/{caseId}/production-context (case B) → 200
+    [smoke:p4h] PASS POST /candidates/{id}/validation-runs (case B, superseded candidate) → 201
+    [smoke:p4h] PASS GET /candidates/{id} (case B before its assessment) → 200
+    [smoke:p4h] PASS POST /candidates/{id}/assessments (case B, a historical G3 MISSING of the superseded candidate) → 201
+    [smoke:p4h] PASS GET /candidates/{id} (case B after its assessment) → 200
+    [smoke:p4h] PASS D-1: a superseded candidate’s review is recorded as history; the candidate is unchanged
+    [smoke:p4h] PASS GET another candidate’s assessment through case A’s candidate → 404
+    [smoke:p4h] PASS GET case A’s assessment through case B’s candidate → 404
+    [smoke:p4h] PASS GET an unknown assessment → 404
+    [smoke:p4h] PASS GET an unknown candidate → 404
+    [smoke:p4h] PASS GET /candidates/{id}/assessments (case B’s id in case A’s list) → 200
+    [smoke:p4h] PASS another candidate’s assessments are 404 like unknown ones and never listed
+    [smoke:p4h] PASS GET /validation-runs/{id} (epoch 1 run at the end) → 200
+    [smoke:p4h] PASS the TECHNICAL_PASS run reads back unchanged after every assessment
+    [smoke:p4h] PASS GET /candidates/{id}/assessments/{id} (not routed) → 404
+    [smoke:p4h] PASS PATCH /candidates/{id}/assessments/{id} (not routed) → 404
+    [smoke:p4h] PASS DELETE /candidates/{id}/assessments/{id} (not routed) → 404
+    [smoke:p4h] PASS POST /candidates/{id}/assessments/{id}/sources (not routed) → 404
+    [smoke:p4h] PASS GET /candidates/{id}/readiness (not routed) → 404
+    [smoke:p4h] PASS POST /candidates/{id}/unsigned-exports (not routed) → 404
+    [smoke:p4h] PASS POST /candidates/{id}/sign (not routed) → 404
+    [smoke:p4h] PASS POST /candidates/{id}/send (not routed) → 404
+    [smoke:p4h] PASS logout → 204
+    [smoke:p4h] PASS (151 checks)
+  [P1.1 recovery commands (synthetic account; P0 actor untouched)]
+    [admin:revoke-sessions] 0 active session(s) revoked for application user e5024900-ca03-401e-a177-58e234004b5b (p1-ci-admin@example.invalid); session epoch 1 → 2 (every earlier session is unusable).
+    [admin:disable] disabled application user e5024900-ca03-401e-a177-58e234004b5b (p1-ci-admin@example.invalid); session epoch 2 → 3; 0 active session(s) revoked. The user row is kept.
+    [admin:disable] application user e5024900-ca03-401e-a177-58e234004b5b (p1-ci-admin@example.invalid) is already disabled; nothing changed.
+    [admin:enable] enabled application user e5024900-ca03-401e-a177-58e234004b5b (p1-ci-admin@example.invalid); session epoch 3 → 4 (sessions from before stay unusable); 0 active session(s) revoked.
+    [admin:password] password replaced for application user e5024900-ca03-401e-a177-58e234004b5b (p1-ci-admin@example.invalid); session epoch 4 → 5; 0 active session(s) revoked.
+    [smoke:auth] PASS (1 checks)
+    [smoke:auth] PASS (4 checks)
+    [smoke:auth] PASS (1 checks)
+    [smoke:auth] PASS (4 checks)
+  [yarn dev:verify-shutdown]
+    [verify-dev] yarn dev [terminal-ctrl-c]: started=true exit=0 in 614ms portsReleased=true leftovers=0 → PASS
+    [verify-dev] PASS (4/4 scenarios)
+  [yarn reference:check; the working tree unchanged by the run]
+    test -z "$(git status --porcelain)" || { git status --porcelain; exit 1; }
+    [reference:check] pinned identity (REFERENCE_BASELINE.json): 42c2a419332d666b9d3f94ebcf16310f4d1c14af137eec6d55f4780928646e9c matches
+    [reference:check] OK — frozen references intact.

@@ -72,7 +72,9 @@ const FORBIDDEN_STATES =
   /\b(approved|signed|ready|sent|attached|actually_attached|retracted|validated|verified|g1 pass|g[1-7] passed|ready_for_signer|authori[sz]ed signer|eligible|adopted|technical_pass)\b/i;
 /**
  * Actions the candidate pages never offer. P4G adds exactly one validation action, "Run technical
- * validation" (technical checks only; tests/web/p4g.test.tsx), which this pattern does not match.
+ * validation" (technical checks only; tests/web/p4g.test.tsx), and P4H one assessment action,
+ * "Record assessment" (a G1–G6 review record only; tests/web/p4h.test.tsx), which this pattern
+ * does not match.
  */
 const FORBIDDEN_ACTIONS =
   /\b(validate|approve|ready|sign|send|export|submit|publish|email|retract|attach|adopt)\b/i;
@@ -902,7 +904,7 @@ describe('P4F candidate pages', () => {
     }
   });
 
-  it('an archived case is read-only: no import, revision, supersession or technical validation is offered, each inert with its reason; nothing is written', async () => {
+  it('an archived case is read-only: no import, revision, supersession, technical validation or assessment is offered, each inert with its reason; nothing is written', async () => {
     const api = new FakeDirectory();
     const w = world(api);
     const prompt = await initialPrompt(api, w);
@@ -924,6 +926,8 @@ describe('P4F candidate pages', () => {
     expect(all('article.sheet [aria-disabled="true"]').map((action) => action.textContent)).toEqual(
       [
         'Run technical validation',
+        // P4H: the one assessment action, inert on an archived case (tests/web/p4h.test.tsx).
+        'Record assessment',
         'Supersede this draft artifact',
         'Import a revision of this candidate',
       ],

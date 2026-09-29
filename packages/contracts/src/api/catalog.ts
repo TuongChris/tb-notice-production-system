@@ -10,9 +10,10 @@
 // builders only — the JSON Schema/OpenAPI lowering rejects anything else.
 // Amended additively by TB-SCHEMA-API-v1.1.0 (ADR-0004, docs/contracts/TB-SCHEMA-API-v1.1.0): two
 // schemas after ListCaseAuthoritySelectionsResponse; by TB-SCHEMA-API-v1.2.0 (ADR-0005,
-// docs/contracts/TB-SCHEMA-API-v1.2.0): two schemas after GetCaseFactResponse; and by
+// docs/contracts/TB-SCHEMA-API-v1.2.0): two schemas after GetCaseFactResponse; by
 // TB-SCHEMA-API-v1.3.0 (ADR-0006, docs/contracts/TB-SCHEMA-API-v1.3.0): one schema after
-// ListValidationRunsResponse.
+// ListValidationRunsResponse; and by TB-SCHEMA-API-v1.4.0 (ADR-0009,
+// docs/contracts/TB-SCHEMA-API-v1.4.0): two schemas after ListCandidateAssessmentsResponse.
 
 import type { SchemaCatalog } from '../generation/artifacts.js';
 import * as schemas from './schemas/index.js';
@@ -306,6 +307,8 @@ export const apiSchemaCatalog = [
   ['CaptureCandidateAssessmentResponse', schemas.CaptureCandidateAssessmentResponseSchema],
   ['CandidateAssessmentPage', schemas.CandidateAssessmentPageSchema],
   ['ListCandidateAssessmentsResponse', schemas.ListCandidateAssessmentsResponseSchema],
+  ['CandidateAssessmentSourcesView', schemas.CandidateAssessmentSourcesViewSchema],
+  ['GetCandidateAssessmentSourcesResponse', schemas.GetCandidateAssessmentSourcesResponseSchema],
   ['GetCandidateReadinessResponse', schemas.GetCandidateReadinessResponseSchema],
   ['ExportUnsignedCandidateResponse', schemas.ExportUnsignedCandidateResponseSchema],
   ['AuditEventPage', schemas.AuditEventPageSchema],
