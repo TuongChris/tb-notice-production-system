@@ -23,15 +23,27 @@
 //   (412 CONTEXT_CHANGED), another run (412 VALIDATION_RUN_CHANGED) — nothing written → the export
 //   (200: the stored subject, envelope and body exactly, both hashes, HUMAN_PENDING, sendPerformed
 //   false, the readiness evaluated; one audit event, one idempotency record) → the same key again
-//   (the same response, nothing new) → the same key with another body (409) → a second G3 PASS
+//   (the same response, nothing new) → the same key with another body (409) → R14-AUD-015: a
+//   synthetic ERROR run of the same epoch recorded as the newest run (a CI-only stand-in written
+//   through the runtime account — the compiled API has no failure seam): BLOCKED (VALIDATION_ERROR),
+//   the export and the first key refused (409), then a real TECHNICAL_PASS recovers READY and the
+//   first key names a run that no longer counts (412 VALIDATION_RUN_CHANGED) → a second G3 PASS
 //   (two heads: CONFLICT, REVIEW_REQUIRED) → the export (409 CANDIDATE_NOT_READY) and the first key
 //   again (409: the old export releases nothing) → a candidate with an unresolved placeholder
 //   (BLOCKED run → BLOCKED) and one with attachment wording (REVIEW_REQUIRED run → REVIEW_REQUIRED)
+//   → R14-AUD-016: case R's NMI reply (an NMI captured as full text, a prior transmission captured
+//   from a raw source and bound as sent, an NMI_REPLY DRAFTING prompt, a TECHNICAL_PASS reply, five
+//   PASS gates): a G6 PASS recording an ask as REQUIRES_DOCUMENT holds G6 (REVIEW_REQUIRED, the
+//   export 409), a sourced successor recording it answered makes it READY and exportable
 //   → a REVOCATION event of mandate 1 (the digest moves: STALE_REVALIDATION_REQUIRED; the first key
 //   again 412 CONTEXT_CHANGED) → case T with its own mandate 2 whose event takes effect seconds
 //   later, READY, exported, then the boundary passes: STALE_REVALIDATION_REQUIRED with the same
-//   digest (G1_TEMPORAL_REVIEW_STALE) and its export key again 409 → no signing, sending, adoption,
-//   export listing or G7 route (404) → every export wrote exactly one audit event and one
+//   digest (G1_TEMPORAL_REVIEW_STALE) and its export key again 409, judged at the replay's own
+//   instant (R14-AUD-020; the claim and read interleavings are proven by the database tests) →
+//   R14-AUD-018: the audit history read (GET /audit-events: 401 without a session; the exports'
+//   and reviews' events recoverable exactly, their texts only as lengths; a cursor bound to its
+//   filters; reading writes nothing) → no signing, sending, submission, adoption, AS_SENT, export
+//   listing or G7 route (404) → every export wrote exactly one audit event and one
 //   idempotency record, refusals, replays and reads nothing (row counts read through the runtime
 //   account) → logout.
 import { spawn, type ChildProcess } from 'node:child_process';
@@ -102,7 +114,10 @@ async function readStdin(): Promise<string> {
     .replace(/\r?\n$/, '');
 }
 
-/** A read-only connection through the runtime account (SELECT only). */
+/**
+ * A connection through the runtime account: row counts and audit actions, and the one CI-only
+ * synthetic ERROR run of R14-AUD-015 (insertSyntheticErrorRun).
+ */
 async function runtimeConnection() {
   const raw = process.env['DATABASE_URL'];
   const target = assertLocalTarget('DATABASE_URL', raw, {
@@ -146,6 +161,45 @@ async function auditActions(entityId: string): Promise<string[]> {
       [entityId],
     )) as Array<{ action: string }>;
     return rows.map((row) => row.action);
+  } finally {
+    await conn.end();
+  }
+}
+
+/**
+ * CI only (R14-AUD-015): a synthetic stand-in for a technical validation run whose rule failed while
+ * running — the compiled API has no failure seam. A copy of the recorded run `templateRunId` of the
+ * same epoch, as ERROR with `coverageManifest` (one required rule not executed) and its diagnostic
+ * issue, recorded at `recordedAt` (a UTC "YYYY-MM-DD HH:MM:SS.mmm" text, never a driver Date).
+ */
+async function insertSyntheticErrorRun(
+  templateRunId: string,
+  coverageManifest: unknown,
+  failedRule: string,
+  recordedAt: string,
+): Promise<string> {
+  const conn = await runtimeConnection();
+  try {
+    const id = randomUUID();
+    await conn.query(
+      `INSERT INTO validation_runs (id, candidate_id, case_id, artifact_sha256, dependency_digest,
+         dependency_manifest, evaluated_context_json, ruleset_version, result, coverage_manifest,
+         blocker_count, review_required_count, warning_count, started_at, completed_at, created_at,
+         created_by_id)
+       SELECT ?, candidate_id, case_id, artifact_sha256, dependency_digest, dependency_manifest,
+         evaluated_context_json, ruleset_version, 'ERROR', ?, 1, 0, 0, ?, ?, ?, created_by_id
+       FROM validation_runs WHERE id = ?`,
+      [id, JSON.stringify(coverageManifest), recordedAt, recordedAt, recordedAt, templateRunId],
+    );
+    await conn.query(
+      `INSERT INTO validation_issues (id, run_id, rule_id, check_kind, severity, field_path, message,
+         details, created_at, created_by_id)
+       SELECT ?, ?, ?, 'DETERMINISTIC', 'BLOCKER', NULL,
+         'Synthetic CI stand-in: the rule failed while running (TypeError).', NULL, ?, created_by_id
+       FROM validation_runs WHERE id = ?`,
+      [randomUUID(), id, failedRule, recordedAt, templateRunId],
+    );
+    return id;
   } finally {
     await conn.end();
   }
@@ -546,7 +600,13 @@ async function main(): Promise<void> {
       { sourceId: idOf(evidence), useRole: 'SYNTHETIC_SUPPORT', scopeNote: `Synthetic CI ${tag}` },
       await caseEtag(id),
     );
-    return { id, selection: idOf(selection), link: idOf(linked) };
+    return {
+      id,
+      selection: idOf(selection),
+      link: idOf(linked),
+      item: idOf(item),
+      evidence: idOf(evidence),
+    };
   };
   const scopeQuery = (selection: string) =>
     new URLSearchParams({
@@ -758,6 +818,8 @@ async function main(): Promise<void> {
   pass('refused exports released and wrote nothing');
 
   const key1 = `p4i-ci-${randomUUID()}`;
+  // Bindings this smoke records after `countsReady` (the reply's NMI and its prior transmission).
+  let bindingsRecorded = 0;
   const exported = await call(
     'POST /candidates/{id}/unsigned-exports (READY)',
     'POST',
@@ -834,6 +896,109 @@ async function main(): Promise<void> {
   );
   if (conflicting.code !== 'IDEMPOTENCY_CONFLICT') fail('the same key with another body is 409');
 
+  // A transient ERROR run never poisons its epoch (R14-AUD-015) -----------------------------------
+  const run1Stored = (
+    await call(
+      'GET /validation-runs/{id} (run 1)',
+      'GET',
+      `/validation-runs/${run1.id}`,
+      200,
+      contracts.GetValidationRunResponseSchema,
+    )
+  ).data as unknown as { coverageManifest: { executedRuleIds: string[] } };
+  const failedRule = 'ENVELOPE.SENDER';
+  const beforeError = await readiness(candidateA.id, 'before the ERROR run');
+  expectStatus(beforeError, 'READY_FOR_SIGNER', [], 'case A before its newest run');
+  const countsBeforeError = await rowCounts();
+  const recordedAt = new Date(Date.parse(beforeError.evaluatedAt) + 1)
+    .toISOString()
+    .replace('T', ' ')
+    .replace('Z', '');
+  const errorRunId = await insertSyntheticErrorRun(
+    run1.id,
+    {
+      ...run1Stored.coverageManifest,
+      executedRuleIds: run1Stored.coverageManifest.executedRuleIds.filter(
+        (ruleId) => ruleId !== failedRule,
+      ),
+      notExecutedRuleIds: [failedRule],
+    },
+    failedRule,
+    recordedAt,
+  );
+  const errored = await readiness(candidateA.id, 'the newest run is ERROR');
+  expectStatus(
+    errored,
+    'BLOCKED',
+    ['VALIDATION_ERROR', 'VALIDATION_COVERAGE_INCOMPLETE'],
+    'the newest run of the epoch is ERROR: it counts, and no older PASS is relied on',
+  );
+  if (errored.validationRunId !== errorRunId || errored.technicalResult !== 'ERROR') {
+    fail('the newest ERROR run must be the counted run');
+  }
+  const erroredExport = await call(
+    'POST /candidates/{id}/unsigned-exports (the newest run is ERROR)',
+    'POST',
+    exportRoute(candidateA.id),
+    409,
+    null,
+    { body: exportBody(ready) },
+  );
+  const erroredReplay = await call(
+    'POST /candidates/{id}/unsigned-exports (the first key while the newest run is ERROR)',
+    'POST',
+    exportRoute(candidateA.id),
+    409,
+    null,
+    { body: exportBody(ready), key: key1 },
+  );
+  for (const refused of [erroredExport, erroredReplay]) {
+    if (
+      refused.code !== 'CANDIDATE_NOT_READY' ||
+      refused.details['status'] !== 'BLOCKED' ||
+      refused.text.includes('Synthetic CI notice text')
+    ) {
+      fail('a newest ERROR run must refuse the export and its replay, releasing nothing');
+    }
+  }
+  expectWrites('the refusals while the newest run is ERROR', countsBeforeError, await rowCounts(), {
+    validation_runs: 1,
+    validation_issues: 1,
+  });
+  pass(
+    'a newest ERROR run: the export and the first key refused (409), nothing released or written',
+  );
+  const run2 = await validate(candidateA, caseA, 'case A after the ERROR run');
+  if (run2.result !== 'TECHNICAL_PASS' || run2.dependencyDigest !== run1.dependencyDigest) {
+    fail('the rerun of the same epoch must be a TECHNICAL_PASS');
+  }
+  const recovered = await readiness(candidateA.id, 'a later completed PASS');
+  expectStatus(
+    recovered,
+    'READY_FOR_SIGNER',
+    [],
+    'ERROR → a later completed TECHNICAL_PASS of the same epoch: the ERROR poisons nothing',
+  );
+  if (recovered.validationRunId !== run2.id)
+    fail('the later completed run must be the counted run');
+  const renamed = await call(
+    'POST /candidates/{id}/unsigned-exports (the first key names run 1)',
+    'POST',
+    exportRoute(candidateA.id),
+    412,
+    null,
+    { body: exportBody(ready), key: key1 },
+  );
+  if (
+    renamed.code !== 'VALIDATION_RUN_CHANGED' ||
+    renamed.text.includes('Synthetic CI notice text')
+  ) {
+    fail('the first key named run 1, which no longer counts: 412 VALIDATION_RUN_CHANGED');
+  }
+  pass(
+    'after the recovery the first key names a run that no longer counts (412), nothing released',
+  );
+
   // Gate conflict: the old export releases nothing -----------------------------------------------
   await passReview(candidateA, run1.dependencyDigest, 'G3', caseA.link, {
     performerLabel: `P4I CI synthetic second G3 reviewer ${tag}`,
@@ -906,6 +1071,194 @@ async function main(): Promise<void> {
   }
   pass('a REVIEW_REQUIRED run of the current epoch → REVIEW_REQUIRED (no waiver)');
 
+  // An NMI reply: an unresolved ask holds G6 (R14-AUD-016) -----------------------------------------
+  const caseR = await setUpCase('case R', `P4iR${tag.slice(0, 4)}_Zz`, mandate1.coverageId);
+  const captureMessage = (label: string, fields: Record<string, unknown>) =>
+    create(
+      `POST /correspondence (${label})`,
+      '/correspondence',
+      contracts.CaptureCorrespondenceResponseSchema,
+      {
+        agencyId,
+        mailboxAddress: mailbox,
+        direction: 'INBOUND',
+        subject: `P4I CI synthetic ${label} ${tag}`,
+        captureMode: 'COPIED_FULL_TEXT',
+        bodyRole: 'FULL_MESSAGE',
+        bodyText: `Synthetic CI ${label} body ${tag}`,
+        ...fields,
+      },
+    );
+  const bindMessage = async (label: string, body: Record<string, unknown>) =>
+    create(
+      `POST /cases/{caseId}/correspondence-bindings (${label})`,
+      `/cases/${caseR.id}/correspondence-bindings`,
+      contracts.BindCaseCorrespondenceResponseSchema,
+      body,
+      await caseEtag(caseR.id),
+    );
+  const replyTo = `p4i-ci-reply-${tag}@example.invalid`;
+  const nmiMessage = await captureMessage('NMI', {
+    bodyText: `Synthetic CI question 1: please provide the licence (${tag}).`,
+    fromAddress: `p4i-ci-review-${tag}@example.invalid`,
+    replyToAddress: replyTo,
+  });
+  const nmi = idOf(
+    await bindMessage('NMI', { correspondenceId: idOf(nmiMessage), eventType: 'NMI' }),
+  );
+  const rawFile = await source('raw message file', {
+    scopeBindings: { legalSubjectIds: [idOf(subject)] },
+  });
+  const sentMessage = await captureMessage('notice as sent (raw)', {
+    direction: 'OUTBOUND',
+    captureMode: 'RAW_SOURCE',
+    rawSourceId: idOf(rawFile),
+  });
+  const sent = idOf(
+    await bindMessage('INITIAL_AS_SENT', {
+      correspondenceId: idOf(sentMessage),
+      eventType: 'INITIAL_AS_SENT',
+      reportedItemId: caseR.item,
+    }),
+  );
+  bindingsRecorded += 2;
+  const replyQuery = new URLSearchParams({
+    taskType: 'NMI_REPLY',
+    generationMode: 'DRAFTING',
+    authoritySelectionId: caseR.selection,
+    parentBindingId: nmi,
+    priorBindingIds: sent,
+  }).toString();
+  const readReplyContext = async (label: string) =>
+    (
+      await call(
+        `GET /cases/{caseId}/production-context (${label})`,
+        'GET',
+        `/cases/${caseR.id}/production-context?${replyQuery}`,
+        200,
+        contracts.GetProductionContextResponseSchema,
+      )
+    ).data as unknown as ContextView;
+  const replyView = await readReplyContext('case R NMI_REPLY + DRAFTING');
+  const replyPrompt = (
+    await create(
+      'POST /cases/{caseId}/prompts (case R NMI_REPLY)',
+      `/cases/${caseR.id}/prompts`,
+      contracts.GeneratePromptResponseSchema,
+      {
+        taskType: 'NMI_REPLY',
+        generationMode: 'DRAFTING',
+        expectedContextRevision: replyView.contextRevision,
+        expectedDependencyDigest: replyView.dependencyDigest,
+        authoritySelectionId: caseR.selection,
+        parentBindingId: nmi,
+        priorBindingIds: [sent],
+      },
+    )
+  ).data as unknown as { id: string };
+  const replyCandidate = (
+    await create(
+      'POST /cases/{caseId}/candidates (case R reply)',
+      `/cases/${caseR.id}/candidates`,
+      contracts.ImportCandidateResponseSchema,
+      {
+        promptSnapshotId: replyPrompt.id,
+        subject: `P4I CI synthetic reply ${tag}`,
+        envelope: { from: mailbox, to: replyTo, parentBindingId: nmi },
+        bodyText: cleanBody('case R reply'),
+        preparedDocuments: [],
+      },
+    )
+  ).data as unknown as { id: string; artifactSha256: string };
+  const replyRun = (
+    await call(
+      'POST /candidates/{id}/validation-runs (case R reply)',
+      'POST',
+      `/candidates/${replyCandidate.id}/validation-runs`,
+      201,
+      contracts.ValidateCandidateResponseSchema,
+      {
+        body: {
+          expectedArtifactSha256: replyCandidate.artifactSha256,
+          expectedDependencyDigest: (await readReplyContext('case R before its run'))
+            .dependencyDigest,
+        },
+      },
+    )
+  ).data as unknown as { id: string; result: string; dependencyDigest: string };
+  if (replyRun.result !== 'TECHNICAL_PASS') {
+    fail(`case R’s reply must be a TECHNICAL_PASS, got ${replyRun.result}`);
+  }
+  for (const gate of GATES.slice(0, 5)) {
+    await passReview(replyCandidate, replyRun.dependencyDigest, gate, caseR.link);
+  }
+  const askOf = (disposition: string, extra: Record<string, unknown> = {}) => ({
+    askId: 'Q1',
+    questionText: `Synthetic CI question 1: please provide the licence (${tag}).`,
+    parentBindingId: nmi,
+    disposition,
+    sourceIds: [],
+    ...extra,
+  });
+  const unresolved = await passReview(replyCandidate, replyRun.dependencyDigest, 'G6', caseR.link, {
+    askDispositions: [askOf('REQUIRES_DOCUMENT')],
+  });
+  const held = await readiness(replyCandidate.id, 'case R: the ask requires a document');
+  expectStatus(
+    held,
+    'REVIEW_REQUIRED',
+    ['G6_HOLD', 'G6_ASK_REQUIRES_DOCUMENT'],
+    'a G6 PASS recording an NMI ask as REQUIRES_DOCUMENT holds G6 (five PASS gates never compensate)',
+  );
+  const heldExport = await call(
+    'POST /candidates/{id}/unsigned-exports (case R, an unresolved ask)',
+    'POST',
+    exportRoute(replyCandidate.id),
+    409,
+    null,
+    { body: exportBody(held, { validationRunId: replyRun.id }) },
+  );
+  if (
+    heldExport.code !== 'CANDIDATE_NOT_READY' ||
+    heldExport.text.includes('Synthetic CI notice text')
+  ) {
+    fail('an unresolved ask must refuse the export and release nothing');
+  }
+  await passReview(replyCandidate, replyRun.dependencyDigest, 'G6', caseR.link, {
+    supersedesAssessmentId: unresolved.id,
+    askDispositions: [
+      askOf('ANSWERED_SUPPORTED', {
+        answerLocator: 'Synthetic CI second paragraph of the reply',
+        sourceIds: [caseR.evidence],
+      }),
+    ],
+  });
+  const replyReady = await readiness(replyCandidate.id, 'case R: the ask answered');
+  expectStatus(
+    replyReady,
+    'READY_FOR_SIGNER',
+    [],
+    'a sourced G6 successor recording the ask answered: READY_FOR_SIGNER',
+  );
+  const replyHandoff = (
+    await call(
+      'POST /candidates/{id}/unsigned-exports (case R READY)',
+      'POST',
+      exportRoute(replyCandidate.id),
+      200,
+      contracts.ExportUnsignedCandidateResponseSchema,
+      { body: exportBody(replyReady) },
+    )
+  ).data as unknown as UnsignedExport;
+  if (
+    replyHandoff.envelope['parentBindingId'] !== nmi ||
+    replyHandoff.sendPerformed !== false ||
+    replyHandoff.signatureState !== 'HUMAN_PENDING'
+  ) {
+    fail('the reply is handed over unsigned and unsent, in the thread of its parent');
+  }
+  pass('the reply is exported unsigned and unsent once its ask is recorded resolved');
+
   // A revocation moves the digest: stale, and the first key refuses ----------------------------------
   await recordEvent(mandate1.mandateId, 'REVOCATION of mandate 1', { eventType: 'REVOCATION' });
   const revoked = await readiness(candidateA.id, 'after the revocation');
@@ -976,7 +1329,98 @@ async function main(): Promise<void> {
   if (replayT.code !== 'CANDIDATE_NOT_READY' || replayT.text.includes('Synthetic CI notice text')) {
     fail('an export replay after a temporal boundary must release nothing');
   }
-  pass('case T’s export key no longer releases anything once the boundary passed');
+  if (
+    replayT.details['status'] !== 'STALE_REVALIDATION_REQUIRED' ||
+    !(replayT.details['reasonCodes'] as string[]).includes('G1_TEMPORAL_REVIEW_STALE')
+  ) {
+    fail('the replay must be judged at its own instant (R14-AUD-020): G1 stale');
+  }
+  pass('case T’s export key no longer releases anything once the boundary passed (judged now)');
+
+  // The audit history (R14-AUD-018) ----------------------------------------------------------------
+  const anonymousAudit = await fetch(`${API}/audit-events`, {
+    headers: { 'X-Requested-With': 'TB-APP' },
+  });
+  const anonymousBody = (await anonymousAudit.json()) as { error?: { code?: string } };
+  if (anonymousAudit.status !== 401 || anonymousBody.error?.code !== 'SESSION_REQUIRED') {
+    fail(`GET /audit-events without a session: expected 401, got ${anonymousAudit.status}`);
+  }
+  if (anonymousAudit.headers.get('cache-control') !== 'no-store')
+    fail('audit 401: missing no-store');
+  pass('GET /audit-events without a session → 401 SESSION_REQUIRED');
+  const countsBeforeAudit = await rowCounts();
+  interface AuditPage {
+    readonly items: Array<{
+      readonly action: string;
+      readonly entityType: string;
+      readonly entityId: string | null;
+      readonly afterRedacted: Record<string, unknown> | null;
+    }>;
+    readonly nextCursor: string | null;
+  }
+  const auditRead = async (label: string, query: Record<string, string>) => {
+    const result = await call(
+      `GET /audit-events (${label})`,
+      'GET',
+      `/audit-events?${new URLSearchParams(query).toString()}`,
+      200,
+      contracts.ListAuditEventsResponseSchema,
+    );
+    if (result.etag !== null) fail(`${label}: an audit page has no ETag`);
+    for (const privateText of [
+      'Synthetic CI notice text',
+      'Synthetic CI question 1',
+      `rationale ${tag}`,
+    ]) {
+      if (result.text.includes(privateText)) {
+        fail(`${label}: an audit page must never carry a draft, a question or a rationale`);
+      }
+    }
+    return result.data as unknown as AuditPage;
+  };
+  const exportsOfA = await auditRead('the exports of case A', {
+    entityId: candidateA.id,
+    q: 'EXPORT_UNSIGNED',
+  });
+  if (
+    exportsOfA.items.length !== 1 ||
+    exportsOfA.items[0]?.entityType !== 'NoticeCandidate' ||
+    canonical(exportsOfA.items[0]?.afterRedacted?.['bodyText']) !==
+      canonical({ redacted: true, codePoints: [...bodyA].length })
+  ) {
+    fail('case A’s one EXPORT_UNSIGNED event must be recoverable, its body only as a length');
+  }
+  pass('case A’s EXPORT_UNSIGNED event is recoverable exactly, its body only as a length');
+  const reviews = await auditRead('the captured reviews', {
+    entityType: 'CandidateAssessment',
+    q: 'CANDIDATE_ASSESSMENT_CAPTURED',
+    limit: '100',
+  });
+  if (
+    reviews.items.length < 7 ||
+    reviews.items.some((item) => {
+      const rationale = item.afterRedacted?.['rationale'] as Record<string, unknown> | undefined;
+      return rationale?.['redacted'] !== true || typeof rationale['codePoints'] !== 'number';
+    })
+  ) {
+    fail('the captured reviews must be recoverable, each rationale only as a length');
+  }
+  pass('the CANDIDATE_ASSESSMENT_CAPTURED events are recoverable, their texts only as lengths');
+  const firstPage = await auditRead('one event', { limit: '1' });
+  if (firstPage.items.length !== 1 || firstPage.nextCursor === null) {
+    fail('a one-event page must carry a cursor');
+  }
+  const foreign = await call(
+    'GET /audit-events (a cursor of another filter set)',
+    'GET',
+    `/audit-events?${new URLSearchParams({ cursor: firstPage.nextCursor, entityType: 'NoticeCandidate' }).toString()}`,
+    400,
+    null,
+  );
+  if (foreign.code !== 'INVALID_CURSOR')
+    fail('a cursor is bound to its filters: 400 INVALID_CURSOR');
+  expectWrites('the audit reads', countsBeforeAudit, await rowCounts());
+  pass('the audit reads wrote nothing (no audit event about reading, no idempotency record)');
 
   // No G7: nothing signs, adopts or sends ---------------------------------------------------------
   const countsBeforeProbes = await rowCounts();
@@ -984,6 +1428,12 @@ async function main(): Promise<void> {
     ['POST /candidates/{id}/sign', 'POST', `/candidates/${candidateA.id}/sign`],
     ['POST /candidates/{id}/adopt', 'POST', `/candidates/${candidateA.id}/adopt`],
     ['POST /candidates/{id}/send', 'POST', `/candidates/${candidateA.id}/send`],
+    ['POST /candidates/{id}/submit', 'POST', `/candidates/${candidateA.id}/submit`],
+    ['POST /candidates/{id}/signature', 'POST', `/candidates/${candidateA.id}/signature`],
+    ['POST /candidates/{id}/as-sent', 'POST', `/candidates/${candidateA.id}/as-sent`],
+    ['POST /cases/{caseId}/send', 'POST', `/cases/${caseA.id}/send`],
+    ['POST /audit-events', 'POST', '/audit-events'],
+    ['DELETE /audit-events', 'DELETE', '/audit-events'],
     ['POST /candidates/{id}/readiness', 'POST', `/candidates/${candidateA.id}/readiness`],
     ['GET /candidates/{id}/unsigned-exports', 'GET', exportRoute(candidateA.id)],
     ['POST /cases/{caseId}/g7', 'POST', `/cases/${caseA.id}/g7`],
@@ -999,10 +1449,15 @@ async function main(): Promise<void> {
     if (refused.code !== 'NOT_FOUND') fail(`${label} must not exist`);
   }
   expectWrites('the route probes', countsBeforeProbes, await rowCounts());
-  if ((await rowCounts()).correspondence_bindings !== countsReady.correspondence_bindings) {
+  if (
+    (await rowCounts()).correspondence_bindings !==
+    countsReady.correspondence_bindings + bindingsRecorded
+  ) {
     fail('an export never records a transmission');
   }
-  pass('no signing, adoption, sending, export listing or G7 route exists; no AS_SENT record');
+  pass(
+    'no signing, adoption, sending, submission, AS_SENT, export listing, audit write or G7 route exists; no export recorded a transmission',
+  );
 
   const logout = await fetch(`${API}/auth/logout`, {
     method: 'POST',

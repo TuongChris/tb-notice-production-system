@@ -16,10 +16,11 @@
 //     (P3A), representation-authority (P3B), case (P4A), case intake (P4B) and correspondence (P4C)
 //     collection, the read-backs of TB-SCHEMA-API-v1.1.0, v1.2.0, v1.3.0 and v1.4.0, the
 //     production-context read (P4D), the prompt operations (P4E), the candidate operations (P4F),
-//     the technical validation operations (P4G), the candidate assessment operations (P4H) and the
-//     readiness read and unsigned export (P4I) are routed and session-protected (no cookie → 401,
-//     also through the web proxy), unsafe writes without Origin → 403 before any handler, canonical
-//     bindings and freezes are session-protected, and no signing or sending route exists (404).
+//     the technical validation operations (P4G), the candidate assessment operations (P4H), the
+//     readiness read and unsigned export (P4I) and the audit history read (R14-AUD-018) are routed
+//     and session-protected (no cookie → 401, also through the web proxy), unsafe writes without
+//     Origin → 403 before any handler, canonical bindings and freezes are session-protected, and no
+//     signing or sending route exists (404).
 //  7. Terminate both processes (SIGTERM, bounded wait, SIGKILL fallback) and verify ports 3000 and
 //     5173 are released. Any failure exits non-zero.
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
@@ -663,6 +664,15 @@ async function checkBusinessBoundary(): Promise<void> {
       { method: 'POST', headers: json, body: '{}' },
       403,
       'ORIGIN_REJECTED',
+    ],
+    // R14-AUD-018: the contracted audit history read is routed, behind the same guard.
+    ['GET /audit-events without a session', `${api}/audit-events`, {}, 401, 'SESSION_REQUIRED'],
+    [
+      'GET /audit-events through the web proxy without a session',
+      `http://localhost:${WEB_PORT}/api/v1/audit-events?limit=1`,
+      {},
+      401,
+      'SESSION_REQUIRED',
     ],
     // No signing or sending exists: G7 stays human and outside the application.
     [
