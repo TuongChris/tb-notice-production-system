@@ -1,12 +1,12 @@
 # ADR-0009 — Candidate assessment support rows require an additive historical read
 
-Status: **PROPOSED** — 2026-09-28, mission TB_PRE_ASSESSMENT_AUD005_AUD006_ARCHITECTURE (architecture and specification only), for the independent Astra review of the pre-assessment architecture and the operator's decision. Not accepted.
-- The wire delta it needs, **TB-SCHEMA-API-v1.4.0**, is a **PROPOSED FUTURE DELTA ONLY, NOT ACTIVE**: `docs/proposals/TB-SCHEMA-API-v1.4.0-assessment-support-readback.md`.
-- No contract source, generated artifact, release record, `CONTRACT_BASELINE`, route or test is created or changed by it.
+Status: **ACCEPTED_BY_OPERATOR · INDEPENDENT_REVIEW_DEFERRED** — accepted for implementation by the operator on 2026-09-28 (mission TB_P4H_CANDIDATE_ASSESSMENT_FAST_TRACK_IMPLEMENTATION, an operator-authorized fast track), on the architecture committed at `5afd2ec`; the open decisions D-1…D-6 are resolved in ADR-0008 ("Operator acceptance"). The independent Astra review was **deferred by the operator**: no independent review has taken place, and nothing here is independently verified. Proposed 2026-09-28 by mission TB_PRE_ASSESSMENT_AUD005_AUD006_ARCHITECTURE (architecture and specification only).
+- The wire delta it needs, **TB-SCHEMA-API-v1.4.0**, was proposed in `docs/proposals/TB-SCHEMA-API-v1.4.0-assessment-support-readback.md` and is **activated by the same mission** as the release record `docs/contracts/TB-SCHEMA-API-v1.4.0/` (amendment and README), exactly as proposed (Decision 2).
+- The activation records the new technical ruleset version the release requires: `TB-TECHNICAL-RULESET-v3` (ADR-0010).
 
-Addresses: the Astra finding **R14-AUD-006** (a future AssessmentSource read-back; FUTURE_ASSESSMENT_PREREQUISITE, it blocks CandidateAssessment implementation). With this ADR its status is **DESIGN_PROPOSED_PENDING_INDEPENDENT_REVIEW**. It is not closed here.
+Addresses: the Astra finding **R14-AUD-006** (a future AssessmentSource read-back; FUTURE_ASSESSMENT_PREREQUISITE, it blocked CandidateAssessment implementation). Proposed as DESIGN_PROPOSED_PENDING_INDEPENDENT_REVIEW; after the operator's acceptance it is implemented by P4H (status in `docs/verification/p4h/P4H_CANDIDATE_ASSESSMENT.md`), with the independent review deferred.
 Acceptance boundary: an engineering contract design only. It creates no legal or factual authority, no finding, no proof, no review, no G1–G7 decision and no readiness.
-Scope: the future read of the AssessmentSource rows of one CandidateAssessment (P4H, not started) and the capture rules that the read depends on.
+Scope: the read of the AssessmentSource rows of one CandidateAssessment (P4H) and the capture rules that the read depends on. D-3 (ADR-0008, "Operator acceptance") settles the non-PASS citation rule of Decision 6 as proposed.
 Related: ADR-0002 §6 (an intentional wire change needs a new approved release + ADR); ADR-0004, ADR-0005 (`getCaseFactSources`, the pattern followed) and ADR-0006 (`getValidationRun`); ADR-0008 (the assessment epoch; the other pre-assessment prerequisite); frozen INVARIANTS §3 ("AssessmentSource links a CaseSource from the same Case", a transactional service check) and §4; API_CONTRACT_v1 §5–§6; PFC §10.
 Design record: `docs/architecture/PRE_ASSESSMENT_AUD005_AUD006_ARCHITECTURE.md` §10–§16, §19. Verification of this mission: `docs/verification/pre-assessment/PRE_ASSESSMENT_ARCHITECTURE_VERIFICATION.md`.
 
