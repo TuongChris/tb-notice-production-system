@@ -4,6 +4,13 @@ Mission **TB_FINAL_CLOSEOUT_SCOPED_REMEDIATION_AUD015_TO_AUD020** (operator, 202
 
 > **This mission remediates; it does not close the final audit.** Every status below is self-verified engineering by the implementer — not an independent review and not independent assurance. The next step is the **independent Astra re-audit of the exact remediation SHA**. No pull request, merge, tag or release was made or is authorized by this mission.
 
+**Recorded later (2026-09-29): the independent re-audit and the final acceptance.** The independent Astra re-audit of this record's head `3d432688a20266548447d71029830a4bbf85e38d` recommended PASS; the operator accepted it (mission TB_FINAL_ACCEPTANCE_CLOSEOUT_MERGE_AND_POST_MAIN_VERIFICATION).
+- R14-AUD-015 … -020: **CLOSED_VERIFIED_WITH_LIMITS**.
+- FINAL_ENGINEERING_AUDIT: **PASS**.
+- SYSTEM_SETUP_STATUS: **VERIFIED_COMPLETE · ACCEPTED_SINGLE_PC_ENGINEERING_SCOPE**.
+
+The record is `docs/verification/final-audit/FINAL_ENGINEERING_AUDIT_CLOSEOUT.md`; §22 below points to it. The status table's rows before its two "recorded later" rows and the statuses in §1–§21 are those of their time. The one exception: the §5 fixture sentence (and its summary in §17), corrected as the re-audit observed.
+
 ## Status by scope (not collapsed)
 
 | Scope | Status |
@@ -32,6 +39,8 @@ Mission **TB_FINAL_CLOSEOUT_SCOPED_REMEDIATION_AUD015_TO_AUD020** (operator, 202
 | Backlog R14-AUD-002, -007 / -011, -012 | **OPEN_BACKLOG / NON_BLOCKING_BACKLOG — unchanged** |
 | Real-case use | **NOT AUTHORIZED** |
 | Pull request / merge | **NONE** — not authorized by this mission (§59) |
+| Independent re-audit of `3d43268` (recorded later) | **PASS** (bounded, accepted single-PC engineering scope): R14-AUD-015 … -020 **CLOSED_VERIFIED_WITH_LIMITS**; two new LOW, non-blocking findings R14-AUD-021 (= AUD018-RED-01) and R14-AUD-022 (backlog) (§22) |
+| Final acceptance (recorded later) | FINAL_ENGINEERING_AUDIT **PASS**; SYSTEM_SETUP_STATUS **VERIFIED_COMPLETE · ACCEPTED_SINGLE_PC_ENGINEERING_SCOPE**. The pull request and a normal merge commit are authorized by the closeout mission; the merge and post-main CI are **PENDING** in the repository record (§22) |
 
 ## 1. Pre-flight and branch (mission §2–§3)
 
@@ -122,7 +131,7 @@ The auditor's offline probe reproduces R14-AUD-015, -016 and -020 at `abc31fc` (
 | Completed runs that disagree (PASS vs BLOCKED, PASS vs REVIEW_REQUIRED, a deterministic field or coverage difference) | `TECHNICAL_RUN_CONFLICT`, no counted run, even when the PASS is the latest (R-28); a BLOCKED one decides BLOCKED; a diagnostic neither resolves nor hides the conflict; messages and heuristic issues are not compared |
 | Readiness and export use one derivation | ERROR → PASS is READY and exportable with the PASS; PASS → newer ERROR is BLOCKED and refused |
 
-The compiled API has no seam to make a rule fail, so the DB tests and `smoke:p4i` write an ERROR run as a synthetic stored row of the same epoch (test-only; the runtime never writes one this way).
+The DB tests produce each ERROR run through the injected test seam `VALIDATION_OBSERVER` — its `beforeRule` throws at a named rule — and the normal validation route (`POST /candidates/{id}/validation-runs`), so the runtime's own ERROR path records it. The runtime never records one any other way. Only the compiled `smoke:p4i` inserts its ERROR run of the same epoch as a synthetic stored row with SQL (`insertSyntheticErrorRun`), because the compiled API has no failure seam. In these R14-AUD-015 DB tests and R-28, the only direct row changes are the "synthetic corruption" of a stored completed run named in the table above (the not-executed rule, R-28). Other DB tests of the suite (for example R-08 and a G6 test's corrupt ask dispositions) make their own labelled synthetic-corruption updates of stored rows. *(Corrected at the final acceptance closeout — the independent re-audit's observation DOC-OBS-ERROR-FIXTURE-DESCRIPTION. This sentence first said that the DB tests also wrote the ERROR run as a stored row; `docs/verification/final-audit/FINAL_ENGINEERING_AUDIT_CLOSEOUT.md` §8.)*
 
 ## 6. R14-AUD-017 — the G6 ask-disposition editor (mission §23–§28)
 
@@ -266,7 +275,7 @@ Evidence: `evidence/final-audit-own-code-review.txt`. Claude's own review of its
 | REV-FINAL-04 | LOW | The three resolved dispositions count without a presence check (no ask-level source, limitation or reason text required) | **OPEN for the operator / re-audit** — not changed: the mission asks for the enum and source/scope checks and forbids presence as proof, and the contract names no field for a limitation or reason |
 | REV-FINAL-05 | LOW | `smoke:p4i`'s replay-after-boundary check is not discriminating | **DOCUMENTED** (§14); the DB tests and NC-FINAL-020-A/B discriminate |
 | REV-FINAL-06 | LOW | Readiness is invalidated only after a successful write; an unknown-outcome failure leaves it displayed (the server still re-evaluates every export) | **BACKLOG** (beyond §30) |
-| OBS-FINAL-01…08 | observations | the replay's snapshot semantics; the synthetic ERROR run in tests and the smoke; field messages until resubmission; the audit read's exposure of account emails and sign-in metadata; the empty `entityType` filter; ask completeness; the web round trip proves display; tie-breaking by id | **RECORDED** |
+| OBS-FINAL-01…08 | observations | the replay's snapshot semantics; how the tests produce an ERROR run (the DB tests through the validation observer and the normal route, only `smoke:p4i` as a synthetic SQL row — corrected at the closeout, §5); field messages until resubmission; the audit read's exposure of account emails and sign-in metadata; the empty `entityType` filter; ask completeness; the web round trip proves display; tie-breaking by id | **RECORDED** |
 
 ## 18. Commits (mission §57)
 
@@ -312,3 +321,19 @@ On `2df10c85ae4189c1ecd81748f0a41fb2fef47e4a` (https://github.com/TuongChris/tb-
 ## 21. Status (maximum claim of this mission)
 
 R14-AUD-015, -016, -017, -018, -019 and -020 = **REMEDIATED_PENDING_INDEPENDENT_REVIEW**; FINAL_ENGINEERING_AUDIT = **HOLD_FOR_REAUDIT**; SYSTEM_SETUP_STATUS = **NOT_VERIFIED_COMPLETE**. Nothing here is independently verified, and nothing here is a PASS or VERIFIED_COMPLETE of the final system. Next (recommended, not started): **the independent Astra re-audit of the exact remediation SHA** — the head of `feature/final-audit-remediation-aud015-aud020` after the documentation commit that carries this record (on the code head `2df10c8`), reported with the mission's final report. No pull request or merge until the operator authorizes it after that re-audit.
+
+## 22. The independent re-audit and the final acceptance (cross-reference)
+
+Recorded by mission TB_FINAL_ACCEPTANCE_CLOSEOUT_MERGE_AND_POST_MAIN_VERIFICATION (operator, 2026-09-29) in `docs/verification/final-audit/FINAL_ENGINEERING_AUDIT_CLOSEOUT.md`. §1–§21 keep the state at their time, except the corrected fixture sentence of §5 and its summary in §17.
+
+- **The re-audit.** The independent Astra re-audit of `3d432688a20266548447d71029830a4bbf85e38d` — this record's documentation head on the code head `2df10c8` — recommended FINAL_ENGINEERING_AUDIT = PASS with zero blockers. It is a bounded review: whole-critical coverage 73.18 %, the whole repository PARTIAL, and the auditor re-ran no CI, test suite, application or database. Its artifacts: ZIP sha256 `be44b598…35e2`, read on this workstation, not committed.
+- **The decisions (the operator's, on that recommendation).**
+  - R14-AUD-015, -016, -017, -018, -019 and -020: **CLOSED_VERIFIED_WITH_LIMITS**.
+  - FINAL_ENGINEERING_AUDIT: **PASS**. SYSTEM_SETUP_STATUS: **VERIFIED_COMPLETE · ACCEPTED_SINGLE_PC_ENGINEERING_SCOPE**.
+  - ADR-0011: **ACCEPTED**, independent final re-audit **VERIFIED_WITH_LIMITS** at `3d43268`.
+- **Open items of this record, resolved.**
+  - REV-FINAL-04: **ACCEPTED_FOR_CURRENT_MODEL** — no presence rule; source presence is not proof.
+  - Ask completeness (`MATERIAL_SEMANTIC_AMBIGUITY`): **ACCEPTABLE_HUMAN_G6_RESPONSIBILITY**.
+- **New findings.** AUD018-RED-01 is now **R14-AUD-021** (LOW, NON_BLOCKING, OPEN_BACKLOG: redact nested attribution text at the writer, for new events only). The re-audit also found **R14-AUD-022** (LOW, NON_BLOCKING, OPEN_BACKLOG: a late export response can clear a newer export's idempotency key before the generation guard). Neither is implemented by the closeout.
+- **Backlog unchanged:** REV-FINAL-02, -03, -05 and -06; R14-AUD-002, -007, -011 and -012.
+- **Merge.** The pull request and a normal merge commit are authorized by the closeout mission. The merge and post-main CI are reported with that mission's final report; in the repository record they stay **PENDING** until a later reconciliation.

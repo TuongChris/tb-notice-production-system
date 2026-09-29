@@ -4,6 +4,13 @@ Mission **TB_P4I_READINESS_AND_UNSIGNED_EXPORT_FAST_TRACK** (operator-authorized
 
 > **INDEPENDENT REVIEW DEFERRED BY OPERATOR** — until the final whole-system audit. The operator accepted ADR-0011 for implementation without an independent review. **P4I is self-verified engineering implementation, not independent assurance.** Nothing here is recorded as independently verified.
 
+**Final engineering acceptance (2026-09-29, recorded later, §24).** The independent Astra final whole-system audit of `abc31fc` put the system on HOLD (§23). Its re-audit of the remediation head `3d43268` recommended PASS; it is a bounded review of the accepted single-PC engineering scope, and the operator accepted it:
+- `P4I = VERIFIED_COMPLETE_FOR_ACCEPTED_SCOPE`;
+- Readiness and the Unsigned Export **VERIFIED_COMPLETE_FOR_ACCEPTED_SCOPE**; READY_FOR_SIGNER **DERIVED_ONLY**;
+- ADR-0011 **ACCEPTED**.
+
+The blockquote above, the status table's rows before its last row ("Final engineering acceptance") and the statuses in §1–§23 describe their time.
+
 P4I routes the **two** contracted, until now unrouted operations of TB-SCHEMA-API-v1.0.0 (unchanged in the active TB-SCHEMA-API-v1.4.0) and adds the readiness section of the candidate page:
 
 - `getCandidateReadiness` (GET `/candidates/{candidateId}/readiness`);
@@ -43,7 +50,8 @@ Persistent rules (they stay in force; `CLAUDE.md` carries them):
 | External action | **NONE**; real case data **0** |
 | Real-case production authorization | **NOT GRANTED** by this mission |
 | P4I merge (recorded later) | **MERGED_TO_MAIN** — pull request #13, merge commit `abc31fc`, `main` CI run 36537325354 success, both jobs (§22) |
-| Final whole-system audit (recorded later) | **HOLD** at `abc31fc` — R14-AUD-015, -016, -019 and -020 concern P4I; remediated by the final-audit remediation mission, **pending independent re-audit** (§23) |
+| Final whole-system audit (recorded later) | **HOLD** at `abc31fc` — R14-AUD-015, -016, -019 and -020 concern P4I; remediated by the final-audit remediation mission, then **pending independent re-audit** (§23); closed at the independent re-audit of `3d43268` (§24) |
+| Final engineering acceptance (recorded later) | **P4I = VERIFIED_COMPLETE_FOR_ACCEPTED_SCOPE**; Readiness and Unsigned Export **VERIFIED_COMPLETE_FOR_ACCEPTED_SCOPE**; READY_FOR_SIGNER **DERIVED_ONLY**; R14-AUD-015, -016, -019 and -020 **CLOSED_VERIFIED_WITH_LIMITS**; ADR-0011 **ACCEPTED**. On the independent re-audit of `3d43268`, accepted by the operator 2026-09-29 (§24) |
 
 ## 1. Starting point and P4H merge reconciliation
 
@@ -225,3 +233,24 @@ The independent Astra final whole-system audit of `abc31fc` returned **FINAL_ENG
 | R14-AUD-020 (HIGH) | the export replay evaluated its reads at the request's earlier instant (§7, Decision 17) |
 
 (R14-AUD-017 concerns the P4H review form, `P4H_CANDIDATE_ASSESSMENT.md` §25; R14-AUD-018 the unrouted contracted audit read.) All six were remediated by mission TB_FINAL_CLOSEOUT_SCOPED_REMEDIATION_AUD015_TO_AUD020 on `feature/final-audit-remediation-aud015-aud020`, with ADR-0011 revised (**REVISED_FOR_AUD_015_AUD_016 · PENDING_INDEPENDENT_REAUDIT**): each **REMEDIATED_PENDING_INDEPENDENT_REVIEW**; FINAL_ENGINEERING_AUDIT **HOLD_FOR_REAUDIT**; SYSTEM_SETUP_STATUS **NOT_VERIFIED_COMPLETE**. The P4I sections above describe the behaviour as merged at `abc31fc` and are not rewritten; the corrected behaviour and its evidence are in `docs/verification/final-audit-remediation/FINAL_AUDIT_REMEDIATION_AUD015_AUD020.md`.
+
+## 24. Final engineering acceptance (2026-09-29)
+
+Recorded by mission TB_FINAL_ACCEPTANCE_CLOSEOUT_MERGE_AND_POST_MAIN_VERIFICATION (`docs/verification/final-audit/FINAL_ENGINEERING_AUDIT_CLOSEOUT.md`); §1–§23 are unchanged.
+
+**The review.** The independent Astra re-audit of `3d432688a20266548447d71029830a4bbf85e38d` — the final-audit remediation head — recommended PASS, and the operator accepted it.
+- It is a bounded review of the accepted single-PC engineering scope: whole-critical coverage 73.18 %, the whole repository PARTIAL.
+- The auditor re-ran no CI, test suite, application or database.
+
+| Scope | Final status |
+|---|---|
+| P4I | **VERIFIED_COMPLETE_FOR_ACCEPTED_SCOPE** — on `main` since `abc31fc`; its corrections (R14-AUD-015, -016, -019, -020) reach `main` with the closeout merge (PENDING in the repository record) |
+| Readiness | **VERIFIED_COMPLETE_FOR_ACCEPTED_SCOPE** — derived on every read from the current captured records, never stored |
+| READY_FOR_SIGNER | **DERIVED_ONLY** — "Ready for authorized human signer review"; never G7, a signature, an adoption, legal approval or permission to send |
+| Unsigned Export | **VERIFIED_COMPLETE_FOR_ACCEPTED_SCOPE** — an unsigned text handoff: HUMAN_PENDING, `sendPerformed` false, `externalAction` PROHIBITED |
+| R14-AUD-015 (OBS-P4I-01), -016 (OBS-P4I-02), -019, -020 | **CLOSED_VERIFIED_WITH_LIMITS** |
+| ADR-0011 | **ACCEPTED** — independent final re-audit **VERIFIED_WITH_LIMITS** at `3d43268`, for its reviewed engineering semantics. Human G6 truth and completeness stay an attributable human responsibility; the application sees only captured state; uncaptured external changes are not automatically detectable |
+| REV-FINAL-04 / ask-set completeness | **ACCEPTED_FOR_CURRENT_MODEL** / **ACCEPTABLE_HUMAN_G6_RESPONSIBILITY** — no presence rule, no NLP |
+| New finding in this phase's export path | **R14-AUD-022** (LOW, NON_BLOCKING, OPEN_BACKLOG): a late export response can clear a newer export's idempotency key before the generation guard. It releases no stale handoff and bypasses no readiness check |
+| Backlog | unchanged: REV-P4I-02 (lock-order retry); two independent assessment heads of one gate at one epoch (CONFLICT until an explicit reconciliation or an epoch change); D-6 deferred; the U+2800 visible-text observation; the remaining app-wide `.table-frame` scope |
+| G7 / external action | **AUTHORIZED HUMAN ONLY · NOT IMPLEMENTED**; signature and send **NOT IMPLEMENTED** / **PROHIBITED** until actual G7 and a separate operator authorization; CASE_READINESS_STATUS case-specific; no actual case evaluated |

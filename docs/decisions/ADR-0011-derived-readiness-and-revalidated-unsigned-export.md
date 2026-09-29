@@ -1,10 +1,41 @@
 # ADR-0011 — Derived readiness and revalidated unsigned export
 
-Status: **ACCEPTED_BY_OPERATOR · INDEPENDENT_REVIEW_DEFERRED** — 2026-09-29, mission TB_P4I_READINESS_AND_UNSIGNED_EXPORT_FAST_TRACK (operator-authorized fast track). The independent Astra review is **deferred by the operator until the final whole-system audit**; no independent review has taken place. This is self-verified engineering, not independent assurance.
-Revision: **REVISED_FOR_AUD_015_AUD_016 · PENDING_INDEPENDENT_REAUDIT** — 2026-09-29, mission TB_FINAL_CLOSEOUT_SCOPED_REMEDIATION_AUD015_TO_AUD020, after the independent Astra final whole-system audit of `abc31fc` (FINAL_ENGINEERING_AUDIT = HOLD). Decision 4 (the technical runs of one epoch, R14-AUD-015) and Decision 8 (G6 and the NMI ask dispositions, R14-AUD-016) are revised; Decision 17 records the replay's evaluation instant (R14-AUD-020) and Decision 18 the page's invalidation after a write (R14-AUD-019), both as corrected. The revised decisions are self-verified and **not independently re-audited**; the earlier wording of each revised decision is kept below it. No wire release, no migration and no identifier change (`docs/verification/final-audit-remediation/FINAL_AUDIT_REMEDIATION_AUD015_AUD020.md`).
+Status: **ACCEPTED** — independent final re-audit: **VERIFIED_WITH_LIMITS** at `3d432688a20266548447d71029830a4bbf85e38d`.
+- Accepted by the operator on 2026-09-29 (mission TB_FINAL_ACCEPTANCE_CLOSEOUT_MERGE_AND_POST_MAIN_VERIFICATION), on the recommendation of the independent Astra re-audit of that exact target.
+- **Qualification.** Accepted for its reviewed engineering semantics:
+  - human G6 truth and completeness remain an attributable human responsibility;
+  - the application sees only captured state;
+  - uncaptured external changes are not automatically detectable.
+- A bounded review of the accepted single-PC engineering scope: whole-critical coverage 73.18 %, the whole repository PARTIAL. It is not legal approval, real-case readiness, G7 or permission to send.
+- Record: `docs/verification/final-audit/FINAL_ENGINEERING_AUDIT_CLOSEOUT.md`.
+
+Revision: 2026-09-29, for R14-AUD-015 and R14-AUD-016, after the independent Astra final whole-system audit of `abc31fc` (FINAL_ENGINEERING_AUDIT = HOLD).
+- Decisions 4 and 8 are revised; Decisions 17 and 18 record the corrected behaviour for R14-AUD-020 and R14-AUD-019. The earlier wording of each revised decision is kept below it.
+- The independent re-audit of `3d43268` verified the revision with limits (all four findings CLOSED_VERIFIED_WITH_LIMITS).
+- The earlier status and revision lines — ACCEPTED_BY_OPERATOR · INDEPENDENT_REVIEW_DEFERRED, then REVISED_FOR_AUD_015_AUD_016 · PENDING_INDEPENDENT_REAUDIT — are kept verbatim under "Acceptance history".
+
 Implements: the contracted, until now unrouted operations `getCandidateReadiness` (GET `/candidates/{candidateId}/readiness`) and `exportUnsignedCandidate` (POST `/candidates/{candidateId}/unsigned-exports`) of TB-SCHEMA-API-v1.0.0, unchanged in the active TB-SCHEMA-API-v1.4.0. **No wire release**: 291 schemas, 145 operations, 100 paths; no schema, path or `CONTRACT_BASELINE` change.
 Governing sources: frozen INVARIANTS §1–§2 (the readiness decision algorithm) and §5 ("Prompt generation / validation / export"); PFC §8–§12; DOMAIN_MODEL §14–§15; API_CONTRACT_v1 §5 (the stable code `CANDIDATE_NOT_READY`), §7 (export replay), §9–§10; ADR-0008 (the epoch, the counting rule, D-1…D-6), ADR-0009 (the support rows), ADR-0006 §8 and ADR-0010 (the ruleset identity), ADR-0007 (the digest definition).
 Acceptance boundary: an engineering decision about a derived, pre-signature view and an unsigned text handoff. READY_FOR_SIGNER is **never** a legal approval, a finding of ownership or infringement, G7, a signature, an adoption, permission to send or a platform outcome. Nothing here signs, adopts, sends, submits, fetches or contacts anything.
+
+## Acceptance history
+
+Kept as recorded, including the HOLD and the remediation. The independent review took place **after** the implementation, not before it.
+
+1. **2026-09-29 — ACCEPTED_BY_OPERATOR · INDEPENDENT_REVIEW_DEFERRED**, for implementation by P4I (merged by pull request #13, merge commit `abc31fc`). The status line then read:
+   > Status: **ACCEPTED_BY_OPERATOR · INDEPENDENT_REVIEW_DEFERRED** — 2026-09-29, mission TB_P4I_READINESS_AND_UNSIGNED_EXPORT_FAST_TRACK (operator-authorized fast track). The independent Astra review is **deferred by the operator until the final whole-system audit**; no independent review has taken place. This is self-verified engineering, not independent assurance.
+2. **2026-09-29 — the independent Astra final whole-system audit of `abc31fc`: FINAL_ENGINEERING_AUDIT = HOLD**, SYSTEM_SETUP_STATUS = NOT_VERIFIED_COMPLETE. Six blockers; four concern this ADR's implementation: R14-AUD-015, -016, -019, -020.
+3. **2026-09-29 — REVISED_FOR_AUD_015_AUD_016 · PENDING_INDEPENDENT_REAUDIT** (mission TB_FINAL_CLOSEOUT_SCOPED_REMEDIATION_AUD015_TO_AUD020). The revision line then read:
+   > Revision: **REVISED_FOR_AUD_015_AUD_016 · PENDING_INDEPENDENT_REAUDIT** — 2026-09-29, mission TB_FINAL_CLOSEOUT_SCOPED_REMEDIATION_AUD015_TO_AUD020, after the independent Astra final whole-system audit of `abc31fc` (FINAL_ENGINEERING_AUDIT = HOLD). Decision 4 (the technical runs of one epoch, R14-AUD-015) and Decision 8 (G6 and the NMI ask dispositions, R14-AUD-016) are revised; Decision 17 records the replay's evaluation instant (R14-AUD-020) and Decision 18 the page's invalidation after a write (R14-AUD-019), both as corrected. The revised decisions are self-verified and **not independently re-audited**; the earlier wording of each revised decision is kept below it. No wire release, no migration and no identifier change (`docs/verification/final-audit-remediation/FINAL_AUDIT_REMEDIATION_AUD015_AUD020.md`).
+4. **2026-09-29 — ACCEPTED.** The independent Astra re-audit of `3d432688a20266548447d71029830a4bbf85e38d` closed R14-AUD-015 … -020 **CLOSED_VERIFIED_WITH_LIMITS**. It recommended accepting the revised decisions for their reviewed engineering semantics, with the human G6, captured-state and replay limits; the operator accepted (mission TB_FINAL_ACCEPTANCE_CLOSEOUT_MERGE_AND_POST_MAIN_VERIFICATION). The re-audit's policy decisions on Decision 8:
+   - **REV-FINAL-04 = ACCEPTED_FOR_CURRENT_MODEL.**
+     - A resolved disposition needs no ask-level `sourceIds`, limitation or reason field.
+     - The evidence lies in the exact candidate, the G6 review's rationale, scope and limitations, and its supports.
+     - Source presence is not proof. No `sourceIds.length > 0` rule is imposed.
+   - **NMI_ASK_SET_COMPLETENESS = ACCEPTABLE_HUMAN_G6_RESPONSIBILITY.**
+     - The software validates the recorded dispositions.
+     - The attributable G6 reviewer reads the whole parent NMI and ensures every material ask is addressed.
+     - No automated completeness is claimed, and no NLP extraction exists.
 
 ## Context
 

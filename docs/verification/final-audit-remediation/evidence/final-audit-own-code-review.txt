@@ -77,6 +77,13 @@ OBS-FINAL-02 — observation (test method)
   The compiled API has no seam to make a rule fail, so smoke:p4i (CI only, the disposable CI tb_notice_dev) and the DB
   tests write the ERROR run of R14-AUD-015 as a synthetic stored row of the same epoch through the database; the runtime
   never writes runs that way.
+  CORRECTION (final acceptance closeout, 2026-09-29; the independent re-audit's observation
+  DOC-OBS-ERROR-FIXTURE-DESCRIPTION; the text above is kept as first written): only smoke:p4i inserts its ERROR run as
+  a synthetic SQL row (insertSyntheticErrorRun). The DB tests produce ERROR runs through the injected VALIDATION_OBSERVER
+  seam (beforeRule throws at a named rule) and the normal POST /candidates/{id}/validation-runs; in the R14-AUD-015 DB
+  tests and R-28 the only direct row changes are the labelled "synthetic corruption" of a stored completed run (the
+  not-executed rule, R-28); other DB tests (e.g. R-08) make their own labelled synthetic-corruption updates. See
+  docs/verification/final-audit/FINAL_ENGINEERING_AUDIT_CLOSEOUT.md §8.
 
 OBS-FINAL-03 — observation (app-wide pattern, not changed)
   A form field's client-side message stays shown after the field is corrected until the next submission (the forms

@@ -14,6 +14,13 @@ It activates TB-SCHEMA-API-v1.4.0 and records new technical validation runs unde
 
 **Merged (2026-09-29):** pull request #12, merge commit `19a7cb2` (parents `20367b9` and the closeout head `6a7fae7`; its tree is identical to `6a7fae7`); `main` push CI run 36514894511 success, both jobs, logs read. `P4H = IMPLEMENTED_SELF_VERIFIED, MERGED_TO_MAIN` (§23). The independent review stays deferred; nothing here is independently verified. The statuses in §1–§22 are those of their time.
 
+**Final engineering acceptance (2026-09-29, recorded later, §26).** The independent Astra re-audit of `3d43268` covered this phase as merged plus the R14-AUD-017 editor. It is a bounded review of the accepted single-PC engineering scope, and the operator accepted it:
+- `P4H = VERIFIED_COMPLETE_FOR_ACCEPTED_SCOPE`; CandidateAssessment **VERIFIED_COMPLETE_FOR_ACCEPTED_SCOPE**;
+- R14-AUD-005, -006 and -017 **CLOSED_VERIFIED_WITH_LIMITS**;
+- ADR-0008, ADR-0009 and ADR-0010 **ACCEPTED**.
+
+The "independent review deferred" statements above, the status table's rows before its last row ("Final engineering acceptance") and the statuses in §1–§25 describe the time they were written.
+
 Persistent rules (they stay in force; `CLAUDE.md` carries them):
 
 - **An assessment is one attributable G1–G6 review record, not a decision about readiness.** A CandidateAssessment records one review of one gate — G1 authority/standing, G2 work-specific rights, G3 reported-material identification, G4 evidence/audiovisual comparison, G5 permission/copyright exceptions, G6 exact candidate artifact consistency, traceability and whole-artifact QA — of one exact candidate artifact at one evaluation epoch, as the operator records it, with the linked sources it rests on. Recording is not counting: it is never readiness, READY_FOR_SIGNER, G7 (the actual human review, adoption, signature and sending outside the application), a signature, legal approval or permission to send.
@@ -48,6 +55,7 @@ Persistent rules (they stay in force; `CLAUDE.md` carries them):
 | G7 | **HUMAN_CONTROLLED_NOT_IMPLEMENTED** |
 | External action | **NONE**; real case data **0** |
 | Real-case production authorization | **NOT GRANTED** by this mission |
+| Final engineering acceptance (recorded later) | **P4H = VERIFIED_COMPLETE_FOR_ACCEPTED_SCOPE**; CandidateAssessment **VERIFIED_COMPLETE_FOR_ACCEPTED_SCOPE**; R14-AUD-005, -006 and -017 **CLOSED_VERIFIED_WITH_LIMITS**; ADR-0008, ADR-0009 and ADR-0010 **ACCEPTED**. On the independent re-audit of `3d43268`, accepted by the operator 2026-09-29 (§26) |
 
 ## 1. Operator acceptance and decisions
 
@@ -283,3 +291,24 @@ Recorded by mission TB_FINAL_CLOSEOUT_SCOPED_REMEDIATION_AUD015_TO_AUD020 (`docs
 - The independent Astra final whole-system audit of `abc31fc` confirmed **R14-AUD-017** (MEDIUM) against the G1–G6 review section of this phase: the page built the capture body without `askDispositions` and had no field for them, so every G6 review of an NMI reply recorded through the page was held (`G6_ASK_DISPOSITIONS_MISSING`) and a replacement through the same form could not add them. The API accepted them (§4); nothing false was made READY.
 - Remediated on `feature/final-audit-remediation-aud015-aud020` (`72e612e`, `742e9cc`): the editor "Ask dispositions of the parent message", offered only for G6 of a reply — the parent binding fixed from the prompt snapshot and shown, never chosen; no ask or disposition preselected; the six contracted dispositions with neutral copy; sources only from the read context, the inapplicable ones disabled; client checks with one focus move per refused submission; the stored dispositions shown as the server recorded them. The server classifies them (R14-AUD-016): REQUIRES_DOCUMENT, MISSING_FACT and LEGAL_REVIEW_REQUIRED hold G6.
 - Status: **REMEDIATED_PENDING_INDEPENDENT_REVIEW**. The capture API, its checks, D-1…D-6 and ADR-0008/0009 are unchanged: a review still decides nothing by being recorded.
+
+## 26. Final engineering acceptance (2026-09-29)
+
+Recorded by mission TB_FINAL_ACCEPTANCE_CLOSEOUT_MERGE_AND_POST_MAIN_VERIFICATION (`docs/verification/final-audit/FINAL_ENGINEERING_AUDIT_CLOSEOUT.md`); §1–§25 are unchanged.
+
+**The review.** The independent Astra re-audit of `3d432688a20266548447d71029830a4bbf85e38d` recommended PASS, and the operator accepted it.
+- Its target is the final-audit remediation head: this phase as merged at `19a7cb2`, plus the R14-AUD-017 editor and the rest of the remediation.
+- It is a bounded review of the accepted single-PC engineering scope: whole-critical coverage 73.18 %, the whole repository PARTIAL. The auditor re-ran no CI, test suite, application or database.
+
+| Scope | Final status |
+|---|---|
+| P4H | **VERIFIED_COMPLETE_FOR_ACCEPTED_SCOPE** — its implementation has been on `main` since `19a7cb2`; the R14-AUD-017 correction of its page reaches `main` with the closeout merge (PENDING in the repository record) |
+| CandidateAssessment | **VERIFIED_COMPLETE_FOR_ACCEPTED_SCOPE** (earlier IMPLEMENTED_FOR_CAPTURE_AND_HISTORY) — still never readiness, READY_FOR_SIGNER, G7, a signature, legal approval or permission to send |
+| R14-AUD-005 | **CLOSED_VERIFIED_WITH_LIMITS** — Model A closed at `3d43268`; the plan-source closure non-waivable |
+| R14-AUD-006 | **CLOSED_VERIFIED_WITH_LIMITS** — the exact historical 1–100 AssessmentSource read-back; storage sufficient |
+| R14-AUD-017 | **CLOSED_VERIFIED_WITH_LIMITS** — ask-set completeness stays the attributable G6 reviewer's responsibility |
+| ADR-0008, ADR-0009, ADR-0010 | **ACCEPTED** — independent final engineering audit **VERIFIED_WITH_LIMITS** at `3d43268`; each keeps its earlier status under "Acceptance history" |
+| TB-SCHEMA-API-v1.4.0, TB-TECHNICAL-RULESET-v3 | **ACCEPTED / ACTIVE** |
+| D-1…D-6 | unchanged; **D-6 stays deferred** (no waiver, disposition or override of a technical issue) |
+| Backlog | unchanged: W-2, W-3, O-1, O-3; the remaining app-wide `.table-frame` scope; R14-AUD-002, -007, -011 and -012 |
+| G7 / external action | **AUTHORIZED HUMAN ONLY · NOT IMPLEMENTED** / **PROHIBITED** until actual G7 and a separate operator authorization; no actual case evaluated |
