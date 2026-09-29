@@ -443,10 +443,11 @@ export class CaseFactsService {
       },
       sourceIds: [...new Set(supports.map((support) => support.sourceId))],
     });
-    return created(ENTITY, view, [
-      caseAffected(touched),
-      ...supports.map((support) => ({ type: 'FactSource', id: support.id, rowVersion: null })),
-    ]);
+    // The affected roots only (API_CONTRACT_v1 §6 "Responses identify affected root versions in
+    // meta"): the fact and its case. Its 0–100 FactSource rows are children of the fact, read back
+    // with getCaseFactSources; naming each of them would overrun the 100 affected resources a
+    // response carries (ResponseMeta), and nothing is cut off instead (P4I bounded remediation).
+    return created(ENTITY, view, [caseAffected(touched)]);
   }
 
   /**
