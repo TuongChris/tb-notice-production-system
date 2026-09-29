@@ -767,6 +767,10 @@ export function describeError(error: unknown, recordLabel = 'record'): string {
       return 'No technical validation run is recorded for this candidate against the current context. Run the technical validation first (it need not pass), then record the assessment.';
     case 'ASK_PARENT_MISMATCH':
       return 'An ask disposition answers an ask of the parent message this candidate’s prompt snapshot named (an initial notice has none).';
+    case 'CANDIDATE_NOT_READY':
+      return 'The candidate is not ready for authorized human signer review under the current captured records. Nothing was prepared, signed or sent.';
+    case 'VALIDATION_RUN_CHANGED':
+      return 'The counted technical validation run is not the one evaluated here. Evaluate the current readiness again; nothing was prepared.';
     case 'ASSESSMENT_ALREADY_SUPERSEDED':
       return 'That assessment already has a successor. An assessment history does not fork: supersede the latest assessment of its chain instead.';
     case 'CANDIDATE_ALREADY_SUPERSEDED':

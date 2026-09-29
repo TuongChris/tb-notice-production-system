@@ -47,7 +47,13 @@
 // of the head of the same candidate's gate only, supports that are LINKED links of this case, and —
 // for a PASS only — the applicability refusal a test states for a source (the fake derives none).
 // Assessments and their support rows are immutable; the rows are read back per assessment of this
-// candidate only (getCandidateAssessmentSources, TB-SCHEMA-API-v1.4.0). All data is synthetic.
+// candidate only (getCandidateAssessmentSources, TB-SCHEMA-API-v1.4.0). Readiness (P4I) follows the
+// evaluation rules the readiness section relies on: the fake derives nothing — each test states the
+// readiness the server would derive now for a candidate (or its refusal). The unsigned export reads
+// that stated readiness again on every attempt and every replay and refuses in the server's order
+// (412 ARTIFACT_CHANGED, 412 CONTEXT_CHANGED, 409 CANDIDATE_NOT_READY with the status and reason
+// codes, 412 VALIDATION_RUN_CHANGED); only then does it return the stored text, or — for a replay —
+// the historical response; the same key with another body is 409. All data is synthetic.
 import { act, StrictMode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter, useNavigate } from 'react-router';
@@ -283,6 +289,21 @@ export class FakeDirectory {
    */
   holdSupportReads = false;
   private readonly heldSupportReads: Array<() => void> = [];
+  /**
+   * getCandidateReadiness replies by candidate id (P4I). The fake derives nothing: each test states
+   * the readiness the server would derive now (checked against the contract) or its refusal. The
+   * unsigned export reads this reply again on every attempt and every replay, as the server
+   * evaluates the readiness again.
+   */
+  readonly readinessReplies = new Map<string, () => Response>();
+  /** Every unsigned export the fake recorded (its stand-in for the EXPORT_UNSIGNED audit event). */
+  readonly unsignedExports: Array<Record<string, unknown> & { key: string; candidateId: string }> =
+    [];
+  /** Completed exports by Idempotency-Key: the request body and the historical response. */
+  private readonly exportReplays = new Map<
+    string,
+    { body: string; response: Record<string, unknown> }
+  >();
   /** First results of correspondence and prompt writes by Idempotency-Key (a retry replays them). */
   private readonly replays = new Map<string, { body: string; response: Record<string, unknown> }>();
   /** The next correspondence write is recorded, but its reply is lost (a 500 reaches the page). */
@@ -768,6 +789,12 @@ export class FakeDirectory {
     }
     if (collection === 'candidates' && id && action === 'assessments') {
       return this.assessmentsRequest(method, id, childId, childAction, url, headers, body);
+    }
+    if (collection === 'candidates' && id && action === 'readiness' && !childId) {
+      return method === 'GET' ? this.readinessRequest(id) : failure(404, 'NOT_FOUND');
+    }
+    if (collection === 'candidates' && id && action === 'unsigned-exports' && !childId) {
+      return method === 'POST' ? this.exportRequest(id, headers, body) : failure(404, 'NOT_FOUND');
     }
     if (collection === 'candidates' && id) {
       return this.candidateRequest(method, id, action, headers, body);
@@ -1586,6 +1613,79 @@ export class FakeDirectory {
       });
     }
     return null;
+  }
+
+  // Readiness and the unsigned export (P4I) ------------------------------------------------------
+
+  /** getCandidateReadiness: the stated reply of a known candidate (404 for an unknown one). */
+  private readinessRequest(candidateId: string): Response {
+    if (!this.candidates.some((row) => row.id === candidateId)) return failure(404, 'NOT_FOUND');
+    const reply = this.readinessReplies.get(candidateId);
+    return reply ? reply() : failure(500, 'INTERNAL_ERROR');
+  }
+
+  /**
+   * exportUnsignedCandidate: every attempt and every replay reads the stated readiness again and
+   * refuses in the server's order; only a candidate that is ready now is handed over — a replay
+   * returns the historical response, never the body of an export that is no longer ready.
+   */
+  private async exportRequest(
+    candidateId: string,
+    headers: Record<string, string>,
+    body: unknown,
+  ): Promise<Response> {
+    const candidate = this.candidates.find((row) => row.id === candidateId);
+    if (!candidate) return failure(404, 'NOT_FOUND');
+    const key = headers['Idempotency-Key'] ?? '';
+    const digest = JSON.stringify(body);
+    const earlier = this.exportReplays.get(key);
+    if (earlier && earlier.body !== digest) return failure(409, 'IDEMPOTENCY_CONFLICT');
+    const reply = this.readinessReplies.get(candidateId);
+    if (!reply) return failure(500, 'INTERNAL_ERROR');
+    const response = reply();
+    // A binding the prompt named that has since been corrected: the context changed.
+    if (response.status === 409) {
+      return failure(412, 'CONTEXT_CHANGED', { field: 'expectedDependencyDigest' });
+    }
+    if (!response.ok) return response;
+    const readiness = ((await response.json()) as { data: Record<string, unknown> }).data;
+    const request = body as Record<string, unknown>;
+    if (request['expectedArtifactSha256'] !== readiness['artifactSha256']) {
+      return failure(412, 'ARTIFACT_CHANGED', { field: 'expectedArtifactSha256' });
+    }
+    if (request['expectedDependencyDigest'] !== readiness['dependencyDigest']) {
+      return failure(412, 'CONTEXT_CHANGED', { field: 'expectedDependencyDigest' });
+    }
+    if (readiness['status'] !== 'READY_FOR_SIGNER') {
+      return failure(409, 'CANDIDATE_NOT_READY', {
+        status: readiness['status'],
+        reasonCodes: readiness['reasonCodes'],
+      });
+    }
+    if (request['validationRunId'] !== readiness['validationRunId']) {
+      return failure(412, 'VALIDATION_RUN_CHANGED', { field: 'validationRunId' });
+    }
+    const meta = { requestId: 'r', affectedResources: [] };
+    if (earlier) return json(200, { data: earlier.response, meta });
+    const exported = {
+      candidateId,
+      artifactSha256: candidate['artifactSha256'],
+      bodySha256: candidate['bodySha256'],
+      subject: candidate['subject'],
+      envelope: candidate['envelopeJson'],
+      bodyText: candidate['bodyText'],
+      signatureState: 'HUMAN_PENDING',
+      sendPerformed: false,
+      readiness,
+      exportedAt: readiness['evaluatedAt'],
+    };
+    this.unsignedExports.push({ key, candidateId });
+    this.exportReplays.set(key, { body: digest, response: exported });
+    if (this.loseNextReply) {
+      this.loseNextReply = false;
+      return failure(500, 'INTERNAL_ERROR');
+    }
+    return json(200, { data: exported, meta });
   }
 
   // Candidate assessments (P4H) -----------------------------------------------------------------

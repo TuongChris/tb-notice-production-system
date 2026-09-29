@@ -1045,7 +1045,13 @@ function AskDispositions({
   dispositions: NonNullable<CandidateAssessment['askDispositions']>;
 }) {
   return (
-    <div className="table-frame">
+    // Scrollable, so it is focusable: keyboard users scroll it too (P4I, the .table-frame backlog).
+    <div
+      className="table-frame"
+      tabIndex={0}
+      role="region"
+      aria-label="Ask dispositions, as recorded"
+    >
       <table className="records ask-dispositions" data-testid="assessment-ask-dispositions">
         <caption>Ask dispositions, as recorded</caption>
         <thead>
@@ -1130,7 +1136,13 @@ function RecordedSupports({
   }
   return (
     <div data-testid="assessment-recorded-supports">
-      <div className="table-frame">
+      {/* Scrollable, so it is focusable: keyboard users scroll it too (P4I, the .table-frame backlog). */}
+      <div
+        className="table-frame"
+        tabIndex={0}
+        role="region"
+        aria-label="Support rows recorded with this review"
+      >
         <table className="records assessment-sources" data-testid="assessment-support-rows">
           <caption>Support rows recorded with this review, exactly as stored</caption>
           <thead>

@@ -14,8 +14,10 @@
 // revision is a new candidate (the revised one never changes); a supersession is recorded once and
 // is an internal lifecycle step, never a retraction. Every page is keyed by the case (and
 // candidate) id, and a candidate is shown only under its own case. A candidate's page also shows
-// its technical validation (P4G, ./validation.tsx) and its recorded G1–G6 reviews (P4H,
-// ./assessments.tsx) — never readiness, a signature or permission to send.
+// its technical validation (P4G, ./validation.tsx), its recorded G1–G6 reviews (P4H,
+// ./assessments.tsx) and, when asked, its readiness as the server derives it now with the unsigned
+// handoff of a candidate that is ready for authorized human signer review (P4I, ./readiness.tsx) —
+// never stored, never a signature, an adoption or permission to send.
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import type {
@@ -55,6 +57,7 @@ import { RecordedBy, SourceCitation } from '../representation/authority-ui.js';
 import { CASE_ARCHIVED_READ_ONLY, NotInThisCase } from './intake-ui.js';
 import { allPages, MODE_LABEL } from './production-context.js';
 import { CandidateAssessments } from './assessments.js';
+import { CandidateReadiness } from './readiness.js';
 import { CandidateValidation } from './validation.js';
 
 /** The permanent statement of what a candidate is (mission §32, verbatim). */
@@ -540,6 +543,7 @@ function CandidateDetail({ caseId, candidateId }: { caseId: string; candidateId:
         promptError={prompt.status === 'error' ? prompt.error : null}
         archived={archived}
       />
+      <CandidateReadiness candidate={candidate} />
       {candidate.supersededAt !== null ? (
         <section className="sheet-section" aria-labelledby="candidate-superseded-heading">
           <div className="section-heading">
