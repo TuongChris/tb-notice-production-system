@@ -59,7 +59,7 @@ visible during lazy navigation); the test now waits for the destination page.
 The full web suite retains existing happy-dom FormData diagnostics in unrelated
 tests. The new Production tests emit no such diagnostics in the final run.
 
-## Browser and local smoke checkpoint
+## Earlier browser and local smoke checkpoint (implementation head)
 
 `yarn smoke:local` refused before any check (0 checks): port 3000 was already in
 use. `yarn ui:sandbox --password-file /tmp/tb-ui-sandbox-password` also refused
@@ -67,6 +67,70 @@ before startup, with cleanup disarmed. Existing `scripts/local/dev.ts` processes
 own ports 3000 and 5173. No browser operation was performed against that dev
 database. Browser verification is pending temporary release of those ports;
 this is not a browser PASS.
+
+## Verification continuation (2026-09-30)
+
+The operator subsequently authorized temporarily stopping the existing `yarn dev`
+session for QA and restoring it afterwards. Starting head:
+`ce1bc5df1661f058e0468e05ad65b325ce49821e`. After `git fetch origin`, PR #15 was
+OPEN/DRAFT on `feature/production-ui-activation`, local and remote heads matched,
+and the working tree was clean. There were no unexpected branch changes.
+
+The recorded dev supervisor was PID 1008209, with API PID 1008279 on 3000 and Vite
+PID 1008280 on 5173. SIGINT to that supervisor used its normal child shutdown
+handler. Both ports were released. Docker/MySQL was not stopped or reset.
+
+`yarn smoke:local`: **PASS, 73 checks, exit 0**; its processes stopped and both
+ports were released. This is independently executed local evidence, separate
+from the earlier PR CI.
+
+### Browser observations
+
+The existing `yarn ui:sandbox` ran the compiled API on allowlisted
+`tb_notice_test`, with its synthetic user, in an isolated Chrome context.
+Fixtures were 26 explicitly synthetic cases, including unbound Alpha and
+archived Beta, one PREPARATION prompt and one unsigned candidate for Alpha.
+Fixture creation used the existing API, not database edits or real case data.
+Fixture setup initially received expected 412/422 refusals for a manually
+constructed ETag and an omitted required array; using the returned ETag and
+explicit empty `priorBindingIds` corrected the setup. These were not UI defects.
+
+| Area | Observed result |
+| --- | --- |
+| Authentication | PASS: login form, synthetic login, authenticated shell and API health rendered |
+| Navigation | PASS: Production active and reachable at `/production`; correct `aria-current`; obsolete unavailable label absent |
+| Overview | PASS: implemented workflow described; User/Signer, technical/G1–G6, READY_FOR_SIGNER/G7/send boundaries retained |
+| List/search/paging | PASS: 26 cases paginated 25 + 1; Previous returned 25; Alpha search returned exactly one row; no automatic selection |
+| Read-only navigation | PASS: observed list/search/paging requests were GET only; no context/candidate read from listing; later case navigation requests also GET only. Normal authenticated session activity is not a business-record write |
+| Exact links | PASS: both Alpha and Beta's Context/Prompts/Candidates links carried their exact case IDs |
+| Isolation | PASS: after explicitly reading Alpha's INITIAL/PREPARATION context, Beta's context had no selected task/mode or Alpha result. Beta's histories were empty; Alpha's own prompt/candidate appeared only under Alpha |
+| Existing workflow | PASS: opened Alpha's Case, Context, Prompts, Candidates and candidate detail. Technical validation, G1–G6 review record and Readiness remained separate sections |
+| Readiness/handoff | PASS: explicit evaluation returned BLOCKED (PREPARATION_MODE, missing validation/context and unassessed gates); no Prepare unsigned handoff control. No Sign, Send, Complete G7 or Mark ready control |
+| Archived/incomplete | PASS: Beta labelled Archived — read-only, case detail explained read-only scope, candidate import disabled with restore explanation. Alpha's context truthfully showed five missing items. Landing rows labelled neither case ready |
+| Narrow viewport | PASS: actual emulated viewport 390×844; document width 390 on Production and candidate detail; Production table client/scroll width both 358; sidebar wrapped, links remained reachable, no critical horizontal clipping. Screenshot inspected |
+| Console | PASS: no browser error/warning messages during the QA flow; no new application diagnostic. An auditor inspection expression lost its temporary page variable after navigation and was corrected; this was a tool-side probe error, not an application console error |
+
+The browser exercised the negative handoff branch, not a fabricated ready case.
+The unchanged existing readiness guard and web regressions cover positive
+READY_FOR_SIGNER visibility and revalidated handoff behavior. No substantive
+review conclusion was entered or automatically filled to obtain a ready result.
+No UI defect requiring a code/test change was found.
+
+### Cleanup, restoration and readback
+
+The isolated sandbox tab was closed. SIGINT stopped the sandbox; it exited 0 and
+reported `sandbox rows deleted; tb_notice_test is empty again`. Both ports were
+released before restoring normal `yarn dev`. The restored API health returned
+`ok`, and `http://localhost:5173/` returned the application HTML. No operator
+account was changed, no operational data was reset, and no Docker volume,
+migration or schema was changed.
+
+Post-QA working tree was still clean. This continuation changes only this
+verification document. The final repeat of `reference:check`, `contracts:check`,
+`typecheck`, `lint` (0 warnings/errors), `format:check`, `test` (1,739 tests in
+58 files), `build` and `git diff --check` passed. Exact resulting SHA and final-head CI run/results are recorded on PR #15
+after the commit exists. PR readiness requires those checks and CI to pass;
+merging remains outside this mission.
 
 ## Review boundary
 
