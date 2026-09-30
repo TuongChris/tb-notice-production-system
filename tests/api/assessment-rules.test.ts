@@ -97,13 +97,14 @@ describe('the evaluation epoch E = (candidateId, artifactSha256, dependencyDiges
     ]);
   });
 
-  it('the ruleset of a new assessment is the one the server runs now (v3); a historical v1 or v2 identifier, a lookalike or an arbitrary text is 422 RULESET_NOT_CURRENT naming the current one', () => {
-    expect(TECHNICAL_RULESET_VERSION).toBe('TB-TECHNICAL-RULESET-v3');
+  it('the ruleset of a new assessment is the one the server runs now (v4); a historical v1, v2 or v3 identifier, a lookalike or an arbitrary text is 422 RULESET_NOT_CURRENT naming the current one', () => {
+    expect(TECHNICAL_RULESET_VERSION).toBe('TB-TECHNICAL-RULESET-v4');
     expect(rulesetProblem(TECHNICAL_RULESET_VERSION, TECHNICAL_RULESET_VERSION)).toBeNull();
     for (const requested of [
       'TB-TECHNICAL-RULESET-v1',
       'TB-TECHNICAL-RULESET-v2',
-      'TB-TECHNICAL-RULESET-v4',
+      'TB-TECHNICAL-RULESET-v3',
+      'TB-TECHNICAL-RULESET-v5',
       'tb-technical-ruleset-v3',
       'TB-TECHNICAL-RULESET-v3 ',
       ' TB-TECHNICAL-RULESET-v3',
@@ -113,7 +114,7 @@ describe('the evaluation epoch E = (candidateId, artifactSha256, dependencyDiges
       expect(outcome(rulesetProblem(requested, TECHNICAL_RULESET_VERSION)), requested).toEqual([
         422,
         'RULESET_NOT_CURRENT',
-        { field: 'rulesetVersion', currentRulesetVersion: 'TB-TECHNICAL-RULESET-v3' },
+        { field: 'rulesetVersion', currentRulesetVersion: 'TB-TECHNICAL-RULESET-v4' },
       ]);
     }
   });

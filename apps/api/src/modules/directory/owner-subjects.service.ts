@@ -68,9 +68,19 @@ export class OwnerSubjectsService {
     });
     if (!owner) throw apiErrors.notFound();
     const q = searchText(query);
+    // Explicit list projection only, before keyset pagination; no record or guard changes.
+    const view = typeof query['view'] === 'string' ? query['view'] : 'all';
+    const operational = Prisma.sql`os.link_state = 'LINKED' AND ls.record_state <> 'ARCHIVED' AND ls.subject_type = 'INDIVIDUAL'`;
+    const visibility =
+      view === 'operational'
+        ? Prisma.sql`AND (${operational})`
+        : view === 'history'
+          ? Prisma.sql`AND NOT (${operational})`
+          : Prisma.empty;
     const page = pageRequest(contractOperation('listOwnerSubjects'), query, this.cursors, {
       ownerId,
       q,
+      ...(view === 'all' ? {} : { view }),
     });
     const match =
       q === null
@@ -80,7 +90,7 @@ export class OwnerSubjectsService {
     const ids = await this.prisma.$queryRaw<Array<{ id: string }>>(
       Prisma.sql`SELECT os.id AS id FROM owner_subjects os
         JOIN legal_subjects ls ON ls.id = os.legal_subject_id
-        WHERE os.owner_id = ${ownerId} ${match} ${keysetAfter(page.after, 'os')}
+        WHERE os.owner_id = ${ownerId} ${visibility} ${match} ${keysetAfter(page.after, 'os')}
         ORDER BY os.created_at DESC, os.id DESC ${pageLimit(page)}`,
     );
     const rows = await this.prisma.ownerSubject.findMany({

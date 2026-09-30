@@ -93,7 +93,19 @@ export class LegalSubjectsService {
     query: QueryValues,
   ): Promise<{ items: LegalSubjectView[]; nextCursor: string | null }> {
     const q = searchText(query);
-    const page = pageRequest(contractOperation('listLegalSubjects'), query, this.cursors, { q });
+    // Explicit list projection only, before keyset pagination; no record or guard changes.
+    const view = typeof query['view'] === 'string' ? query['view'] : 'all';
+    const operational = Prisma.sql`record_state <> 'ARCHIVED'`;
+    const visibility =
+      view === 'operational'
+        ? Prisma.sql`AND (${operational})`
+        : view === 'history'
+          ? Prisma.sql`AND NOT (${operational})`
+          : Prisma.empty;
+    const page = pageRequest(contractOperation('listLegalSubjects'), query, this.cursors, {
+      q,
+      ...(view === 'all' ? {} : { view }),
+    });
     const match =
       q === null
         ? Prisma.empty
@@ -101,7 +113,7 @@ export class LegalSubjectsService {
             OR CAST(aliases AS CHAR) COLLATE utf8mb4_0900_ai_ci LIKE ${containsPattern(q)} ESCAPE '!'
             OR registration_number COLLATE utf8mb4_0900_ai_ci LIKE ${containsPattern(q)} ESCAPE '!')`;
     const ids = await this.prisma.$queryRaw<Array<{ id: string }>>(
-      Prisma.sql`SELECT id FROM legal_subjects WHERE 1 = 1 ${match} ${keysetAfter(page.after)}
+      Prisma.sql`SELECT id FROM legal_subjects WHERE 1 = 1 ${visibility} ${match} ${keysetAfter(page.after)}
         ORDER BY created_at DESC, id DESC ${pageLimit(page)}`,
     );
     const rows = await this.prisma.legalSubject.findMany({

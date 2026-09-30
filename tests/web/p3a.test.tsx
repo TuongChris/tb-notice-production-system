@@ -108,7 +108,10 @@ describe('P3A sources UI', () => {
 
   it('a revision keeps agency and scope, and the earlier revision is shown as superseded', async () => {
     const api = new FakeDirectory();
-    const subject = api.seed('LegalSubject', { legalName: 'SYNTHETIC Subject LLC' });
+    const subject = api.seed('LegalSubject', {
+      legalName: 'SYNTHETIC Subject LLC',
+      subjectType: 'INDIVIDUAL',
+    });
     const first = api.seedSource({
       title: 'SYNTHETIC scoped record',
       scopeBindings: { legalSubjectIds: [subject.id] },
@@ -192,7 +195,10 @@ describe('P3A canonical bindings UI', () => {
 
   it('a bound legal subject locks every identity field under one notice; its binding shows the source', async () => {
     const api = new FakeDirectory();
-    const subject = api.seed('LegalSubject', { legalName: 'SYNTHETIC Subject LLC' });
+    const subject = api.seed('LegalSubject', {
+      legalName: 'SYNTHETIC Subject LLC',
+      subjectType: 'INDIVIDUAL',
+    });
     const scoped = api.seedSource({
       title: 'SYNTHETIC company registry',
       scopeBindings: { legalSubjectIds: [subject.id] },
@@ -334,7 +340,10 @@ describe('P3A routes UI', () => {
     const agency = api.seed('Agency', { displayName: 'SYNTHETIC Agency' });
     const other = api.seed('Agency', { displayName: 'SYNTHETIC Other agency' });
     const owner = api.seed('Owner', { displayName: 'SYNTHETIC Brand' });
-    const subject = api.seed('LegalSubject', { legalName: 'SYNTHETIC Subject LLC' });
+    const subject = api.seed('LegalSubject', {
+      legalName: 'SYNTHETIC Subject LLC',
+      subjectType: 'INDIVIDUAL',
+    });
     const paused = api.seed('LegalSubject', { legalName: 'SYNTHETIC Paused LLC' });
     const link = api.seed('OwnerSubject', {
       ownerId: owner.id,
@@ -527,8 +536,8 @@ describe('P3A routes UI', () => {
     const { agency, other, link } = graph(api);
     api.seed('Route', { agencyId: agency.id, ownerSubjectId: link.id });
     await render(api, `/representation/routes?agencyId=${other.id}`);
-    await until('No routes for this agency.');
-    expect(pageText()).not.toContain('No routes yet.');
+    await until('No routes for this agency in this view.');
+    expect(pageText()).not.toContain('No routes in this view.');
     await click(byText('button', 'Show all agencies'));
     await waitFor(() => all('table.records tbody tr').length === 1, 'all routes');
     await unmount();
@@ -543,7 +552,7 @@ describe('P3A routes UI', () => {
   it('the Representation section offers routes and (since P3B) mandates', async () => {
     const api = new FakeDirectory();
     await render(api, '/representation');
-    await until('No routes yet.');
+    await until('No routes in this view.');
     expect(q('[data-testid="unavailable-subsection"]')).toBeNull();
     const nav = q('nav[aria-label="Representation"]');
     expect(

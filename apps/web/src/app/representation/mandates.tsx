@@ -1,3 +1,4 @@
+import { OperationalViewControl, useOperationalView } from '../directory/operational-view.js';
 // Mandate pages (P3B). A mandate is the container of one agency's representation record: its
 // documentary terms live in its versions, their scope in coverages over exact routes, and later
 // source-backed changes in authority events. A mandate row proves no current effectiveness, scope,
@@ -67,6 +68,7 @@ const LABELS: Record<string, string> = {
 
 export function MandateListPage() {
   const api = useDirectoryApi();
+  const [view, setView] = useOperationalView();
   const [params, setParams] = useSearchParams();
   const agencyId = params.get('agencyId') ?? '';
   const [agencies] = useLoad('mandates:agency-filter', () => api.agencies.list({ limit: 100 }));
@@ -86,33 +88,36 @@ export function MandateListPage() {
       searchLabel="Search label, external reference or code"
       newLabel="New mandate"
       newTo={newTo}
-      filterKey={agencyId}
+      filterKey={`${agencyId}:${view}`}
       filters={
-        <label className="list-filter">
-          Agency
-          <select value={agencyId} onChange={(event) => setAgency(event.target.value)}>
-            <option value="">All agencies</option>
-            {agencyItems.map((agency) => (
-              <option key={agency.id} value={agency.id}>
-                {agency.displayName}
-              </option>
-            ))}
-          </select>
-        </label>
+        <>
+          <OperationalViewControl value={view} onChange={setView} />
+          <label className="list-filter">
+            Agency
+            <select value={agencyId} onChange={(event) => setAgency(event.target.value)}>
+              <option value="">All agencies</option>
+              {agencyItems.map((agency) => (
+                <option key={agency.id} value={agency.id}>
+                  {agency.displayName}
+                </option>
+              ))}
+            </select>
+          </label>
+        </>
       }
-      load={(query) => api.mandates.list({ ...query, ...(agencyId ? { agencyId } : {}) })}
+      load={(query) => api.mandates.list({ ...query, view, ...(agencyId ? { agencyId } : {}) })}
       emptyText={
         agencyId ? (
           <p>
-            No mandates for this agency.{' '}
+            No mandates for this agency in this view.{' '}
             <button type="button" className="button-link" onClick={() => setAgency('')}>
               Show all agencies
             </button>
           </p>
         ) : (
           <p>
-            No mandates yet. <Link to="/representation/mandates/new">Record the first mandate</Link>
-            .
+            No mandates in this view.{' '}
+            <Link to="/representation/mandates/new">Record the first mandate</Link>.
           </p>
         )
       }

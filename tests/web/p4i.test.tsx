@@ -52,7 +52,7 @@ import {
 
 const DIGEST = 'b'.repeat(64);
 const DIGEST_LATER = 'c'.repeat(64);
-const RULESET = 'TB-TECHNICAL-RULESET-v3';
+const RULESET = 'TB-TECHNICAL-RULESET-v4';
 const RUN_ID = '00000000-0000-4000-8000-00000000c0de';
 const OTHER_RUN_ID = '00000000-0000-4000-8000-00000000c0df';
 const GATES = ['G1', 'G2', 'G3', 'G4', 'G5', 'G6'] as const;

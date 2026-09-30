@@ -1,3 +1,4 @@
+import { OperationalViewControl, useOperationalView } from './operational-view.js';
 // LegalSubject pages: the exact individual, legal entity or other party. The subject type is set
 // once at creation and never converted; once the subject is established (active, canonically bound
 // or referenced), its identity fields can't be filled in, changed or cleared here.
@@ -101,6 +102,7 @@ const BOUNDARY =
 
 export function LegalSubjectListPage() {
   const api = useDirectoryApi();
+  const [view, setView] = useOperationalView();
   return (
     <DirectoryList<LegalSubject>
       title="Legal subjects"
@@ -109,10 +111,12 @@ export function LegalSubjectListPage() {
       searchLabel="Search by legal name, alias or registration number"
       newLabel="New legal subject"
       newTo="/directory/legal-subjects/new"
-      load={(query) => api.legalSubjects.list(query)}
+      filterKey={view}
+      filters={<OperationalViewControl value={view} onChange={setView} />}
+      load={(query) => api.legalSubjects.list({ ...query, view })}
       emptyText={
         <p>
-          No legal subjects yet.{' '}
+          No legal subjects in this view.{' '}
           <Link to="/directory/legal-subjects/new">Create the first legal subject</Link>.
         </p>
       }

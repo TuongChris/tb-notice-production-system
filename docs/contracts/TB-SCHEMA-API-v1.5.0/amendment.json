@@ -1,0 +1,96 @@
+{
+  "release": "TB-SCHEMA-API-v1.5.0",
+  "kind": "ADDITIVE",
+  "decision": "docs/decisions/ADR-0012-operational-history-list-views.md",
+  "summary": "Optional typed view=operational|history|all on four directory/representation lists. Omitted remains all; direct reads and business guards unchanged.",
+  "base": {
+    "release": "TB-SCHEMA-API-v1.4.0",
+    "path": "docs/contracts/TB-SCHEMA-API-v1.4.0",
+    "amendmentSha256": "fb6b14a9781980f06ab7d1e41952feb478ee37f4df9df54f09d2fe941ff15c85",
+    "files": {
+      "packages/contracts/schemas/api-schemas.json": "bd2cbf509af6958e13f6a8fc7988f8a28d34cd35eebe00c9616e015f7e5087a4",
+      "packages/contracts/openapi/openapi.json": "ea24df81c6e707957d746ec80ebc39bf82bdda2f333410af5729a001a96fb8fe",
+      "packages/contracts/openapi/openapi.yaml": "e22ec29ea67aa481cfa8762e295bcf67a80a6265f4bf460ff60b16b86868c149"
+    }
+  },
+  "openApiInfoVersion": {
+    "from": "1.4.0",
+    "to": "1.5.0"
+  },
+  "schemas": {
+    "refForm": "#/$defs/",
+    "insertAfter": "AppMeta",
+    "added": {}
+  },
+  "operations": {
+    "insertAfterPath": "/health",
+    "added": {}
+  },
+  "queryParameters": {
+    "/routes": [
+      {
+        "name": "view",
+        "in": "query",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "operational",
+            "history",
+            "all"
+          ]
+        }
+      }
+    ],
+    "/legal-subjects": [
+      {
+        "name": "view",
+        "in": "query",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "operational",
+            "history",
+            "all"
+          ]
+        }
+      }
+    ],
+    "/mandates": [
+      {
+        "name": "view",
+        "in": "query",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "operational",
+            "history",
+            "all"
+          ]
+        }
+      }
+    ],
+    "/owners/{ownerId}/subjects": [
+      {
+        "name": "view",
+        "in": "query",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "operational",
+            "history",
+            "all"
+          ]
+        }
+      }
+    ]
+  },
+  "result": {
+    "schemaCount": 291,
+    "operationCount": 145,
+    "files": {
+      "packages/contracts/schemas/api-schemas.json": "bd2cbf509af6958e13f6a8fc7988f8a28d34cd35eebe00c9616e015f7e5087a4",
+      "packages/contracts/openapi/openapi.json": "ac125bbaf4380bd426a8e86cb8222ce8b4b146f8adabf5b0955056f6ceb13ed7",
+      "packages/contracts/openapi/openapi.yaml": "bd9ee722770357237cd85bfe39af409153e0db1d87dca423b5acb55b0c3e477e"
+    }
+  }
+}

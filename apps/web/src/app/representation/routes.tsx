@@ -1,3 +1,4 @@
+import { OperationalViewControl, useOperationalView } from '../directory/operational-view.js';
 // Route pages (P3A; preferred coverage P3B). A route is the operational path Agency + owner–subject
 // link + platform. It is a relationship record: creating, pausing, unlinking, relinking or binding
 // it establishes no mandate, coverage, copyright ownership, representation authority or signer
@@ -52,6 +53,7 @@ const NEW_ROUTE_COVERAGE =
 
 export function RouteListPage() {
   const api = useDirectoryApi();
+  const [view, setView] = useOperationalView();
   const [params, setParams] = useSearchParams();
   const agencyId = params.get('agencyId') ?? '';
   const [agencies] = useLoad('routes:agency-filter', () => api.agencies.list({ limit: 100 }));
@@ -70,32 +72,36 @@ export function RouteListPage() {
       searchLabel="Search owner, subject, agency, prefix or code"
       newLabel="New route"
       newTo="/representation/routes/new"
-      filterKey={agencyId}
+      filterKey={`${agencyId}:${view}`}
       filters={
-        <label className="list-filter">
-          Agency
-          <select value={agencyId} onChange={(event) => setAgency(event.target.value)}>
-            <option value="">All agencies</option>
-            {agencyItems.map((agency) => (
-              <option key={agency.id} value={agency.id}>
-                {agency.displayName}
-              </option>
-            ))}
-          </select>
-        </label>
+        <>
+          <OperationalViewControl value={view} onChange={setView} />
+          <label className="list-filter">
+            Agency
+            <select value={agencyId} onChange={(event) => setAgency(event.target.value)}>
+              <option value="">All agencies</option>
+              {agencyItems.map((agency) => (
+                <option key={agency.id} value={agency.id}>
+                  {agency.displayName}
+                </option>
+              ))}
+            </select>
+          </label>
+        </>
       }
-      load={(query) => api.routes.list({ ...query, ...(agencyId ? { agencyId } : {}) })}
+      load={(query) => api.routes.list({ ...query, view, ...(agencyId ? { agencyId } : {}) })}
       emptyText={
         agencyId ? (
           <p>
-            No routes for this agency.{' '}
+            No routes for this agency in this view.{' '}
             <button type="button" className="button-link" onClick={() => setAgency('')}>
               Show all agencies
             </button>
           </p>
         ) : (
           <p>
-            No routes yet. <Link to="/representation/routes/new">Create the first route</Link>.
+            No routes in this view.{' '}
+            <Link to="/representation/routes/new">Create the first route</Link>.
           </p>
         )
       }

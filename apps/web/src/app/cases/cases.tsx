@@ -663,7 +663,10 @@ function RouteBindingDialog({
   const [routes] = useLoad(
     `case-route-options:${open ? 'open' : 'closed'}:${item.id}:${item.agencyId}`,
     async () =>
-      open ? (await api.routes.list({ agencyId: item.agencyId, limit: 100 })).items : [],
+      open
+        ? (await api.routes.list({ agencyId: item.agencyId, limit: 100, view: 'operational' }))
+            .items
+        : [],
   );
   const options = routes.status === 'ready' ? routes.value : [];
 
@@ -897,7 +900,7 @@ export function NewCasePage() {
   const [owners] = useLoad('case-form:owners', () => api.owners.list({ limit: 100 }));
   const [routes] = useLoad(`case-form:routes:${agencyId}`, async () => {
     if (agencyId === '') return [];
-    const page = await api.routes.list({ agencyId, limit: 100 });
+    const page = await api.routes.list({ agencyId, limit: 100, view: 'operational' });
     return Promise.all(
       page.items.map(async (route) => {
         const name = await lookup.get('route', route.id);

@@ -802,7 +802,7 @@ async function validate(candidate: NoticeCandidate, prompt: PromptSnapshot) {
 
 // assessments (P4H) -----------------------------------------------------------------------------
 
-const RULESET = 'TB-TECHNICAL-RULESET-v3';
+const RULESET = 'TB-TECHNICAL-RULESET-v4';
 const GATES = ['G1', 'G2', 'G3', 'G4', 'G5', 'G6'] as const;
 type Gate = (typeof GATES)[number];
 
@@ -3039,7 +3039,7 @@ describe('P4I boundaries — no outbound call, no G7, the contract unchanged', (
     for (const operationId of ['getCandidateReadiness', 'exportUnsignedCandidate']) {
       expect(seen.has(operationId), operationId).toBe(true);
     }
-    expect(CONTRACT_BASELINE).toBe('TB-SCHEMA-API-v1.4.0');
+    expect(CONTRACT_BASELINE).toBe('TB-SCHEMA-API-v1.5.0');
     expect(operations).toHaveLength(145);
   });
 });

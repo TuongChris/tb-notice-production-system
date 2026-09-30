@@ -13,7 +13,10 @@ import type { GetHealthResponse, Health } from './api/schemas/index.js';
  * docs/contracts/TB-SCHEMA-API-v1.3.0; TB-SCHEMA-API-v1.4.0: ADR-0009,
  * docs/contracts/TB-SCHEMA-API-v1.4.0).
  */
-export const CONTRACT_BASELINE = 'TB-SCHEMA-API-v1.4.0';
+export const CONTRACT_BASELINE = 'TB-SCHEMA-API-v1.5.0';
+
+/** Optional administrative list filter; omitted preserves the historical unfiltered API. */
+export type OperationalListView = 'operational' | 'history' | 'all';
 
 /** The frozen reference release the active one extends (docs/reference/database-api-v1, never edited). */
 export const FROZEN_REFERENCE_RELEASE = 'TB-SCHEMA-API-v1.0.0';
