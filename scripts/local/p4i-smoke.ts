@@ -10,7 +10,7 @@
 // unsigned export hands over the stored text exactly; nothing is signed, adopted or sent, and port
 // 3000 is released.
 //
-// Flow (every response is checked against the ACTIVE contract TB-SCHEMA-API-v1.4.0 and for
+// Flow (every response is checked against the ACTIVE contract TB-SCHEMA-API-v1.5.0 and for
 // Cache-Control: no-store):
 //   readiness and the export without a session (401) and the export without Origin (403) → login
 //   → Agency → Owner, LegalSubject and their link → Route → Signer → mandate 1 (version, coverage,
@@ -57,7 +57,7 @@ import { assertLocalTarget } from '../db/allowlist.mjs';
 import { loadRootEnv } from '../db/lib/targets.mjs';
 
 const API = 'http://127.0.0.1:3000/api/v1';
-const RULESET = 'TB-TECHNICAL-RULESET-v3';
+const RULESET = 'TB-TECHNICAL-RULESET-v4';
 const GATES = ['G1', 'G2', 'G3', 'G4', 'G5', 'G6'] as const;
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const sha256 = (text: string) => createHash('sha256').update(text, 'utf8').digest('hex');
@@ -295,8 +295,8 @@ async function main(): Promise<void> {
   if (!existsSync(entry)) fail('compiled API missing; run yarn build first');
   if (await listening(3000)) fail('port 3000 is already in use');
   const contracts = await import('../../packages/contracts/dist/index.js');
-  if (contracts.CONTRACT_BASELINE !== 'TB-SCHEMA-API-v1.4.0') {
-    fail(`the active contract must be TB-SCHEMA-API-v1.4.0 (got ${contracts.CONTRACT_BASELINE})`);
+  if (contracts.CONTRACT_BASELINE !== 'TB-SCHEMA-API-v1.5.0') {
+    fail(`the active contract must be TB-SCHEMA-API-v1.5.0 (got ${contracts.CONTRACT_BASELINE})`);
   }
 
   api = spawn(process.execPath, [entry], { cwd: path.join(repoRoot, 'apps/api'), stdio: 'ignore' });

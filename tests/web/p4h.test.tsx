@@ -88,7 +88,7 @@ import {
 const SENDER = 'synthetic-sender@example.invalid';
 const DIGEST = 'b'.repeat(64);
 const DIGEST_LATER = 'c'.repeat(64);
-const RULESET = 'TB-TECHNICAL-RULESET-v3';
+const RULESET = 'TB-TECHNICAL-RULESET-v4';
 const meta = { requestId: 'synthetic', affectedResources: [] };
 
 /** Claims the assessment section never makes (a review record is not readiness, G7 or sending). */

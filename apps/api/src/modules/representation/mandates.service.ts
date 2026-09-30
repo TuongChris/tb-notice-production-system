@@ -81,10 +81,20 @@ export class MandatesService {
    */
   async list(query: QueryValues): Promise<{ items: MandateView[]; nextCursor: string | null }> {
     const q = searchText(query);
+    // Explicit list projection only, before keyset pagination; no record or guard changes.
+    const view = typeof query['view'] === 'string' ? query['view'] : 'all';
+    const operational = Prisma.sql`m.archived_at IS NULL`;
+    const visibility =
+      view === 'operational'
+        ? Prisma.sql`AND (${operational})`
+        : view === 'history'
+          ? Prisma.sql`AND NOT (${operational})`
+          : Prisma.empty;
     const agencyId = typeof query['agencyId'] === 'string' ? query['agencyId'] : null;
     const page = pageRequest(contractOperation('listMandates'), query, this.cursors, {
       q,
       agencyId,
+      ...(view === 'all' ? {} : { view }),
     });
     const agency = agencyId === null ? Prisma.empty : Prisma.sql`AND m.agency_id = ${agencyId}`;
     const exact = q !== null && UUID.test(q) ? Prisma.sql`OR m.id = ${q}` : Prisma.empty;
@@ -96,7 +106,7 @@ export class MandatesService {
             OR m.canonical_code COLLATE utf8mb4_0900_ai_ci LIKE ${containsPattern(q)} ESCAPE '!'
             ${exact})`;
     const ids = await this.prisma.$queryRaw<Array<{ id: string }>>(
-      Prisma.sql`SELECT m.id FROM mandates m WHERE 1 = 1 ${agency} ${match}
+      Prisma.sql`SELECT m.id FROM mandates m WHERE 1 = 1 ${agency} ${visibility} ${match}
         ${keysetAfter(page.after, 'm')}
         ORDER BY m.created_at DESC, m.id DESC ${pageLimit(page)}`,
     );

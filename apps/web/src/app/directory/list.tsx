@@ -50,6 +50,8 @@ export function DirectoryList<T extends { readonly id: string }>({
     key,
     stack: [undefined],
   });
+  // Persist the reset so returning to a previous filter cannot resurrect its cursor.
+  if (paging.key !== key) setPaging({ key: key, stack: [undefined] });
   const stack = paging.key === key ? paging.stack : [undefined];
   const cursor = stack[stack.length - 1];
   const [state, reload] = useLoad(`${key}\u0000${cursor ?? ''}`, () =>

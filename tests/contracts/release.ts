@@ -27,9 +27,10 @@ export const RELEASES = [
   'TB-SCHEMA-API-v1.2.0',
   'TB-SCHEMA-API-v1.3.0',
   'TB-SCHEMA-API-v1.4.0',
+  'TB-SCHEMA-API-v1.5.0',
 ] as const;
 export type Release = (typeof RELEASES)[number];
-export const ACTIVE_RELEASE: Release = 'TB-SCHEMA-API-v1.4.0';
+export const ACTIVE_RELEASE: Release = 'TB-SCHEMA-API-v1.5.0';
 
 export const releaseDir = (release: Release): string =>
   path.join(repoRoot, 'docs/contracts', release);
@@ -69,6 +70,8 @@ export interface Amendment {
     readonly insertAfterPath: string;
     readonly added: Readonly<Record<string, Readonly<Record<string, JsonObject>>>>;
   };
+  /** Optional parameters prepended to existing GET lists; earlier parameters are unchanged. */
+  readonly queryParameters?: Readonly<Record<string, readonly JsonObject[]>>;
   readonly result: {
     readonly schemaCount: number;
     readonly operationCount: number;
@@ -177,6 +180,24 @@ export function applyAmendment(base: ReleaseDocuments, amendment: Amendment): Re
     } else {
       openApi[key] = value;
     }
+  }
+  for (const [route, additions] of Object.entries(amendment.queryParameters ?? {})) {
+    const paths = openApi['paths'] as JsonObject;
+    const item = paths[route] as JsonObject;
+    const operation = item['get'] as JsonObject;
+    const parameters = operation['parameters'] as JsonObject[];
+    for (const parameter of additions) {
+      if (
+        parameter['in'] !== 'query' ||
+        parameter['required'] === true ||
+        parameters.some((p) => p['name'] === parameter['name'] && p['in'] === 'query')
+      )
+        throw new Error('not an optional new query parameter');
+    }
+    paths[route] = {
+      ...item,
+      get: { ...operation, parameters: [...structuredClone(additions), ...parameters] },
+    };
   }
   return { bundle: bundle as JsonSchemaBundle & JsonObject, openApi };
 }

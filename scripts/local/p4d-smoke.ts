@@ -649,7 +649,7 @@ async function main(): Promise<void> {
   ) =>
     frozen.canonicalSha256({
       algorithm,
-      contract: 'TB-SCHEMA-API-v1.4.0',
+      contract: 'TB-SCHEMA-API-v1.5.0',
       schemaVersion: 'PFC-YT-EMAIL-v1.1',
       scope,
       dependencies: view.dependencies.map(({ entityType, entityId, fingerprint }) => ({

@@ -22,7 +22,7 @@ export const openApiDocument = {
   openapi: '3.1.1',
   info: {
     title: 'TB Notice Production System — API Contract v1',
-    version: '1.4.0',
+    version: '1.5.0',
     description:
       'LOCAL-FIRST contract, not a deployed API. Terminal product: unsigned candidate. Technical validation does not certify rights/G1-G6. No send, signature, G7 or raw evidence export route.',
   },

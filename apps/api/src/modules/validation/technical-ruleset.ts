@@ -65,7 +65,9 @@ import {
 import { DRAFTING_BLOCKING_CODES } from '../production/context-assembly.js';
 import { exactOccurrences, located, patternMatches, type Found } from './text-scan.js';
 
-export const TECHNICAL_RULESET_VERSION = 'TB-TECHNICAL-RULESET-v3';
+// ADR-0012: v4 retains v3 and adds only the v1.5.0 release and its own identifier.
+// Historical ValidationRuns remain stored readbacks; no prior ruleset is rerun or relabelled.
+export const TECHNICAL_RULESET_VERSION = 'TB-TECHNICAL-RULESET-v4';
 
 export type CheckKind = 'DETERMINISTIC' | 'HEURISTIC';
 export type IssueSeverity = 'BLOCKER' | 'REVIEW_REQUIRED' | 'WARNING' | 'INFO';
@@ -1045,7 +1047,7 @@ export const PROMPT_STRUCTURE_MARKERS = [
  * current digest definition TB-PRODUCTION-CONTEXT-DIGEST-v2 (which v2 left outside its vocabulary by
  * the operator's R14-AUD-013 decision), its own identifier and the release TB-SCHEMA-API-v1.4.0. A
  * unit test pins the list and fails when an identifier the application now uses is missing from it:
- * a new ruleset version is then needed.
+ * a new ruleset version is then needed. v4 adds only the v1.5.0 release and its own identifier.
  */
 export const INTERNAL_IDENTIFIER_STRINGS = [
   'TB-PROMPT-TEMPLATE-v1',
@@ -1059,6 +1061,8 @@ export const INTERNAL_IDENTIFIER_STRINGS = [
   'TB-PRODUCTION-CONTEXT-DIGEST-v2',
   'TB-TECHNICAL-RULESET-v3',
   'TB-SCHEMA-API-v1.4.0',
+  'TB-SCHEMA-API-v1.5.0',
+  'TB-TECHNICAL-RULESET-v4',
 ] as const;
 /** Internal state and provenance codes (upper-case identifiers of this application's records). */
 export const INTERNAL_STATUS_CODES = [

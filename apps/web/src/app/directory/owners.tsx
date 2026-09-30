@@ -34,6 +34,7 @@ import {
 } from './format.js';
 import { useDirectoryApi, useIntentKey, useLoad, useWrite } from './hooks.js';
 import { DirectoryList } from './list.js';
+import { OperationalViewControl, useOperationalView } from './operational-view.js';
 import { RecordStateActions } from './record-actions.js';
 import { useRecordPage, useSubmission, type FlashState } from './record-page.js';
 import {
@@ -43,6 +44,7 @@ import {
   ErrorNotice,
   LoadingNotice,
   ReasonDialog,
+  Pager,
   RecordHeader,
   Section,
   StateStamp,
@@ -314,9 +316,35 @@ function OwnerSubjects({
   const write = useWrite();
   const intent = useIntentKey();
   const [generation, setGeneration] = useState(0);
-  const [state, reload] = useLoad(`owner-subjects:${owner.data.id}:${generation}`, () =>
-    api.ownerSubjects.list(owner.data.id, { limit: 100 }),
+  const [view, setView] = useOperationalView('relationships');
+  const [limit, setLimit] = useState(25);
+  const pageKey = `${owner.data.id}:${generation}:${view}:${limit}`;
+  const [paging, setPaging] = useState<{ key: string; stack: Array<string | undefined> }>({
+    key: pageKey,
+    stack: [undefined],
+  });
+  // Persist the reset so returning to a previous filter cannot resurrect its cursor.
+  if (paging.key !== pageKey) setPaging({ key: pageKey, stack: [undefined] });
+  const stack = paging.key === pageKey ? paging.stack : [undefined];
+  const cursor = stack.at(-1);
+  const [state, reload] = useLoad(`owner-subjects:${pageKey}:${cursor ?? ''}`, () =>
+    api.ownerSubjects.list(owner.data.id, { limit, view, ...(cursor ? { cursor } : {}) }),
   );
+  // Deletion and duplicate-link eligibility must consider every relationship of this owner,
+  // independently of the visible page/view. This is not a filtered directory list.
+  const [allLinks] = useLoad(`owner-all-links:${owner.data.id}:${generation}`, async () => {
+    const items: OwnerSubject[] = [];
+    let cursor: string | undefined;
+    do {
+      const page = await api.ownerSubjects.list(owner.data.id, {
+        limit: 100,
+        ...(cursor ? { cursor } : {}),
+      });
+      items.push(...page.items);
+      cursor = page.nextCursor ?? undefined;
+    } while (cursor);
+    return items;
+  });
   const [subjects, setSubjects] = useState<Record<string, LegalSubject | null>>({});
   const [operation, setOperation] = useState<LinkOperation | null>(null);
   const [pending, setPending] = useState(false);
@@ -324,8 +352,8 @@ function OwnerSubjects({
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (state.status === 'ready') onCount(state.value.items.length);
-  }, [state, onCount]);
+    if (allLinks.status === 'ready') onCount(allLinks.value.length);
+  }, [allLinks, onCount]);
 
   useEffect(() => {
     if (state.status !== 'ready') return;
@@ -390,6 +418,14 @@ function OwnerSubjects({
 
   return (
     <Section title="Legal subjects">
+      <OperationalViewControl id="relationship-view" value={view} onChange={setView} />
+      <h3>
+        {view === 'operational'
+          ? 'Current relationships'
+          : view === 'history'
+            ? 'History / inactive relationships'
+            : 'All relationships'}
+      </h3>
       <p className="hint">
         The exact people or legal entities behind this owner. A link records a relationship only: it
         is not an appointment and grants no authority, and unlinking revokes nothing.
@@ -401,7 +437,8 @@ function OwnerSubjects({
       {state.status === 'ready' &&
         (state.value.items.length === 0 ? (
           <p className="absent" data-testid="no-links">
-            No legal subject is linked. The owner can stay unlinked until the legal party is known.
+            No relationships in this view. History remains available through the view control. The
+            owner can stay unlinked until the legal party is known.
           </p>
         ) : (
           <div className="table-frame">
@@ -471,6 +508,21 @@ function OwnerSubjects({
             </table>
           </div>
         ))}
+      {state.status === 'ready' && (
+        <Pager
+          limit={limit}
+          onLimit={setLimit}
+          pageNumber={stack.length}
+          shown={state.value.items.length}
+          hasPrevious={stack.length > 1}
+          hasNext={state.value.nextCursor !== null}
+          onPrevious={() => setPaging({ key: pageKey, stack: stack.slice(0, -1) })}
+          onNext={() => {
+            if (state.value.nextCursor)
+              setPaging({ key: pageKey, stack: [...stack, state.value.nextCursor] });
+          }}
+        />
+      )}
       <ReasonDialog
         open={operation !== null}
         title={
@@ -505,20 +557,22 @@ function OwnerSubjects({
         onCancel={() => setOperation(null)}
         onConfirm={(reason) => void changeState(reason)}
       />
-      {owner.data.recordState !== 'ARCHIVED' ? (
+      {owner.data.recordState !== 'ARCHIVED' && allLinks.status === 'ready' ? (
         <LinkSubjectForm
           owner={owner}
-          linkedSubjectIds={
-            state.status === 'ready' ? state.value.items.map((item) => item.legalSubjectId) : []
-          }
+          linkedSubjectIds={allLinks.value.map((item) => item.legalSubjectId)}
           onConflict={onConflict}
           onLinked={async (subject) => {
             setGeneration((value) => value + 1);
             await onOwnerChanged(`Linked ${subject.legalName}.`);
           }}
         />
-      ) : (
+      ) : owner.data.recordState === 'ARCHIVED' ? (
         <p className="hint">Restore the owner to link legal subjects.</p>
+      ) : allLinks.status === 'error' ? (
+        <ErrorNotice error={allLinks.error} onRetry={() => setGeneration((value) => value + 1)} />
+      ) : (
+        <LoadingNotice label="Checking existing relationships…" />
       )}
     </Section>
   );
@@ -643,7 +697,7 @@ function LinkSubjectForm({
                   {subject.jurisdictionCountry ? `, ${subject.jurisdictionCountry}` : ''}
                   {subject.registrationNumber ? `, reg. ${subject.registrationNumber}` : ''}
                   {archived ? ', archived' : ''}
-                  {linked ? ', already linked (change it in the table above)' : ''}
+                  {linked ? ', already linked (use the relationship views above)' : ''}
                 </span>
               </label>
             );

@@ -682,6 +682,11 @@ export const operations = [
     summary: 'listLegalSubjects',
     parameters: [
       {
+        name: 'view',
+        in: 'query',
+        schema: tb.enum(['operational', 'history', 'all']),
+      },
+      {
         name: 'limit',
         in: 'query',
         schema: tb.integer({ minimum: 1, maximum: 100 }),
@@ -1087,6 +1092,11 @@ export const operations = [
     summary: 'listRoutes',
     parameters: [
       {
+        name: 'view',
+        in: 'query',
+        schema: tb.enum(['operational', 'history', 'all']),
+      },
+      {
         name: 'limit',
         in: 'query',
         schema: tb.integer({ minimum: 1, maximum: 100 }),
@@ -1292,6 +1302,11 @@ export const operations = [
     summary: 'listMandates',
     parameters: [
       {
+        name: 'view',
+        in: 'query',
+        schema: tb.enum(['operational', 'history', 'all']),
+      },
+      {
         name: 'limit',
         in: 'query',
         schema: tb.integer({ minimum: 1, maximum: 100 }),
@@ -1472,6 +1487,11 @@ export const operations = [
     tags: ['Owner'],
     summary: 'listOwnerSubjects',
     parameters: [
+      {
+        name: 'view',
+        in: 'query',
+        schema: tb.enum(['operational', 'history', 'all']),
+      },
       {
         name: 'ownerId',
         in: 'path',

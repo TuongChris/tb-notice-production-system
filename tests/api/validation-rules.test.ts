@@ -222,9 +222,9 @@ const ruleIdsWithFindings = (evaluation: Evaluation) => [
   ...new Set(evaluation.findings.map((item) => item.ruleId)),
 ];
 
-describe('the ruleset TB-TECHNICAL-RULESET-v3 — pinned inventory, coverage and aggregation', () => {
+describe('the ruleset TB-TECHNICAL-RULESET-v4 — pinned inventory, coverage and aggregation', () => {
   it('is one identifier with a pinned inventory of 29 required rules; the implementations are exactly that inventory, in order, with the same kinds', () => {
-    expect(TECHNICAL_RULESET_VERSION).toBe('TB-TECHNICAL-RULESET-v3');
+    expect(TECHNICAL_RULESET_VERSION).toBe('TB-TECHNICAL-RULESET-v4');
     const pinned = INVENTORY.map(([id, kind]) => ({ id, checkKind: kindOf(kind) }));
     expect(REQUIRED_RULES).toEqual(pinned);
     expect(TECHNICAL_RULES.map((rule) => ({ id: rule.id, checkKind: rule.checkKind }))).toEqual(
@@ -261,7 +261,7 @@ describe('the ruleset TB-TECHNICAL-RULESET-v3 — pinned inventory, coverage and
     expect(evaluation.result).toBe('TECHNICAL_PASS');
     expect(evaluation.findings).toEqual([]);
     expect(evaluation.counts).toEqual({ blocker: 0, reviewRequired: 0, warning: 0, info: 0 });
-    expect(evaluation.rulesetVersion).toBe('TB-TECHNICAL-RULESET-v3');
+    expect(evaluation.rulesetVersion).toBe('TB-TECHNICAL-RULESET-v4');
     expect(evaluation.coverageManifest).toEqual({
       requiredRuleIds: INVENTORY.map(([id]) => id),
       executedRuleIds: INVENTORY.map(([id]) => id),
@@ -1136,14 +1136,16 @@ describe('MARKER.INTERNAL_IDENTIFIERS vocabulary — pinned by TB-TECHNICAL-RULE
     'PFC-YT-EMAIL-v1.1',
   ];
   /**
-   * The golden vocabulary of TB-TECHNICAL-RULESET-v3 (ADR-0010), exactly: v2's, unchanged and in its
-   * order, plus the current digest definition, v3 itself and the release TB-SCHEMA-API-v1.4.0.
+   * The golden vocabulary of TB-TECHNICAL-RULESET-v4 (ADR-0012), exactly: v2's, unchanged and in its
+   * order, plus the v3 additions and the v1.5.0 release and v4 identifier.
    */
   const GOLDEN = [
     ...V2_GOLDEN,
     'TB-PRODUCTION-CONTEXT-DIGEST-v2',
     'TB-TECHNICAL-RULESET-v3',
     'TB-SCHEMA-API-v1.4.0',
+    'TB-SCHEMA-API-v1.5.0',
+    'TB-TECHNICAL-RULESET-v4',
   ];
   /**
    * What TB-TECHNICAL-RULESET-v1 detected under the accepted TB-SCHEMA-API-v1.2.0 state (main
@@ -1174,6 +1176,8 @@ describe('MARKER.INTERNAL_IDENTIFIERS vocabulary — pinned by TB-TECHNICAL-RULE
       'TB-PRODUCTION-CONTEXT-DIGEST-v2',
       'TB-TECHNICAL-RULESET-v3',
       'TB-SCHEMA-API-v1.4.0',
+      'TB-SCHEMA-API-v1.5.0',
+      'TB-TECHNICAL-RULESET-v4',
     ]);
     const source = readFileSync(path.join(VALIDATION_MODULE, 'technical-ruleset.ts'), 'utf8');
     const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\s)\/\/.*$/gm, '$1');
@@ -1223,16 +1227,16 @@ describe('MARKER.INTERNAL_IDENTIFIERS vocabulary — pinned by TB-TECHNICAL-RULE
     ]);
   });
 
-  it('golden: lookalikes and future identifiers are not part of v3 — a future release (v1.5.0), an earlier release outside the vocabulary, other letter case, a space, a prefix, another ruleset or digest number — no finding', () => {
+  it('golden: lookalikes and future identifiers are not part of v4 — a future release (v1.6.0), an earlier release outside the vocabulary, other letter case, a space, a prefix, another ruleset or digest number — no finding', () => {
     for (const lookalike of [
-      'TB-SCHEMA-API-v1.5.0',
+      'TB-SCHEMA-API-v1.6.0',
       'TB-SCHEMA-API-v1.1.0',
       'TB-SCHEMA-API-v1.0.0',
       'tb-schema-api-v1.4.0',
       'TB-SCHEMA-API v1.4.0',
       'TB-SCHEMA-API-v1.4',
       'TB-SCHEMA-API-1.4.0',
-      'TB-TECHNICAL-RULESET-v4',
+      'TB-TECHNICAL-RULESET-v5',
       'TB-PRODUCTION-CONTEXT-DIGEST-v3',
       'PFC-YT-EMAIL-v1.2',
     ]) {
@@ -1240,7 +1244,7 @@ describe('MARKER.INTERNAL_IDENTIFIERS vocabulary — pinned by TB-TECHNICAL-RULE
     }
   });
 
-  it('a later identifier needs a new ruleset version: every identifier the application uses now — the active release, the PFC version, the prompt template, the candidate artifact, the digest definition and this ruleset — is in the pinned vocabulary; this fails, and never silently widens v3, when one changes', () => {
+  it('a later identifier needs a new ruleset version: every identifier the application uses now — the active release, the PFC version, the prompt template, the candidate artifact, the digest definition and this ruleset — is in the pinned vocabulary; this fails, and never silently widens v4, when one changes', () => {
     for (const active of [
       CONTRACT_BASELINE,
       PFC_SCHEMA_VERSION,
@@ -1258,7 +1262,7 @@ describe('MARKER.INTERNAL_IDENTIFIERS vocabulary — pinned by TB-TECHNICAL-RULE
 
   it('ADR-0010: the R14-AUD-013 exception belongs to v2 only — v3 detects the current digest definition identifier TB-PRODUCTION-CONTEXT-DIGEST-v2 (and v1), which v2, by the operator’s decision, did not; v2’s pinned vocabulary stays as it was', () => {
     expect(DEPENDENCY_DIGEST_ALGORITHM).toBe('TB-PRODUCTION-CONTEXT-DIGEST-v2');
-    expect(TECHNICAL_RULESET_VERSION).toBe('TB-TECHNICAL-RULESET-v3');
+    expect(TECHNICAL_RULESET_VERSION).toBe('TB-TECHNICAL-RULESET-v4');
     expect(INTERNAL_IDENTIFIER_STRINGS).toContain(DEPENDENCY_DIGEST_ALGORITHM);
     // v2's vocabulary (R14-AUD-013, ADR-0007 §7): the v2 digest identifier was outside it.
     expect(V2_GOLDEN).not.toContain(DEPENDENCY_DIGEST_ALGORITHM);

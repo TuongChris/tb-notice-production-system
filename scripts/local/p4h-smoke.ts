@@ -10,15 +10,15 @@
 // a signature, notice adoption, readiness or permission to send; nothing is exported, signed or
 // sent; port 3000 is released.
 //
-// Flow (every response is checked against the ACTIVE contract TB-SCHEMA-API-v1.4.0 and for
+// Flow (every response is checked against the ACTIVE contract TB-SCHEMA-API-v1.5.0 and for
 // Cache-Control: no-store):
 //   the three assessment operations without a session (401) → login → Agency → Owner,
 //   LegalSubject and their link → Route → Signer → Mandate → version → coverage → coverage signer →
 //   freeze → case A and case B bound to the route, each with its own selection, reported item, work,
 //   mapping and linked source → an INITIAL DRAFTING prompt and a candidate of each → the current
-//   context of case A's prompt scope (its digest names TB-SCHEMA-API-v1.4.0) → a TECHNICAL_PASS run
+//   context of case A's prompt scope (its digest names TB-SCHEMA-API-v1.5.0) → a TECHNICAL_PASS run
 //   of exactly that artifact and digest → capture a G1 PASS citing case A's link at that epoch (201:
-//   the candidate, its stored artifact, the current digest and TB-TECHNICAL-RULESET-v3 recorded,
+//   the candidate, its stored artifact, the current digest and TB-TECHNICAL-RULESET-v4 recorded,
 //   the texts exactly; the candidate and the run unchanged) → the same key again (the stored
 //   assessment, nothing new) → the same key with another body (409) → a wrong artifact (412
 //   ARTIFACT_CHANGED), another ruleset (422 RULESET_NOT_CURRENT), case B's link (422
@@ -51,7 +51,7 @@ import { assertLocalTarget } from '../db/allowlist.mjs';
 import { loadRootEnv } from '../db/lib/targets.mjs';
 
 const API = 'http://127.0.0.1:3000/api/v1';
-const RULESET = 'TB-TECHNICAL-RULESET-v3';
+const RULESET = 'TB-TECHNICAL-RULESET-v4';
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 let api: ChildProcess | undefined;
 let exited = false;
@@ -234,8 +234,8 @@ async function main(): Promise<void> {
   if (!existsSync(entry)) fail('compiled API missing; run yarn build first');
   if (await listening(3000)) fail('port 3000 is already in use');
   const contracts = await import('../../packages/contracts/dist/index.js');
-  if (contracts.CONTRACT_BASELINE !== 'TB-SCHEMA-API-v1.4.0') {
-    fail(`the active contract must be TB-SCHEMA-API-v1.4.0 (got ${contracts.CONTRACT_BASELINE})`);
+  if (contracts.CONTRACT_BASELINE !== 'TB-SCHEMA-API-v1.5.0') {
+    fail(`the active contract must be TB-SCHEMA-API-v1.5.0 (got ${contracts.CONTRACT_BASELINE})`);
   }
   // The frozen reference helper (read-only): the independent oracle of the digest definition.
   const frozen = (await import(
@@ -644,7 +644,7 @@ async function main(): Promise<void> {
   }
   const digestV2 = frozen.canonicalSha256({
     algorithm: 'TB-PRODUCTION-CONTEXT-DIGEST-v2',
-    contract: 'TB-SCHEMA-API-v1.4.0',
+    contract: 'TB-SCHEMA-API-v1.5.0',
     schemaVersion: 'PFC-YT-EMAIL-v1.1',
     scope: {
       caseId: caseA.id,
@@ -663,17 +663,17 @@ async function main(): Promise<void> {
     ).map(({ entityType, entityId, fingerprint }) => ({ entityType, entityId, fingerprint })),
   });
   if (digestV2 !== readA1.dependencyDigest) {
-    fail('the current digest must be TB-PRODUCTION-CONTEXT-DIGEST-v2 naming TB-SCHEMA-API-v1.4.0');
+    fail('the current digest must be TB-PRODUCTION-CONTEXT-DIGEST-v2 naming TB-SCHEMA-API-v1.5.0');
   }
   pass(
-    'the current digest is TB-PRODUCTION-CONTEXT-DIGEST-v2 of the closure and scope under the active contract TB-SCHEMA-API-v1.4.0 (rebuilt with the frozen helper)',
+    'the current digest is TB-PRODUCTION-CONTEXT-DIGEST-v2 of the closure and scope under the active contract TB-SCHEMA-API-v1.5.0 (rebuilt with the frozen helper)',
   );
   const run1 = await validate(candidateA, readA1.dependencyDigest, 'case A, epoch 1');
   if (run1.result !== 'TECHNICAL_PASS' || run1.rulesetVersion !== RULESET) {
-    fail('case A’s clean candidate must be a TECHNICAL_PASS under TB-TECHNICAL-RULESET-v3');
+    fail('case A’s clean candidate must be a TECHNICAL_PASS under TB-TECHNICAL-RULESET-v4');
   }
   pass(
-    'a TECHNICAL_PASS run of exactly the candidate artifact and the current digest (ruleset v3)',
+    'a TECHNICAL_PASS run of exactly the candidate artifact and the current digest (ruleset v4)',
   );
   const run1Stored = await readRun(run1.id, 'epoch 1 run before any assessment');
   const candidateAStored = await readCandidate(candidateA.id, 'case A before any assessment');
@@ -771,7 +771,7 @@ async function main(): Promise<void> {
     fail('the capture must record exactly the review at the epoch the server derived');
   }
   pass(
-    'capture: the G1 PASS is recorded exactly (texts byte-identical, no default filled in) at the epoch (candidate, stored artifact, current digest, TB-TECHNICAL-RULESET-v3)',
+    'capture: the G1 PASS is recorded exactly (texts byte-identical, no default filled in) at the epoch (candidate, stored artifact, current digest, TB-TECHNICAL-RULESET-v4)',
   );
   expectWrites('the first capture', beforeFirst, await rowCounts(), {
     candidate_assessments: 1,

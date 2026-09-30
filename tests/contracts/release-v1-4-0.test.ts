@@ -14,7 +14,6 @@ import { isDeepStrictEqual } from 'node:util';
 import { describe, expect, it } from 'vitest';
 import {
   apiSchemaCatalog,
-  buildContractArtifacts,
   CONTRACT_BASELINE,
   FROZEN_REFERENCE_RELEASE,
   operations,
@@ -29,7 +28,6 @@ import {
   frozenOpenApiRaw,
   operationKeys,
   readAmendment,
-  releaseBaseline,
   releaseDocuments,
   renderDocuments,
   RELEASES,
@@ -48,11 +46,11 @@ const AMENDMENT_SHA256 = 'fb6b14a9781980f06ab7d1e41952feb478ee37f4df9df54f09d2fe
 
 const amendment = readAmendment(RELEASE);
 const previous = readAmendment('TB-SCHEMA-API-v1.3.0');
-const baseline = releaseBaseline();
+const baseline = releaseDocuments(RELEASE);
 const v110 = releaseDocuments('TB-SCHEMA-API-v1.1.0');
 const v120 = releaseDocuments('TB-SCHEMA-API-v1.2.0');
 const v130 = releaseDocuments('TB-SCHEMA-API-v1.3.0');
-const { jsonSchemaBundle, openApi } = buildContractArtifacts();
+const { bundle: jsonSchemaBundle, openApi } = baseline;
 const frozenBundle = JSON.parse(frozenBundleRaw()) as JsonObject;
 const frozenOpenApi = JSON.parse(frozenOpenApiRaw()) as JsonObject;
 const frozenDefs = frozenBundle['$defs'] as JsonObject;
@@ -80,7 +78,7 @@ describe('TB-SCHEMA-API-v1.4.0 release record', () => {
 
   it('extends exactly the accepted TB-SCHEMA-API-v1.3.0: its record and its documents, reproduced to their recorded digests', () => {
     const base = amendment.base as ReleaseBase;
-    expect(RELEASES).toEqual([
+    expect(RELEASES.slice(0, RELEASES.indexOf(RELEASE) + 1)).toEqual([
       'TB-SCHEMA-API-v1.1.0',
       'TB-SCHEMA-API-v1.2.0',
       'TB-SCHEMA-API-v1.3.0',
@@ -114,8 +112,8 @@ describe('TB-SCHEMA-API-v1.4.0 release record', () => {
   });
 
   it('the package names the active release and the frozen release it extends', () => {
-    expect(ACTIVE_RELEASE).toBe(RELEASE);
-    expect(CONTRACT_BASELINE).toBe(amendment.release);
+    expect(RELEASES).toContain(RELEASE);
+    expect(CONTRACT_BASELINE).toBe(ACTIVE_RELEASE);
     expect(FROZEN_REFERENCE_RELEASE).toBe('TB-SCHEMA-API-v1.0.0');
     expect((openApi['info'] as JsonObject)['version']).toBe(amendment.openApiInfoVersion.to);
     // Unrelated identifiers stay exactly as they were.
@@ -144,7 +142,7 @@ describe('frozen v1.0.0 + v1.1.0 + v1.2.0 + v1.3.0 + v1.4.0 reproduces the gener
     expect(isDeepStrictEqual(openApi, baseline.openApi)).toBe(true);
   });
 
-  it('the committed artifacts (JSON and YAML) are the rendered release and have its digests', () => {
+  it('the historical artifacts (JSON and YAML) reproduce the accepted release digests', () => {
     const rendered = renderDocuments(baseline);
     expect(Object.keys(rendered)).toEqual(Object.keys(amendment.result.files));
     expect(amendment.result.files).toEqual({
@@ -156,9 +154,7 @@ describe('frozen v1.0.0 + v1.1.0 + v1.2.0 + v1.3.0 + v1.4.0 reproduces the gener
         'e22ec29ea67aa481cfa8762e295bcf67a80a6265f4bf460ff60b16b86868c149',
     });
     for (const [file, digest] of Object.entries(amendment.result.files)) {
-      const committed = readFileSync(path.join(repoRoot, file), 'utf8');
-      expect(committed === rendered[file], `${file} is the rendered release`).toBe(true);
-      expect(sha256(committed), file).toBe(digest);
+      expect(sha256(rendered[file] as string), file).toBe(digest);
     }
     expect(Object.keys(generatedDefs)).toHaveLength(amendment.result.schemaCount);
     expect(amendment.result.schemaCount).toBe(291);

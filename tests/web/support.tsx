@@ -1032,6 +1032,31 @@ export class FakeDirectory {
     return issues.length === 0 ? null : failure(422, 'VALIDATION_FAILED', { issues });
   }
 
+  private matchesView(kind: Kind, row: Row, url: URL): boolean {
+    const view = url.searchParams.get('view') ?? 'all';
+    if (view === 'all') return true;
+    let operational = true;
+    if (kind === 'LegalSubject') operational = row['recordState'] !== 'ARCHIVED';
+    if (kind === 'Mandate') operational = row['archivedAt'] === null;
+    if (kind === 'OwnerSubject' || kind === 'Route') {
+      const link =
+        kind === 'Route' ? this.rows.OwnerSubject.get(String(row['ownerSubjectId'])) : row;
+      const subject = this.rows.LegalSubject.get(String(link?.['legalSubjectId']));
+      operational =
+        link?.['linkState'] === 'LINKED' &&
+        subject?.['recordState'] !== 'ARCHIVED' &&
+        subject?.['subjectType'] === 'INDIVIDUAL';
+      if (kind === 'Route')
+        operational =
+          operational &&
+          row['linkState'] === 'LINKED' &&
+          row['archivedAt'] === null &&
+          this.rows.Owner.get(String(link?.['ownerId']))?.['recordState'] !== 'ARCHIVED' &&
+          this.rows.Agency.get(String(row['agencyId']))?.['recordState'] !== 'ARCHIVED';
+    }
+    return view === 'operational' ? operational : !operational;
+  }
+
   private list(kind: Kind, url: URL, rows?: Row[]): Response | Promise<Response> {
     if (this.failLists) return failure(500, 'INTERNAL_ERROR');
     const q = url.searchParams.get('q')?.toLowerCase();
@@ -1041,7 +1066,8 @@ export class FakeDirectory {
     const all = (rows ?? [...this.rows[kind].values()]).filter(
       (row) =>
         (!q || JSON.stringify(row).toLowerCase().includes(q)) &&
-        (!agencyId || row['agencyId'] === agencyId),
+        (!agencyId || row['agencyId'] === agencyId) &&
+        this.matchesView(kind, row, url),
     );
     const items = all.slice(start, start + limit);
     const nextCursor = start + limit < all.length ? `c${start + limit}` : null;
@@ -1085,11 +1111,7 @@ export class FakeDirectory {
       const items = [...this.rows.OwnerSubject.values()].filter(
         (row) => row['ownerId'] === ownerId,
       );
-      void url;
-      return json(200, {
-        data: { items, nextCursor: null },
-        meta: { requestId: 'r', affectedResources: [] },
-      });
+      return this.list('OwnerSubject', url, items) as Response;
     }
     const precondition = this.precondition('Owner', owner, headers);
     if (precondition) return precondition;
@@ -1588,7 +1610,7 @@ export class FakeDirectory {
       dependencyDigest: view['dependencyDigest'],
       dependencyManifest: view['dependencies'],
       evaluatedContextJson: view['context'],
-      rulesetVersion: 'TB-TECHNICAL-RULESET-v3',
+      rulesetVersion: 'TB-TECHNICAL-RULESET-v4',
       result: outcome.result,
       coverageManifest: outcome.coverageManifest,
       blockerCount: count('BLOCKER'),
@@ -1745,7 +1767,7 @@ export class FakeDirectory {
       result: 'HOLD',
       artifactSha256: candidate['artifactSha256'],
       dependencyDigest: 'd'.repeat(64),
-      rulesetVersion: 'TB-TECHNICAL-RULESET-v3',
+      rulesetVersion: 'TB-TECHNICAL-RULESET-v4',
       scopeState: 'RECORDED_NOT_ADOPTED',
       performerKind: 'HUMAN',
       performerLabel: 'SYNTHETIC Reviewer',
@@ -3216,7 +3238,7 @@ export class FakeDirectory {
 
 /** SHA-256 (hex) of the UTF-8 bytes of a text, as the server computes a captured body's digest. */
 /**
- * The 29 rules of TB-TECHNICAL-RULESET-v3 — the inventory of v1 and v2, unchanged (the API tests pin
+ * The 29 rules of TB-TECHNICAL-RULESET-v4 — the inventory of v1 and v2, unchanged (the API tests pin
  * it).
  */
 export const TECHNICAL_RULE_IDS = [
@@ -3300,7 +3322,7 @@ const RUN_SUMMARY_FIELDS = [
 ] as const;
 
 /** The technical ruleset the server runs now (a new assessment binds exactly this one). */
-const CURRENT_RULESET = 'TB-TECHNICAL-RULESET-v3';
+const CURRENT_RULESET = 'TB-TECHNICAL-RULESET-v4';
 
 /** The fields listCandidateAssessments' `q` matches exactly (never a text search). */
 const ASSESSMENT_Q_FIELDS = [

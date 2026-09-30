@@ -332,6 +332,7 @@ describe('OpenAPI parity (the 141 frozen operations + getCaseAuthoritySelection 
       ['1.1.0', '1.2.0'],
       ['1.2.0', '1.3.0'],
       ['1.3.0', '1.4.0'],
+      ['1.4.0', '1.5.0'],
     ]);
     for (const key of ['tags', 'security']) expect(openApi[key], key).toEqual(frozenOpenApi[key]);
     const components = openApi['components'] as JsonObject;
@@ -367,7 +368,9 @@ describe('OpenAPI parity (the 141 frozen operations + getCaseAuthoritySelection 
       'get /validation-runs/{id}',
       'get /candidates/{candidateId}/assessments/{id}/sources',
     ]);
-    for (const [index, amendment] of amendments.entries()) {
+    for (const [index, amendment] of amendments
+      .filter((a) => Object.keys(a.operations.added).length > 0)
+      .entries()) {
       const route = (added[index] as string).replace(/^get /, '');
       expect(generatedOps.get(added[index] as string), amendment.release).toEqual(
         (amendment.operations.added[route] ?? {})['get'],
@@ -392,7 +395,12 @@ describe('OpenAPI parity (the 141 frozen operations + getCaseAuthoritySelection 
         'x-precondition-target',
         'x-idempotent-write',
       ]) {
-        expect(g[key], key).toEqual(f[key]);
+        const additions = amendments.flatMap((a) => a.queryParameters?.[frozen.route] ?? []);
+        expect(g[key], key).toEqual(
+          key === 'parameters' && frozen.method === 'get'
+            ? [...additions, ...(f[key] as Json[])]
+            : f[key],
+        );
       }
       const gResponses = g['responses'] as JsonObject;
       const fResponses = f['responses'] as JsonObject;

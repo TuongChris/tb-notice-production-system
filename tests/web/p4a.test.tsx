@@ -61,10 +61,16 @@ function world(api: FakeDirectory) {
   const agency = api.seed('Agency', { displayName: 'SYNTHETIC Agency' });
   const other = api.seed('Agency', { displayName: 'SYNTHETIC Other Agency' });
   const owner = api.seed('Owner', { displayName: 'SYNTHETIC Brand' });
-  const subject = api.seed('LegalSubject', { legalName: 'SYNTHETIC Subject LLC' });
+  const subject = api.seed('LegalSubject', {
+    legalName: 'SYNTHETIC Subject LLC',
+    subjectType: 'INDIVIDUAL',
+  });
   const link = api.seed('OwnerSubject', { ownerId: owner.id, legalSubjectId: subject.id });
   const route = api.seed('Route', { agencyId: agency.id, ownerSubjectId: link.id });
-  const secondSubject = api.seed('LegalSubject', { legalName: 'SYNTHETIC Second Subject' });
+  const secondSubject = api.seed('LegalSubject', {
+    legalName: 'SYNTHETIC Second Subject',
+    subjectType: 'INDIVIDUAL',
+  });
   const secondLink = api.seed('OwnerSubject', {
     ownerId: owner.id,
     legalSubjectId: secondSubject.id,
@@ -76,7 +82,10 @@ function world(api: FakeDirectory) {
   });
   const otherLink = api.seed('OwnerSubject', {
     ownerId: owner.id,
-    legalSubjectId: api.seed('LegalSubject', { legalName: 'SYNTHETIC Other Subject' }).id,
+    legalSubjectId: api.seed('LegalSubject', {
+      legalName: 'SYNTHETIC Other Subject',
+      subjectType: 'INDIVIDUAL',
+    }).id,
   });
   const otherRoute = api.seed('Route', { agencyId: other.id, ownerSubjectId: otherLink.id });
   const signer = api.seed('Signer', { agencyId: agency.id, fullLegalName: 'SYNTHETIC Signer' });
@@ -248,14 +257,13 @@ describe('P4A cases UI', () => {
     expect(bodies(api, 'POST', '/api/v1/cases')).toHaveLength(0);
     await choose('#case-agencyId', w.agency.id, 'agency');
     await type('#case-intakeLabel', '  SYNTHETIC New intake  ');
-    // Routes of the chosen agency only; a paused route is shown but cannot be chosen.
+    // Routes of the chosen agency only; inactive routes are not offered.
     await waitFor(() => optionValues('#case-routeId').includes(w.route.id), 'routes');
     expect(optionValues('#case-routeId')).not.toContain(w.otherRoute.id);
     const paused = [...((q('#case-routeId') as HTMLSelectElement).options ?? [])].find(
       (option) => option.value === w.pausedRoute.id,
     );
-    expect(paused?.disabled).toBe(true);
-    expect(paused?.textContent).toContain('not available: paused');
+    expect(paused).toBeUndefined();
     await submit(q('form.record-form'));
     await waitFor(() => q('[data-testid="case-detail"]') !== null, 'detail');
     const [created] = bodies(api, 'POST', '/api/v1/cases');
@@ -310,10 +318,8 @@ describe('P4A cases UI', () => {
     expect(document.activeElement?.closest('dialog[open]')).not.toBeNull();
     await waitFor(() => q('dialog[open] input[name="case-route"]') !== null, 'route options');
     const radios = all('dialog[open] input[name="case-route"]') as HTMLInputElement[];
-    expect(radios.map((radio) => radio.value).sort()).toEqual(
-      [w.route.id, w.pausedRoute.id].sort(),
-    );
-    expect(radios.find((radio) => radio.value === w.pausedRoute.id)?.disabled).toBe(true);
+    expect(radios.map((radio) => radio.value).sort()).toEqual([w.route.id]);
+    expect(radios.find((radio) => radio.value === w.pausedRoute.id)).toBeUndefined();
     expect(q('dialog[open]')?.textContent).toContain('Nothing is chosen from matching names.');
     await submit(q('dialog[open] form'));
     await until('Choose the route this case uses.');
@@ -337,7 +343,10 @@ describe('P4A cases UI', () => {
       agencyId: w.agency.id,
       ownerSubjectId: api.seed('OwnerSubject', {
         ownerId: w.owner.id,
-        legalSubjectId: api.seed('LegalSubject', { legalName: 'SYNTHETIC Third Subject' }).id,
+        legalSubjectId: api.seed('LegalSubject', {
+          legalName: 'SYNTHETIC Third Subject',
+          subjectType: 'INDIVIDUAL',
+        }).id,
       }).id,
     });
     api.seedSelection({ caseId: w.bound.id, agencyId: w.agency.id, routeId: w.route.id });

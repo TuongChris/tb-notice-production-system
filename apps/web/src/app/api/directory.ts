@@ -82,6 +82,7 @@ import type {
   NoticeCandidateSummary,
   Owner,
   OwnerSubject,
+  OperationalListView,
   PatchAgency,
   PatchCase,
   PatchCaseWork,
@@ -124,6 +125,8 @@ export interface WriteAuth {
 }
 
 export interface ListQuery {
+  /** Only Routes, LegalSubjects, Mandates and OwnerSubjects. Omitted = all. */
+  readonly view?: OperationalListView;
   readonly q?: string;
   readonly cursor?: string;
   readonly limit?: number;
@@ -179,6 +182,7 @@ export function etagOf(type: string, entity: { readonly id: string; readonly row
 function queryString(query: ListQuery): string {
   const params = new URLSearchParams();
   if (query.q) params.set('q', query.q);
+  if (query.view) params.set('view', query.view);
   if (query.agencyId) params.set('agencyId', query.agencyId);
   if (query.routeId) params.set('routeId', query.routeId);
   if (query.workflowState) params.set('workflowState', query.workflowState);

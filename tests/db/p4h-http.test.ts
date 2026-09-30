@@ -875,7 +875,7 @@ async function issuesOf(runId: string): Promise<ValidationIssue[]> {
 
 // assessments (P4H) -----------------------------------------------------------------------------
 
-const RULESET = 'TB-TECHNICAL-RULESET-v3';
+const RULESET = 'TB-TECHNICAL-RULESET-v4';
 const ALL_RULES = REQUIRED_RULES.map((rule) => rule.id);
 
 const support = (
@@ -2348,7 +2348,7 @@ describe('P4H isolation, history and the version transition', () => {
     const view = await context(p.caseId, scopeOf(p.prompt));
     const v130 = { contract: 'TB-SCHEMA-API-v1.3.0', schemaVersion: PFC_SCHEMA_VERSION };
     const v140 = { contract: CONTRACT_BASELINE, schemaVersion: PFC_SCHEMA_VERSION };
-    expect(CONTRACT_BASELINE).toBe('TB-SCHEMA-API-v1.4.0');
+    expect(CONTRACT_BASELINE).toBe('TB-SCHEMA-API-v1.5.0');
     expect(view.dependencyDigest).toBe(currentV2Digest(v140, scope, view.dependencies));
     const h130 = currentV2Digest(v130, scope, view.dependencies);
     expect(h130).not.toBe(view.dependencyDigest);
@@ -2487,7 +2487,7 @@ describe('P4H isolation, history and the version transition', () => {
     expect(outcome(noRun)).toEqual([422, 'VALIDATION_RUN_REQUIRED']);
     expect(await counts()).toEqual(countsBefore);
 
-    // The current read: a new v3 run, REVIEW_REQUIRED by the version-only drift of the prompt.
+    // The current read: a new v4 run, REVIEW_REQUIRED by the version-only drift of the prompt.
     const { run } = await validate(candidate, oldPrompt);
     expect([run.rulesetVersion, run.result, run.dependencyDigest]).toEqual([
       RULESET,
@@ -2655,7 +2655,7 @@ describe('P4H boundaries — no outbound call, no readiness, no export, no waive
     for (const operationId of assessmentOperations) {
       expect(seen.has(operationId), operationId).toBe(true);
     }
-    expect(CONTRACT_BASELINE).toBe('TB-SCHEMA-API-v1.4.0');
+    expect(CONTRACT_BASELINE).toBe('TB-SCHEMA-API-v1.5.0');
   });
 });
 

@@ -5,7 +5,7 @@
 // consistency tests use. Every response is recorded and checked against the active contract at the
 // end. All data is synthetic (example.invalid addresses only); every test deletes what it created.
 //
-// A ValidationRun records what the technical ruleset TB-TECHNICAL-RULESET-v3 found for one exact
+// A ValidationRun records what the technical ruleset TB-TECHNICAL-RULESET-v4 found for one exact
 // candidate artifact against the current production context of its prompt snapshot's scope: exact
 // bytes and hashes, envelope and thread, document plan, internal markers, recorded gaps and drift —
 // technical checks only. It is never a G1–G6 review, legal approval, readiness, READY_FOR_SIGNER, a
@@ -1053,7 +1053,7 @@ describe('P4G validateCandidate — a technical result for one exact artifact ag
       dependencyDigest: view.dependencyDigest,
       dependencyManifest: view.dependencies,
       evaluatedContextJson: view.context,
-      rulesetVersion: 'TB-TECHNICAL-RULESET-v3',
+      rulesetVersion: 'TB-TECHNICAL-RULESET-v4',
       result: 'TECHNICAL_PASS',
       coverageManifest: {
         requiredRuleIds: ALL_RULES,
@@ -1095,7 +1095,7 @@ describe('P4G validateCandidate — a technical result for one exact artifact ag
       { ...good, result: 'TECHNICAL_PASS' },
       { ...good, rulesetVersion: 'TB-TECHNICAL-RULESET-v1' },
       { ...good, rulesetVersion: 'TB-TECHNICAL-RULESET-v2' },
-      { ...good, rulesetVersion: 'TB-TECHNICAL-RULESET-v3' },
+      { ...good, rulesetVersion: 'TB-TECHNICAL-RULESET-v4' },
     ]) {
       expect(outcome(await validatePost(p.candidate.id, body)), JSON.stringify(body)).toEqual([
         422,
@@ -1846,7 +1846,7 @@ describe('P4G recorded context, preparation, drift and history', () => {
       generationMode: 'DRAFTING',
       artifactSha256: candidate.artifactSha256,
       dependencyDigest: run.dependencyDigest,
-      rulesetVersion: 'TB-TECHNICAL-RULESET-v3',
+      rulesetVersion: 'TB-TECHNICAL-RULESET-v4',
       result: 'REVIEW_REQUIRED',
       issues: {
         total: run.blockerCount + run.reviewRequiredCount + run.warningCount,
@@ -2580,7 +2580,7 @@ describe('R14 getValidationRun — one stored run read back exactly as recorded,
     expect(Object.keys(read).sort()).toEqual([...RUN_FIELDS].sort());
     expect(read.artifactSha256).toBe(p.candidate.artifactSha256);
     expect(read.dependencyDigest).toBe(view.dependencyDigest);
-    expect(read.rulesetVersion).toBe('TB-TECHNICAL-RULESET-v3');
+    expect(read.rulesetVersion).toBe('TB-TECHNICAL-RULESET-v4');
     expect(read.dependencyManifest).toEqual(view.dependencies);
     expect(read.evaluatedContextJson).toEqual(view.context);
     expect(read.result).toBe('TECHNICAL_PASS');
@@ -2696,21 +2696,22 @@ describe('R14 getValidationRun — one stored run read back exactly as recorded,
     expect(review.reviewRequiredCount).toBe(1);
   });
 
-  it('R14-AUD-003, ADR-0010: a new run records TB-TECHNICAL-RULESET-v3 (the audit event too); a run recorded as TB-TECHNICAL-RULESET-v1 or -v2 stays as recorded — read back, listed and replayed exactly, never relabelled or re-executed — and a new validation is a new v3 run', async () => {
+  it('R14-AUD-003, ADR-0010: a new run records TB-TECHNICAL-RULESET-v4 (the audit event too); a run recorded as TB-TECHNICAL-RULESET-v1, -v2 or -v3 stays as recorded — read back, listed and replayed exactly, never relabelled or re-executed — and a new validation is a new v4 run', async () => {
     for (const [label, recordedAs] of [
       ['A', 'TB-TECHNICAL-RULESET-v1'],
       ['B', 'TB-TECHNICAL-RULESET-v2'],
+      ['C', 'TB-TECHNICAL-RULESET-v3'],
     ] as const) {
       // Each ruleset on its own world: the lists below are this candidate's runs only.
       const p = await validationWorld(label);
       const key = newKey();
       const { run, view } = await validate(p.candidate, p.prompt, key);
-      expect(run.rulesetVersion).toBe('TB-TECHNICAL-RULESET-v3');
+      expect(run.rulesetVersion).toBe('TB-TECHNICAL-RULESET-v4');
       const event = await prisma.auditEvent.findFirstOrThrow({
         where: { entityType: 'ValidationRun', entityId: run.id },
       });
       expect((event.afterRedacted as Record<string, unknown>)['rulesetVersion']).toBe(
-        'TB-TECHNICAL-RULESET-v3',
+        'TB-TECHNICAL-RULESET-v4',
       );
       // The row as the earlier code recorded it (set directly in tb_notice_test: the application
       // no longer writes TB-TECHNICAL-RULESET-v1 or -v2).
@@ -2732,15 +2733,15 @@ describe('R14 getValidationRun — one stored run read back exactly as recorded,
       expect(replay).toEqual(historical);
       expect(await countRows(prisma, 'validation_runs')).toBe(runs);
       expect(await issuesOf(run.id)).toEqual(issues);
-      // A new validation executes the current rules and records a new run under v3.
+      // A new validation executes the current rules and records a new run under v4.
       t.clock.advance(1000);
       const next = (await validate(p.candidate, p.prompt)).run;
       expect(next.id).not.toBe(run.id);
-      expect(next.rulesetVersion).toBe('TB-TECHNICAL-RULESET-v3');
+      expect(next.rulesetVersion).toBe('TB-TECHNICAL-RULESET-v4');
       expect(await getRun(run.id)).toEqual(historical);
       const both = await listRuns(p.candidate.id);
       expect(both.items.map((item) => [item.id, item.rulesetVersion])).toEqual([
-        [next.id, 'TB-TECHNICAL-RULESET-v3'],
+        [next.id, 'TB-TECHNICAL-RULESET-v4'],
         [run.id, recordedAs],
       ]);
     }
@@ -2794,7 +2795,7 @@ describe('R14 getValidationRun — one stored run read back exactly as recorded,
     const current = (await validate(p.candidate, p.prompt)).run;
     expect([current.result, current.rulesetVersion, current.dependencyDigest]).toEqual([
       'TECHNICAL_PASS',
-      'TB-TECHNICAL-RULESET-v3',
+      'TB-TECHNICAL-RULESET-v4',
       view.dependencyDigest,
     ]);
     expect(current.coverageManifest.requiredRuleIds).toEqual(ALL_RULES);
@@ -3128,7 +3129,7 @@ describe('P4G boundaries — no outbound call, no later phase, no mutation of a 
     for (const operationId of validationOperations) {
       expect(seen.has(operationId), operationId).toBe(true);
     }
-    expect(CONTRACT_BASELINE).toBe('TB-SCHEMA-API-v1.4.0');
+    expect(CONTRACT_BASELINE).toBe('TB-SCHEMA-API-v1.5.0');
   });
 });
 

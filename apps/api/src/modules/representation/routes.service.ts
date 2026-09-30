@@ -107,10 +107,20 @@ export class RoutesService {
    */
   async list(query: QueryValues): Promise<{ items: RouteView[]; nextCursor: string | null }> {
     const q = searchText(query);
+    // Explicit list projection only, before keyset pagination; no record or guard changes.
+    const view = typeof query['view'] === 'string' ? query['view'] : 'all';
+    const operational = Prisma.sql`r.archived_at IS NULL AND r.link_state = 'LINKED' AND os.link_state = 'LINKED' AND ls.record_state <> 'ARCHIVED' AND ls.subject_type = 'INDIVIDUAL' AND o.record_state <> 'ARCHIVED' AND a.record_state <> 'ARCHIVED'`;
+    const visibility =
+      view === 'operational'
+        ? Prisma.sql`AND (${operational})`
+        : view === 'history'
+          ? Prisma.sql`AND NOT (${operational})`
+          : Prisma.empty;
     const agencyId = typeof query['agencyId'] === 'string' ? query['agencyId'] : null;
     const page = pageRequest(contractOperation('listRoutes'), query, this.cursors, {
       q,
       agencyId,
+      ...(view === 'all' ? {} : { view }),
     });
     const agency = agencyId === null ? Prisma.empty : Prisma.sql`AND r.agency_id = ${agencyId}`;
     const exact =
@@ -132,7 +142,7 @@ export class RoutesService {
         JOIN owners o ON o.id = os.owner_id
         JOIN legal_subjects ls ON ls.id = os.legal_subject_id
         JOIN agencies a ON a.id = r.agency_id
-        WHERE 1 = 1 ${agency} ${match} ${keysetAfter(page.after, 'r')}
+        WHERE 1 = 1 ${agency} ${visibility} ${match} ${keysetAfter(page.after, 'r')}
         ORDER BY r.created_at DESC, r.id DESC ${pageLimit(page)}`,
     );
     const rows = await this.prisma.route.findMany({

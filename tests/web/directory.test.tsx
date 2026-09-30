@@ -349,7 +349,7 @@ describe('P2 directory UI', () => {
     const owner = api.seed('Owner', { displayName: 'SYNTHETIC Brand' });
     const subject = api.seed('LegalSubject', { legalName: 'SYNTHETIC Brand Holdings JSC' });
     api.seed('LegalSubject', { legalName: 'SYNTHETIC Archived Co', recordState: 'ARCHIVED' });
-    await render(api, `/directory/owners/${owner.id}`);
+    await render(api, `/directory/owners/${owner.id}?relationships=all`);
     await waitFor(() => q('[data-testid="no-links"]') !== null, 'no links');
     expect(pageText()).toContain('The owner can stay unlinked until the legal party is known.');
     await waitFor(() => all('input[name="legalSubjectId"]').length === 2, 'choices');
@@ -407,7 +407,10 @@ describe('P2 directory UI', () => {
   it('a known link or signer replaces "Delete draft" with an explained, inert action', async () => {
     const api = new FakeDirectory();
     const owner = api.seed('Owner', { displayName: 'SYNTHETIC Linked Brand' });
-    const subject = api.seed('LegalSubject', { legalName: 'SYNTHETIC Linked Party' });
+    const subject = api.seed('LegalSubject', {
+      legalName: 'SYNTHETIC Linked Party',
+      subjectType: 'INDIVIDUAL',
+    });
     api.seed('OwnerSubject', { ownerId: owner.id, legalSubjectId: subject.id });
     await render(api, `/directory/owners/${owner.id}`);
     await waitFor(() => q('[data-testid="owner-subjects"]') !== null, 'links');
@@ -419,7 +422,7 @@ describe('P2 directory UI', () => {
     // The linked subject can't be chosen again in the picker.
     await waitFor(() => all('input[name="legalSubjectId"]').length === 1, 'choices');
     expect((all('input[name="legalSubjectId"]')[0] as HTMLInputElement).disabled).toBe(true);
-    expect(pageText()).toContain('already linked (change it in the table above)');
+    expect(pageText()).toContain('already linked (use the relationship views above)');
     await click(remove);
     expect(api.writes()).toHaveLength(0);
   });
