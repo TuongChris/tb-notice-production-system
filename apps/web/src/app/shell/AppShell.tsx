@@ -5,9 +5,6 @@ import { useSession } from '../auth/session.js';
 import { LoadingNotice } from '../directory/ui.js';
 import { HealthIndicator } from '../health.js';
 
-/** Future modules, listed for orientation only. None is implemented or reachable yet. */
-export const UNAVAILABLE_MODULES = ['Production'] as const;
-
 /**
  * Protected application shell. Shows only safe application identity (display name and email of
  * the application User) and navigation state. The User is not a Signer.
@@ -71,16 +68,9 @@ export function AppShell({ api }: { api: ApiClient }) {
             <li>
               <NavLink to="/correspondence">Correspondence</NavLink>
             </li>
-            {UNAVAILABLE_MODULES.map((name) => (
-              <li
-                key={name}
-                aria-disabled="true"
-                className="unavailable"
-                data-testid="unavailable-module"
-              >
-                {name} <span className="badge">Not implemented</span>
-              </li>
-            ))}
+            <li>
+              <NavLink to="/production">Production</NavLink>
+            </li>
           </ul>
         </nav>
         <main className="shell-main" id="main" tabIndex={-1}>

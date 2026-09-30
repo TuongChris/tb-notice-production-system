@@ -28,9 +28,17 @@ export function HomePage() {
         evaluated — it is not a G1 decision. <Link to="/correspondence">Correspondence</Link>{' '}
         records captured messages exactly as entered and, on each case, explicit bindings of what a
         message is recorded as for that case. Capturing or binding sends, replies to and contacts
-        nothing. Each case also has a production context: a read-only view of its recorded context
-        for one task. It determines nothing — no G1–G7 decision and no readiness. Prompts, notice
-        candidates and the rest of production are not implemented yet.
+        nothing.
+      </p>
+      <p>
+        <Link to="/production">Production</Link> opens the existing workflow for a case: read its
+        Production Context, generate an immutable Prompt Snapshot, draft outside the application,
+        then import a NoticeCandidate or a revision. On the candidate page, run Technical
+        Validation, record separate G1–G6 reviews and evaluate current Derived Readiness. Prepare an
+        Unsigned Export only when the current result is READY_FOR_SIGNER — ready for authorized
+        human signer review, not approval or permission to send. Technical PASS is not G1–G6 PASS.
+        An application User is not a Signer. G7 remains authorized-human-only and outside the
+        application; this application never signs or sends notices.
       </p>
       <dl>
         <dt>Session</dt>

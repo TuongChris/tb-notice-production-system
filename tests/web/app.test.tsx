@@ -166,7 +166,7 @@ describe('P1 web shell', () => {
     expect(q('[data-testid="login-notice"]')).toBeNull();
   });
 
-  it('signs in and shows the protected shell with safe identity and clearly unavailable modules', async () => {
+  it('signs in and shows the protected shell with safe identity and active production navigation', async () => {
     const api = new FakeApi();
     await renderApp(api, '/login');
     await waitFor(() => q('[data-testid="login-form"]') !== null, 'login form');
@@ -182,13 +182,9 @@ describe('P1 web shell', () => {
 
     expect(text('[data-testid="identity"]')).toBe(`Signed in as Synthetic UI Admin (${EMAIL})`);
     const modules = [...(container?.querySelectorAll('[data-testid="unavailable-module"]') ?? [])];
-    expect(modules.map((item) => item.textContent)).toEqual(['Production Not implemented']);
-    for (const item of modules) {
-      expect(item.getAttribute('aria-disabled')).toBe('true');
-      expect(item.querySelector('a')).toBeNull();
-    }
+    expect(modules).toHaveLength(0);
     // P2: Directory; P3A: Sources and Representation (routes); P4A: Cases; P4C: Correspondence
-    // (captured messages; nothing is sent). Production stays unreachable.
+    // (captured messages; nothing is sent). Production opens the case-scoped workflow.
     const navLinks = [...(container?.querySelectorAll('nav[aria-label="Modules"] a') ?? [])];
     expect(navLinks.map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
       ['Overview', '/'],
@@ -197,6 +193,7 @@ describe('P1 web shell', () => {
       ['Representation', '/representation'],
       ['Cases', '/cases'],
       ['Correspondence', '/correspondence'],
+      ['Production', '/production'],
     ]);
     expect(text('[data-testid="boundary-note"]')).toMatch(/does not make you a Signer/);
     expect(text('[data-testid="boundary-note"]')).toMatch(/signs, adopts or sends nothing/);
