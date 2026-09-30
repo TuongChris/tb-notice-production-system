@@ -244,7 +244,7 @@ Recorded by mission TB_FINAL_ACCEPTANCE_CLOSEOUT_MERGE_AND_POST_MAIN_VERIFICATIO
 
 | Scope | Final status |
 |---|---|
-| P4I | **VERIFIED_COMPLETE_FOR_ACCEPTED_SCOPE** — on `main` since `abc31fc`; its corrections (R14-AUD-015, -016, -019, -020) reach `main` with the closeout merge (PENDING in the repository record) |
+| P4I | **VERIFIED_COMPLETE_FOR_ACCEPTED_SCOPE** — on `main` since `abc31fc`; its corrections (R14-AUD-015, -016, -019, -020) are on `main`: PR #14 merged as `3d44ba0e4ddf5533742fe2bfd19e7b3ee171d91d`; exact post-main CI [36596184655](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36596184655) SUCCESS, both jobs (reconciled 2026-09-30) |
 | Readiness | **VERIFIED_COMPLETE_FOR_ACCEPTED_SCOPE** — derived on every read from the current captured records, never stored |
 | READY_FOR_SIGNER | **DERIVED_ONLY** — "Ready for authorized human signer review"; never G7, a signature, an adoption, legal approval or permission to send |
 | Unsigned Export | **VERIFIED_COMPLETE_FOR_ACCEPTED_SCOPE** — an unsigned text handoff: HUMAN_PENDING, `sendPerformed` false, `externalAction` PROHIBITED |
