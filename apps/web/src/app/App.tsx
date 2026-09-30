@@ -23,6 +23,7 @@ function pagesOf<M extends Record<string, unknown>>(load: () => Promise<M>) {
 }
 
 const agencies = pagesOf(() => import('./directory/agencies.js'));
+const ProductionPage = pagesOf(() => import('./shell/ProductionPage.js'))('ProductionPage');
 const AgencyListPage = agencies('AgencyListPage');
 const NewAgencyPage = agencies('NewAgencyPage');
 const AgencyDetailPage = agencies('AgencyDetailPage');
@@ -140,6 +141,7 @@ export function App({ api }: { api: ApiClient }) {
             <Route element={<RequireSession />}>
               <Route path="/" element={<AppShell api={api} />}>
                 <Route index element={<HomePage />} />
+                <Route path="production" element={<ProductionPage />} />
                 <Route path="directory" element={<DirectoryLayout />}>
                   <Route index element={<Navigate to="agencies" replace />} />
                   <Route path="agencies" element={<AgencyListPage />} />
