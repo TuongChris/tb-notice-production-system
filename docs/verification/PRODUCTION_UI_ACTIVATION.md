@@ -137,3 +137,15 @@ merging remains outside this mission.
 This is UI integration only. No real-case readiness or legal conclusion follows
 from this change. Review the PR and its checks before deciding whether to merge;
 this mission does not merge it.
+
+## Post-merge reconciliation (2026-09-30; later authorized mission)
+
+Mission `TB_PR15_MERGE_POST_MAIN_CLOSEOUT_AND_DOCUMENT_RECONCILIATION` explicitly authorized the merge after exact-head guards. Earlier pre-merge and browser-QA sections remain unchanged historical evidence.
+
+- PR [#15](https://github.com/TuongChris/tb-notice-production-system/pull/15): **MERGED**, `2026-09-30T04:43:17Z`, normal merge commit `02a63920ac19ed75e906355b0a20e1c9321aca2d`.
+- Reviewed head: `b24789870c254553ba5196f11afb472935e6c857`; implementation head: `ce1bc5df1661f058e0468e05ad65b325ce49821e`.
+- Parents: `3d44ba0e4ddf5533742fe2bfd19e7b3ee171d91d` and `b24789870c254553ba5196f11afb472935e6c857`.
+- Tree: `b0a547cff2ec61b61718d904dceb2f21155b77ce`, identical to the reviewed head. Feature branch preserved; no squash, rebase, force or bypass.
+- Exact merge-head main CI [36670110263](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36670110263): **SUCCESS**. Both **Non-DB checks (cold install)** and **Database, seed and smoke (MySQL 8.4.11)** succeeded; required steps inspected separately from pre-merge CI.
+
+PRODUCTION_UI_ACTIVATION = **MERGED_TO_MAIN · POST_MAIN_CI_VERIFIED**. Presentation/navigation only; no case readiness or legal state changed. Existing sandbox browser evidence above is not substituted for the later final-main/operator-runtime readback. See [the reconciliation ledger](final-audit/POST_MERGE_DOCUMENT_RECONCILIATION_2026-09-30.md).

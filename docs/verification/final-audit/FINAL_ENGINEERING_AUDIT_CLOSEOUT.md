@@ -35,8 +35,8 @@ Mission **TB_FINAL_ACCEPTANCE_CLOSEOUT_MERGE_AND_POST_MAIN_VERIFICATION** (opera
 | EXTERNAL_ACTION_STATUS | **PROHIBITED UNTIL ACTUAL G7 AND SEPARATE OPERATOR AUTHORIZATION** (§13) |
 | Second PC | **DEFERRED_BY_OPERATOR** (ADR-0003 unchanged; two-PC acceptance NOT_COMPLETED) (§15) |
 | Code, contract, schema, migration, dependency delta of this closeout | **NONE** — documentation only (§16) |
-| Remediation merge | **PENDING** (§17) |
-| Post-main CI | **PENDING** (§17) |
+| Remediation merge | **MERGED_TO_MAIN** — PR #14, `3d44ba0`, later reconciliation §19 |
+| Post-main CI | **SUCCESS** — 36596184655, both jobs, later reconciliation §19 |
 
 ## 1. Operator final acceptance decision (mission §0)
 
@@ -367,7 +367,9 @@ The review also re-derived the following and found them correct:
 
 After this paragraph was added, `format:check`, `yarn test` and the gate-terminology test were run once more on the final tree (reported with the final report).
 
-## 17. Heads, pull request, merge and post-main CI (mission §23–§29)
+## 17. Historical pre-merge checkpoint (2026-09-29; mission §23–§29)
+
+This section preserves the state before PR #14. Its PENDING values are historical; the later verified merge and CI are in §19.
 
 | Name | Value |
 |---|---|
@@ -384,7 +386,9 @@ After this paragraph was added, `format:check`, `yarn test` and the gate-termino
 
 The pull request, the merge commit, its parents and tree and the post-main CI are observed after this commit. They are reported with the mission's final report and reconciled in the repository by a later mission, as for earlier closeouts. Until then, this record is an accepted independent review of the remediation branch, **not yet proof of merge or `main` integration**.
 
-## 18. Status (maximum claim of this mission)
+## 18. Historical pre-merge status (2026-09-29)
+
+Preserved as originally recorded; current integration status is in §19.
 
 **Before the merge** (this record): FINAL_ENGINEERING_AUDIT = **PASS**; SYSTEM_SETUP_STATUS = **VERIFIED_COMPLETE · ACCEPTED_SINGLE_PC_ENGINEERING_SCOPE**; P4H, P4I, CandidateAssessment, Readiness and Unsigned Export = **VERIFIED_COMPLETE_FOR_ACCEPTED_SCOPE**; remediation merge **PENDING**; post-main CI **PENDING**.
 
@@ -413,3 +417,9 @@ No stronger legal or case-specific claim is authorized.
 - real-case ingestion.
 
 Any later activity is a separately authorized operational, maintenance, backlog, deployment, second-PC or real-case mission.
+
+## 19. Post-merge reconciliation (2026-09-30)
+
+PR #14 merged as `3d44ba0e4ddf5533742fe2bfd19e7b3ee171d91d`; exact post-main CI [36596184655](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36596184655) SUCCESS, both jobs (reconciled 2026-09-30). PR head `ccfd4e83f7d295ceaa420ca2ce09c0438de11baa`, PR-head CI [36594712585](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36594712585) SUCCESS, both jobs. Merged at `2026-09-29T16:13:47Z`.
+
+FINAL_ENGINEERING_AUDIT = **PASS**; SYSTEM_SETUP_STATUS = **VERIFIED_COMPLETE · ACCEPTED_SINGLE_PC_ENGINEERING_SCOPE · MERGED_TO_MAIN**. This records integration, not a new or broader audit. All coverage limits, backlog, owner/case boundaries and human-only G7 above remain unchanged. See [the reconciliation ledger](POST_MERGE_DOCUMENT_RECONCILIATION_2026-09-30.md) for PR #15 and evidence.

@@ -2,6 +2,10 @@
 
 Read this first in every session. It summarizes binding decisions; the documents it points to are authoritative.
 
+## Current handoff (reconciled 2026-09-30)
+
+PR #14 merged (`3d44ba0`, post-main CI 36596184655 SUCCESS). PR #15 merged (`02a63920ac19ed75e906355b0a20e1c9321aca2d`, post-main CI 36670110263 SUCCESS, both jobs). Production navigation and the implemented workflow copy are active. SYSTEM_SETUP_STATUS = **VERIFIED_COMPLETE · ACCEPTED_SINGLE_PC_ENGINEERING_SCOPE · MERGED_TO_MAIN**. Read [CURRENT_STATE](docs/CURRENT_STATE.md) and [the dated ledger](docs/verification/final-audit/POST_MERGE_DOCUMENT_RECONCILIATION_2026-09-30.md) before relying on older mission checkpoints. This handoff does not authorize real-case ingestion, a second PC, deployment, G7, signing or sending.
+
 ## Product boundary
 
 - Internal, local-first tool that prepares a case-specific **unsigned** YouTube copyright notice or NMI reply from structured facts and attributable sources.
@@ -503,7 +507,7 @@ Before any commit: `yarn reference:check && yarn contracts:check && yarn typeche
     - the auditor re-ran no CI, test suite, application or database; its artifacts (ZIP sha256 `be44b598…35e2`) are outside the repository;
     - two new LOW, non-blocking findings: R14-AUD-021 (= AUD018-RED-01) and R14-AUD-022;
   - the final engineering acceptance — mission TB_FINAL_ACCEPTANCE_CLOSEOUT_MERGE_AND_POST_MAIN_VERIFICATION (operator, 2026-09-29; documentation only; `docs/verification/final-audit/FINAL_ENGINEERING_AUDIT_CLOSEOUT.md`):
-    - **FINAL_ENGINEERING_AUDIT = PASS**; **SYSTEM_SETUP_STATUS = VERIFIED_COMPLETE · ACCEPTED_SINGLE_PC_ENGINEERING_SCOPE** (· MERGED_TO_MAIN only after a green post-main CI of the closeout merge); current final-closeout blockers NONE IN REVIEWED SCOPE;
+    - **FINAL_ENGINEERING_AUDIT = PASS**; **SYSTEM_SETUP_STATUS = VERIFIED_COMPLETE · ACCEPTED_SINGLE_PC_ENGINEERING_SCOPE** (· MERGED_TO_MAIN verified later: PR #14, post-main CI 36596184655 SUCCESS; reconciliation 2026-09-30); current final-closeout blockers NONE IN REVIEWED SCOPE;
     - R14-AUD-005, -006 and -015 … -020 **CLOSED_VERIFIED_WITH_LIMITS**; P4H, P4I, CandidateAssessment, Readiness and the Unsigned Export **VERIFIED_COMPLETE_FOR_ACCEPTED_SCOPE**; ADR-0008 … ADR-0011 **ACCEPTED**;
     - REV-FINAL-04 **ACCEPTED_FOR_CURRENT_MODEL**; NMI ask-set completeness **ACCEPTABLE_HUMAN_G6_RESPONSIBILITY**;
     - `TB-SCHEMA-API-v1.4.0`, `TB-TECHNICAL-RULESET-v3` and `TB-PRODUCTION-CONTEXT-DIGEST-v2` **ACCEPTED / ACTIVE**; `TB-PROMPT-TEMPLATE-v1`, `TB-CANDIDATE-ARTIFACT-v1` and `PFC-YT-EMAIL-v1.1` **ACTIVE**; no identifier bumped;
@@ -526,7 +530,7 @@ Before any commit: `yarn reference:check && yarn contracts:check && yarn typeche
     - REV-P4I-02; two assessment heads of one gate at one epoch stay CONFLICT; D-6 deferred;
     - W-2, W-3, O-1, O-3; REV-FINAL-02, -03, -05, -06;
     - the U+2800 observation; the remaining `.table-frame` scope;
-  - the pull request, the normal merge commit and the post-main CI are authorized by that mission and reported with its final report; the repository record keeps them PENDING until a later reconciliation;
+  - later reconciliation (2026-09-30): PR #14 merged as `3d44ba0e4ddf5533742fe2bfd19e7b3ee171d91d`; exact post-main CI [36596184655](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36596184655) SUCCESS, both jobs (reconciled 2026-09-30);
   - next: **none for engineering feature development**. The R14-AUD-021/-022 remediation, `getMeta`, the second-PC reproduction, deployment and real-case ingestion each need a separately authorized mission.
 - Stop and ask on: missing credentials/permissions, a package incompatibility needing an architecture change, any domain-semantic conflict, an unsafe or unrecognized database target, or any destructive plan.
 - Forbidden substitutions: MariaDB/SQLite/Postgres servers; `db push`; Zod built-in format validators or `z.toJSONSchema` for wire contracts; hand-edited generated contracts; Python in app/CI; Yarn Classic/PnP, npm or pnpm installs; binding services to `0.0.0.0`; writable readiness/signature fields.

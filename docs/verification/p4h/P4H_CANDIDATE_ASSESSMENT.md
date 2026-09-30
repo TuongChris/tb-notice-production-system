@@ -302,7 +302,7 @@ Recorded by mission TB_FINAL_ACCEPTANCE_CLOSEOUT_MERGE_AND_POST_MAIN_VERIFICATIO
 
 | Scope | Final status |
 |---|---|
-| P4H | **VERIFIED_COMPLETE_FOR_ACCEPTED_SCOPE** — its implementation has been on `main` since `19a7cb2`; the R14-AUD-017 correction of its page reaches `main` with the closeout merge (PENDING in the repository record) |
+| P4H | **VERIFIED_COMPLETE_FOR_ACCEPTED_SCOPE** — its implementation has been on `main` since `19a7cb2`; the R14-AUD-017 correction of its page is on `main`: PR #14 merged as `3d44ba0e4ddf5533742fe2bfd19e7b3ee171d91d`; exact post-main CI [36596184655](https://github.com/TuongChris/tb-notice-production-system/actions/runs/36596184655) SUCCESS, both jobs (reconciled 2026-09-30) |
 | CandidateAssessment | **VERIFIED_COMPLETE_FOR_ACCEPTED_SCOPE** (earlier IMPLEMENTED_FOR_CAPTURE_AND_HISTORY) — still never readiness, READY_FOR_SIGNER, G7, a signature, legal approval or permission to send |
 | R14-AUD-005 | **CLOSED_VERIFIED_WITH_LIMITS** — Model A closed at `3d43268`; the plan-source closure non-waivable |
 | R14-AUD-006 | **CLOSED_VERIFIED_WITH_LIMITS** — the exact historical 1–100 AssessmentSource read-back; storage sufficient |
